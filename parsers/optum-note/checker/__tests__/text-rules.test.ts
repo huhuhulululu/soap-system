@@ -4,7 +4,7 @@
  * Tests for semantic consistency validation in SOAP notes
  */
 
-import { describe, it, expect } from 'vitest'
+// Jest globals: describe, it, expect are available globally
 import type {
   VisitRecord,
   Subjective,

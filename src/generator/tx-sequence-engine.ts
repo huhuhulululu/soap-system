@@ -793,10 +793,39 @@ export function generateTXSequenceStates(
     const generalCondition = fixedGeneralCondition
     const treatmentFocus = pickSingle('assessment.treatmentPrinciples.focusOn', ruleContext, progress, rng, 'focus')
 
-    // --- Tightness grading: 使用 pickSingle 后加纵向单调约束 ---
-    let tightnessGrading = pickSingle('objective.muscleTesting.tightness.gradingScale', ruleContext, progress, rng, 'moderate')
-    // 纵向约束: tightnessGrading 不允许比上一次更差
+    // --- Tightness grading: S→O 链约束 + 纵向单调约束 ---
+    // S→O chain validation: tightness grade correlates with BOTH pain level AND progress
+    // (镜像 tenderness 的逻辑 - 遵循 soap-generator 规范)
+    // High pain (8-10) -> moderate to severe / severe
+    // Moderate pain (5-7) -> moderate / moderate to severe
+    // Low pain (0-4) -> mild / mild to moderate / moderate
     const TIGHTNESS_ORDER = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+    let targetTightnessGrade: string
+    if (painScaleCurrent >= 8) {
+      // High pain: moderate to severe or severe
+      targetTightnessGrade = rng() > 0.4 ? 'Severe' : 'Moderate to severe'
+    } else if (painScaleCurrent >= 5) {
+      // Moderate pain: moderate or moderate to severe, with progress influence
+      if (progress >= 0.75) {
+        targetTightnessGrade = 'Moderate'
+      } else if (progress >= 0.45) {
+        targetTightnessGrade = rng() > 0.5 ? 'Moderate' : 'Moderate to severe'
+      } else {
+        targetTightnessGrade = 'Moderate to severe'
+      }
+    } else {
+      // Low pain (0-4): mild, mild to moderate, or moderate
+      if (progress >= 0.75) {
+        targetTightnessGrade = 'Mild'
+      } else if (progress >= 0.45) {
+        targetTightnessGrade = rng() > 0.5 ? 'Mild' : 'Mild to moderate'
+      } else {
+        targetTightnessGrade = 'Mild to moderate'
+      }
+    }
+
+    let tightnessGrading = targetTightnessGrade
+    // 纵向约束: tightnessGrading 不允许比上一次更差
     if (prevTightnessGrading !== '') {
       const prevIdx = TIGHTNESS_ORDER.indexOf(prevTightnessGrading.toLowerCase())
       const curIdx = TIGHTNESS_ORDER.indexOf(tightnessGrading.toLowerCase())
