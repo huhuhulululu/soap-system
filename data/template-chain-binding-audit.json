@@ -1,0 +1,282 @@
+[
+  {
+    "fieldPath": "assessment.generalCondition",
+    "count": 5,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.tcmDiagnosis.localPattern",
+    "count": 8,
+    "inConditions": true,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.tcmDiagnosis.systemicPattern",
+    "count": 8,
+    "inConditions": true,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.treatmentPrinciples.focusOn",
+    "count": 13,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.muscleTesting.muscles",
+    "count": 23,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.muscleTesting.tenderness.gradingScale",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.muscleTesting.tightness.gradingScale",
+    "count": 7,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.rom.degrees",
+    "count": 32,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "objective.rom.strength",
+    "count": 33,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "objective.tonguePulse.pulse",
+    "count": 20,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.tonguePulse.tongue",
+    "count": 39,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "plan.evaluationType",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "plan.needleProtocol.electricalStimulation",
+    "count": 43,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "plan.needleProtocol.points",
+    "count": 60,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "plan.needleProtocol.totalTime",
+    "count": 14,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "plan.shortTermGoal.treatmentFrequency",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.adlDifficulty.activities",
+    "count": 34,
+    "inConditions": true,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.adlDifficulty.level",
+    "count": 32,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.associatedSymptoms",
+    "count": 29,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.causativeFactors",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.chronicityLevel",
+    "count": 7,
+    "inConditions": true,
+    "inEffects": false,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.exacerbatingFactors",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.painFrequency",
+    "count": 13,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.painRadiation",
+    "count": 11,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "subjective.painScale",
+    "count": 9,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "subjective.painScale.best",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "subjective.painScale.current",
+    "count": 24,
+    "inConditions": true,
+    "inEffects": false,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.painScale.worst",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": false,
+    "excluded": true,
+    "status": "EXCLUDED"
+  },
+  {
+    "fieldPath": "subjective.painTypes",
+    "count": 13,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.reason",
+    "count": 5,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.reasonConnector",
+    "count": 5,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.relievingFactors",
+    "count": 8,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.symptomChange",
+    "count": 5,
+    "inConditions": true,
+    "inEffects": false,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.symptomDuration.unit",
+    "count": 16,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.symptomDuration.value",
+    "count": 71,
+    "inConditions": false,
+    "inEffects": true,
+    "excluded": false,
+    "status": "OK"
+  }
+]

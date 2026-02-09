@@ -1,0 +1,142 @@
+[
+  {
+    "fieldPath": "subjective.painTypes",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.causativeFactors",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.exacerbatingFactors",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.adlDifficulty.level",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.adlDifficulty.activities",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.painFrequency",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "subjective.symptomDuration.unit",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.muscleTesting.muscles",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.muscleTesting.tightness.gradingScale",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.muscleTesting.tenderness.gradingScale",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.tonguePulse.tongue",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "objective.tonguePulse.pulse",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.tcmDiagnosis.localPattern",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.tcmDiagnosis.systemicPattern",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.treatmentPrinciples.focusOn",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "assessment.generalCondition",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "plan.shortTermGoal.treatmentFrequency",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "plan.needleProtocol.points",
+    "mode": "rule",
+    "inTemplate": true,
+    "hasRuleCoverage": true,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "plan.needleProtocol.electricalStimulation",
+    "mode": "policy",
+    "inTemplate": true,
+    "hasRuleCoverage": false,
+    "status": "OK"
+  },
+  {
+    "fieldPath": "plan.needleProtocol.totalTime",
+    "mode": "policy",
+    "inTemplate": true,
+    "hasRuleCoverage": false,
+    "status": "OK"
+  }
+]

@@ -1,0 +1,2186 @@
+/**
+ * SOAP 笔记生成器
+ * 根据上下文生成完整的 SOAP 笔记
+ */
+
+import type {
+  SOAPNote,
+  NoteType,
+  InsuranceType,
+  BodyPart,
+  GenerationContext,
+  Laterality,
+  SeverityLevel
+} from '../types'
+import { TCM_PATTERNS } from '../knowledge/tcm-patterns'
+import { calculateWeights, selectBestOption, selectBestOptions, WeightContext, type WeightedOption } from '../parser/weight-system'
+import { generateTXSequenceStates, type TXSequenceOptions, type TXVisitState } from './tx-sequence-engine'
+
+/**
+ * 保险类型到针刺模板的映射
+ */
+const INSURANCE_NEEDLE_MAP: Record<InsuranceType, '97810' | 'full'> = {
+  'NONE': 'full',
+  'HF': '97810',
+  'OPTUM': '97810',
+  'WC': 'full',
+  'VC': 'full',
+  'ELDERPLAN': 'full'
+}
+
+/**
+ * 身体部位显示名称映射
+ */
+const BODY_PART_NAMES: Record<BodyPart, string> = {
+  'LBP': 'lower back',
+  'NECK': 'neck',
+  'UPPER_BACK': 'upper back',
+  'MIDDLE_BACK': 'middle back',
+  'SHOULDER': 'shoulder',
+  'ELBOW': 'elbow',
+  'WRIST': 'wrist',
+  'HAND': 'hand',
+  'HIP': 'hip',
+  'KNEE': 'knee',
+  'ANKLE': 'ankle',
+  'FOOT': 'foot',
+  'THIGH': 'thigh',
+  'CALF': 'calf',
+  'ARM': 'arm',
+  'FOREARM': 'forearm'
+}
+
+const SUPPORTED_IE_BODY_PARTS = new Set<BodyPart>([
+  'ELBOW',
+  'HIP',
+  'KNEE',
+  'LBP',
+  'NECK',
+  'SHOULDER'
+])
+
+const SUPPORTED_TX_BODY_PARTS = new Set<BodyPart>([
+  'ELBOW',
+  'KNEE',
+  'LBP',
+  'NECK',
+  'SHOULDER'
+])
+
+function assertTemplateSupported(context: GenerationContext): void {
+  const isTX = context.noteType === 'TX'
+  const supported = isTX ? SUPPORTED_TX_BODY_PARTS : SUPPORTED_IE_BODY_PARTS
+  if (supported.has(context.primaryBodyPart)) return
+
+  const allowed = Array.from(supported).join(', ')
+  const mode = isTX ? 'TX' : 'IE'
+  throw new Error(
+    `Unsupported ${mode} body part "${context.primaryBodyPart}". Allowed: ${allowed}.`
+  )
+}
+
+/**
+ * 侧别显示名称
+ */
+const LATERALITY_NAMES: Record<Laterality, string> = {
+  'left': 'left',
+  'right': 'right',
+  'bilateral': 'bilateral',
+  'unspecified': ''
+}
+
+/**
+ * 身体部位对应的肌肉映射 (来自模板 ppnSelectCombo)
+ */
+const MUSCLE_MAP: Record<string, string[]> = {
+  'LBP': ['iliocostalis', 'spinalis', 'longissimus', 'Iliopsoas Muscle', 'Quadratus Lumborum', 'Gluteal Muscles', 'The Multifidus muscles'],
+  'NECK': ['Scalene anterior / med / posterior', 'Levator Scapulae', 'Trapezius', 'sternocleidomastoid muscles', 'Semispinalis capitis', 'Splenius capitis', 'Suboccipital muscles'],
+  'SHOULDER': ['upper trapezius', 'greater tuberosity', 'lesser tuberosity', 'AC joint', 'levator scapula', 'rhomboids', 'middle deltoid', 'deltoid ant fibres', 'bicep long head', 'supraspinatus', 'triceps short head'],
+  'KNEE': ['Gluteus Maximus', 'Gluteus medius / minimus', 'Piriformis muscle', 'Quadratus femoris', 'Adductor longus/ brev/ magnus', 'Iliotibial Band ITB', 'Rectus Femoris', 'Gastronemius muscle', 'Hamstrings muscle group', 'Tibialis Post/ Anterior', 'Plantar Fasciitis', 'Intrinsic Foot Muscle group', 'Achilles Tendon'],
+  'HIP': ['Gluteus Maximus', 'Gluteus Medius', 'Piriformis', 'Iliopsoas', 'TFL', 'Adductors'],
+  'ELBOW': ['Biceps', 'Triceps', 'Brachioradialis', 'Supinator', 'Pronator teres'],
+  'WRIST': ['Flexor carpi radialis', 'Flexor carpi ulnaris', 'Extensor carpi radialis', 'Extensor carpi ulnaris'],
+  'ANKLE': ['Gastrocnemius', 'Soleus', 'Tibialis anterior', 'Peroneus longus/brevis'],
+  'UPPER_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector spinae (thoracic)', 'Latissimus dorsi']
+}
+
+/**
+ * 身体部位对应的 ADL 困难活动 (来自模板 ppnSelectCombo)
+ */
+const ADL_MAP: Record<string, string[]> = {
+  'LBP': ['Standing for long periods of time', 'Walking for long periods of time', 'Bending over to wear/tie a shoe', 'Rising from a chair', 'Getting out of bed', 'Going up and down stairs', 'Lifting objects'],
+  'NECK': ['Sit and watching TV over 20 mins', 'Tilting head to talking the phone', 'Turning the head when crossing the street', 'Looking down watching steps', 'Gargling', 'Driving for long periods'],
+  'SHOULDER': ['holding the pot for cooking', 'performing household chores', 'working long time in front of computer', 'long hours of driving', 'pushing/pulling cart, box, door', 'doing laundry', 'handing/carrying moderate objects', 'put on/take off the clothes', 'reach top of cabinet to get object(s)', 'reach to back to unzip', 'raising up the hand to comb hair', 'touch opposite side shoulder to put coat on', 'abduct arm get the objects from other people', 'adduction arm to put pant on'],
+  'KNEE': ['performing household chores', 'long hours of driving', 'Going up and down stairs', 'Bending over to wear/tie a shoe', 'Rising from a chair', 'Standing for long periods of time', 'Walking for long periods of time', 'Getting out of bed', 'standing for cooking', 'bending knee to sit position', 'bending down put in/out of the shoes'],
+  'HIP': ['Walking for long periods', 'Sitting for long periods', 'Getting in/out of car', 'Climbing stairs', 'Putting on socks/shoes'],
+  'ELBOW': ['Lifting objects', 'Carrying bags', 'Opening doors', 'Typing', 'Writing'],
+  'WRIST': ['Typing', 'Gripping objects', 'Writing', 'Cooking', 'Opening jars'],
+  'ANKLE': ['Walking', 'Running', 'Going up/down stairs', 'Driving', 'Standing on tiptoes'],
+  'UPPER_BACK': ['Sitting for long periods', 'Reaching overhead', 'Carrying bags', 'Deep breathing']
+}
+
+/**
+ * 身体部位对应的加重因素 (来自模板 ppnSelectCombo)
+ */
+const EXACERBATING_FACTORS_MAP: Record<string, string[]> = {
+  'LBP': ['Standing after sitting for long time', 'Prolong walking', 'Bending forward', 'Lifting heavy objects', 'Prolonged sitting'],
+  'NECK': ['Looking down at phone/computer', 'Prolonged sitting', 'Sleeping in wrong position', 'Driving for long periods', 'Mental stress'],
+  'SHOULDER': ['any strenuous activities', 'repetitive motions', 'push the door', 'extension', 'flexion', 'abduction', 'adduction', 'internal rotation', 'external rotation', 'sleep to the side', 'Lifting heavy objects', 'Overhead activities'],
+  'KNEE': ['any strenuous activities', 'repetitive motions', 'poor sleep', 'mental stress', 'extension', 'flexion', 'abduction', 'adduction', 'internal rotation', 'external rotation', 'sleep to the side', 'Standing after sitting for long time', 'Stair climbing', 'Sitting on a low chair', 'Sitting cross leg', 'Prolong walking'],
+  'HIP': ['Prolonged sitting', 'Walking', 'Climbing stairs', 'Getting in/out of car', 'Lying on affected side'],
+  'ELBOW': ['Gripping objects', 'Twisting motions', 'Lifting', 'Typing', 'Repetitive forearm movements'],
+  'WRIST': ['Typing', 'Gripping', 'Twisting motions', 'Lifting', 'Writing for long periods'],
+  'ANKLE': ['Walking on uneven surfaces', 'Running', 'Prolonged standing', 'Going up/down stairs'],
+  'UPPER_BACK': ['Prolonged sitting', 'Poor posture', 'Carrying heavy bags', 'Deep breathing']
+}
+
+/**
+ * 身体部位对应的 ROM 测试项目
+ */
+/**
+ * ROM 运动数据 (v9.0 优化: 增加 difficulty 维度)
+ * difficulty: EASY=大角度简单运动, MEDIUM=标准运动, HARD=小角度/困难运动
+ */
+type ROMDifficulty = 'EASY' | 'MEDIUM' | 'HARD'
+interface ROMMovement { movement: string; normalDegrees: number; difficulty: ROMDifficulty }
+
+const ROM_MAP: Record<string, ROMMovement[]> = {
+  'LBP': [
+    { movement: 'Flexion', normalDegrees: 90, difficulty: 'MEDIUM' },
+    { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
+    { movement: 'Rotation to Right', normalDegrees: 45, difficulty: 'MEDIUM' },
+    { movement: 'Rotation to Left', normalDegrees: 45, difficulty: 'MEDIUM' },
+    { movement: 'Flexion to the Right', normalDegrees: 30, difficulty: 'EASY' },
+    { movement: 'Flexion to the Left', normalDegrees: 30, difficulty: 'EASY' }
+  ],
+  'NECK': [
+    { movement: 'Extension (look up)', normalDegrees: 60, difficulty: 'MEDIUM' },
+    { movement: 'Flexion (look down)', normalDegrees: 50, difficulty: 'EASY' },
+    { movement: 'Rotation to Right (look to right)', normalDegrees: 80, difficulty: 'MEDIUM' },
+    { movement: 'Rotation to Left (look to left)', normalDegrees: 80, difficulty: 'MEDIUM' },
+    { movement: 'Flexion to the Right (bending right)', normalDegrees: 45, difficulty: 'EASY' },
+    { movement: 'Flexion to the Left (bending left)', normalDegrees: 45, difficulty: 'EASY' }
+  ],
+  'SHOULDER': [
+    { movement: 'Abduction', normalDegrees: 180, difficulty: 'HARD' },
+    { movement: 'Horizontal Adduction', normalDegrees: 45, difficulty: 'EASY' },
+    { movement: 'Flexion', normalDegrees: 180, difficulty: 'HARD' },
+    { movement: 'Extension', normalDegrees: 60, difficulty: 'MEDIUM' },
+    { movement: 'External Rotation', normalDegrees: 90, difficulty: 'MEDIUM' },
+    { movement: 'Internal Rotation', normalDegrees: 90, difficulty: 'MEDIUM' }
+  ],
+  'KNEE': [
+    { movement: 'Flexion(fully bent)', normalDegrees: 130, difficulty: 'HARD' },
+    { movement: 'Extension(fully straight)', normalDegrees: 0, difficulty: 'EASY' }
+  ],
+  'HIP': [
+    { movement: 'Flexion', normalDegrees: 120, difficulty: 'MEDIUM' },
+    { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
+    { movement: 'Abduction', normalDegrees: 45, difficulty: 'MEDIUM' },
+    { movement: 'Adduction', normalDegrees: 30, difficulty: 'EASY' },
+    { movement: 'Internal Rotation', normalDegrees: 45, difficulty: 'HARD' },
+    { movement: 'External Rotation', normalDegrees: 45, difficulty: 'MEDIUM' }
+  ],
+  'ELBOW': [
+    { movement: 'Flexion', normalDegrees: 150, difficulty: 'EASY' },
+    { movement: 'Extension', normalDegrees: 0, difficulty: 'EASY' },
+    { movement: 'Supination', normalDegrees: 90, difficulty: 'MEDIUM' },
+    { movement: 'Pronation', normalDegrees: 90, difficulty: 'MEDIUM' }
+  ],
+  'WRIST': [
+    { movement: 'Flexion', normalDegrees: 80, difficulty: 'MEDIUM' },
+    { movement: 'Extension', normalDegrees: 70, difficulty: 'MEDIUM' },
+    { movement: 'Radial Deviation', normalDegrees: 20, difficulty: 'HARD' },
+    { movement: 'Ulnar Deviation', normalDegrees: 30, difficulty: 'HARD' }
+  ],
+  'ANKLE': [
+    { movement: 'Dorsiflexion', normalDegrees: 20, difficulty: 'HARD' },
+    { movement: 'Plantarflexion', normalDegrees: 50, difficulty: 'MEDIUM' },
+    { movement: 'Inversion', normalDegrees: 35, difficulty: 'MEDIUM' },
+    { movement: 'Eversion', normalDegrees: 15, difficulty: 'HARD' }
+  ]
+}
+
+// ==================== v9.0 ROM 计算引擎 ====================
+
+/**
+ * 疼痛→受限因子 (线性插值, 基于 v9.0 并为模板下拉框校准)
+ *
+ * 控制点:
+ *   pain 0  → 1.00
+ *   pain 3  → 0.95
+ *   pain 6  → 0.85
+ *   pain 8  → 0.77
+ *   pain 10 → 0.60
+ *
+ * 使用线性插值消除分段跳变, 使 ±1 pain variation 不会导致 ROM 跳崖
+ */
+function getLimitationFactor(painLevel: number): number {
+  const breakpoints = [
+    { pain: 0, factor: 1.00 },
+    { pain: 3, factor: 0.95 },
+    { pain: 6, factor: 0.85 },
+    { pain: 8, factor: 0.77 },
+    { pain: 10, factor: 0.60 }
+  ]
+  const p = Math.max(0, Math.min(10, painLevel))
+  // 找到所在区间并线性插值
+  for (let i = 0; i < breakpoints.length - 1; i++) {
+    if (p <= breakpoints[i + 1].pain) {
+      const lo = breakpoints[i]
+      const hi = breakpoints[i + 1]
+      const t = (p - lo.pain) / (hi.pain - lo.pain)
+      return lo.factor + t * (hi.factor - lo.factor)
+    }
+  }
+  return breakpoints[breakpoints.length - 1].factor
+}
+
+/**
+ * 难度因子 (来自 v9.0)
+ * EASY=1.0, MEDIUM=0.9, HARD=0.8
+ */
+function getDifficultyFactor(difficulty: ROMDifficulty): number {
+  const factors: Record<ROMDifficulty, number> = { EASY: 1.0, MEDIUM: 0.9, HARD: 0.8 }
+  return factors[difficulty]
+}
+
+/**
+ * 肌力等级循环数组 (来自 v9.0, 按 difficulty 分组)
+ */
+const STRENGTH_GRADES: Record<ROMDifficulty, string[]> = {
+  EASY:   ['5/5',  '5/5',  '5/5',  '4+/5', '4+/5'],
+  MEDIUM: ['4+/5', '4/5',  '4/5',  '4-/5', '4-/5'],
+  HARD:   ['4/5',  '4-/5', '3+/5', '3/5',  '3/5']
+}
+
+function getStrengthByDifficulty(difficulty: ROMDifficulty, index: number): string {
+  const grades = STRENGTH_GRADES[difficulty]
+  return grades[index % grades.length]
+}
+
+/**
+ * 受限程度分级 (来自 v9.0)
+ */
+function calculateLimitation(romValue: number, normalRom: number): string {
+  if (normalRom <= 0) return 'normal'
+  const ratio = romValue / normalRom
+  if (ratio >= 0.90) return 'normal'
+  if (ratio >= 0.75) return 'mild'
+  if (ratio >= 0.50) return 'moderate'
+  return 'severe'
+}
+
+/**
+ * 计算单个运动的 ROM (v9.0 核心公式)
+ * ROM = normalDegrees × limitationFactor(pain) × difficultyFactor
+ * 然后四舍五入到 5 的倍数
+ */
+function calculateRomValue(normalDegrees: number, painLevel: number, difficulty: ROMDifficulty): number {
+  const limitFactor = getLimitationFactor(painLevel)
+  const diffFactor = getDifficultyFactor(difficulty)
+  const raw = normalDegrees * limitFactor * diffFactor
+  return Math.round(raw / 5) * 5  // 四舍五入到 5 的倍数
+}
+
+/**
+ * 身体部位在模板中的区域名称 (来自模板固定文本)
+ */
+const BODY_PART_AREA_NAMES: Record<string, string> = {
+  'LBP': 'lower back',
+  'NECK': 'neck',
+  'SHOULDER': 'shoulder area',
+  'KNEE': 'Knee area',
+  'HIP': 'hip',
+  'ELBOW': 'elbow',
+  'WRIST': 'wrist',
+  'ANKLE': 'ankle'
+}
+
+/**
+ * 关联症状默认值 (来自各模板 ppnSelectCombo)
+ */
+const ASSOCIATED_SYMPTOMS_MAP: Record<string, string[]> = {
+  'SHOULDER': ['soreness'],
+  'KNEE': ['soreness', 'heaviness'],
+  'DEFAULT': ['soreness', 'stiffness']
+}
+
+/**
+ * 症状百分比格式 (来自各模板 ppnSelectCombo)
+ */
+const SYMPTOM_SCALE_MAP: Record<string, string> = {
+  'SHOULDER': '70%',
+  'KNEE': '70%-80%',
+  'DEFAULT': '70%'
+}
+
+/**
+ * 致因连接词 (来自各模板 ppnSelectComboSingle)
+ */
+const CAUSATIVE_CONNECTOR_MAP: Record<string, string> = {
+  'SHOULDER': 'because of',
+  'KNEE': 'due to',
+  'DEFAULT': 'due to'
+}
+
+/**
+ * 疼痛未改善原因 (来自各模板 ppnSelectCombo)
+ */
+const NOT_IMPROVED_MAP: Record<string, string> = {
+  'SHOULDER': 'after a week',
+  'KNEE': 'over-the-counter pain medication',
+  'DEFAULT': 'after a week'
+}
+
+/**
+ * Tenderness 评分量表标签 (来自各模板固定文本)
+ */
+const TENDERNESS_LABEL_MAP: Record<string, string> = {
+  'SHOULDER': 'Grading Scale',
+  'KNEE': 'Tenderness Scale',
+  'DEFAULT': 'Grading Scale'
+}
+
+/**
+ * Tenderness 固定文本 (SHOULDER: "muscles" 复数, KNEE: "muscle" 单数)
+ */
+const TENDERNESS_TEXT_MAP: Record<string, string> = {
+  'SHOULDER': 'Tenderness muscles noted along',
+  'KNEE': 'Tenderness muscle noted along',
+  'LBP': 'Tenderness muscle noted along',
+  'DEFAULT': 'Tenderness muscles noted along'
+}
+
+/**
+ * Tenderness 评分量表内容 (按身体部位，来自各模板 ppnSelectComboSingle)
+ */
+const TENDERNESS_SCALE_MAP: Record<string, Record<string, string>> = {
+  'SHOULDER': {
+    '+4': '(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure',
+    '+3': '(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure',
+    '+2': '(+2) = Patient states that the area is moderately tender',
+    '+1': '(+1)=Patient states that the area is mildly tender-annoying'
+  },
+  'KNEE': {
+    '+4': '(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus',
+    '+3': '(+3) = There is severe tenderness with withdrawal',
+    '+2': '(+2) = There is mild tenderness with grimace and flinch to moderate palpation',
+    '+1': '(+1)= There is mild tenderness to palpation',
+    '0': '(0) = No tenderness'
+  }
+}
+
+/**
+ * Inspection 默认值 (来自各模板 ppnSelectCombo)
+ */
+const INSPECTION_DEFAULT_MAP: Record<string, string> = {
+  'SHOULDER': 'weak muscles and dry skin without luster',
+  'KNEE': 'joint swelling',
+  'DEFAULT': 'weak muscles and dry skin without luster'
+}
+
+/**
+ * 针刺针号 (来自各 needles 模板)
+ */
+const NEEDLE_SIZE_MAP: Record<string, string> = {
+  'SHOULDER': 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  'KNEE': 'Select Needle Size : 34#x1" ,30# x1.5",30# x2"',
+  'LBP': 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+  'NECK': 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  'DEFAULT': 'Select Needle Size: 34#x1", 30# x1.5", 30# x2", 30#x3"'
+}
+
+/**
+ * 治则动词 (来自各模板 ppnSelectCombo)
+ */
+const TREATMENT_VERB_MAP: Record<string, string> = {
+  'SHOULDER': 'emphasize',
+  'KNEE': 'focus',
+  'NECK': 'pay attention',
+  'LBP': 'promote',
+  'DEFAULT': 'promote'
+}
+
+/**
+ * 调和目标 (来自各模板 ppnSelectCombo)
+ */
+const HARMONIZE_MAP: Record<string, string> = {
+  'SHOULDER': 'healthy qi and to expel pathogen factor to promote',
+  'KNEE': 'Liver and Kidney',
+  'DEFAULT': 'yin/yang'
+}
+
+/**
+ * 治疗目的 (来自各模板 ppnSelectCombo)
+ */
+const TREATMENT_PURPOSE_MAP: Record<string, string> = {
+  'SHOULDER': 'to reduce stagnation and improve circulation',
+  'KNEE': 'promote healthy joint and lessen dysfunction in all aspects',
+  'DEFAULT': 'promote good essence'
+}
+
+/**
+ * 舌脉模板映射 (来自 tone/ 文件夹的各模板)
+ * 格式统一为: tongue\n[舌象]\npulse\n[脉象]
+ */
+const TONE_MAP: Record<string, { tongueDefault: string; tongueOptions: string[]; pulseDefault: string; pulseOptions: string[] }> = {
+  // === 局部证型 (来自各 tone 模板) ===
+  'Qi Stagnation': {
+    tongueDefault: 'thin white coat',
+    tongueOptions: ['thin white coat', 'purplish dark', 'purple spots', 'dusk'],
+    pulseDefault: 'string-taut',
+    pulseOptions: ['string-taut']
+  },
+  'Liver Qi Stagnation': {
+    tongueDefault: 'thin white coat',
+    tongueOptions: ['thin white coat', 'purplish dark', 'purple spots', 'dusk'],
+    pulseDefault: 'string-taut',
+    pulseOptions: ['string-taut']
+  },
+  'Blood Stasis': {
+    tongueDefault: 'purple',
+    tongueOptions: ['purple', 'purple dark', 'purple edges', 'purple spots on side'],
+    pulseDefault: 'deep',
+    pulseOptions: ['deep', 'string-taut', 'forceful', 'hesitant']
+  },
+  'Qi Stagnation, Blood Stasis': {
+    tongueDefault: 'purple, thin white coat',
+    tongueOptions: ['purple, thin white coat', 'purplish dark', 'purple spots', 'purple edges'],
+    pulseDefault: 'string-taut',
+    pulseOptions: ['string-taut', 'hesitant', 'deep']
+  },
+  'Blood Deficiency': {
+    tongueDefault: 'pale, thin dry coat',
+    tongueOptions: ['pale, thin dry coat'],
+    pulseDefault: 'hesitant',
+    pulseOptions: ['hesitant', 'thready', 'weak']
+  },
+  'Qi & Blood Deficiency': {
+    tongueDefault: 'pale, thin white coat',
+    tongueOptions: ['tooth marks', 'pale, thin white coat'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'weak', 'slowing down', 'forceless', 'thin']
+  },
+  'Wind-Cold Invasion': {
+    tongueDefault: 'thin white coat',
+    tongueOptions: ['thin white coat'],
+    pulseDefault: 'superficial, tense',
+    pulseOptions: ['superficial, tense']
+  },
+  'Cold-Damp + Wind-Cold': {
+    tongueDefault: 'thick, white coat',
+    tongueOptions: ['white coat', 'slippery coat'],
+    pulseDefault: 'deep',
+    pulseOptions: ['deep', 'tense', 'slow', 'wiry']
+  },
+  'LV/GB Damp-Heat': {
+    tongueDefault: 'yellow, sticky (red), thick coat',
+    tongueOptions: ['yellow, sticky (red), thick coat'],
+    pulseDefault: 'rolling rapid (forceful)',
+    pulseOptions: ['rolling rapid (forceful)', 'rapid', 'overflowing', 'full']
+  },
+  'Phlegm-Damp': {
+    tongueDefault: 'big tongue with white sticky coat',
+    tongueOptions: ['big tongue with white sticky coat'],
+    pulseDefault: 'string-taut',
+    pulseOptions: ['string-taut', 'rolling', 'soft']
+  },
+  'Phlegm-Heat': {
+    tongueDefault: 'yellow, sticky (red), thick coat',
+    tongueOptions: ['yellow, sticky (red), thick coat'],
+    pulseDefault: 'rolling rapid (forceful)',
+    pulseOptions: ['rolling rapid (forceful)', 'rapid', 'overflowing', 'full']
+  },
+  'Damp-Heat': {
+    tongueDefault: 'yellow, sticky (red), thick coat',
+    tongueOptions: ['yellow, sticky (red), thick coat'],
+    pulseDefault: 'rolling rapid (forceful)',
+    pulseOptions: ['rolling rapid (forceful)', 'rapid', 'overflowing', 'full']
+  },
+  // === 整体证型 (来自各 tone 模板) ===
+  'Kidney Yang Deficiency': {
+    tongueDefault: 'delicate, white coat',
+    tongueOptions: ['delicate', 'pale', 'swollen'],
+    pulseDefault: 'deep',
+    pulseOptions: ['deep', 'slow', 'weak', 'thready', 'forceless']
+  },
+  'Kidney Yin Deficiency': {
+    tongueDefault: 'cracked',
+    tongueOptions: ['cracked', 'rootless', 'red, little coat', 'moisture, furless'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'rapid', 'floating-empty']
+  },
+  'Kidney Qi Deficiency': {
+    tongueDefault: 'pale, thin white coat',
+    tongueOptions: ['tooth marks', 'pale, thin white coat'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'weak', 'slowing down', 'forceless', 'thin']
+  },
+  'Kidney Essence Deficiency': {
+    tongueDefault: 'cracked',
+    tongueOptions: ['cracked', 'rootless', 'red, little coat', 'moisture, furless'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'rapid', 'floating-empty']
+  },
+  'Qi Deficiency': {
+    tongueDefault: 'pale, thin white coat',
+    tongueOptions: ['tooth marks', 'pale, thin white coat'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'weak', 'slowing down', 'forceless', 'thin']
+  },
+  'Spleen Deficiency': {
+    tongueDefault: 'pale, thin white coat',
+    tongueOptions: ['tooth marks', 'pale, thin white coat'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'weak', 'slowing down', 'forceless', 'thin']
+  },
+  'Liver Yang Rising': {
+    tongueDefault: 'thin yellow',
+    tongueOptions: ['yellow', 'white'],
+    pulseDefault: 'superficial rapid',
+    pulseOptions: ['superficial rapid']
+  },
+  'Yin Deficiency Fire': {
+    tongueDefault: 'cracked',
+    tongueOptions: ['cracked', 'rootless', 'red, little coat', 'moisture, furless'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'rapid', 'floating-empty']
+  },
+  'LU & KI Deficiency': {
+    tongueDefault: 'pale, thin white coat',
+    tongueOptions: ['tooth marks', 'pale, thin white coat'],
+    pulseDefault: 'thready',
+    pulseOptions: ['thready', 'weak', 'slowing down', 'forceless', 'thin']
+  }
+}
+
+/**
+ * 辅助函数：获取配置值，按身体部位查找，回退到 DEFAULT
+ */
+function getConfig<T>(map: Record<string, T>, bodyPart: string): T {
+  return map[bodyPart] ?? map['DEFAULT'] ?? Object.values(map)[0]
+}
+
+/**
+ * 生成 Subjective 部分
+ */
+export function generateSubjective(context: GenerationContext): string {
+  const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
+  const bodyPartAreaName = BODY_PART_AREA_NAMES[context.primaryBodyPart] || bodyPartName
+  const laterality = LATERALITY_NAMES[context.laterality]
+  const lateralityUpper = laterality.charAt(0).toUpperCase() + laterality.slice(1)
+  const pattern = TCM_PATTERNS[context.localPattern]
+
+  // 根据证型选择疼痛类型
+  const painTypeOptions = ['Dull', 'Burning', 'Freezing', 'Shooting', 'Tingling', 'Stabbing', 'Aching', 'Squeezing', 'Cramping', 'pricking', 'weighty', 'cold', 'pin & needles']
+  const weightContext: WeightContext = {
+    bodyPart: context.primaryBodyPart,
+    localPattern: context.localPattern,
+    systemicPattern: context.systemicPattern,
+    chronicityLevel: context.chronicityLevel,
+    severityLevel: context.severityLevel,
+    insuranceType: context.insuranceType,
+    painScale: 7,
+    hasPacemaker: context.hasPacemaker
+  }
+
+  const weightedPainTypes = calculateWeights('subjective.painTypes', painTypeOptions, weightContext)
+  const selectedPainTypes = selectBestOptions(weightedPainTypes, 2)
+
+  // 获取身体部位特有配置
+  const associatedSymptoms = getConfig(ASSOCIATED_SYMPTOMS_MAP, context.primaryBodyPart)
+  const symptomScale = getConfig(SYMPTOM_SCALE_MAP, context.primaryBodyPart)
+  const causativeConnector = getConfig(CAUSATIVE_CONNECTOR_MAP, context.primaryBodyPart)
+  const notImproved = getConfig(NOT_IMPROVED_MAP, context.primaryBodyPart)
+
+  // 生成文本
+  const noteType = context.noteType === 'IE' ? 'INITIAL EVALUATION' : 'DAILY NOTE'
+  const bp = context.primaryBodyPart
+
+  let subjective = `${noteType}\n\n`
+
+  // 加重/缓解因素 - 根据身体部位选择
+  const exacerbatingFactors = EXACERBATING_FACTORS_MAP[bp] || EXACERBATING_FACTORS_MAP['LBP']
+  const adlActivities = ADL_MAP[bp] || ADL_MAP['LBP']
+  const weightedAdl = calculateWeights('subjective.adl', adlActivities, weightContext)
+
+  if (bp === 'SHOULDER') {
+    // ===== SHOULDER 模板句式 =====
+    // "Patient c/o [Chronic] [pain types] pain [in right]-shoulder area ([without radiation])
+    //  for [10] [year(s)] got worse in recent [1-2] [month(s)]
+    //  associated with muscles [soreness] (scale as [70%]) [because of] [causes]."
+    const selectedAdl = selectBestOptions(weightedAdl, 4)
+    const weightedExac = calculateWeights('subjective.exacerbating', exacerbatingFactors, weightContext)
+    const selectedExac = selectBestOptions(weightedExac, 4)
+
+    subjective += `Patient c/o ${context.chronicityLevel} ${selectedPainTypes.join(', ')} pain in ${laterality}`
+    subjective += `-${bodyPartAreaName} (without radiation) `
+    subjective += `for more than 10 year(s) got worse in recent 1-2 month(s) `
+    subjective += `associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) `
+    subjective += `${causativeConnector} age related/degenerative changes, over used due to nature of work.\n`
+
+    // 加重因素 + ADL (同一段)
+    // "The pain is [aggravated by] [factors], impaired performing ADL's with [severity] difficulty of [ADL activities]."
+    subjective += `The pain is aggravated by ${selectedExac.join(', ')}, `
+    subjective += `impaired performing ADL's with ${context.severityLevel} difficulty of ${selectedAdl.join(', ')}. `
+
+    // 缓解因素: "[Stretching] can temporarily relieve the pain slightly but limited."
+    subjective += `Stretching can temporarily relieve the pain slightly but limited. `
+
+    // 活动变化 + 未改善
+    subjective += `Patient has decrease outside activity, `
+    subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`
+
+    // 次要部位 - SHOULDER 格式: "Bilateral -shoulder area" (空格+连字符)
+    if (context.secondaryBodyParts && context.secondaryBodyParts.length > 0) {
+      const secondaryNames = context.secondaryBodyParts.map(b => BODY_PART_NAMES[b]).join(', ')
+      subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the ${lateralityUpper} -${bodyPartAreaName} pain.\n\n`
+    }
+
+    // SHOULDER 疼痛评分默认值: 7/6/7-6
+    subjective += `Pain Scale: Worst: 7 ; Best: 6 ; Current: 7-6\n`
+    subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
+    subjective += `Walking aid :none\n\n`
+    subjective += `Medical history/Contraindication or Precision: N/A`
+  } else if (bp === 'NECK') {
+    // ===== NECK 模板句式 =====
+    // 开头与 KNEE/LBP 类似: "Patient c/o Chronic pain in [location] which is [types] [radiation]."
+    // 但 ADL 用 SHOULDER 风格: "difficulty of" + 两组
+    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} without radiation . `
+    subjective += `The patient has been complaining of the pain for 3 month(s) which got worse in recent 1 week(s). `
+    subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} age related/degenerative changes.\n`
+
+    // 加重因素 + ADL (SHOULDER 风格: 合并为一段, "difficulty of" + 两组)
+    const allAdl = selectBestOptions(weightedAdl, 4)
+    const neckAdlGroup1 = allAdl.slice(0, 2)
+    const neckAdlGroup2 = allAdl.slice(2, 4)
+    const weightedExac = calculateWeights('subjective.exacerbating', exacerbatingFactors, weightContext)
+    const selectedExac = selectBestOptions(weightedExac, 2)
+
+    subjective += `The pain is aggravated by ${selectedExac.join(', ')}, `
+    subjective += `impaired performing ADL's with ${context.severityLevel} difficulty of ${neckAdlGroup1.join(', ')} `
+    subjective += `and ${context.severityLevel} difficulty of ${neckAdlGroup2.join(', ')}. `
+
+    // 缓解因素 (SHOULDER 风格)
+    subjective += `Stretching can temporarily relieve the pain slightly but limited. `
+
+    // 活动变化 + 未改善
+    subjective += `Patient has decrease outside activity, `
+    subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`
+
+    // 次要部位 - NECK 比较区域用 "Cervical" 或 "neck and upper back"
+    if (context.secondaryBodyParts && context.secondaryBodyParts.length > 0) {
+      const secondaryNames = context.secondaryBodyParts.map(b => BODY_PART_NAMES[b]).join(', ')
+      subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the Cervical area.\n\n`
+    }
+
+    // NECK 疼痛评分默认值: 8/6/8
+    subjective += `Pain Scale: Worst: 8 ; Best: 6 ; Current: 8\n`
+    subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
+    subjective += `Walking aid :none\n\n`
+    subjective += `Medical history/Contraindication or Precision: N/A`
+  } else {
+    // ===== KNEE / LBP / 其他部位模板句式 =====
+    // "Patient c/o [Chronic] pain [in bilateral] Knee area which is [Dull, Aching] [without radiation]."
+    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} without radiation. `
+    subjective += `The patient has been complaining of the pain for 3 month(s) which got worse in recent 1 week(s). `
+    subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} age related/degenerative changes.\n\n`
+
+    // KNEE/LBP 模板格式: "The pain is [aggravated by] [factor] . There is [severity] difficulty with ADLs like [activities]."
+    const selectedAdl = selectBestOptions(weightedAdl, 3)
+    subjective += `The pain is aggravated by ${exacerbatingFactors.slice(0, 1).join(', ')} . There is ${context.severityLevel} difficulty with ADLs like ${selectedAdl.join(', ')}.\n\n`
+
+    subjective += `Changing positions, Resting, Massage can temporarily relieve the pain. `
+    subjective += `Due to this condition patient has decrease outside activity. `
+    subjective += `The pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`
+
+    // 次要部位
+    if (context.secondaryBodyParts && context.secondaryBodyParts.length > 0) {
+      const secondaryNames = context.secondaryBodyParts.map(b => BODY_PART_NAMES[b]).join(', ')
+      subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the ${lateralityUpper} ${bodyPartAreaName} pain.\n\n`
+    }
+
+    // 疼痛评分 - KNEE/LBP 模板默认值
+    subjective += `Pain Scale: Worst: 8 ; Best: 6 ; Current: 8\n`
+    subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
+    subjective += `Walking aid :none\n\n`
+    subjective += `Medical history/Contraindication or Precision: N/A`
+  }
+
+  return subjective
+}
+
+/**
+ * KNEE Flexion 下拉框选项 (来自模板 ppnSelectComboSingle)
+ * 注意: 130 和 120 的格式是 "130(normal)" 不含 "Degrees"，其余含 "Degrees"
+ */
+const KNEE_FLEXION_OPTIONS: Array<{ degrees: number; label: string }> = [
+  { degrees: 130, label: '130(normal)' },
+  { degrees: 125, label: '125 Degrees(normal)' },
+  { degrees: 120, label: '120(normal)' },
+  { degrees: 115, label: '115 Degrees(mild)' },
+  { degrees: 110, label: '110 Degrees(mild)' },
+  { degrees: 105, label: '105 Degrees(mild)' },
+  { degrees: 100, label: '100 Degrees(moderate)' },
+  { degrees: 95, label: '95 Degrees(moderate)' },
+  { degrees: 90, label: '90 Degrees(moderate)' },
+  { degrees: 85, label: '85 Degrees(moderate)' },
+  { degrees: 80, label: '80 Degrees(moderate)' },
+  { degrees: 75, label: '75 Degrees(moderate)' },
+  { degrees: 70, label: '70 Degrees(moderate)' },
+  { degrees: 65, label: '65 Degrees(severe)' },
+  { degrees: 60, label: '60 Degrees(severe)' },
+  { degrees: 55, label: '55 Degrees(severe)' },
+  { degrees: 50, label: '50 Degrees(severe)' },
+  { degrees: 45, label: '45 Degrees(severe)' },
+  { degrees: 40, label: '40 Degrees(severe)' },
+  { degrees: 35, label: '35 Degrees(severe)' },
+  { degrees: 30, label: '30 Degrees(severe)' },
+  { degrees: 25, label: '25 Degrees(severe)' }
+]
+
+/**
+ * KNEE Extension 下拉框选项 (来自模板 ppnSelectComboSingle)
+ */
+const KNEE_EXTENSION_OPTIONS: Array<{ degrees: number; label: string }> = [
+  { degrees: 0, label: '0(normal)' },
+  { degrees: -5, label: '-5(severe)' }
+]
+
+/**
+ * SHOULDER ROM 下拉框选项 (来自 AC-IE SHOULDER.md 模板)
+ * 注意: 各运动格式不同:
+ *   Abduction/Flexion: "120 degree(moderate)" — 小写 degree, 无空格
+ *   Horizontal Adduction: "15 degree (moderate)" — 小写 degree, 有空格
+ *   Extension/External/Internal Rotation: "25 Degrees(moderate)" — 大写 Degrees, 无空格
+ */
+const SHOULDER_ABDUCTION_OPTIONS: Array<{ degrees: number; label: string }> = [
+  { degrees: 180, label: '180 degree(normal)' },
+  { degrees: 175, label: '175 degree(normal)' },
+  { degrees: 170, label: '170 degree(normal)' },
+  { degrees: 165, label: '165 degree(mild)' },
+  { degrees: 160, label: '160 degree(mild)' },
+  { degrees: 155, label: '155 degree(mild)' },
+  { degrees: 150, label: '150 degree(mild)' },
+  { degrees: 145, label: '145 degree(moderate)' },
+  { degrees: 140, label: '140 degree(moderate)' },
+  { degrees: 135, label: '135 degree(moderate)' },
+  { degrees: 130, label: '130 degree(moderate)' },
+  { degrees: 125, label: '125 degree(moderate)' },
+  { degrees: 120, label: '120 degree(moderate)' },
+  { degrees: 115, label: '115 degree(moderate)' },
+  { degrees: 110, label: '110 degree(moderate)' },
+  { degrees: 105, label: '105 degree(moderate)' },
+  { degrees: 100, label: '100 degree(moderate)' },
+  { degrees: 95, label: '95 degree(moderate)' },
+  { degrees: 90, label: '90 degree(severe)' },
+  { degrees: 85, label: '85 degree(severe)' },
+  { degrees: 80, label: '80 degree(severe)' },
+  { degrees: 75, label: '75 degree(severe)' },
+  { degrees: 70, label: '70 degree(severe)' },
+  { degrees: 65, label: '65 degree(severe)' },
+  { degrees: 60, label: '60 degree(severe)' },
+  { degrees: 55, label: '55 degree(severe)' },
+  { degrees: 50, label: '50 degree(severe)' },
+  { degrees: 45, label: '45 degree(severe)' },
+  { degrees: 40, label: '40 degree(severe)' },
+  { degrees: 35, label: '35 degree(severe)' },
+  { degrees: 30, label: '30 degree(severe)' },
+  { degrees: 25, label: '25 degree(severe)' },
+  { degrees: 20, label: '20 degree(severe)' },
+  { degrees: 15, label: '15 degree(severe)' },
+  { degrees: 10, label: '10 degree(severe)' },
+  { degrees: 5, label: '5 degree(severe)' }
+]
+
+// Flexion 与 Abduction 使用相同格式
+const SHOULDER_FLEXION_OPTIONS = SHOULDER_ABDUCTION_OPTIONS
+
+const SHOULDER_HORIZONTAL_ADDUCTION_OPTIONS: Array<{ degrees: number; label: string }> = [
+  { degrees: 45, label: '45 degree (normal)' },
+  { degrees: 40, label: '40 degree (normal)' },
+  { degrees: 35, label: '35 degree (normal)' },
+  { degrees: 30, label: '30 degree (normal)' },
+  { degrees: 25, label: '25 degree (mild)' },
+  { degrees: 20, label: '20 degree (mild)' },
+  { degrees: 15, label: '15 degree (moderate)' },
+  { degrees: 10, label: '10 degree (moderate)' },
+  { degrees: 5, label: '5 degree (severe)' },
+  { degrees: 0, label: 'can not do this at all' }
+]
+
+const SHOULDER_EXTENSION_OPTIONS: Array<{ degrees: number; label: string }> = [
+  { degrees: 5, label: '5 Degrees(severe)' },
+  { degrees: 10, label: '10 Degrees(severe)' },
+  { degrees: 15, label: '15 Degrees(severe)' },
+  { degrees: 20, label: '20 Degrees(moderate)' },
+  { degrees: 25, label: '25 Degrees(moderate)' },
+  { degrees: 30, label: '30 Degrees(moderate)' },
+  { degrees: 35, label: '35 Degrees(moderate)' },
+  { degrees: 40, label: '40 Degrees(mild)' },
+  { degrees: 45, label: '45 Degrees(mild)' },
+  { degrees: 50, label: '50 Degrees(mild)' },
+  { degrees: 55, label: '55 Degrees(normal)' },
+  { degrees: 60, label: '60 Degrees(normal)' }
+]
+
+const SHOULDER_EXTERNAL_ROTATION_OPTIONS: Array<{ degrees: number; label: string }> = [
+  { degrees: 90, label: '90 Degrees(normal)' },
+  { degrees: 85, label: '85 Degrees(normal)' },
+  { degrees: 80, label: '80 Degrees(normal)' },
+  { degrees: 75, label: '75 Degrees(mild)' },
+  { degrees: 70, label: '70 Degrees(mild)' },
+  { degrees: 65, label: '65 Degrees(mild)' },
+  { degrees: 60, label: '60 Degrees(moderate)' },
+  { degrees: 55, label: '55 Degrees(moderate)' },
+  { degrees: 50, label: '50 Degrees(moderate)' },
+  { degrees: 45, label: '45 Degrees(moderate)' },
+  { degrees: 40, label: '40 Degrees(moderate)' },
+  { degrees: 35, label: '35 Degrees(severe)' },
+  { degrees: 30, label: '30 Degrees(severe)' },
+  { degrees: 25, label: '25 Degrees(severe)' },
+  { degrees: 15, label: '15 Degrees(severe)' },
+  { degrees: 10, label: '10 Degrees(severe)' },
+  { degrees: 5, label: '5 Degrees(severe)' }
+]
+
+// Internal Rotation 与 External Rotation 使用相同选项
+const SHOULDER_INTERNAL_ROTATION_OPTIONS = SHOULDER_EXTERNAL_ROTATION_OPTIONS
+
+/**
+ * 获取 SHOULDER ROM 的标签 (匹配最近的有效下拉框值)
+ */
+function getShoulderRomLabel(movement: string, normalDegrees: number, reductionPercent: number): string {
+  const reducedDegrees = Math.round(normalDegrees * (1 - reductionPercent))
+
+  let options: Array<{ degrees: number; label: string }>
+  if (movement === 'Abduction') {
+    options = SHOULDER_ABDUCTION_OPTIONS
+  } else if (movement === 'Horizontal Adduction') {
+    options = SHOULDER_HORIZONTAL_ADDUCTION_OPTIONS
+  } else if (movement === 'Flexion') {
+    options = SHOULDER_FLEXION_OPTIONS
+  } else if (movement === 'Extension') {
+    options = SHOULDER_EXTENSION_OPTIONS
+  } else if (movement === 'External Rotation') {
+    options = SHOULDER_EXTERNAL_ROTATION_OPTIONS
+  } else if (movement === 'Internal Rotation') {
+    options = SHOULDER_INTERNAL_ROTATION_OPTIONS
+  } else {
+    return `${reducedDegrees} degree(moderate)`
+  }
+
+  // 找到最接近的有效下拉框值
+  let closest = options[0]
+  let minDiff = Math.abs(reducedDegrees - closest.degrees)
+  for (const opt of options) {
+    const diff = Math.abs(reducedDegrees - opt.degrees)
+    if (diff < minDiff) {
+      minDiff = diff
+      closest = opt
+    }
+  }
+  return closest.label
+}
+
+/**
+ * 获取 KNEE ROM 的标签 (匹配最近的有效下拉框值)
+ */
+function getKneeRomLabel(rom: { movement: string; normalDegrees: number }, reductionPercent: number): string {
+  if (rom.movement.includes('Extension')) {
+    // Extension: 只有 0(normal) 和 -5(severe)
+    const reduced = Math.round(rom.normalDegrees * (1 - reductionPercent))
+    return reduced < 0 ? '-5(severe)' : '0(normal)'
+  }
+
+  // Flexion: 匹配最近的有效下拉框值
+  const reducedDegrees = Math.round(rom.normalDegrees * (1 - reductionPercent))
+  // 找到最接近的5的倍数选项
+  let closest = KNEE_FLEXION_OPTIONS[0]
+  let minDiff = Math.abs(reducedDegrees - closest.degrees)
+  for (const opt of KNEE_FLEXION_OPTIONS) {
+    const diff = Math.abs(reducedDegrees - opt.degrees)
+    if (diff < minDiff) {
+      minDiff = diff
+      closest = opt
+    }
+  }
+  return closest.label
+}
+
+/**
+ * 生成 Objective 部分 (使用全局 MUSCLE_MAP 和 ROM_MAP)
+ * KNEE 模板段落顺序: Muscles Testing → ROM(左右分别) → Inspection
+ * SHOULDER 模板段落顺序: Inspection → Muscles Testing → ROM
+ */
+export function generateObjective(context: GenerationContext, visitState?: TXVisitState): string {
+  const pattern = TCM_PATTERNS[context.localPattern]
+  const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
+  const laterality = LATERALITY_NAMES[context.laterality]
+  const bp = context.primaryBodyPart
+  const effectiveSeverity = visitState?.severityLevel || context.severityLevel
+
+  // 使用全局 MUSCLE_MAP
+  const muscles = MUSCLE_MAP[bp] || ['local muscles']
+
+  // 获取身体部位特有配置
+  const tenderLabel = getConfig(TENDERNESS_LABEL_MAP, bp)
+  const tenderText = getConfig(TENDERNESS_TEXT_MAP, bp)
+  const tenderScales = TENDERNESS_SCALE_MAP[bp] || TENDERNESS_SCALE_MAP['SHOULDER']
+  const inspectionDefault = getConfig(INSPECTION_DEFAULT_MAP, bp)
+
+  let objective = ''
+
+  // SHOULDER: Inspection 在前 (模板: "Inspection:" 紧接下拉框值，无空格)
+  // KNEE: Inspection 在后
+  if (bp === 'SHOULDER') {
+    objective += `Inspection:${inspectionDefault}\n\n`
+  }
+
+  // Muscles Testing (纯文本输出，不加 markdown 粗体标记)
+  objective += `Muscles Testing:\n`
+  // Tightness 肌肉由权重系统从模板下拉框有效选项中选择
+  const tightnessWeightContext: WeightContext = {
+    bodyPart: bp,
+    localPattern: context.localPattern,
+    systemicPattern: context.systemicPattern,
+    chronicityLevel: context.chronicityLevel,
+    severityLevel: effectiveSeverity,
+    insuranceType: context.insuranceType,
+    painScale: 7,
+    hasPacemaker: context.hasPacemaker
+  }
+  const weightedTightness = calculateWeights('objective.tightness', muscles, tightnessWeightContext)
+  const selectedTightness = selectBestOptions(weightedTightness, 3)
+  objective += `Tightness muscles noted along ${selectedTightness.join(', ')}\n`
+  objective += `Grading Scale: ${visitState?.tightnessGrading || effectiveSeverity}\n\n`
+
+  // 肌肉分配: Tenderness 和 Spasm 使用不同于 Tightness 的肌肉子集
+  // 长列表(>=8): 用固定切片 (SHOULDER/KNEE)
+  // 中等列表(=7): LBP/NECK 交错分配避免 100% 重叠
+  // 短列表(<7): 智能分配
+  const tenderMuscles = muscles.length >= 8
+    ? muscles.slice(7, 12)
+    : muscles.length >= 4
+      ? muscles.slice(Math.floor(muscles.length / 2))
+      : muscles.slice(1)
+  const spasmMuscles = muscles.length >= 8
+    ? muscles.slice(3, 7)
+    : muscles.length === 7
+      // LBP/NECK (7肌肉): 交错取 [1,2,5,6] — 与 tender[3,4,5,6] 仅 2 个重叠
+      ? muscles.slice(1, 3).concat(muscles.slice(5))
+      : muscles.length >= 4
+        ? muscles.slice(Math.floor(muscles.length / 3), Math.floor(muscles.length * 2 / 3) + 1)
+        : muscles.slice(0, 2)
+
+  objective += `${tenderText} ${tenderMuscles.join(', ')}\n\n`
+  // Tenderness: TX 用 visitState, IE 根据 severity 选择等级
+  const severityToTender: Record<string, string> = {
+    'severe': '+4', 'moderate to severe': '+3', 'moderate': '+3', 'mild to moderate': '+2', 'mild': '+1'
+  }
+  const ieTenderGrade = severityToTender[effectiveSeverity] || '+3'
+  objective += `${tenderLabel}: ${visitState?.tendernessGrading || tenderScales[ieTenderGrade] || tenderScales['+3']}.\n\n`
+
+  objective += `Muscles spasm noted along ${spasmMuscles.join(', ')}\n`
+  objective += `Frequency Grading Scale:${visitState?.spasmGrading || '(+3)=>1 but < 10 spontaneous spasms per hour.'}\n\n`
+
+  // ==================== ROM评估 (v9.0 引擎) ====================
+  const romData = ROM_MAP[bp]
+  const romType = (bp === 'NECK' || bp === 'LBP') ? 'Spine ROM' : 'Joint ROM'
+
+  // v9.0: 用 pain level 驱动 (整数), 而非 severity 字符串
+  // IE 用 severity 推断 pain, TX 用 visitState.painScaleCurrent
+  // TX 模式: effectivePainForRom 比实际 pain 更低, 模拟"功能恢复快于疼痛消退"
+  const basePain: number = visitState?.painScaleCurrent ??
+    ({ 'severe': 9, 'moderate to severe': 8, 'moderate': 6, 'mild to moderate': 5, 'mild': 3 }[effectiveSeverity] || 7)
+  const painLevel: number = visitState
+    ? Math.max(
+      1,
+      basePain
+        - (visitState.progress * 2.8)
+    )
+    : basePain
+
+  const bumpStrength = (strength: string, step: number): string => {
+    const ladder = ['3/5', '3+/5', '4-/5', '4/5', '4+/5', '5/5']
+    const idx = ladder.indexOf(strength)
+    if (idx < 0) return strength
+    return ladder[Math.max(0, Math.min(ladder.length - 1, idx + step))]
+  }
+
+  /**
+   * v9.0 确定性双侧不对齐:
+   * - Left: 使用 painLevel 直接计算
+   * - Right: painLevel - 1 (比左侧轻一档) + ROM +5度
+   * - 每个运动有 variation_seed [-1, 0, 1] 微扰
+   */
+  const computeRom = (rom: ROMMovement, index: number, sideOffset: number, adjustedPain: number, romAdjustment: number) => {
+    // variation seed: 确定性微扰 (来自 v9.0)
+    const variationSeed = (index + sideOffset) % 3
+    const painVariation = [-1, 0, 1][variationSeed]
+    const effectivePain = Math.max(1, Math.min(10, adjustedPain + painVariation))
+
+    // v9.0 核心公式
+    // Strength: TX 模式下 HARD 动作随 progress 降级为 MEDIUM (模板选项: 4+/5~2-/5)
+    const strengthDifficulty: ROMDifficulty = (visitState && rom.difficulty === 'HARD' && visitState.progress > 0.6)
+      ? 'MEDIUM' : rom.difficulty
+    let strength = getStrengthByDifficulty(strengthDifficulty, index + sideOffset)
+    if (visitState) {
+      const step = visitState.progress > 0.7 ? 2 : visitState.progress > 0.45 ? 1 : 0
+      strength = bumpStrength(strength, step)
+    }
+    let romValue = calculateRomValue(rom.normalDegrees, effectivePain, rom.difficulty)
+
+    // 右侧/纵向 ROM 微调
+    if (romAdjustment !== 0 && rom.normalDegrees > 0) {
+      romValue = Math.max(Math.round(rom.normalDegrees * 0.25), Math.min(rom.normalDegrees, romValue + romAdjustment))
+      romValue = Math.round(romValue / 5) * 5
+    }
+
+    const limitation = calculateLimitation(romValue, rom.normalDegrees)
+    return { strength, romValue, limitation }
+  }
+
+  if (bp === 'KNEE' && laterality === 'bilateral') {
+    // KNEE 双侧
+    const sides = ['Right', 'Left'] as const
+    sides.forEach(side => {
+      const adjustedPain = side === 'Left' ? painLevel : Math.max(1, painLevel - 1)
+      const sideOffset = side === 'Left' ? 0 : 1
+      const romAdj = side === 'Left' ? 0 : 5
+      objective += `${side} Knee Muscles Strength and Joint ROM:\n\n`
+      if (romData) {
+        romData.forEach((rom, i) => {
+          const { strength, romValue, limitation } = computeRom(rom, i, sideOffset, adjustedPain, romAdj)
+          // KNEE ROM 吸附到下拉框选项
+          const reductionPct = rom.normalDegrees > 0 ? 1 - (romValue / rom.normalDegrees) : 0
+          objective += `${strength} ${rom.movement}: ${getKneeRomLabel(rom, reductionPct)}\n`
+        })
+      }
+      objective += `\n`
+    })
+  } else if (bp === 'KNEE') {
+    // KNEE 单侧
+    const sideLabel = laterality === 'left' ? 'Left' : 'Right'
+    objective += `${sideLabel} Knee Muscles Strength and Joint ROM:\n\n`
+    if (romData) {
+      romData.forEach((rom, i) => {
+        const { strength } = computeRom(rom, i, 0, painLevel, 0)
+        const reductionPct = rom.normalDegrees > 0 ? 1 - (calculateRomValue(rom.normalDegrees, painLevel, rom.difficulty) / rom.normalDegrees) : 0
+        objective += `${strength} ${rom.movement}: ${getKneeRomLabel(rom, reductionPct)}\n`
+      })
+    }
+    objective += `\n`
+  } else if (bp === 'SHOULDER') {
+    // SHOULDER: 模板格式精确匹配 + v9.0 计算引擎
+    const renderShoulderRom = (side: string) => {
+      const isLeft = side === 'Left'
+      const adjustedPain = isLeft ? painLevel : Math.max(1, painLevel - 1)
+      const sideOffset = isLeft ? 0 : 1
+      const romAdj = isLeft ? 0 : 5
+      objective += `${side} Shoulder Muscles Strength and Joint ROM\n`
+      if (romData) {
+        romData.forEach((rom, i) => {
+          const { strength, romValue, limitation } = computeRom(rom, i, sideOffset, adjustedPain, romAdj)
+          const reductionPct = rom.normalDegrees > 0 ? 1 - (romValue / rom.normalDegrees) : 0
+          const label = getShoulderRomLabel(rom.movement, rom.normalDegrees, reductionPct)
+          // 模板精确格式
+          let movementLabel: string
+          if (rom.movement === 'Abduction') {
+            movementLabel = `${strength} Abduction:`
+          } else if (rom.movement === 'Horizontal Adduction') {
+            movementLabel = `${strength} Horizontal Adduction: `
+          } else if (rom.movement === 'Flexion') {
+            movementLabel = `${strength} Flexion :`
+          } else if (rom.movement === 'Extension') {
+            movementLabel = `${strength} Extension : `
+          } else if (rom.movement === 'External Rotation') {
+            movementLabel = `${strength} External rotation : `
+          } else if (rom.movement === 'Internal Rotation') {
+            movementLabel = `${strength} Internal rotation : `
+          } else {
+            movementLabel = `${strength} ${rom.movement}: `
+          }
+          objective += `${movementLabel}${label}\n`
+        })
+      }
+      objective += `\n`
+    }
+
+    if (laterality === 'bilateral') {
+      renderShoulderRom('Right')
+      renderShoulderRom('Left')
+    } else {
+      renderShoulderRom(laterality === 'left' ? 'Left' : 'Right')
+    }
+  } else {
+    // LBP / NECK / 其他部位
+    const romLabel = bp === 'NECK' ? 'Cervical' :
+                     bp === 'LBP' ? 'Lumbar' :
+                     `${laterality ? laterality.charAt(0).toUpperCase() + laterality.slice(1) + ' ' : ''}${bodyPartName.charAt(0).toUpperCase() + bodyPartName.slice(1)}`
+    const romSuffix = bp === 'NECK' ? ' Assessment:' : ''
+    objective += `${romLabel} Muscles Strength and ${romType}${romSuffix}\n`
+
+    if (romData) {
+      const degreeLabel = (bp === 'LBP' || bp === 'NECK') ? 'Degrees' : 'degree'
+      const romAdj = visitState ? Math.min(10, Math.round((visitState.progress * 8) + (visitState.soaChain.objective.romTrend === 'improved' ? 3 : 1))) : 0
+      romData.forEach((rom, index) => {
+        const { strength, romValue, limitation } = computeRom(rom, index, 0, painLevel, romAdj)
+        objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})\n`
+      })
+    }
+    objective += `\n`
+  }
+
+  // KNEE / LBP / NECK: Inspection 在 ROM 之后 (格式: "Inspection: [value]")
+  if (bp === 'KNEE' || bp === 'LBP' || bp === 'NECK') {
+    objective += `Inspection: ${inspectionDefault}\n\n`
+  }
+
+  // 舌脉信息 (来自 tone/ 模板, 始终在 Objective 最底部)
+  // 格式: tongue\n[舌象]\npulse\n[脉象]
+  const toneData = TONE_MAP[context.localPattern]
+  if (toneData) {
+    objective += `tongue\n${toneData.tongueDefault}\npulse\n${toneData.pulseDefault}`
+  }
+
+  return objective
+}
+
+/**
+ * 生成 Assessment 部分
+ * KNEE 模板格式:
+ *   TCM Dx:
+ *   [bilateral] knee pain due to [Cold-Damp + Wind-Cold] in local meridian,
+ *   but patient also has [Kidney Yang Deficiency] in the general.
+ *   Today's TCM treatment principles:
+ *   [focus] on [warm channels, dispel cold and damp, promote circulation] and harmonize [Liver and Kidney] balance in order to [promote healthy joint and lessen dysfunction in all aspects].
+ *   Acupuncture Eval was done today on bilateral knee .
+ */
+export function generateAssessment(context: GenerationContext): string {
+  const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
+  const bp = context.primaryBodyPart
+  const localPattern = TCM_PATTERNS[context.localPattern]
+  const systemicPattern = TCM_PATTERNS[context.systemicPattern]
+  const laterality = LATERALITY_NAMES[context.laterality]
+
+  // KNEE 模板: "[Bilateral] knee pain" (大写侧别 + 部位 + pain)
+  // SHOULDER 模板: "Bilateral - shoulder area pain due to..." (大写侧别 + 连字符 + area)
+  const lateralityUpper = laterality.charAt(0).toUpperCase() + laterality.slice(1)
+  const bodyPartAreaName = BODY_PART_AREA_NAMES[bp] || bodyPartName
+  // TCM Dx 条件名: NECK 用 "Cervical" (模板下拉), 其他用 bodyPartName 首字母大写
+  const assessmentConditionName = bp === 'NECK' ? 'Cervical' :
+    bodyPartName.charAt(0).toUpperCase() + bodyPartName.slice(1)
+
+  let assessment = `TCM Dx:\n`
+  if (bp === 'KNEE') {
+    assessment += `${lateralityUpper} ${bodyPartName} pain due to ${context.localPattern} in local meridian, `
+  } else if (bp === 'SHOULDER') {
+    // SHOULDER 模板: "Bilateral - shoulder area pain due to..."
+    assessment += `${lateralityUpper} - ${bodyPartAreaName} pain due to ${context.localPattern} in local meridian, `
+  } else if (bp === 'NECK') {
+    // NECK 模板: "Cervical pain due to..." (无侧别, 无 area)
+    assessment += `${assessmentConditionName} pain due to ${context.localPattern} in local meridian, `
+  } else if (bp === 'LBP') {
+    // LBP 模板: "Lower back pain due to..." (无侧别, 无 area)
+    assessment += `${assessmentConditionName} pain due to ${context.localPattern} in local meridian, `
+  } else {
+    assessment += `${assessmentConditionName} pain due to ${context.localPattern} in local meridian, `
+  }
+  assessment += `but patient also has ${context.systemicPattern} in the general.\n`
+
+  // 治则
+  const treatmentPrinciples = localPattern?.treatmentPrinciples || ['promote circulation, relieves pain']
+  const treatmentVerb = getConfig(TREATMENT_VERB_MAP, bp)
+  const harmonize = getConfig(HARMONIZE_MAP, bp)
+  const treatmentPurpose = getConfig(TREATMENT_PURPOSE_MAP, bp)
+
+  assessment += `Today's TCM treatment principles:\n`
+  // 防重复: 如果 verb 和 principle 以同一个单词开头，用 'focus' 替代
+  let finalVerb = treatmentVerb
+  const verbFirstWord = treatmentVerb.split(' ')[0].toLowerCase()
+  const principleFirstWord = treatmentPrinciples[0].split(' ')[0].toLowerCase()
+  if (verbFirstWord === principleFirstWord) {
+    finalVerb = 'focus'
+  }
+  assessment += `${finalVerb} on ${treatmentPrinciples[0]} and harmonize ${harmonize} balance in order to ${treatmentPurpose}.\n`
+
+  // 评估位置 — 介词因部位而异 (临床逻辑区别):
+  // KNEE: "on bilateral knee area." (关节部位用 "on/in")
+  // SHOULDER: "Bilateral -shoulder area" (无 "on")
+  // LBP: "along bilateral lower back." (沿脊柱走向用 "along")
+  // NECK: "on B/L Cervical" (用 "B/L" 缩写, "Cervical" 条件名)
+  if (bp === 'KNEE') {
+    assessment += `Acupuncture Eval was done today on ${laterality} ${bodyPartName} area.`
+  } else if (bp === 'SHOULDER') {
+    assessment += `Acupuncture Eval was done today ${lateralityUpper} -${bodyPartAreaName}`
+  } else if (bp === 'LBP') {
+    // LBP 用 "along" — 沿脊柱走向
+    assessment += `Acupuncture Eval was done today along ${laterality} ${bodyPartName}.`
+  } else if (bp === 'NECK') {
+    // NECK 用 "on B/L Cervical" (双侧缩写)
+    const neckLaterality = laterality === 'bilateral' ? 'B/L' : laterality
+    assessment += `Acupuncture Eval was done today on ${neckLaterality} ${assessmentConditionName}`
+  } else {
+    assessment += `Acupuncture Eval was done today on ${laterality} ${bodyPartName}.`
+  }
+
+  return assessment
+}
+
+/**
+ * 生成 Plan 部分（IE）
+ * KNEE 模板格式:
+ *   "to5-6." (Pain Scale to与值之间无空格)
+ *   "to (70%-80%)" (sensation Scale to 后带括号)
+ *   "to4" (Strength to与值之间无空格)
+ */
+export function generatePlanIE(context: GenerationContext): string {
+  const bp = context.primaryBodyPart
+
+  let plan = `Initial Evaluation - Personal one on one contact with the patient (total 20-30 mins)\n`
+  plan += `1. Greeting patient.\n`
+  plan += `2. Detail explanation from patient of past medical history and current symptom.\n`
+  plan += `3. Initial evaluation examination of the patient current condition.\n`
+  plan += `4. Explanation with patient for medical decision/treatment plan.\n\n`
+
+  // 短期目标
+  plan += `Short Term Goal (RELIEF TREATMENT FREQUENCY: 12 treatments in 5-6 weeks):\n`
+
+  if (bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK') {
+    // 所有模板精确格式: "to5-6.", "to (70%-80%)", "to4"
+    plan += `Decrease Pain Scale to5-6.\n`
+    plan += `Decrease soreness sensation Scale to (70%-80%)\n`
+    plan += `Decrease Muscles Tightness to moderate\n`
+    plan += `Decrease Muscles Tenderness to Grade 3\n`
+    plan += `Decrease Muscles Spasms to Grade 2\n`
+    plan += `Increase Muscles Strength to4\n\n`
+  } else {
+    plan += `Decrease Pain Scale to 5-6.\n`
+    plan += `Decrease soreness sensation Scale to 50%\n`
+    plan += `Decrease Muscles Tightness to moderate\n`
+    plan += `Decrease Muscles Tenderness to Grade 3\n`
+    plan += `Decrease Muscles Spasms to Grade 2\n`
+    plan += `Increase Muscles Strength to 4\n\n`
+  }
+
+  // 长期目标
+  plan += `Long Term Goal (ADDITIONAL MAINTENANCE & SUPPORTING TREATMENTS FREQUENCY: 8 treatments in 5-6 weeks):\n`
+
+  // Long Term Pain Scale 目标: KNEE=3, SHOULDER=3-4, DEFAULT=3
+  const ltPainScaleTarget = bp === 'SHOULDER' ? '3-4' : '3'
+
+  if (bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK') {
+    // 所有模板精确格式
+    plan += `Decrease Pain Scale to${ltPainScaleTarget}\n`
+    plan += `Decrease soreness sensation Scale to (70%-80%)\n`
+    plan += `Decrease Muscles Tightness to mild-moderate\n`
+    plan += `Decrease Muscles Tenderness to Grade 2\n`
+    plan += `Decrease Muscles Spasms to Grade 1\n`
+    plan += `Increase Muscles Strength to4+\n`
+    plan += `Increase ROM 60%\n`
+    plan += `Decrease impaired Activities of Daily Living to mild-moderate.`
+  } else {
+    plan += `Decrease Pain Scale to 3\n`
+    plan += `Decrease soreness sensation Scale to 30%\n`
+    plan += `Decrease Muscles Tightness to mild-moderate\n`
+    plan += `Decrease Muscles Tenderness to Grade 1\n`
+    plan += `Decrease Muscles Spasms to Grade 1\n`
+    plan += `Increase Muscles Strength to 4+\n`
+    plan += `Increase ROM 60%\n`
+    plan += `Decrease impaired Activities of Daily Living to mild-moderate.`
+  }
+
+  return plan
+}
+
+// ==================== TX (Daily Note / Treatment Note) ====================
+
+/**
+ * TX Subjective 下拉框选项 (来自 AC-TX KNEE.md)
+ */
+const TX_SYMPTOM_CHANGE_OPTIONS = [
+  'improvement of symptom(s)',
+  'exacerbate of symptom(s)',
+  'similar symptom(s) as last visit',
+  'improvement after treatment, but pain still came back next day'
+]
+
+const TX_REASON_OPTIONS = [
+  'can move joint more freely and with less pain',
+  'physical activity no longer causes distress',
+  'reduced level of pain',
+  'reduced joint stiffness and swelling',
+  'less difficulty performing daily activities',
+  'energy level improved',
+  'sleep quality improved',
+  'more energy level throughout the day',
+  'continuous treatment',
+  'maintain regular treatments',
+  'still need more treatments to reach better effect',
+  'weak constitution',
+  'skipped treatments',
+  'stopped treatment for a while',
+  'discontinuous treatment',
+  'did not have good rest',
+  'intense work',
+  'excessive time using cell phone',
+  'excessive time using computer',
+  'bad posture',
+  'carrying/lifting heavy object(s)',
+  'lack of exercise',
+  'exposure to cold air',
+  'uncertain reason'
+]
+
+const TX_CONNECTOR_OPTIONS = ['because of', 'may related of', 'due to', 'and']
+
+const TX_GENERAL_CONDITION_OPTIONS = ['good', 'fair', 'poor']
+
+const TX_SYMPTOM_PRESENT_OPTIONS = [
+  'slight improvement of symptom(s).',
+  'improvement of symptom(s).',
+  'exacerbate of symptom(s).',
+  'no change.'
+]
+
+const TX_PATIENT_CHANGE_OPTIONS = [
+  'decreased', 'slightly decreased', 'increased', 'slight increased', 'remained the same'
+]
+
+const TX_WHAT_CHANGED_OPTIONS = [
+  'pain', 'pain frequency', 'pain duration', 'numbness sensation',
+  'muscles weakness', 'muscles soreness sensation', 'muscles stiffness sensation',
+  'heaviness sensation', 'difficulty in performing ADLs', 'as last time visit'
+]
+
+const TX_PHYSICAL_CHANGE_OPTIONS = [
+  'reduced', 'slightly reduced', 'increased', 'slight increased', 'remained the same'
+]
+
+const TX_FINDING_TYPE_OPTIONS = [
+  'local muscles tightness', 'local muscles tenderness', 'local muscles spasms',
+  'local muscles trigger points', 'joint ROM', 'joint ROM limitation',
+  'muscles strength', 'joints swelling', 'last visit'
+]
+
+const TX_TOLERATED_OPTIONS = ['session', 'treatment', 'acupuncture session', 'acupuncture treatment']
+
+const TX_RESPONSE_OPTIONS = [
+  'well', 'with good positioning technique', 'with good draping technique',
+  'with positive verbal response', 'with good response', 'with positive response',
+  'with good outcome in reducing spasm', 'with excellent outcome due reducing pain',
+  'with good outcome in improving ROM', 'good outcome in improving ease with functional mobility',
+  'with increase ease with functional mobility', 'with increase ease with function'
+]
+
+const TX_POSITIVE_REASON_OPTIONS = [
+  'can move joint more freely and with less pain',
+  'physical activity no longer causes distress',
+  'reduced level of pain',
+  'reduced joint stiffness and swelling',
+  'less difficulty performing daily activities',
+  'energy level improved',
+  'sleep quality improved',
+  'more energy level throughout the day'
+]
+
+const TX_NEGATIVE_REASON_OPTIONS = [
+  'still need more treatments to reach better effect',
+  'weak constitution',
+  'skipped treatments',
+  'stopped treatment for a while',
+  'discontinuous treatment',
+  'did not have good rest',
+  'intense work',
+  'excessive time using cell phone',
+  'excessive time using computer',
+  'bad posture',
+  'carrying/lifting heavy object(s)',
+  'lack of exercise',
+  'exposure to cold air',
+  'uncertain reason'
+]
+
+const TX_MAINTENANCE_REASON_OPTIONS = [
+  'continuous treatment',
+  'maintain regular treatments',
+  'still need more treatments to reach better effect',
+  'uncertain reason'
+]
+
+function applyTxReasonChain(
+  weightedReasons: WeightedOption[],
+  selectedChange: string,
+  context: GenerationContext
+): WeightedOption[] {
+  const change = selectedChange.toLowerCase()
+  const isImproved = change.includes('improvement') && !change.includes('came back')
+  const isRelapse = change.includes('came back')
+  const isExacerbate = change.includes('exacerbate')
+  const isSimilar = change.includes('similar')
+  const isDeficiencyPattern = context.systemicPattern.includes('Deficiency')
+
+  return weightedReasons
+    .map(item => {
+      let bonus = 0
+      const extraReasons: string[] = []
+
+      if (
+        isImproved &&
+        (item.option === 'energy level improved' ||
+          item.option === 'more energy level throughout the day' ||
+          item.option === 'sleep quality improved')
+      ) {
+        bonus += 45
+        extraReasons.push('复诊改善优先匹配模板精力/睡眠改善')
+      } else if (isImproved && TX_POSITIVE_REASON_OPTIONS.includes(item.option)) {
+        bonus += 25
+        extraReasons.push('复诊改善优先匹配模板正向原因')
+      }
+      if (isImproved && isDeficiencyPattern && (item.option === 'energy level improved' || item.option === 'more energy level throughout the day')) {
+        bonus += 30
+        extraReasons.push('虚证改善优先匹配模板精力改善')
+      }
+      if (isRelapse && TX_MAINTENANCE_REASON_OPTIONS.includes(item.option)) {
+        bonus += 40
+        extraReasons.push('复诊反复优先匹配模板持续治疗原因')
+      }
+      if (isExacerbate && TX_NEGATIVE_REASON_OPTIONS.includes(item.option)) {
+        bonus += 35
+        extraReasons.push('复诊加重优先匹配模板负向原因')
+      }
+      if (isSimilar && TX_MAINTENANCE_REASON_OPTIONS.includes(item.option)) {
+        bonus += 30
+        extraReasons.push('症状相近优先匹配模板维持/待观察原因')
+      }
+
+      return {
+        ...item,
+        weight: item.weight + bonus,
+        reasons: extraReasons.length > 0 ? [...item.reasons, ...extraReasons] : item.reasons
+      }
+    })
+    .sort((a, b) => b.weight - a.weight)
+}
+
+// TX Plan 治则动词选项 (TX 模板有额外选项 vs IE)
+const TX_VERB_OPTIONS = [
+  'continue to be emphasize', 'emphasize', 'consist of promoting',
+  'promote', 'focus', 'pay attention'
+]
+
+// TX Plan 治则选项 (比 IE 多一个 "drain the dampness, clear damp")
+const TX_TREATMENT_OPTIONS = [
+  'moving qi', 'regulates qi',
+  'activating Blood circulation to dissipate blood stagnant',
+  'dredging channel and activating collaterals',
+  'activate blood and relax tendons', 'eliminates accumulation',
+  'resolve stagnation, clears heat', 'promote circulation, relieves pain',
+  'expelling pathogens', 'dispelling cold, drain the dampness',
+  'strengthening muscles and bone', 'clear heat, dispelling the flame',
+  'clear damp-heat', 'drain the dampness, clear damp'
+]
+
+/**
+ * 生成 TX Subjective 部分
+ *
+ * TX KNEE 模板结构:
+ *   Follow up visit
+ *   Patient reports: there is [symptom change] [connector] [reason] .
+ *   Patient still c/o [pain types] pain [laterality] knee area [radiation] ,
+ *   associated with muscles [symptoms] (scale as [scale]),
+ *   impaired performing ADL's with [severity] difficulty [ADL set 1]
+ *   and [severity] difficulty [ADL set 2].
+ *
+ *   Pain Scale: [score] /10
+ *   Pain frequency: [frequency]
+ */
+export function generateSubjectiveTX(context: GenerationContext, visitState?: TXVisitState): string {
+  const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
+  const bodyPartAreaName = BODY_PART_AREA_NAMES[context.primaryBodyPart] || bodyPartName
+  const laterality = LATERALITY_NAMES[context.laterality]
+  const bp = context.primaryBodyPart
+
+  const weightContext: WeightContext = {
+    bodyPart: bp,
+    localPattern: context.localPattern,
+    systemicPattern: context.systemicPattern,
+    chronicityLevel: context.chronicityLevel,
+    severityLevel: visitState?.severityLevel || context.severityLevel,
+    insuranceType: context.insuranceType,
+    painScale: visitState?.painScaleCurrent || 7,
+    hasPacemaker: context.hasPacemaker
+  }
+
+  // 权重选择: 症状变化
+  const weightedChange = calculateWeights('subjective.symptomChange', TX_SYMPTOM_CHANGE_OPTIONS, weightContext)
+  const selectedChange = visitState?.symptomChange || selectBestOption(weightedChange)
+
+  // 权重选择: 连接词
+  const selectedConnector = visitState?.reasonConnector || TX_CONNECTOR_OPTIONS[0] // "because of" 最常用
+
+  // 权重选择: 原因
+  const weightedReason = calculateWeights('subjective.reason', TX_REASON_OPTIONS, weightContext)
+  const reasonWithChain = applyTxReasonChain(weightedReason, selectedChange, context)
+  const selectedReason = visitState?.reason || selectBestOption(reasonWithChain)
+
+  // 权重选择: 疼痛类型
+  const painTypeOptions = ['Dull', 'Burning', 'Freezing', 'Shooting', 'Tingling', 'Stabbing', 'Aching', 'Squeezing', 'Cramping', 'pricking', 'weighty', 'cold', 'pin & needles']
+  const weightedPainTypes = calculateWeights('subjective.painTypes', painTypeOptions, weightContext)
+  const selectedPainTypes = selectBestOptions(weightedPainTypes, 2)
+
+  // 权重选择: 关联症状 (TX KNEE 默认单选 "soreness")
+  const associatedSymptomOptions = ['soreness', 'stiffness', 'heaviness', 'weakness', 'numbness']
+  const weightedSymptoms = calculateWeights('subjective.associatedSymptoms', associatedSymptomOptions, weightContext)
+  const selectedAssociatedSymptom = visitState?.associatedSymptom || selectBestOption(weightedSymptoms)
+
+  // 权重选择: ADL 活动 (TX KNEE 有两组)
+  const adlActivities = ADL_MAP[bp] || ADL_MAP['LBP']
+  const weightedAdl = calculateWeights('subjective.adlDifficulty.activities', adlActivities, weightContext)
+  const allAdl = selectBestOptions(weightedAdl, 5)
+  // 分成两组: 前2个一组, 后3个一组 (匹配模板 TX KNEE 两组 ADL 的默认分法)
+  const adlGroup1 = allAdl.slice(0, 2)
+  const adlGroup2 = allAdl.slice(2, 5)
+
+  const symptomScale = getConfig(SYMPTOM_SCALE_MAP, bp)
+
+  let subjective = `Follow up visit\n`
+
+  // 患者报告行
+  subjective += `Patient reports: there is ${selectedChange} ${selectedConnector} ${selectedReason} .\n`
+
+  // 持续症状 — 介词选择 + "area" 静态文本:
+  // KNEE: "pain in bilateral Knee area" (bodyPartAreaName 已含 "area", 下拉有 "in bilateral")
+  // SHOULDER: "pain in bilateral shoulder area" (bodyPartAreaName 已含 "area", 下拉有 "in bilateral")
+  // NECK: "pain in neck area" (模板方向下拉: in|in left side|in right side|..., 无 "bilateral" 选项)
+  // LBP: "pain on lower back area" (模板无侧别下拉)
+  if (bp === 'KNEE' || bp === 'SHOULDER') {
+    // KNEE/SHOULDER 的 bodyPartAreaName 已包含 "area"
+    subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain in ${laterality} ${bodyPartAreaName} `
+  } else if (bp === 'NECK') {
+    // NECK 模板方向下拉无 "bilateral", bilateral 时只用 "in"
+    const neckDirection = laterality === 'bilateral' ? 'in' :
+                          laterality === 'left' ? 'in left side' :
+                          laterality === 'right' ? 'in right side' : 'in'
+    subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain ${neckDirection} ${bodyPartAreaName} area `
+  } else if (bp === 'LBP') {
+    subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain on ${bodyPartAreaName} area `
+  } else {
+    subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain on ${bodyPartAreaName} `
+  }
+  subjective += `without radiation, associated with muscles ${selectedAssociatedSymptom} (scale as ${symptomScale}), `
+
+  // TX ADL 格式:
+  // KNEE: "difficulty [ADL]" (无 "of", 两组)
+  // SHOULDER/NECK: "difficulty of [ADL]" (有 "of", 两组)
+  // LBP: "difficulty with ADLs like [ADL]" (单组)
+  if (bp === 'KNEE') {
+    const sev = visitState?.severityLevel || context.severityLevel
+    subjective += `impaired performing ADL's with ${sev} difficulty ${adlGroup1.join(', ')} `
+    subjective += `and ${sev} difficulty ${adlGroup2.join(', ')}.\n\n`
+  } else if (bp === 'SHOULDER' || bp === 'NECK') {
+    const sev = visitState?.severityLevel || context.severityLevel
+    subjective += `impaired performing ADL's with ${sev} difficulty of ${adlGroup1.join(', ')} `
+    subjective += `and ${sev} difficulty of ${adlGroup2.join(', ')}.\n\n`
+  } else {
+    const sev = visitState?.severityLevel || context.severityLevel
+    subjective += `impaired performing ADL's with ${sev} difficulty with ADLs like ${allAdl.slice(0, 3).join(', ')}.\n\n`
+  }
+
+  // 疼痛评分 - TX 格式: "Pain Scale: [8] /10" (不同于 IE 的 Worst/Best/Current)
+  // 使用模板下拉框有效标签 (整数或范围如 "8-7"), 而非小数
+  const painScale = visitState?.painScaleLabel || (visitState?.painScaleCurrent ? `${Math.round(visitState.painScaleCurrent)}` : '8')
+  subjective += `Pain Scale: ${painScale} /10\n`
+  // TX 格式: "Pain frequency:" (小写 f, 不同于 IE 的 "Pain Frequency:")
+  subjective += `Pain frequency: ${visitState?.painFrequency || 'Constant (symptoms occur between 76% and 100% of the time)'}`
+
+  return subjective
+}
+
+/**
+ * 生成 TX Assessment 部分
+ *
+ * TX KNEE 模板结构:
+ *   The patient continues treatment for [in bilateral] knee area today.
+ *   The patient's general condition is [fair], compared with last treatment,
+ *   the patient presents with [no change.] The patient has [remained the same]
+ *   [as last time visit], physical finding has [remained the same] [last visit].
+ *   Patient tolerated [acupuncture treatment] [with positive verbal response].
+ *   No adverse side effect post treatment.
+ *   Current patient still has [Cold-Damp + Wind-Cold] in local meridian that cause the pain.
+ */
+export function generateAssessmentTX(context: GenerationContext, visitState?: TXVisitState): string {
+  const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
+  const bp = context.primaryBodyPart
+  const laterality = LATERALITY_NAMES[context.laterality]
+
+  const weightContext: WeightContext = {
+    bodyPart: bp,
+    localPattern: context.localPattern,
+    systemicPattern: context.systemicPattern,
+    chronicityLevel: context.chronicityLevel,
+    severityLevel: visitState?.severityLevel || context.severityLevel,
+    insuranceType: context.insuranceType,
+    painScale: visitState?.painScaleCurrent || 7,
+    hasPacemaker: context.hasPacemaker
+  }
+
+  // 权重选择: 总体状况
+  const weightedCondition = calculateWeights('assessment.condition', TX_GENERAL_CONDITION_OPTIONS, weightContext)
+  const selectedCondition = visitState?.generalCondition || selectBestOption(weightedCondition)
+
+  // 权重选择: 症状变化
+  const weightedPresent = calculateWeights('assessment.present', TX_SYMPTOM_PRESENT_OPTIONS, weightContext)
+  const selectedPresent = visitState?.soaChain.assessment.present || selectBestOption(weightedPresent)
+
+  // 权重选择: 患者变化
+  const weightedPatientChange = calculateWeights('assessment.patientChange', TX_PATIENT_CHANGE_OPTIONS, weightContext)
+  const selectedPatientChange = visitState?.soaChain.assessment.patientChange || selectBestOption(weightedPatientChange)
+
+  // 权重选择: 变化内容
+  const weightedWhat = calculateWeights('assessment.whatChanged', TX_WHAT_CHANGED_OPTIONS, weightContext)
+  const selectedWhat = visitState?.soaChain.assessment.whatChanged || selectBestOption(weightedWhat)
+
+  // 权重选择: 体征变化
+  const weightedPhysical = calculateWeights('assessment.physicalChange', TX_PHYSICAL_CHANGE_OPTIONS, weightContext)
+  const selectedPhysical = visitState?.soaChain.assessment.physicalChange || selectBestOption(weightedPhysical)
+
+  // 权重选择: 体征类型
+  const weightedFinding = calculateWeights('assessment.findingType', TX_FINDING_TYPE_OPTIONS, weightContext)
+  const selectedFinding = visitState?.soaChain.assessment.findingType || selectBestOption(weightedFinding)
+
+  // 权重选择: 耐受描述
+  const weightedTolerated = calculateWeights('assessment.tolerated', TX_TOLERATED_OPTIONS, weightContext)
+  const selectedTolerated = selectBestOption(weightedTolerated)
+
+  // 权重选择: 反应描述
+  const weightedResponse = calculateWeights('assessment.response', TX_RESPONSE_OPTIONS, weightContext)
+  const selectedResponse = selectBestOption(weightedResponse)
+
+  let assessment = ''
+
+  // 治疗延续 — 各部位格式差异:
+  // KNEE: "The patient continues treatment for in bilateral knee area today."
+  // SHOULDER: "The patient continues treatment for in bilateral shoulder area today."
+  // LBP: "The patient continues treatment for lower back area today." (无侧别)
+  // NECK: "Patient continue treatment for neck area today." (无 "The", 无 "s")
+  if (bp === 'KNEE' || bp === 'SHOULDER') {
+    assessment += `The patient continues treatment for in ${laterality} ${bodyPartName.toLowerCase()} area today.\n`
+  } else if (bp === 'NECK') {
+    assessment += `Patient continue treatment for ${bodyPartName.toLowerCase()} area today.\n`
+  } else {
+    assessment += `The patient continues treatment for ${bodyPartName.toLowerCase()} area today.\n`
+  }
+
+  // 总体评估
+  assessment += `The patient's general condition is ${selectedCondition}, `
+  assessment += `compared with last treatment, the patient presents with ${selectedPresent} `
+  assessment += `The patient has ${selectedPatientChange} ${selectedWhat}, `
+  assessment += `physical finding has ${selectedPhysical} ${selectedFinding}. `
+  assessment += `Patient tolerated ${selectedTolerated} ${selectedResponse}. `
+  assessment += `No adverse side effect post treatment.\n`
+
+  // 证型延续
+  assessment += `Current patient still has ${context.localPattern} in local meridian that cause the pain.`
+
+  return assessment
+}
+
+/**
+ * 生成 TX Plan 部分
+ *
+ * TX KNEE 模板结构:
+ *   Today's treatment principles:
+ *   [focus] on [dispelling cold, drain the dampness] to speed up the recovery, soothe the tendon.
+ */
+export function generatePlanTX(context: GenerationContext): string {
+  const localPattern = TCM_PATTERNS[context.localPattern]
+  const bp = context.primaryBodyPart
+
+  const weightContext: WeightContext = {
+    bodyPart: bp,
+    localPattern: context.localPattern,
+    systemicPattern: context.systemicPattern,
+    chronicityLevel: context.chronicityLevel,
+    severityLevel: context.severityLevel,
+    insuranceType: context.insuranceType,
+    painScale: 7,
+    hasPacemaker: context.hasPacemaker
+  }
+
+  // 权重选择: 治则动词
+  const weightedVerb = calculateWeights('plan.verb', TX_VERB_OPTIONS, weightContext)
+  const selectedVerb = selectBestOption(weightedVerb)
+
+  // 权重选择: 治则内容 (基于证型)
+  const weightedTreatment = calculateWeights('plan.treatmentPrinciples', TX_TREATMENT_OPTIONS, weightContext)
+  const selectedTreatment = selectBestOption(weightedTreatment)
+
+  let plan = `Today's treatment principles:\n`
+  plan += `${selectedVerb} on ${selectedTreatment} to speed up the recovery, soothe the tendon.`
+
+  return plan
+}
+
+/**
+ * 生成针刺协议
+ *
+ * KNEE 模板结构 (来自 acupuncture knee pain.md):
+ *   Step 1: Front - right knee with e-stim (Greeting + Review + Routine exam)
+ *   Step 2: Front - left knee with e-stim (Washing hands...)
+ *   Step 3: Back - right knee with e-stim (Explanation with patient...)
+ *   Step 4: Back - left knee without e-stim (Washing hands...)
+ *
+ * SHOULDER 模板结构:
+ *   Step 1: Front (Greeting...)
+ *   Step 2: Front (Explanation...)
+ *   Step 3: Back (Washing hands...)
+ *   Step 4: Back (Washing hands...)
+ */
+export function generateNeedleProtocol(context: GenerationContext): string {
+  const isFullCode = INSURANCE_NEEDLE_MAP[context.insuranceType] === 'full'
+  const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
+  const bp = context.primaryBodyPart
+
+  // 获取身体部位专用针号
+  const needleSizes = getConfig(NEEDLE_SIZE_MAP, bp)
+
+  // KNEE 专用穴位映射 (来自 acupuncture knee pain.md)
+  const KNEE_FRONT_RIGHT = ['GB33', 'GB34', 'GB36']
+  const KNEE_FRONT_LEFT = ['SP9', 'XI YAN', 'HE DING', 'A SHI POINT']
+  const KNEE_BACK_RIGHT = ['BL40', 'BL57']
+  const KNEE_BACK_LEFT = ['BL23', 'BL55', 'A SHI POINTS']
+
+  // 其他部位穴位映射 (来自各模板 ppnSelectCombo)
+  const frontPoints: Record<string, string[]> = {
+    'LBP': ['REN6', 'GB34', 'ST36', 'ST40', 'REN4', 'SI3'],
+    'NECK': ['LI4', 'GB39', 'SI3', 'LU7'],
+    'SHOULDER': ['JIAN QIAN', 'PC2', 'LU3', 'LU4', 'LU5', 'LI4', 'LI11', 'ST3', 'GB34', 'SI3', 'ST38'],
+    'HIP': ['GB34', 'ST36', 'SP6', 'LV3'],
+    'ELBOW': ['LI10', 'LI11', 'LU5', 'HT3']
+  }
+
+  const backPoints: Record<string, string[]> = {
+    'LBP': ['BL23', 'BL25', 'BL53', 'DU4', 'BL22', 'YAO JIA JI', 'A SHI POINTS'],
+    'NECK': ['GB20', 'GB21', 'BL10', 'BL11', 'A SHI POINTS'],
+    'SHOULDER': ['GB21', 'BL10', 'BL11', 'BL17', 'LI15', 'LI16', 'SI9', 'SI10', 'SI11', 'SI12', 'SI14', 'SI15', 'SJ10', 'A SHI POINTS'],
+    'HIP': ['GB29', 'GB30', 'BL54', 'A SHI POINTS'],
+    'ELBOW': ['LI12', 'SI8', 'A SHI POINTS']
+  }
+
+  const eStim = context.hasPacemaker ? 'without' : 'with'
+
+  // Step 1 开头文本:
+  // IE: "Preparation" (Greeting/Review/Exam 已在 Plan 步骤 1-4 中)
+  // TX: "Greeting patient, Review of the chart, Routine examination of the patient current condition"
+  const step1Prefix = context.noteType === 'TX'
+    ? 'Greeting patient, Review of the chart, Routine examination of the patient current condition, '
+    : 'Preparation, '
+
+  // ===== KNEE 专用协议 =====
+  if (bp === 'KNEE' && isFullCode) {
+    let protocol = `${needleSizes}\n`
+    protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`
+
+    protocol += `Front Points: (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 1: Front right knee
+    protocol += `1. ${step1Prefix}`
+    protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted for right knee ${eStim} electrical stimulation `
+    protocol += `${KNEE_FRONT_RIGHT.join(', ')}\n\n`
+
+    // Step 2: Front left knee - "Washing hands..."
+    protocol += `2. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles left knee ${eStim} electrical stimulation `
+    protocol += `${KNEE_FRONT_LEFT.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n\n`
+
+    protocol += `Back Points (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 3: Back right knee - "Explanation with patient for future treatment plan..."
+    protocol += `3. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `
+    protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `
+    protocol += `re-insertion of additional needles right knee ${eStim} electrical stimulation `
+    protocol += `${KNEE_BACK_RIGHT.join(', ')}\n\n`
+
+    // Step 4: Back left knee - "Washing hands..." + WITHOUT e-stim
+    protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles left knee without electrical stimulation `
+    protocol += `${KNEE_BACK_LEFT.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+    protocol += `Post treatment service and education patient about precautions at home after treatment.\n`
+    protocol += `Documentation`
+
+    return protocol
+  }
+
+  // ===== SHOULDER 专用协议 (双侧 4 步, 类似 KNEE) =====
+  if (bp === 'SHOULDER' && isFullCode) {
+    // 穴位分配 (来自 acupuncture shoulder pain.md 模板)
+    const SHOULDER_FRONT_RIGHT = ['LI4', 'LI11', 'GB34']
+    const SHOULDER_FRONT_LEFT = ['JIAN QIAN', 'LU3', 'SI3']
+    const SHOULDER_BACK_RIGHT = ['SI9', 'SJ10', 'A SHI POINTS']
+    const SHOULDER_BACK_LEFT = ['GB21', 'LI15', 'SI11', 'SI15']
+
+    let protocol = `${needleSizes}\n`
+    protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`
+
+    protocol += `Front Points: (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 1: Front right shoulder
+    protocol += `1. ${step1Prefix}`
+    protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted for right ${bodyPartName} ${eStim} electrical stimulation `
+    protocol += `${SHOULDER_FRONT_RIGHT.join(', ')}\n\n`
+
+    // Step 2: Front left shoulder - "Washing hands..."
+    protocol += `2. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles for left ${bodyPartName} ${eStim} electrical stimulation `
+    protocol += `${SHOULDER_FRONT_LEFT.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+
+    protocol += `Back Points (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 3: Back right shoulder - "Explanation with patient..."
+    protocol += `3. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `
+    protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `
+    protocol += `re-insertion of additional needles for right ${bodyPartName} ${eStim} electrical stimulation `
+    protocol += `${SHOULDER_BACK_RIGHT.join(', ')}\n\n`
+
+    // Step 4: Back left shoulder - "Washing hands..." + WITHOUT e-stim
+    protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles for left ${bodyPartName} without electrical stimulation `
+    protocol += `${SHOULDER_BACK_LEFT.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+    protocol += `Post treatment service and education patient about precautions at home after treatment.\n`
+    protocol += `Documentation`
+
+    return protocol
+  }
+
+  // ===== LBP 专用协议 (非双侧, 特定穴位) =====
+  if (bp === 'LBP' && isFullCode) {
+    const LBP_FRONT_1 = ['REN6', 'GB34', 'ST36']
+    const LBP_FRONT_2 = ['ST40', 'REN4', 'SI3']
+    const LBP_BACK_1 = ['BL25', 'BL53', 'DU4']
+    const LBP_BACK_2 = ['BL22', 'YAO JIA JI', 'A SHI POINTS']
+
+    // LBP 模板默认位置是 "mid and lower back" (下拉选项: lower back | mid and lower back)
+    const lbpLocation = 'mid and lower back'
+    let protocol = `${needleSizes}\n`
+    protocol += `Daily acupuncture treatment for ${lbpLocation} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`
+
+    protocol += `Front Points: (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 1
+    protocol += `1. ${step1Prefix}`
+    protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted ${eStim} electrical stimulation `
+    protocol += `${LBP_FRONT_1.join(', ')}\n\n`
+
+    // Step 2: "Explanation with patient..." 前缀
+    protocol += `2. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `
+    protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `
+    protocol += `re-insertion of additional needles ${eStim} electrical stimulation `
+    protocol += `${LBP_FRONT_2.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n\n`
+
+    protocol += `Back Points (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 3
+    protocol += `3. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation `
+    protocol += `${LBP_BACK_1.join(', ')}\n\n`
+
+    // Step 4
+    protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation `
+    protocol += `${LBP_BACK_2.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+    protocol += `Post treatment service and education patient about precautions at home after treatment.\n`
+    protocol += `Documentation`
+
+    return protocol
+  }
+
+  // ===== NECK 专用协议 (非双侧, Step 4 强制 without e-stim) =====
+  if (bp === 'NECK' && isFullCode) {
+    const NECK_FRONT_1 = ['SI3', 'SP6', 'LI11']
+    const NECK_FRONT_2 = ['LV3', 'LI11', 'DU20']
+    const NECK_BACK_1 = ['SI13', 'JIN JIA JI', 'A SHI POINTS']
+    const NECK_BACK_2 = ['BAI LAO', 'GB14', 'GB20']
+
+    let protocol = `${needleSizes}\n`
+    protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`
+
+    protocol += `Front Points: (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 1
+    protocol += `1. ${step1Prefix}`
+    protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted ${eStim} electrical stimulation `
+    protocol += `${NECK_FRONT_1.join(', ')}\n\n`
+
+    // Step 2: "Explanation with patient..." 前缀
+    protocol += `2. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `
+    protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `
+    protocol += `re-insertion of additional needles ${eStim} electrical stimulation `
+    protocol += `${NECK_FRONT_2.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n\n`
+
+    protocol += `Back Points (30 mins) - personal one on one contact with the patient\n`
+
+    // Step 3
+    protocol += `3. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation `
+    protocol += `${NECK_BACK_1.join(', ')}\n\n`
+
+    // Step 4: NECK 模板 Step 4 强制 "without electrical stimulation"
+    protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles without electrical stimulation `
+    protocol += `${NECK_BACK_2.join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+    protocol += `Post treatment service and education patient about precautions at home after treatment.\n`
+    protocol += `Documentation`
+
+    return protocol
+  }
+
+  // ===== 其他部位通用协议 =====
+  const front = frontPoints[bp] || ['ST36', 'SP6', 'LV3']
+  const back = backPoints[bp] || ['A SHI POINTS']
+
+  if (isFullCode) {
+    // 全代码: 60分钟, 4步骤
+    let protocol = `${needleSizes}\n`
+    protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`
+
+    protocol += `Front Points: (30 mins) - personal one on one contact with the patient\n`
+    protocol += `1. ${step1Prefix}`
+    protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted ${eStim} electrical stimulation ${front.slice(0, 3).join(', ')}\n\n`
+
+    protocol += `2. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `
+    protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `
+    protocol += `re-insertion of additional needles ${eStim} electrical stimulation ${front.slice(3, 6).join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n\n`
+
+    protocol += `Back Points (30 mins) - personal one on one contact with the patient\n`
+    protocol += `3. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation ${back.slice(0, 3).join(', ')}\n\n`
+
+    protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation ${back.slice(3, 6).join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+    protocol += `Post treatment service and education patient about precautions at home after treatment.\n`
+    protocol += `Documentation`
+
+    return protocol
+  } else {
+    // 单代码 (97810): 15分钟, 1步骤, 无电刺激
+    let protocol = `${needleSizes}\n`
+    protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 15 mins)\n\n`
+
+    protocol += `Back Points: (15 mins) - personal one on one contact with the patient\n`
+    protocol += `1. ${step1Prefix}`
+    protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, `
+    protocol += `selecting location, marking and cleaning the points, Initial Acupuncture needle inserted without electrical stimulation `
+    protocol += `${back.slice(0, 4).join(', ')}\n\n`
+
+    protocol += `Removing and properly disposing of needles\n`
+    protocol += `Post treatment service and education patient about precautions at home after treatment.\n`
+    protocol += `Documentation`
+
+    return protocol
+  }
+}
+
+/**
+ * 生成完整的 SOAP 笔记
+ */
+export function generateSOAPNote(context: GenerationContext): SOAPNote {
+  assertTemplateSupported(context)
+  const subjective = generateSubjective(context)
+  const objective = generateObjective(context)
+  const assessment = generateAssessment(context)
+  const planContent = context.noteType === 'IE' ? generatePlanIE(context) : ''
+  const needleProtocol = generateNeedleProtocol(context)
+
+  // 组合 Plan: 基本计划 + 针刺协议
+  const fullPlan = context.noteType === 'IE'
+    ? `${planContent}\n\n${needleProtocol}`
+    : needleProtocol
+
+  return {
+    header: {
+      patientId: '',
+      visitDate: new Date().toISOString().split('T')[0],
+      noteType: context.noteType,
+      insuranceType: context.insuranceType
+    },
+    subjective: {
+      visitType: context.noteType === 'IE' ? 'INITIAL EVALUATION' : 'Follow up visit',
+      chronicityLevel: context.chronicityLevel,
+      primaryBodyPart: {
+        bodyPart: context.primaryBodyPart,
+        laterality: context.laterality
+      },
+      secondaryBodyParts: (context.secondaryBodyParts || []).map(bp => ({
+        bodyPart: bp,
+        laterality: 'unspecified' as Laterality
+      })),
+      painTypes: ['Dull', 'Aching'],
+      painRadiation: 'without radiation',
+      symptomDuration: { value: 3, unit: 'month(s)' },
+      associatedSymptoms: ['soreness', 'stiffness'],
+      symptomPercentage: '70%',
+      causativeFactors: ['age related/degenerative changes'],
+      exacerbatingFactors: ['Standing after sitting for long time', 'Prolong walking'],
+      relievingFactors: ['Changing positions', 'Resting', 'Massage'],
+      adlDifficulty: {
+        level: context.severityLevel,
+        activities: ['Standing for long periods of time', 'Walking for long periods of time']
+      },
+      activityChanges: ['decrease outside activity', 'decrease walking time'],
+      painScale: { worst: 8, best: 4, current: 7 },
+      painFrequency: 'Frequent (symptoms occur between 51% and 75% of the time)'
+    },
+    objective: {
+      muscleTesting: {
+        tightness: { muscles: ['longissimus', 'Gluteal Muscles'], gradingScale: context.severityLevel },
+        tenderness: { muscles: ['Iliopsoas Muscle', 'Quadratus Lumborum'], gradingScale: '+3' },
+        spasm: { muscles: ['longissimus', 'Iliopsoas Muscle'], gradingScale: '+3' }
+      },
+      rom: [
+        { movement: 'Flexion', strength: '4-/5', degrees: '60 Degrees(moderate)' },
+        { movement: 'Extension', strength: '3+/5', degrees: '15 Degrees(moderate)' }
+      ],
+      inspection: ['weak muscles and dry skin without luster'],
+      tonguePulse: {
+        tongue: TCM_PATTERNS[context.localPattern]?.tongue[0] || 'normal',
+        pulse: TCM_PATTERNS[context.localPattern]?.pulse[0] || 'normal'
+      }
+    },
+    assessment: {
+      tcmDiagnosis: {
+        localPattern: context.localPattern,
+        systemicPattern: context.systemicPattern,
+        bodyPart: BODY_PART_NAMES[context.primaryBodyPart]
+      },
+      treatmentPrinciples: {
+        focusOn: TCM_PATTERNS[context.localPattern]?.treatmentPrinciples[0] || 'promote circulation',
+        harmonize: 'yin/yang',
+        purpose: 'promote good essence'
+      },
+      evaluationArea: `${LATERALITY_NAMES[context.laterality]} ${BODY_PART_NAMES[context.primaryBodyPart]}`
+    },
+    plan: {
+      evaluationType: context.noteType === 'IE' ? 'Initial Evaluation' : 'Re-Evaluation',
+      contactTime: INSURANCE_NEEDLE_MAP[context.insuranceType] === 'full' ? '60' : '15',
+      steps: ['Greeting patient', 'Review of the chart', 'Examination', 'Treatment'],
+      shortTermGoal: {
+        treatmentFrequency: 12,
+        weeksDuration: '5-6',
+        painScaleTarget: '5-6',
+        symptomTargets: [{ symptom: 'soreness', targetValue: '50%' }]
+      },
+      longTermGoal: {
+        treatmentFrequency: 8,
+        weeksDuration: '5-6',
+        painScaleTarget: '3',
+        symptomTargets: [{ symptom: 'soreness', targetValue: '30%' }]
+      },
+      needleProtocol: {
+        needleSizes: ['34#x1"', '30#x1.5"', '30#x2"', '30#x3"'],
+        totalTime: INSURANCE_NEEDLE_MAP[context.insuranceType] === 'full' ? 60 : 15,
+        sections: []
+      }
+    },
+    diagnosisCodes: [],
+    procedureCodes: []
+  }
+}
+
+/**
+ * 导出生成的SOAP为纯文本格式
+ *
+ * IE 结构: Subjective → Objective → Assessment → Plan (Goals + Needle Protocol)
+ * TX 结构: Subjective → Objective(沿用IE) → Assessment(TX) → Plan (Treatment Principles + Needle Protocol)
+ */
+export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisitState): string {
+  assertTemplateSupported(context)
+  if (context.noteType === 'TX') {
+    // TX (Daily Note / Treatment Note)
+    const subjective = generateSubjectiveTX(context, visitState)
+    const objective = generateObjective(context, visitState) // Objective 沿用 IE 的客观检查
+    const assessment = generateAssessmentTX(context, visitState)
+    const planTx = generatePlanTX(context)
+    const needleProtocol = generateNeedleProtocol(context)
+
+    let output = `Subjective\n${subjective}\n\n`
+    output += `Objective\n${objective}\n\n`
+    output += `Assesment\n${assessment}\n\n`
+    output += `Plan\n${planTx}\n\n`
+    output += needleProtocol
+
+    return output
+  }
+
+  // IE (Initial Evaluation)
+  const subjective = generateSubjective(context)
+  const objective = generateObjective(context)
+  const assessment = generateAssessment(context)
+  const plan = generatePlanIE(context)
+  const needleProtocol = generateNeedleProtocol(context)
+
+  let output = `Subjective\n${subjective}\n\n`
+  output += `Objective\n${objective}\n\n`
+  output += `Assessment\n${assessment}\n\n`
+  output += `Plan\n${plan}\n\n`
+  output += needleProtocol
+
+  return output
+}
+
+export interface TXSeriesTextItem {
+  visitIndex: number
+  state: TXVisitState
+  text: string
+}
+
+/**
+ * 基于 IE 基线批量生成 TX 文本序列
+ * - 纵向链: tx-sequence-engine
+ * - 横向链: rule-engine/template rules
+ * - P 保持原生成逻辑不变
+ */
+export function exportTXSeriesAsText(
+  context: GenerationContext,
+  options: TXSequenceOptions
+): TXSeriesTextItem[] {
+  const txContext: GenerationContext = {
+    ...context,
+    noteType: 'TX'
+  }
+  assertTemplateSupported(txContext)
+
+  const states = generateTXSequenceStates(txContext, options)
+  return states.map(state => ({
+    visitIndex: state.visitIndex,
+    state,
+    text: exportSOAPAsText(txContext, state)
+  }))
+}
