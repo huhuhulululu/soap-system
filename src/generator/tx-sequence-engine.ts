@@ -2,6 +2,169 @@ import type { GenerationContext, SeverityLevel } from '../types'
 import { getWeightedOptions, type RuleContext } from '../parser/rule-engine'
 import { getTemplateOptionsForField } from '../parser/template-rule-whitelist'
 
+/**
+ * Body part specific muscle mapping for objective findings
+ */
+export const MUSCLE_MAP: Record<string, string[]> = {
+  SHOULDER: [
+    'trapezius',
+    'deltoid',
+    'supraspinatus',
+    'infraspinatus',
+    'subscapularis',
+    'teres minor',
+    'teres major',
+    'rhomboid',
+    'levator scapulae',
+    'pectoralis major',
+    'pectoralis minor',
+    'serratus anterior'
+  ],
+  KNEE: [
+    'quadriceps',
+    'hamstrings',
+    'gastrocnemius',
+    'popliteus',
+    'sartorius',
+    'gracilis',
+    'tensor fasciae latae',
+    'iliotibial band',
+    'vastus medialis',
+    'vastus lateralis',
+    'rectus femoris'
+  ],
+  NECK: [
+    'sternocleidomastoid',
+    'scalenes',
+    'trapezius',
+    'levator scapulae',
+    'splenius capitis',
+    'splenius cervicis',
+    'semispinalis capitis',
+    'longus colli',
+    'longus capitis',
+    'suboccipital muscles'
+  ],
+  LBP: [
+    'erector spinae',
+    'quadratus lumborum',
+    'psoas',
+    'iliacus',
+    'multifidus',
+    'transversus abdominis',
+    'internal oblique',
+    'external oblique',
+    'rectus abdominis',
+    'gluteus maximus',
+    'gluteus medius',
+    'piriformis'
+  ],
+  ELBOW: [
+    'biceps brachii',
+    'triceps brachii',
+    'brachialis',
+    'brachioradialis',
+    'pronator teres',
+    'supinator',
+    'extensor carpi radialis longus',
+    'extensor carpi radialis brevis',
+    'flexor carpi radialis',
+    'flexor carpi ulnaris'
+  ],
+  HIP: [
+    'iliopsoas',
+    'gluteus maximus',
+    'gluteus medius',
+    'gluteus minimus',
+    'piriformis',
+    'tensor fasciae latae',
+    'rectus femoris',
+    'sartorius',
+    'adductor longus',
+    'adductor magnus',
+    'pectineus',
+    'gracilis'
+  ]
+}
+
+/**
+ * Body part specific ADL (Activities of Daily Living) mapping
+ */
+export const ADL_MAP: Record<string, string[]> = {
+  SHOULDER: [
+    'reaching overhead',
+    'lifting objects',
+    'carrying groceries',
+    'dressing',
+    'combing hair',
+    'washing back',
+    'sleeping on affected side',
+    'driving',
+    'performing household chores',
+    'opening doors'
+  ],
+  KNEE: [
+    'walking',
+    'climbing stairs',
+    'descending stairs',
+    'squatting',
+    'kneeling',
+    'getting up from chair',
+    'standing for prolonged periods',
+    'running',
+    'jumping',
+    'driving'
+  ],
+  NECK: [
+    'turning head',
+    'looking up',
+    'looking down',
+    'reading',
+    'driving',
+    'working at computer',
+    'sleeping',
+    'lifting objects',
+    'carrying bags',
+    'talking on phone'
+  ],
+  LBP: [
+    'bending forward',
+    'lifting objects',
+    'sitting for prolonged periods',
+    'standing for prolonged periods',
+    'walking',
+    'getting out of bed',
+    'putting on shoes',
+    'driving',
+    'performing household chores',
+    'carrying objects'
+  ],
+  ELBOW: [
+    'gripping objects',
+    'lifting objects',
+    'turning doorknobs',
+    'opening jars',
+    'typing',
+    'writing',
+    'carrying bags',
+    'shaking hands',
+    'using tools',
+    'cooking'
+  ],
+  HIP: [
+    'walking',
+    'climbing stairs',
+    'getting up from chair',
+    'sitting cross-legged',
+    'putting on shoes',
+    'getting in and out of car',
+    'lying on affected side',
+    'squatting',
+    'running',
+    'standing on one leg'
+  ]
+}
+
 export interface TXSequenceOptions {
   txCount: number
   seed?: number
@@ -35,6 +198,11 @@ export interface TXVisitState {
   tendernessGrading: string
   spasmGrading: string
   needlePoints: string[]
+  /** 舌脉信息，从 IE 继承保持一致 */
+  tonguePulse: {
+    tongue: string
+    pulse: string
+  }
   sideProgress?: {
     left: number
     right: number
@@ -431,6 +599,22 @@ export function generateTXSequenceStates(
     return 'good'
   })()
 
+  // === tonguePulse: 从 IE 继承或使用默认值 ===
+  // 舌脉是患者体质的固定属性，TX 访问应与 IE 保持一致
+  const fixedTonguePulse: { tongue: string; pulse: string } = (() => {
+    const ieTonguePulse = context.previousIE?.objective?.tonguePulse
+    if (ieTonguePulse?.tongue && ieTonguePulse?.pulse) {
+      return {
+        tongue: ieTonguePulse.tongue,
+        pulse: ieTonguePulse.pulse
+      }
+    }
+    return {
+      tongue: 'Pink with thin white coating',
+      pulse: 'Even and moderate'
+    }
+  })()
+
   const visits: TXVisitState[] = []
 
   for (let i = startIdx; i <= txCount; i++) {
@@ -460,13 +644,46 @@ export function generateTXSequenceStates(
       clamp((objectiveFactors.sessionGapDays - 3) / 10, 0, 0.4)
 
     const expectedPain = startPain - (startPain - targetPain) * progress
-    const painNoise = ((rng() - 0.5) * 0.35) + disruption * 0.18
-    // Improvement-only: never worse than previous visit.
-    const rawPain = clamp(Math.min(prevPain, expectedPain + painNoise), targetPain, startPain)
+    // Noise cap at 0.15 to prevent erratic pain changes
+    const NOISE_CAP = 0.15
+    const painNoise = clamp(
+      ((rng() - 0.5) * 0.2) + disruption * 0.08,
+      -NOISE_CAP,
+      NOISE_CAP
+    )
+
+    // TX1 special handling: ensure pain decreases 0.5-1.5 from IE
+    let rawPain: number
+    let tx1Decrease: number | null = null
+    if (i === startIdx) {
+      const minDecrease = 0.5
+      const maxDecrease = 1.5
+      tx1Decrease = minDecrease + rng() * (maxDecrease - minDecrease)
+      rawPain = clamp(startPain - tx1Decrease, targetPain, startPain - minDecrease)
+    } else {
+      // Improvement-only: never worse than previous visit.
+      rawPain = clamp(Math.min(prevPain, expectedPain + painNoise), targetPain, startPain)
+    }
     // 吸附到模板整数刻度
     const snapped = snapPainToGrid(rawPain)
     // 纵向约束: 吸附后的值不能比上次高
-    const painScaleCurrent = Math.min(prevPain, snapped.value)
+    let painScaleCurrent = Math.min(prevPain, snapped.value)
+
+    // TX1: ensure final pain respects 0.5-1.5 decrease even after snapping
+    if (i === startIdx && tx1Decrease !== null) {
+      const minDecrease = 0.5
+      const maxDecrease = 1.5
+      const targetTx1Pain = startPain - tx1Decrease
+      // If snapping pushed it back up, force the decrease
+      if (painScaleCurrent > startPain - minDecrease) {
+        painScaleCurrent = clamp(targetTx1Pain, targetPain, startPain - minDecrease)
+      }
+      // If it decreased too much, cap at maxDecrease
+      if (painScaleCurrent < startPain - maxDecrease) {
+        painScaleCurrent = startPain - maxDecrease
+      }
+    }
+
     const painScaleLabel = painScaleCurrent < snapped.value
       ? snapPainToGrid(painScaleCurrent).label
       : snapped.label
@@ -606,16 +823,33 @@ export function generateTXSequenceStates(
     }
     const tenderOptions = context.primaryBodyPart === 'KNEE' ? KNEE_TENDERNESS_OPTIONS : SHOULDER_TENDERNESS_OPTIONS
 
-    // 根据进度选择目标等级
+    // S->O chain validation: tenderness grade correlates with BOTH pain level AND progress
+    // High pain (8-10) -> +3 or +4 tenderness
+    // Moderate pain (5-7) -> +2 or +3 tenderness
+    // Low pain (0-4) -> +1 or +2 tenderness
+    // Progress then modifies within the pain-appropriate range
     let targetTenderGrade: string
-    if (progress >= 0.75) {
-      targetTenderGrade = '+1'
-    } else if (progress >= 0.45) {
-      targetTenderGrade = '+2'
-    } else if (progress >= 0.20) {
-      targetTenderGrade = rng() > 0.5 ? '+2' : '+3'
+    if (painScaleCurrent >= 8) {
+      // High pain: always +3 or +4
+      targetTenderGrade = rng() > 0.4 ? '+4' : '+3'
+    } else if (painScaleCurrent >= 5) {
+      // Moderate pain: +2 or +3, with progress influence
+      if (progress >= 0.75) {
+        targetTenderGrade = '+2'
+      } else if (progress >= 0.45) {
+        targetTenderGrade = rng() > 0.5 ? '+2' : '+3'
+      } else {
+        targetTenderGrade = '+3'
+      }
     } else {
-      targetTenderGrade = rng() > 0.5 ? '+3' : '+4'
+      // Low pain (0-4): +1 or +2
+      if (progress >= 0.75) {
+        targetTenderGrade = '+1'
+      } else if (progress >= 0.45) {
+        targetTenderGrade = rng() > 0.5 ? '+1' : '+2'
+      } else {
+        targetTenderGrade = '+2'
+      }
     }
 
     let tendernessGrading = tenderOptions[targetTenderGrade]?.text
@@ -684,6 +918,7 @@ export function generateTXSequenceStates(
       tendernessGrading,
       spasmGrading,
       needlePoints,
+      tonguePulse: fixedTonguePulse,
       sideProgress,
       objectiveFactors,
       soaChain: {

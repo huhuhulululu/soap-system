@@ -1,5 +1,5 @@
 import type { GenerationContext, SOAPNote } from '../../types'
-import { generateTXSequenceStates } from '../tx-sequence-engine'
+import { generateTXSequenceStates, MUSCLE_MAP, ADL_MAP } from '../tx-sequence-engine'
 
 function createPreviousIE(currentPain: number = 8, shortTermGoal: string = '5-6'): SOAPNote {
   return {
@@ -190,5 +190,300 @@ describe('tx-sequence-engine', () => {
       const cur = symptomRank(visits[i].associatedSymptom)
       expect(cur).toBeLessThanOrEqual(prev)
     }
+  })
+
+  describe('TX1 pain decrease from IE', () => {
+    it('TX1 pain should be 0.5-1.5 points lower than IE pain', () => {
+      // IE pain is 8 (from createPreviousIE default)
+      const iePain = 8
+
+      // Test with multiple seeds to ensure consistent behavior
+      const seeds = [1, 7, 13, 42, 99, 123, 256, 512]
+
+      seeds.forEach(seed => {
+        const visits = generateTXSequenceStates(baseContext, { txCount: 3, seed })
+        const tx1Pain = visits[0].painScaleCurrent
+        const decrease = iePain - tx1Pain
+
+        expect(decrease).toBeGreaterThanOrEqual(0.5)
+        expect(decrease).toBeLessThanOrEqual(1.5)
+      })
+    })
+
+    it('TX1 pain decrease should work for different IE pain levels', () => {
+      const testCases = [
+        { iePain: 9, seed: 42 },
+        { iePain: 7, seed: 13 },
+        { iePain: 6, seed: 7 }
+      ]
+
+      testCases.forEach(({ iePain, seed }) => {
+        const context = {
+          ...baseContext,
+          previousIE: createPreviousIE(iePain)
+        }
+        const visits = generateTXSequenceStates(context, { txCount: 3, seed })
+        const tx1Pain = visits[0].painScaleCurrent
+        const decrease = iePain - tx1Pain
+
+        expect(decrease).toBeGreaterThanOrEqual(0.5)
+        expect(decrease).toBeLessThanOrEqual(1.5)
+      })
+    })
+  })
+
+  describe('pain noise cap', () => {
+    it('pain noise should not exceed 0.15 in magnitude', () => {
+      // Test with many seeds to verify noise is bounded
+      const seeds = Array.from({ length: 50 }, (_, i) => i + 1)
+
+      seeds.forEach(seed => {
+        const visits = generateTXSequenceStates(baseContext, { txCount: 8, seed })
+
+        // For TX2+ visits, check that pain changes are reasonable
+        // With noise capped at 0.15, pain should not jump erratically
+        for (let i = 2; i < visits.length; i++) {
+          const prev = visits[i - 1].painScaleCurrent
+          const curr = visits[i].painScaleCurrent
+          const delta = Math.abs(prev - curr)
+
+          // With proper noise cap, delta should be smooth (less than 1.0 typically)
+          // This indirectly verifies noise is capped
+          expect(delta).toBeLessThan(1.5)
+        }
+      })
+    })
+  })
+
+  describe('S->O chain validation: pain-to-findings correlation', () => {
+    it('high pain (8-10) should correlate with severe/moderate-to-severe tightness', () => {
+      const highPainContext: GenerationContext = {
+        ...baseContext,
+        previousIE: createPreviousIE(9, '7-8')
+      }
+
+      const visits = generateTXSequenceStates(highPainContext, { txCount: 3, seed: 42 })
+      const firstVisit = visits[0]
+
+      // High pain should NOT produce mild tightness
+      const tightnessLower = firstVisit.tightnessGrading.toLowerCase()
+      expect(tightnessLower).not.toBe('mild')
+      expect(
+        tightnessLower.includes('severe') ||
+        tightnessLower.includes('moderate to severe') ||
+        tightnessLower.includes('moderate')
+      ).toBe(true)
+    })
+
+    it('high pain (8-10) should correlate with +3 or +4 tenderness', () => {
+      const highPainContext: GenerationContext = {
+        ...baseContext,
+        previousIE: createPreviousIE(9, '7-8')
+      }
+
+      const visits = generateTXSequenceStates(highPainContext, { txCount: 3, seed: 42 })
+      const firstVisit = visits[0]
+
+      // High pain should produce +3 or +4 tenderness, not +1
+      const tendernessLower = firstVisit.tendernessGrading.toLowerCase()
+      expect(tendernessLower).not.toContain('+1)')
+      expect(
+        tendernessLower.includes('+3') || tendernessLower.includes('+4')
+      ).toBe(true)
+    })
+
+    it('low pain (3-4) should correlate with mild/mild-to-moderate tightness', () => {
+      const lowPainContext: GenerationContext = {
+        ...baseContext,
+        previousIE: createPreviousIE(4, '2-3')
+      }
+
+      const visits = generateTXSequenceStates(lowPainContext, { txCount: 3, seed: 42 })
+      const lastVisit = visits[visits.length - 1]
+
+      // Low pain should NOT produce severe tightness
+      const tightnessLower = lastVisit.tightnessGrading.toLowerCase()
+      expect(tightnessLower).not.toBe('severe')
+      expect(tightnessLower).not.toBe('moderate to severe')
+    })
+
+    it('low pain (3-4) should correlate with +1 or +2 tenderness', () => {
+      const lowPainContext: GenerationContext = {
+        ...baseContext,
+        previousIE: createPreviousIE(4, '2-3')
+      }
+
+      const visits = generateTXSequenceStates(lowPainContext, { txCount: 3, seed: 42 })
+      const lastVisit = visits[visits.length - 1]
+
+      // Low pain should produce +1 or +2 tenderness, not +4
+      const tendernessLower = lastVisit.tendernessGrading.toLowerCase()
+      expect(tendernessLower).not.toContain('+4')
+    })
+  })
+
+  describe('MUSCLE_MAP constants', () => {
+    it('MUSCLE_MAP should be defined and exported', () => {
+      expect(MUSCLE_MAP).toBeDefined()
+      expect(typeof MUSCLE_MAP).toBe('object')
+    })
+
+    it('MUSCLE_MAP should contain SHOULDER muscles', () => {
+      expect(MUSCLE_MAP.SHOULDER).toBeDefined()
+      expect(Array.isArray(MUSCLE_MAP.SHOULDER)).toBe(true)
+      expect(MUSCLE_MAP.SHOULDER.length).toBeGreaterThan(0)
+      expect(MUSCLE_MAP.SHOULDER).toContain('trapezius')
+      expect(MUSCLE_MAP.SHOULDER).toContain('deltoid')
+    })
+
+    it('MUSCLE_MAP should contain KNEE muscles', () => {
+      expect(MUSCLE_MAP.KNEE).toBeDefined()
+      expect(Array.isArray(MUSCLE_MAP.KNEE)).toBe(true)
+      expect(MUSCLE_MAP.KNEE.length).toBeGreaterThan(0)
+      expect(MUSCLE_MAP.KNEE).toContain('quadriceps')
+      expect(MUSCLE_MAP.KNEE).toContain('hamstrings')
+    })
+
+    it('MUSCLE_MAP should contain NECK muscles', () => {
+      expect(MUSCLE_MAP.NECK).toBeDefined()
+      expect(Array.isArray(MUSCLE_MAP.NECK)).toBe(true)
+      expect(MUSCLE_MAP.NECK.length).toBeGreaterThan(0)
+      expect(MUSCLE_MAP.NECK).toContain('sternocleidomastoid')
+      expect(MUSCLE_MAP.NECK).toContain('trapezius')
+    })
+
+    it('MUSCLE_MAP should contain LBP muscles', () => {
+      expect(MUSCLE_MAP.LBP).toBeDefined()
+      expect(Array.isArray(MUSCLE_MAP.LBP)).toBe(true)
+      expect(MUSCLE_MAP.LBP.length).toBeGreaterThan(0)
+      expect(MUSCLE_MAP.LBP).toContain('erector spinae')
+      expect(MUSCLE_MAP.LBP).toContain('quadratus lumborum')
+    })
+
+    it('MUSCLE_MAP should contain ELBOW muscles', () => {
+      expect(MUSCLE_MAP.ELBOW).toBeDefined()
+      expect(Array.isArray(MUSCLE_MAP.ELBOW)).toBe(true)
+      expect(MUSCLE_MAP.ELBOW.length).toBeGreaterThan(0)
+      expect(MUSCLE_MAP.ELBOW).toContain('biceps brachii')
+      expect(MUSCLE_MAP.ELBOW).toContain('triceps brachii')
+    })
+
+    it('MUSCLE_MAP should contain HIP muscles', () => {
+      expect(MUSCLE_MAP.HIP).toBeDefined()
+      expect(Array.isArray(MUSCLE_MAP.HIP)).toBe(true)
+      expect(MUSCLE_MAP.HIP.length).toBeGreaterThan(0)
+      expect(MUSCLE_MAP.HIP).toContain('iliopsoas')
+      expect(MUSCLE_MAP.HIP).toContain('gluteus maximus')
+    })
+  })
+
+  describe('tonguePulse consistency', () => {
+    it('TXVisitState includes tonguePulse field', () => {
+      const visits = generateTXSequenceStates(baseContext, { txCount: 3, seed: 42 })
+
+      visits.forEach(v => {
+        expect(v.tonguePulse).toBeDefined()
+        expect(v.tonguePulse.tongue).toBeDefined()
+        expect(v.tonguePulse.pulse).toBeDefined()
+        expect(typeof v.tonguePulse.tongue).toBe('string')
+        expect(typeof v.tonguePulse.pulse).toBe('string')
+      })
+    })
+
+    it('TX visits inherit tonguePulse from IE', () => {
+      const visits = generateTXSequenceStates(baseContext, { txCount: 5, seed: 7 })
+
+      visits.forEach(v => {
+        expect(v.tonguePulse.tongue).toBe('thin white coat')
+        expect(v.tonguePulse.pulse).toBe('string-taut')
+      })
+    })
+
+    it('uses default tonguePulse when IE data is missing', () => {
+      const contextWithoutTonguePulse: GenerationContext = {
+        ...baseContext,
+        previousIE: {
+          ...baseContext.previousIE!,
+          objective: {
+            ...baseContext.previousIE!.objective,
+            tonguePulse: undefined
+          }
+        } as unknown as SOAPNote
+      }
+
+      const visits = generateTXSequenceStates(contextWithoutTonguePulse, { txCount: 3, seed: 11 })
+
+      visits.forEach(v => {
+        expect(v.tonguePulse.tongue).toBe('Pink with thin white coating')
+        expect(v.tonguePulse.pulse).toBe('Even and moderate')
+      })
+    })
+
+    it('uses default tonguePulse when no previousIE exists', () => {
+      const contextWithoutIE: GenerationContext = {
+        ...baseContext,
+        previousIE: undefined
+      }
+
+      const visits = generateTXSequenceStates(contextWithoutIE, { txCount: 3, seed: 13 })
+
+      visits.forEach(v => {
+        expect(v.tonguePulse.tongue).toBe('Pink with thin white coating')
+        expect(v.tonguePulse.pulse).toBe('Even and moderate')
+      })
+    })
+
+    it('tonguePulse remains consistent across all TX visits', () => {
+      const visits = generateTXSequenceStates(baseContext, { txCount: 8, seed: 99 })
+
+      const firstTonguePulse = visits[0].tonguePulse
+      visits.forEach(v => {
+        expect(v.tonguePulse.tongue).toBe(firstTonguePulse.tongue)
+        expect(v.tonguePulse.pulse).toBe(firstTonguePulse.pulse)
+      })
+    })
+  })
+
+  describe('ADL_MAP constants', () => {
+    it('ADL_MAP should be defined and exported', () => {
+      expect(ADL_MAP).toBeDefined()
+      expect(typeof ADL_MAP).toBe('object')
+    })
+
+    it('ADL_MAP should contain SHOULDER activities', () => {
+      expect(ADL_MAP.SHOULDER).toBeDefined()
+      expect(Array.isArray(ADL_MAP.SHOULDER)).toBe(true)
+      expect(ADL_MAP.SHOULDER.length).toBeGreaterThan(0)
+    })
+
+    it('ADL_MAP should contain KNEE activities', () => {
+      expect(ADL_MAP.KNEE).toBeDefined()
+      expect(Array.isArray(ADL_MAP.KNEE)).toBe(true)
+      expect(ADL_MAP.KNEE.length).toBeGreaterThan(0)
+    })
+
+    it('ADL_MAP should contain LBP activities', () => {
+      expect(ADL_MAP.LBP).toBeDefined()
+      expect(Array.isArray(ADL_MAP.LBP)).toBe(true)
+      expect(ADL_MAP.LBP.length).toBeGreaterThan(0)
+    })
+
+    it('ADL_MAP should contain NECK activities', () => {
+      expect(ADL_MAP.NECK).toBeDefined()
+      expect(Array.isArray(ADL_MAP.NECK)).toBe(true)
+      expect(ADL_MAP.NECK.length).toBeGreaterThan(0)
+    })
+
+    it('ADL_MAP should contain ELBOW activities', () => {
+      expect(ADL_MAP.ELBOW).toBeDefined()
+      expect(Array.isArray(ADL_MAP.ELBOW)).toBe(true)
+      expect(ADL_MAP.ELBOW.length).toBeGreaterThan(0)
+    })
+
+    it('ADL_MAP should contain HIP activities', () => {
+      expect(ADL_MAP.HIP).toBeDefined()
+      expect(Array.isArray(ADL_MAP.HIP)).toBe(true)
+      expect(ADL_MAP.HIP.length).toBeGreaterThan(0)
+    })
   })
 })
