@@ -218,7 +218,7 @@ function formatSubjectiveText(visit: VisitRecord, fixes: FixMap, ieVisit?: Visit
   lines.push('')
 
   const bodyPartNorm = normalizeBodyPart(s.bodyPartNormalized || s.bodyPart)
-  const bodyPartDisplay = BODY_PART_NAMES[bodyPartNorm] || s.bodyPart
+  const bodyPartDisplay = (BODY_PART_NAMES as Record<string, string>)[bodyPartNorm] || s.bodyPart
   const lateralityStr = formatLaterality(s.laterality)
   const painTypes = formatPainTypes(s.painTypes)
 

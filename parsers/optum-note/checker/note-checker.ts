@@ -892,7 +892,7 @@ function extractTextDescriptions(visit: VisitRecord): string[] {
     texts.push(visit.assessment.symptomChange.toLowerCase())
   }
 
-  const assessment = visit.assessment as Record<string, unknown>
+  const assessment = visit.assessment as unknown as Record<string, unknown>
   if (typeof assessment.physicalFindings === 'string') {
     texts.push(assessment.physicalFindings.toLowerCase())
   }
