@@ -7,29 +7,8 @@ import type {
   TimelineEntry,
   ScoreBreakdown
 } from './types'
-
-type CorrectionsGenerator = (doc: OptumNoteDocument, errors: CheckError[]) => CheckOutput['corrections']
-
-function loadCorrectionsGenerator(): CorrectionsGenerator | null {
-  // Browser bundle must stay free of server-side template filesystem deps.
-  if (typeof window !== 'undefined') return null
-
-  try {
-    const req = Function('return require')() as (id: string) => { generateCorrections?: CorrectionsGenerator }
-    const mod = req('./correction-generator')
-    return typeof mod.generateCorrections === 'function' ? mod.generateCorrections : null
-  } catch {
-    return null
-  }
-}
-
-function severityFromPain(pain: number): 'severe' | 'moderate to severe' | 'moderate' | 'mild to moderate' | 'mild' {
-  if (pain >= 9) return 'severe'
-  if (pain >= 7) return 'moderate to severe'
-  if (pain >= 6) return 'moderate'
-  if (pain >= 4) return 'mild to moderate'
-  return 'mild'
-}
+import { generateCorrections } from './correction-generator'
+import { severityFromPain, expectedTenderMinScaleByPain } from '../../../src/shared/severity'
 
 function scoreByStrength(str: string): number {
   const t = str.trim()
@@ -53,13 +32,6 @@ function parseGoalPainTarget(raw?: string): number | null {
   const nums = raw.match(/\d+/g)?.map(Number) || []
   if (nums.length === 0) return null
   return Math.min(...nums)
-}
-
-function expectedTenderMinScaleByPain(pain: number): number {
-  if (pain >= 9) return 4
-  if (pain >= 7) return 3
-  if (pain >= 5) return 2
-  return 1
 }
 
 function avgRomSeverityRank(visit: VisitRecord): number {
@@ -95,6 +67,54 @@ function frequencyLevel(v: string): number {
   if (t.includes('occasional')) return 1
   if (t.includes('frequent')) return 2
   return 3
+}
+
+// T06: Progress status + reason logic lists
+const POSITIVE_PROGRESS_REASONS = [
+  'maintain regular treatments',
+  'reduced level of pain',
+  'energy level improved',
+  'sleep quality improved',
+  'continuous treatment',
+  'can move joint more freely'
+]
+
+const NEGATIVE_PROGRESS_REASONS = [
+  'skipped treatments',
+  'discontinuous treatment',
+  'stopped treatment',
+  'intense work',
+  'bad posture',
+  'lack of exercise',
+  'exposure to cold air'
+]
+
+function parseProgressStatus(chiefComplaint: string): 'improvement' | 'exacerbate' | 'similar' | null {
+  const cc = (chiefComplaint || '').toLowerCase()
+  if (cc.includes('improvement of symptom')) return 'improvement'
+  if (cc.includes('exacerbate of symptom')) return 'exacerbate'
+  if (cc.includes('similar symptom')) return 'similar'
+  return null
+}
+
+function extractProgressReasons(chiefComplaint: string): { positive: string[], negative: string[] } {
+  const cc = (chiefComplaint || '').toLowerCase()
+  const positive: string[] = []
+  const negative: string[] = []
+
+  for (const reason of POSITIVE_PROGRESS_REASONS) {
+    if (cc.includes(reason.toLowerCase())) {
+      positive.push(reason)
+    }
+  }
+
+  for (const reason of NEGATIVE_PROGRESS_REASONS) {
+    if (cc.includes(reason.toLowerCase())) {
+      negative.push(reason)
+    }
+  }
+
+  return { positive, negative }
 }
 
 function trend(cur: number, prev: number): '↓' | '→' | '↑' {
@@ -204,7 +224,7 @@ function checkIE(visit: VisitRecord, visitIndex: number): CheckError[] {
   if (st !== null && lt !== null && lt >= st) {
     errors.push(err({
       ruleId: 'IE06',
-      severity: 'MEDIUM',
+      severity: 'HIGH',
       visitDate: date,
       visitIndex,
       section: 'P',
@@ -235,7 +255,7 @@ function checkIE(visit: VisitRecord, visitIndex: number): CheckError[] {
   if (!visit.plan.acupoints || visit.plan.acupoints.length === 0) {
     errors.push(err({
       ruleId: 'IE08',
-      severity: 'LOW',
+      severity: 'HIGH',
       visitDate: date,
       visitIndex,
       section: 'P',
@@ -260,7 +280,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   if (actualSev !== expectedSev && !(actualSev === 'moderate to severe' && expectedSev === 'moderate')) {
     errors.push(err({
       ruleId: 'TX01',
-      severity: 'HIGH',
+      severity: 'MEDIUM',
       visitDate: date,
       visitIndex,
       section: 'S',
@@ -295,7 +315,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
     if (saysImprove && delta > 0) {
       errors.push(err({
         ruleId: 'TX03',
-        severity: 'CRITICAL',
+        severity: 'MEDIUM',
         visitDate: date,
         visitIndex,
         section: 'A',
@@ -308,13 +328,85 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
     }
   }
 
+  // T02: 改善描述 + 数值恶化矛盾 (CRITICAL)
+  if (prevVisit) {
+    const saysImprove = /improvement/i.test(visit.assessment.symptomChange || '')
+    if (saysImprove) {
+      const prevPain = parsePainCurrent(prevVisit)
+      const prevTenderness = prevVisit.objective.tendernessMuscles.scale
+      const prevTightness = prevVisit.objective.tightnessMuscles.gradingScale
+      const curTenderness = visit.objective.tendernessMuscles.scale
+      const curTightness = visit.objective.tightnessMuscles.gradingScale
+
+      const painWorsened = pain > prevPain
+      const tendernessWorsened = curTenderness > prevTenderness
+      const tightnessWorsened = compareSeverity(curTightness, prevTightness) > 0
+
+      if (painWorsened || tendernessWorsened || tightnessWorsened) {
+        const worsenedIndicators: string[] = []
+        if (painWorsened) worsenedIndicators.push(`pain: ${prevPain}→${pain}`)
+        if (tendernessWorsened) worsenedIndicators.push(`tenderness: +${prevTenderness}→+${curTenderness}`)
+        if (tightnessWorsened) worsenedIndicators.push(`tightness: ${prevTightness}→${curTightness}`)
+
+        errors.push(err({
+          ruleId: 'T02',
+          severity: 'CRITICAL',
+          visitDate: date,
+          visitIndex,
+          section: 'A',
+          field: 'symptomChange',
+          ruleName: '改善描述与数值变化一致',
+          message: '标注 improvement 但数值实际恶化',
+          expected: 'pain/tenderness/tightness 不恶化',
+          actual: worsenedIndicators.join(', ')
+        }))
+      }
+    }
+  }
+
+  // T03: 恶化描述 + 数值改善矛盾 (CRITICAL)
+  if (prevVisit) {
+    const saysExacerbate = /exacerbate/i.test(visit.assessment.symptomChange || '')
+    if (saysExacerbate) {
+      const prevPain = parsePainCurrent(prevVisit)
+      const prevTenderness = prevVisit.objective.tendernessMuscles.scale
+      const prevTightness = prevVisit.objective.tightnessMuscles.gradingScale
+      const curTenderness = visit.objective.tendernessMuscles.scale
+      const curTightness = visit.objective.tightnessMuscles.gradingScale
+
+      const painImproved = pain < prevPain
+      const tendernessImproved = curTenderness < prevTenderness
+      const tightnessImproved = compareSeverity(curTightness, prevTightness) < 0
+
+      if (painImproved || tendernessImproved || tightnessImproved) {
+        const improvedIndicators: string[] = []
+        if (painImproved) improvedIndicators.push(`pain: ${prevPain}→${pain}`)
+        if (tendernessImproved) improvedIndicators.push(`tenderness: +${prevTenderness}→+${curTenderness}`)
+        if (tightnessImproved) improvedIndicators.push(`tightness: ${prevTightness}→${curTightness}`)
+
+        errors.push(err({
+          ruleId: 'T03',
+          severity: 'CRITICAL',
+          visitDate: date,
+          visitIndex,
+          section: 'A',
+          field: 'symptomChange',
+          ruleName: '恶化描述与数值变化一致',
+          message: '标注 exacerbate 但数值实际改善',
+          expected: 'pain/tenderness/tightness 不改善',
+          actual: improvedIndicators.join(', ')
+        }))
+      }
+    }
+  }
+
   if (prevVisit) {
     const prevGc = (prevVisit.assessment.generalCondition || '').toLowerCase()
     const curGc = (visit.assessment.generalCondition || '').toLowerCase()
     if (prevGc === 'good' && curGc === 'poor') {
       errors.push(err({
         ruleId: 'TX04',
-        severity: 'LOW',
+        severity: 'MEDIUM',
         visitDate: date,
         visitIndex,
         section: 'A',
@@ -333,7 +425,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
     if (visit.objective.tonguePulse.tongue !== ieTongue || visit.objective.tonguePulse.pulse !== iePulse) {
       errors.push(err({
         ruleId: 'TX05',
-        severity: 'MEDIUM',
+        severity: 'CRITICAL',
         visitDate: date,
         visitIndex,
         section: 'O',
@@ -349,7 +441,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   if (visit.plan.shortTermGoal || visit.plan.longTermGoal) {
     errors.push(err({
       ruleId: 'TX06',
-      severity: 'LOW',
+      severity: 'CRITICAL',
       visitDate: date,
       visitIndex,
       section: 'P',
@@ -358,6 +450,63 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
       message: 'TX 不应携带 IE goals',
       expected: 'no short/long term goals',
       actual: 'present'
+    }))
+  }
+
+  // T06: 进展状态 + 原因逻辑矛盾 (MEDIUM)
+  const progressStatus = parseProgressStatus(visit.subjective.chiefComplaint)
+  const progressReasons = extractProgressReasons(visit.subjective.chiefComplaint)
+
+  if (progressStatus === 'improvement' && progressReasons.negative.length > 0) {
+    errors.push(err({
+      ruleId: 'T06',
+      severity: 'MEDIUM',
+      visitDate: date,
+      visitIndex,
+      section: 'S',
+      field: 'chiefComplaint',
+      ruleName: '进展状态 + 原因逻辑一致',
+      message: 'progressStatus=improvement 但包含负向原因',
+      expected: '正向原因 (maintain regular treatments, reduced level of pain, etc.)',
+      actual: `负向原因: ${progressReasons.negative.join(', ')}`
+    }))
+  }
+
+  if (progressStatus === 'exacerbate' && progressReasons.positive.length > 0) {
+    errors.push(err({
+      ruleId: 'T06',
+      severity: 'MEDIUM',
+      visitDate: date,
+      visitIndex,
+      section: 'S',
+      field: 'chiefComplaint',
+      ruleName: '进展状态 + 原因逻辑一致',
+      message: 'progressStatus=exacerbate 但包含正向原因',
+      expected: '负向原因 (skipped treatments, intense work, bad posture, etc.)',
+      actual: `正向原因: ${progressReasons.positive.join(', ')}`
+    }))
+  }
+
+  // T07: Pacemaker + 电刺激矛盾 (CRITICAL)
+  // 检查 medicalHistory 是否包含 Pacemaker
+  const hasPacemakerInHistory = ieVisit?.subjective.medicalHistory?.some(
+    h => h.toLowerCase().includes('pacemaker')
+  ) || visit.subjective.medicalHistory?.some(
+    h => h.toLowerCase().includes('pacemaker')
+  )
+
+  if (hasPacemakerInHistory && visit.plan.electricalStimulation) {
+    errors.push(err({
+      ruleId: 'T07',
+      severity: 'CRITICAL',
+      visitDate: date,
+      visitIndex,
+      section: 'P',
+      field: 'electricalStimulation',
+      ruleName: 'Pacemaker + 电刺激矛盾',
+      message: 'medicalHistory 包含 Pacemaker 但 electricalStimulation=true',
+      expected: 'electricalStimulation = false',
+      actual: 'electricalStimulation = true'
     }))
   }
 
@@ -396,7 +545,7 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
     const curPain = parsePainCurrent(cur)
     if (curPain > prevPain) {
       errors.push(err({
-        ruleId: 'V01', severity: 'CRITICAL', visitDate: date, visitIndex: idx,
+        ruleId: 'V01', severity: 'HIGH', visitDate: date, visitIndex: idx,
         section: 'S', field: 'painScale', ruleName: 'pain 不回升',
         message: '疼痛分值不应回升', expected: `<= ${prevPain}`, actual: `${curPain}`
       }))
@@ -421,7 +570,7 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
 
     if (cur.objective.spasmMuscles.frequencyScale > prev.objective.spasmMuscles.frequencyScale) {
       errors.push(err({
-        ruleId: 'V04', severity: 'MEDIUM', visitDate: date, visitIndex: idx,
+        ruleId: 'V04', severity: 'HIGH', visitDate: date, visitIndex: idx,
         section: 'O', field: 'spasm', ruleName: 'spasm 不回升',
         message: 'Spasm scale 回升', expected: `<= +${prev.objective.spasmMuscles.frequencyScale}`, actual: `+${cur.objective.spasmMuscles.frequencyScale}`
       }))
@@ -458,7 +607,7 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
     const saysImprove = /improvement/i.test(cur.assessment.symptomChange || '')
     if (saysImprove && curPain > prevPain) {
       errors.push(err({
-        ruleId: 'V08', severity: 'CRITICAL', visitDate: date, visitIndex: idx,
+        ruleId: 'V08', severity: 'MEDIUM', visitDate: date, visitIndex: idx,
         section: 'A', field: 'symptomChange', ruleName: 'S 说 improvement 但 pain 实际上升',
         message: '纵向矛盾：写改善但 pain 回升', expected: `pain <= ${prevPain}`, actual: String(curPain)
       }))
@@ -467,10 +616,48 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
     const pOverlap = jaccard(prev.plan.acupoints || [], cur.plan.acupoints || [])
     if (pOverlap < 0.4) {
       errors.push(err({
-        ruleId: 'V09', severity: 'LOW', visitDate: date, visitIndex: idx,
+        ruleId: 'V09', severity: 'HIGH', visitDate: date, visitIndex: idx,
         section: 'P', field: 'acupoints', ruleName: 'P 段跨 TX 穴位大变化',
         message: '连续 TX 穴位重叠度过低', expected: 'overlap >= 0.4', actual: pOverlap.toFixed(2)
       }))
+    }
+
+    // T08: ADL severity 单调性 - 应逐渐改善，不应恶化
+    const prevAdlSeverity = parseAdlSeverity(prev.subjective.adlImpairment)
+    const curAdlSeverity = parseAdlSeverity(cur.subjective.adlImpairment)
+    const adlSeverityDelta = compareSeverity(curAdlSeverity, prevAdlSeverity)
+    if (adlSeverityDelta > 0) {
+      errors.push(err({
+        ruleId: 'T08', severity: 'HIGH', visitDate: date, visitIndex: idx,
+        section: 'S', field: 'adlImpairment', ruleName: 'ADL severity 单调性',
+        message: 'ADL severity 不应恶化', expected: `<= ${prevAdlSeverity}`, actual: curAdlSeverity
+      }))
+    }
+
+    // T09: 伴随症状级别单调性 - 应逐渐改善
+    const extractAssociatedSymptom = (cc: string): string | null => {
+      const match = cc.match(/muscles (weakness|soreness|heaviness|numbness|stiffness)/)
+      return match ? match[1] : null
+    }
+    const symptomRanks: Record<string, number> = {
+      soreness: 1,
+      stiffness: 2,
+      heaviness: 3,
+      weakness: 4,
+      numbness: 4
+    }
+    const prevSymptom = extractAssociatedSymptom(prev.subjective.chiefComplaint)
+    const curSymptom = extractAssociatedSymptom(cur.subjective.chiefComplaint)
+    if (prevSymptom && curSymptom) {
+      const prevRank = symptomRanks[prevSymptom] ?? 0
+      const curRank = symptomRanks[curSymptom] ?? 0
+      if (curRank > prevRank) {
+        errors.push(err({
+          ruleId: 'T09', severity: 'MEDIUM', visitDate: date, visitIndex: idx,
+          section: 'S', field: 'chiefComplaint', ruleName: '伴随症状级别单调性',
+          message: '伴随症状严重程度不应恶化', expected: `<= ${prevSymptom}(${prevRank})`, actual: `${curSymptom}(${curRank})`
+        }))
+      }
     }
   }
 
@@ -482,25 +669,33 @@ function penalty(sev: RuleSeverity, table: Record<RuleSeverity, number>): number
 }
 
 function scoreDocument(errors: CheckError[], txCount: number): ScoreBreakdown {
-  const ie = errors.filter(e => /^IE/.test(e.ruleId))
-  const tx = errors.filter(e => /^TX/.test(e.ruleId))
-  const v = errors.filter(e => /^V/.test(e.ruleId))
+  // 新评分逻辑：有 CRITICAL 即 FAIL
+  const hasCritical = errors.some(e => e.severity === 'CRITICAL')
 
-  const iePenaltyMap: Record<RuleSeverity, number> = { CRITICAL: 25, HIGH: 15, MEDIUM: 8, LOW: 3 }
-  const txPenaltyMap: Record<RuleSeverity, number> = { CRITICAL: 15, HIGH: 8, MEDIUM: 4, LOW: 1 }
-  const vPenaltyMap: Record<RuleSeverity, number> = { CRITICAL: 20, HIGH: 10, MEDIUM: 5, LOW: 2 }
+  if (hasCritical) {
+    return {
+      ieConsistency: 0,
+      txConsistency: 0,
+      timelineLogic: 0,
+      totalScore: 0,
+      grade: 'FAIL'
+    }
+  }
 
-  const iePenalty = ie.reduce((s, e) => s + penalty(e.severity, iePenaltyMap), 0)
-  const txPenalty = tx.reduce((s, e) => s + penalty(e.severity, txPenaltyMap), 0) / Math.max(txCount, 1)
-  const vPenalty = v.reduce((s, e) => s + penalty(e.severity, vPenaltyMap), 0)
-
-  const ieConsistency = Math.max(0, 100 - iePenalty)
-  const txConsistency = Math.max(0, 100 - txPenalty)
-  const timelineLogic = Math.max(0, 100 - vPenalty)
-  const totalScore = Math.max(0, Math.round((ieConsistency * 0.35) + (txConsistency * 0.30) + (timelineLogic * 0.35)))
+  // 无 CRITICAL 时，按 HIGH/MEDIUM 扣分
+  const penaltyMap: Record<RuleSeverity, number> = { CRITICAL: 0, HIGH: 15, MEDIUM: 8, LOW: 0 }
+  const totalPenalty = errors.reduce((s, e) => s + penaltyMap[e.severity], 0)
+  const totalScore = Math.max(0, 100 - totalPenalty)
 
   const grade: 'PASS' | 'WARNING' | 'FAIL' = totalScore >= 80 ? 'PASS' : totalScore >= 60 ? 'WARNING' : 'FAIL'
-  return { ieConsistency, txConsistency, timelineLogic, totalScore, grade }
+
+  return {
+    ieConsistency: totalScore,
+    txConsistency: totalScore,
+    timelineLogic: totalScore,
+    totalScore,
+    grade
+  }
 }
 
 function buildTimeline(visits: VisitRecord[], errors: CheckError[]): TimelineEntry[] {
@@ -576,7 +771,7 @@ function checkCodes(visits: VisitRecord[]): CheckError[] {
     // DX03: must have at least one ICD
     if (dx.length === 0) {
       errors.push(err({
-        ruleId: 'DX03', severity: 'HIGH', visitDate: date, visitIndex: i,
+        ruleId: 'DX03', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'A', field: 'diagnosisCodes', ruleName: 'ICD 编码存在',
         message: '缺少 ICD-10 诊断编码', expected: '>= 1', actual: '0'
       }))
@@ -590,7 +785,7 @@ function checkCodes(visits: VisitRecord[]): CheckError[] {
         const matches = allowedPrefixes.some(p => d.icd10.startsWith(p))
         if (!matches) {
           errors.push(err({
-            ruleId: 'DX01', severity: 'HIGH', visitDate: date, visitIndex: i,
+            ruleId: 'DX01', severity: 'CRITICAL', visitDate: date, visitIndex: i,
             section: 'A', field: 'diagnosisCodes', ruleName: 'ICD→bodyPart 匹配',
             message: `ICD ${d.icd10} 与主诉部位 ${bp} 不匹配`,
             expected: allowedPrefixes.join('/'), actual: d.icd10
@@ -607,7 +802,7 @@ function checkCodes(visits: VisitRecord[]): CheckError[] {
         const lastChar = d.icd10.slice(-1)
         if (/\d/.test(lastChar) && !expectedSuffixes.includes(lastChar)) {
           errors.push(err({
-            ruleId: 'DX04', severity: 'LOW', visitDate: date, visitIndex: i,
+            ruleId: 'DX04', severity: 'CRITICAL', visitDate: date, visitIndex: i,
             section: 'A', field: 'diagnosisCodes', ruleName: 'ICD laterality 一致',
             message: `ICD ${d.icd10} laterality 与 ${lat} 不一致`,
             expected: `suffix ${expectedSuffixes.join('/')}`, actual: lastChar
@@ -623,7 +818,7 @@ function checkCodes(visits: VisitRecord[]): CheckError[] {
       const total = new Set([...curDxCodes, ...prevDxCodes]).size
       if (total > 0 && overlap / total < 0.5) {
         errors.push(err({
-          ruleId: 'DX02', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+          ruleId: 'DX02', severity: 'CRITICAL', visitDate: date, visitIndex: i,
           section: 'A', field: 'diagnosisCodes', ruleName: 'ICD 跨 visit 一致',
           message: 'ICD 编码与上次就诊差异过大',
           expected: 'overlap >= 50%', actual: `${Math.round(overlap / total * 100)}%`
@@ -635,7 +830,7 @@ function checkCodes(visits: VisitRecord[]): CheckError[] {
     // CPT01: must have at least one CPT
     if (px.length === 0) {
       errors.push(err({
-        ruleId: 'CPT01', severity: 'HIGH', visitDate: date, visitIndex: i,
+        ruleId: 'CPT01', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'P', field: 'procedureCodes', ruleName: 'CPT 编码存在',
         message: '缺少 CPT 操作编码', expected: '>= 1', actual: '0'
       }))
@@ -667,22 +862,174 @@ function checkCodes(visits: VisitRecord[]): CheckError[] {
     const acuCpts = px.filter(p => [...CPT_ESTIM, ...CPT_NO_ESTIM].includes(p.cpt))
     if (time > 15 && acuCpts.length < 2) {
       errors.push(err({
-        ruleId: 'CPT03', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+        ruleId: 'CPT03', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'P', field: 'procedureCodes', ruleName: 'CPT↔时间 units 匹配',
         message: `操作时间 ${time}min 超过 15min 但缺少额外 unit CPT`,
         expected: '>= 2 acupuncture CPTs', actual: String(acuCpts.length)
       }))
     }
 
-    // CPT04: IE should have eval code, TX should have treatment code
-    const cptList = px.map(p => p.cpt)
-    if (isIE && !cptList.includes('97811') && cptList.some(c => CPT_NO_ESTIM.includes(c) || CPT_ESTIM.includes(c))) {
-      errors.push(err({
-        ruleId: 'CPT04', severity: 'MEDIUM', visitDate: date, visitIndex: i,
-        section: 'P', field: 'procedureCodes', ruleName: 'IE/TX CPT 类型正确',
-        message: '初诊应使用 eval 码 97811 而非 treatment 码',
-        expected: '97811', actual: cptList.join(',')
-      }))
+    // CPT04: IE/TX CPT 类型验证
+    // IE 可使用 97810（首针）或 97811（额外时间），两者都是合法的
+    // 此规则不再强制 IE 必须用 97811
+  }
+
+  return errors
+}
+
+// ============ Text Consistency Checks ============
+
+// Negative nouns: value decrease = improvement, should pair with "reduced"
+const NEGATIVE_NOUNS = ['tightness', 'tenderness', 'spasms', 'spasm', 'rom limitation', 'limitation']
+
+// Positive nouns: value increase = improvement, should pair with "increased"
+const POSITIVE_NOUNS = ['strength', 'rom']
+
+function extractTextDescriptions(visit: VisitRecord): string[] {
+  const texts: string[] = []
+
+  if (visit.assessment.symptomChange) {
+    texts.push(visit.assessment.symptomChange.toLowerCase())
+  }
+
+  const assessment = visit.assessment as Record<string, unknown>
+  if (typeof assessment.physicalFindings === 'string') {
+    texts.push(assessment.physicalFindings.toLowerCase())
+  }
+  if (typeof assessment.progressNote === 'string') {
+    texts.push(assessment.progressNote.toLowerCase())
+  }
+
+  return texts
+}
+
+function checkTextConsistency(visits: VisitRecord[]): CheckError[] {
+  const errors: CheckError[] = []
+
+  for (let i = 0; i < visits.length; i++) {
+    const visit = visits[i]
+    const date = visit.assessment.date || ''
+    const texts = extractTextDescriptions(visit)
+    const fullText = texts.join(' ')
+
+    // T01: Direction word + noun polarity contradiction
+    // Check for "increased" + negative noun (contradiction)
+    for (const noun of NEGATIVE_NOUNS) {
+      const increasedPattern = new RegExp(`increased\\s+(?:\\w+\\s+)*${noun}`, 'i')
+      if (increasedPattern.test(fullText)) {
+        errors.push(err({
+          ruleId: 'T01',
+          severity: 'HIGH',
+          visitDate: date,
+          visitIndex: i,
+          section: 'A',
+          field: 'textDescription',
+          ruleName: '方向词 + 名词极性矛盾',
+          message: `语义矛盾: "increased ${noun}" 应为 "reduced ${noun}"`,
+          expected: `reduced ${noun}`,
+          actual: `increased ${noun}`
+        }))
+      }
+    }
+
+    // Check for "reduced" + positive noun (contradiction)
+    for (const noun of POSITIVE_NOUNS) {
+      if (noun === 'rom') {
+        // Skip "rom" if it's part of "rom limitation"
+        const reducedRomLimitationPattern = /reduced\s+(?:\w+\s+)*rom\s+limitation/i
+        const reducedRomPattern = /reduced\s+(?:\w+\s+)*(?:joint\s+)?rom(?!\s+limitation)/i
+        if (reducedRomPattern.test(fullText) && !reducedRomLimitationPattern.test(fullText)) {
+          errors.push(err({
+            ruleId: 'T01',
+            severity: 'HIGH',
+            visitDate: date,
+            visitIndex: i,
+            section: 'A',
+            field: 'textDescription',
+            ruleName: '方向词 + 名词极性矛盾',
+            message: '语义矛盾: "reduced ROM" 应为 "increased ROM"',
+            expected: 'increased ROM',
+            actual: 'reduced ROM'
+          }))
+        }
+      } else {
+        const reducedPattern = new RegExp(`reduced\\s+(?:\\w+\\s+)*${noun}`, 'i')
+        if (reducedPattern.test(fullText)) {
+          errors.push(err({
+            ruleId: 'T01',
+            severity: 'HIGH',
+            visitDate: date,
+            visitIndex: i,
+            section: 'A',
+            field: 'textDescription',
+            ruleName: '方向词 + 名词极性矛盾',
+            message: `语义矛盾: "reduced ${noun}" 应为 "increased ${noun}"`,
+            expected: `increased ${noun}`,
+            actual: `reduced ${noun}`
+          }))
+        }
+      }
+    }
+
+    // T04 and T05: Check against previous visit for actual value changes
+    if (i > 0) {
+      const prevVisit = visits[i - 1]
+      const prevRom = avgRom(prevVisit)
+      const curRom = avgRom(visit)
+      const prevStr = avgStrength(prevVisit)
+      const curStr = avgStrength(visit)
+
+      // T04: ROM description contradiction
+      const reducedRomLimitationPattern = /reduced\s+(?:\w+\s+)*(?:rom\s+)?limitation/i
+      const increasedRomPattern = /increased\s+(?:\w+\s+)*(?:joint\s+)?rom(?!\s+limitation)/i
+
+      if (reducedRomLimitationPattern.test(fullText) && curRom < prevRom) {
+        errors.push(err({
+          ruleId: 'T04',
+          severity: 'HIGH',
+          visitDate: date,
+          visitIndex: i,
+          section: 'A',
+          field: 'romDescription',
+          ruleName: 'ROM 描述矛盾',
+          message: '文本描述 "reduced ROM limitation" 但 ROM 实际下降',
+          expected: `ROM >= ${prevRom.toFixed(1)}`,
+          actual: `ROM = ${curRom.toFixed(1)}`
+        }))
+      }
+
+      if (increasedRomPattern.test(fullText) && curRom < prevRom) {
+        errors.push(err({
+          ruleId: 'T04',
+          severity: 'HIGH',
+          visitDate: date,
+          visitIndex: i,
+          section: 'A',
+          field: 'romDescription',
+          ruleName: 'ROM 描述矛盾',
+          message: '文本描述 "increased joint ROM" 但 ROM 实际下降',
+          expected: `ROM >= ${prevRom.toFixed(1)}`,
+          actual: `ROM = ${curRom.toFixed(1)}`
+        }))
+      }
+
+      // T05: Strength description contradiction
+      const increasedStrengthPattern = /increased\s+(?:\w+\s+)*strength/i
+
+      if (increasedStrengthPattern.test(fullText) && curStr < prevStr) {
+        errors.push(err({
+          ruleId: 'T05',
+          severity: 'HIGH',
+          visitDate: date,
+          visitIndex: i,
+          section: 'A',
+          field: 'strengthDescription',
+          ruleName: '肌力描述矛盾',
+          message: '文本描述 "increased muscles strength" 但 strength 实际下降',
+          expected: `strength >= ${prevStr.toFixed(2)}`,
+          actual: `strength = ${curStr.toFixed(2)}`
+        }))
+      }
     }
   }
 
@@ -734,7 +1081,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
         const hasKeyword = keywords.some(k => v.subjective.adlImpairment.toLowerCase().includes(k.toLowerCase()))
         if (!hasKeyword) {
           errors.push(err({
-            ruleId: 'S3', severity: 'LOW', visitDate: date, visitIndex: i,
+            ruleId: 'S3', severity: 'MEDIUM', visitDate: date, visitIndex: i,
             section: 'S', field: 'adlImpairment', ruleName: 'ADL activities vs bodyPart',
             message: 'ADL description missing relevant activities', expected: keywords.join('/'), actual: 'no match'
           }))
@@ -774,7 +1121,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       const weakness = parsePercent(v.subjective.muscleWeaknessScale)
       if ((pain >= 7 && weakness < 40) || (pain >= 5 && weakness < 20)) {
         errors.push(err({
-          ruleId: 'S7', severity: 'LOW', visitDate: date, visitIndex: i,
+          ruleId: 'S7', severity: 'HIGH', visitDate: date, visitIndex: i,
           section: 'S', field: 'muscleWeaknessScale', ruleName: 'muscleWeaknessScale vs pain',
           message: 'Muscle weakness scale too low for pain level', expected: pain >= 7 ? '>=40%' : '>=20%', actual: `${weakness}%`
         }))
@@ -798,7 +1145,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       const expected = normal * limitFactor
       if (rom.degrees > expected * 1.25 || rom.degrees < expected * 0.5) {
         errors.push(err({
-          ruleId: 'O1', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+          ruleId: 'O1', severity: 'HIGH', visitDate: date, visitIndex: i,
           section: 'O', field: 'rom.degrees', ruleName: 'ROM degrees vs pain',
           message: 'ROM degrees inconsistent with pain level', expected: `${expected.toFixed(0)}±25%`, actual: String(rom.degrees)
         }))
@@ -828,7 +1175,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       const severity = rom.severity?.toLowerCase()
       if ((severity === 'severe' && strength > 4) || (severity === 'normal' && strength < 4)) {
         errors.push(err({
-          ruleId: 'O3', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+          ruleId: 'O3', severity: 'HIGH', visitDate: date, visitIndex: i,
           section: 'O', field: 'rom.strength', ruleName: 'Strength vs ROM limitation',
           message: 'Strength inconsistent with ROM severity', expected: severity === 'severe' ? '<=4' : '>=4', actual: String(strength)
         }))
@@ -873,7 +1220,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
           const matches = valid.some(m => rom.movement.toLowerCase().includes(m))
           if (!matches) {
             errors.push(err({
-              ruleId: 'O9', severity: 'HIGH', visitDate: date, visitIndex: i,
+              ruleId: 'O9', severity: 'CRITICAL', visitDate: date, visitIndex: i,
               section: 'O', field: 'rom.movement', ruleName: 'ROM movement belongs to bodyPart',
               message: 'ROM movement invalid for body part', expected: valid.join('/'), actual: rom.movement
             }))
@@ -890,7 +1237,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
         const curPattern = v.assessment.localPattern.toLowerCase()
         if (!curPattern.includes(iePattern) && !iePattern.includes(curPattern)) {
           errors.push(err({
-            ruleId: 'A5', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+            ruleId: 'A5', severity: 'CRITICAL', visitDate: date, visitIndex: i,
             section: 'A', field: 'localPattern', ruleName: 'localPattern consistent across visits',
             message: 'Local pattern inconsistent with IE', expected: iePattern, actual: curPattern
           }))
@@ -912,7 +1259,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
           const gauge = parseInt(spec.gauge.replace('#', ''))
           if (!valid.includes(gauge)) {
             errors.push(err({
-              ruleId: 'P1', severity: 'LOW', visitDate: date, visitIndex: i,
+              ruleId: 'P1', severity: 'CRITICAL', visitDate: date, visitIndex: i,
               section: 'P', field: 'needleSpecs.gauge', ruleName: 'Needle gauge vs bodyPart',
               message: 'Invalid needle gauge for body part', expected: valid.join('/'), actual: String(gauge)
             }))
@@ -924,7 +1271,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     // P2: Check acupoints count
     if (!v.plan.acupoints || v.plan.acupoints.length === 0 || v.plan.acupoints.length > 20) {
       errors.push(err({
-        ruleId: 'P2', severity: 'LOW', visitDate: date, visitIndex: i,
+        ruleId: 'P2', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'P', field: 'acupoints', ruleName: 'Acupoints reasonable count',
         message: 'Acupoints count unreasonable', expected: '2-20', actual: String(v.plan.acupoints?.length || 0)
       }))
@@ -939,7 +1286,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     if ((pain >= 7 && !actualTightness.includes('moderate') && !actualTightness.includes('severe')) ||
         (pain <= 4 && (actualTightness.includes('severe') || actualTenderness > 2))) {
       errors.push(err({
-        ruleId: 'X1', severity: 'HIGH', visitDate: date, visitIndex: i,
+        ruleId: 'X1', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'O', field: 'tightness/tenderness', ruleName: 'Pain→Severity→Tightness→Tenderness chain',
         message: 'Inconsistent pain-tightness-tenderness chain', expected: `pain ${pain} → moderate tightness/+${expectedTenderness}`, actual: `${actualTightness}/+${actualTenderness}`
       }))
@@ -949,7 +1296,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     const avgRomSev = avgRomSeverityRank(v)
     if ((pain >= 8 && avgRomSev > 2.5) || (pain <= 3 && avgRomSev < 0.5)) {
       errors.push(err({
-        ruleId: 'X2', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+        ruleId: 'X2', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'O', field: 'rom', ruleName: 'Pain→ROM→Strength chain',
         message: 'ROM severity inconsistent with pain', expected: pain >= 8 ? 'not normal' : 'not severe', actual: avgRomSev > 2.5 ? 'mostly normal' : 'mostly severe'
       }))
@@ -970,7 +1317,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
         const expectedTongue = Object.entries(patternTongue).find(([key]) => pattern!.includes(key))?.[1]
         if (expectedTongue && !v.objective.tonguePulse.tongue.toLowerCase().includes(expectedTongue)) {
           errors.push(err({
-            ruleId: 'X3', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+            ruleId: 'X3', severity: 'CRITICAL', visitDate: date, visitIndex: i,
             section: 'O', field: 'tonguePulse', ruleName: 'Pattern→Tongue/Pulse chain',
             message: 'Tongue inconsistent with pattern', expected: expectedTongue, actual: v.objective.tonguePulse.tongue
           }))
@@ -1027,8 +1374,6 @@ export function checkDocument(input: CheckInput): CheckOutput {
   const medium = errors.filter(e => e.severity === 'MEDIUM').length
   const low = errors.filter(e => e.severity === 'LOW').length
 
-  const correctionsGenerator = loadCorrectionsGenerator()
-
   return {
     patient: doc.header.patient,
     summary: {
@@ -1048,6 +1393,6 @@ export function checkDocument(input: CheckInput): CheckOutput {
     },
     timeline: buildTimeline(visits, errors),
     errors,
-    corrections: correctionsGenerator ? correctionsGenerator(doc, errors) : []
+    corrections: generateCorrections(doc, errors)
   }
 }

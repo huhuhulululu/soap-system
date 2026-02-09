@@ -10,10 +10,11 @@
 
 import type { OptumNoteDocument, VisitRecord, PainScaleDetailed, ROMItem } from '../types'
 import type { CheckError, CorrectionItem, FieldFix } from './types'
+import { BODY_PART_NAMES, MUSCLE_MAP, ADL_MAP } from '../../../src/generator/soap-generator'
+import { severityFromPain, expectedTenderMinScaleByPain, type SeverityLevel } from '../../../src/shared/severity'
+import { parseBodyPartString } from './bridge'
 
 // ============ 类型定义 ============
-
-type SeverityLevel = 'mild' | 'mild to moderate' | 'moderate' | 'moderate to severe' | 'severe'
 
 interface FixMap {
   adlDifficultyLevel?: string
@@ -25,60 +26,7 @@ interface FixMap {
   goals?: string
 }
 
-// ============ 常量映射 ============
-
-const BODY_PART_NAMES: Record<string, string> = {
-  'LBP': 'lower back',
-  'NECK': 'neck',
-  'UPPER_BACK': 'upper back',
-  'MIDDLE_BACK': 'middle back',
-  'SHOULDER': 'shoulder',
-  'ELBOW': 'elbow',
-  'WRIST': 'wrist',
-  'HAND': 'hand',
-  'HIP': 'hip',
-  'KNEE': 'knee',
-  'ANKLE': 'ankle',
-  'FOOT': 'foot',
-  'THIGH': 'thigh',
-  'CALF': 'calf',
-  'ARM': 'arm',
-  'FOREARM': 'forearm'
-}
-
-const MUSCLE_MAP: Record<string, string[]> = {
-  'LBP': ['iliocostalis', 'spinalis', 'longissimus', 'Iliopsoas Muscle', 'Quadratus Lumborum', 'Gluteal Muscles', 'The Multifidus muscles'],
-  'NECK': ['Scalene anterior / med / posterior', 'Levator Scapulae', 'Trapezius', 'sternocleidomastoid muscles'],
-  'UPPER_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector Spinae', 'Serratus Posterior'],
-  'SHOULDER': ['upper trapezius', 'greater tuberosity', 'lesser tuberosity', 'AC joint', 'levator scapula', 'rhomboids'],
-  'KNEE': ['Gluteus Maximus', 'Gluteus medius / minimus', 'Piriformis muscle', 'Quadratus femoris'],
-  'HIP': ['Gluteus Maximus', 'Gluteus Medius', 'Piriformis', 'Iliopsoas'],
-  'ELBOW': ['Biceps', 'Triceps', 'Brachioradialis', 'Supinator'],
-  'WRIST': ['Flexor Carpi Radialis', 'Flexor Carpi Ulnaris', 'Extensor Carpi Radialis', 'Extensor Carpi Ulnaris'],
-  'ANKLE': ['Tibialis Anterior', 'Peroneus Longus', 'Gastrocnemius', 'Soleus']
-}
-
-const ADL_MAP: Record<string, string[]> = {
-  'LBP': ['Standing for long periods of time', 'Walking for long periods of time', 'Bending over to wear/tie a shoe', 'Rising from a chair'],
-  'NECK': ['Sit and watching TV over 20 mins', 'Tilting head to talking the phone', 'Turning the head when crossing the street'],
-  'UPPER_BACK': ['Sitting at desk for extended periods', 'Reaching overhead', 'Carrying heavy objects'],
-  'SHOULDER': ['holding the pot for cooking', 'performing household chores', 'working long time in front of computer'],
-  'KNEE': ['performing household chores', 'Going up and down stairs', 'Bending over to wear/tie a shoe', 'Rising from a chair'],
-  'HIP': ['Walking for long periods', 'Sitting for long periods', 'Getting in/out of car'],
-  'ELBOW': ['Lifting objects', 'Carrying bags', 'Opening doors'],
-  'WRIST': ['Typing on keyboard', 'Gripping objects', 'Turning doorknobs'],
-  'ANKLE': ['Walking on uneven surfaces', 'Going up and down stairs', 'Standing for long periods']
-}
-
 // ============ 辅助函数 ============
-
-function severityFromPain(pain: number): SeverityLevel {
-  if (pain >= 9) return 'severe'
-  if (pain >= 7) return 'moderate to severe'
-  if (pain >= 6) return 'moderate'
-  if (pain >= 4) return 'mild to moderate'
-  return 'mild'
-}
 
 function parsePainCurrent(v: VisitRecord): number {
   const ps = v.subjective.painScale as PainScaleDetailed | { value?: number; range?: { max: number } }
@@ -91,32 +39,9 @@ function parsePainCurrent(v: VisitRecord): number {
   return 5
 }
 
-function expectedTenderMinScaleByPain(pain: number): number {
-  if (pain >= 9) return 4
-  if (pain >= 7) return 3
-  if (pain >= 5) return 2
-  return 1
-}
-
 function normalizeBodyPart(bodyPart: string): string {
-  const bp = bodyPart.toLowerCase()
-  if (bp.includes('lower back') || bp.includes('lumbar') || bp.includes('lbp')) return 'LBP'
-  if (bp.includes('neck') || bp.includes('cervical')) return 'NECK'
-  if (bp.includes('shoulder')) return 'SHOULDER'
-  if (bp.includes('knee')) return 'KNEE'
-  if (bp.includes('hip')) return 'HIP'
-  if (bp.includes('elbow')) return 'ELBOW'
-  if (bp.includes('upper back') || bp.includes('thoracic')) return 'UPPER_BACK'
-  if (bp.includes('middle back')) return 'MIDDLE_BACK'
-  if (bp.includes('wrist')) return 'WRIST'
-  if (bp.includes('ankle')) return 'ANKLE'
-  if (bp.includes('hand')) return 'HAND'
-  if (bp.includes('foot') || bp.includes('plantar')) return 'FOOT'
-  if (bp.includes('thigh') || bp.includes('quadriceps')) return 'THIGH'
-  if (bp.includes('calf') || bp.includes('gastrocnemius')) return 'CALF'
-  if (bp.includes('forearm')) return 'FOREARM'
-  if (bp.includes('arm')) return 'ARM'
-  return 'LBP'
+  const { bodyPart: bp } = parseBodyPartString(bodyPart)
+  return bp
 }
 
 function formatLaterality(laterality?: string): string {
@@ -621,6 +546,43 @@ function generateCorrectedSection(
   }
 }
 
+// ============ 标记版生成 ============
+
+/**
+ * Generate annotated text with [CORRECTED: was "xxx"] markers
+ * Appends correction markers at the end of lines containing corrected values
+ */
+function generateAnnotatedText(correctedFullText: string, fieldFixes: FieldFix[]): string {
+  if (fieldFixes.length === 0) return correctedFullText
+
+  let annotatedText = correctedFullText
+
+  for (const fix of fieldFixes) {
+    // Skip if original and corrected are the same
+    if (fix.original === fix.corrected) continue
+
+    // Find the line containing the corrected value and append marker
+    const lines = annotatedText.split('\n')
+    const correctedLower = fix.corrected.toLowerCase()
+
+    for (let i = 0; i < lines.length; i++) {
+      const lineLower = lines[i].toLowerCase()
+      // Check if this line contains the corrected value
+      if (lineLower.includes(correctedLower)) {
+        // Avoid duplicate markers
+        if (!lines[i].includes('[CORRECTED:')) {
+          lines[i] = `${lines[i]} [CORRECTED: was "${fix.original}"]`
+        }
+        break
+      }
+    }
+
+    annotatedText = lines.join('\n')
+  }
+
+  return annotatedText
+}
+
 // ============ 主导出函数 ============
 
 export function generateCorrections(document: OptumNoteDocument, errors: CheckError[]): CorrectionItem[] {
@@ -672,13 +634,17 @@ export function generateCorrections(document: OptumNoteDocument, errors: CheckEr
         ieVisit
       )
 
+      // 生成带标记的版本
+      const correctedAnnotatedText = generateAnnotatedText(correctedFullText, fieldFixes)
+
       corrections.push({
         visitDate: visit.assessment.date || '',
         visitIndex,
         section: section as 'S' | 'O' | 'A' | 'P',
         errors: sectionErrorList,
         fieldFixes,
-        correctedFullText
+        correctedFullText,
+        correctedAnnotatedText
       })
     }
   }

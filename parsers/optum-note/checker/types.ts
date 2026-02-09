@@ -32,6 +32,7 @@ export interface CorrectionItem {
   errors: CheckError[]
   fieldFixes: FieldFix[]
   correctedFullText: string
+  correctedAnnotatedText: string  // With [CORRECTED: was "xxx"] markers for display
 }
 
 export interface TimelineEntry {

@@ -31,7 +31,7 @@ const INSURANCE_NEEDLE_MAP: Record<InsuranceType, '97810' | 'full'> = {
 /**
  * 身体部位显示名称映射
  */
-const BODY_PART_NAMES: Record<BodyPart, string> = {
+export const BODY_PART_NAMES: Record<BodyPart, string> = {
   'LBP': 'lower back',
   'NECK': 'neck',
   'UPPER_BACK': 'upper back',
@@ -92,7 +92,7 @@ const LATERALITY_NAMES: Record<Laterality, string> = {
 /**
  * 身体部位对应的肌肉映射 (来自模板 ppnSelectCombo)
  */
-const MUSCLE_MAP: Record<string, string[]> = {
+export const MUSCLE_MAP: Record<string, string[]> = {
   'LBP': ['iliocostalis', 'spinalis', 'longissimus', 'Iliopsoas Muscle', 'Quadratus Lumborum', 'Gluteal Muscles', 'The Multifidus muscles'],
   'NECK': ['Scalene anterior / med / posterior', 'Levator Scapulae', 'Trapezius', 'sternocleidomastoid muscles', 'Semispinalis capitis', 'Splenius capitis', 'Suboccipital muscles'],
   'SHOULDER': ['upper trapezius', 'greater tuberosity', 'lesser tuberosity', 'AC joint', 'levator scapula', 'rhomboids', 'middle deltoid', 'deltoid ant fibres', 'bicep long head', 'supraspinatus', 'triceps short head'],
@@ -107,7 +107,7 @@ const MUSCLE_MAP: Record<string, string[]> = {
 /**
  * 身体部位对应的 ADL 困难活动 (来自模板 ppnSelectCombo)
  */
-const ADL_MAP: Record<string, string[]> = {
+export const ADL_MAP: Record<string, string[]> = {
   'LBP': ['Standing for long periods of time', 'Walking for long periods of time', 'Bending over to wear/tie a shoe', 'Rising from a chair', 'Getting out of bed', 'Going up and down stairs', 'Lifting objects'],
   'NECK': ['Sit and watching TV over 20 mins', 'Tilting head to talking the phone', 'Turning the head when crossing the street', 'Looking down watching steps', 'Gargling', 'Driving for long periods'],
   'SHOULDER': ['holding the pot for cooking', 'performing household chores', 'working long time in front of computer', 'long hours of driving', 'pushing/pulling cart, box, door', 'doing laundry', 'handing/carrying moderate objects', 'put on/take off the clothes', 'reach top of cabinet to get object(s)', 'reach to back to unzip', 'raising up the hand to comb hair', 'touch opposite side shoulder to put coat on', 'abduct arm get the objects from other people', 'adduction arm to put pant on'],

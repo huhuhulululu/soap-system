@@ -185,7 +185,12 @@ export function bridgeVisitToSOAPNote(visit: VisitRecord): SOAPNote {
       }
     },
     diagnosisCodes: visit.diagnosisCodes.map(d => ({ icd10: d.icd10, description: d.description, bodyPart, laterality })),
-    procedureCodes: visit.procedureCodes.map(p => ({ cpt: p.cpt, description: p.description }))
+    procedureCodes: visit.procedureCodes.map(p => ({
+      cpt: p.cpt,
+      description: p.description,
+      units: 1,
+      electricalStimulation: false
+    }))
   }
 }
 
@@ -197,7 +202,7 @@ export function bridgeToContext(doc: OptumNoteDocument, visitIndex: number): Gen
   const normalized = visit.subjective.bodyPartNormalized
   const bodyPart = (normalized && normalized !== 'UNKNOWN' ? normalized as BodyPart : parsedFromRaw.bodyPart)
   const laterality = visit.subjective.laterality || parsedFromRaw.laterality
-  const localPattern = extractLocalPattern(visit.assessment.currentPattern || visit.assessment.tcmDiagnosis?.diagnosis || 'Qi Stagnation')
+  const localPattern = extractLocalPattern(visit.assessment.currentPattern || visit.assessment.tcmDiagnosis?.pattern || visit.assessment.tcmDiagnosis?.diagnosis || 'Qi Stagnation')
   const systemicPattern = visit.assessment.systemicPattern || visit.assessment.tcmDiagnosis?.pattern || inferSystemicPattern(doc)
 
   const context: GenerationContext = {
