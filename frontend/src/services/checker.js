@@ -57,6 +57,8 @@ function formatErrors(errors = []) {
 }
 
 function normalizeReport(report) {
+  const formattedTimeline = formatTimeline(report.timeline)
+
   return {
     patient: report.patient,
     summary: {
@@ -66,6 +68,9 @@ function normalizeReport(report) {
       scoring: {
         totalScore: report.summary.scoring.totalScore,
         grade: report.summary.scoring.grade,
+        ieConsistency: report.summary.scoring.ieConsistency,
+        txConsistency: report.summary.scoring.txConsistency,
+        timelineLogic: report.summary.scoring.timelineLogic,
         breakdown: {
           soapConsistency: report.summary.scoring.ieConsistency,
           timelineLogic: report.summary.scoring.timelineLogic,
@@ -73,15 +78,16 @@ function normalizeReport(report) {
         }
       }
     },
-    timeline: formatTimeline(report.timeline),
-    allErrors: formatErrors(report.errors),
+    timeline: formattedTimeline.visits,
+    trends: formattedTimeline.trends,
+    errors: formatErrors(report.errors),
+    corrections: report.corrections || [],
     raw: report
   }
 }
 
 async function validateFile(file, options = {}) {
   const text = await extractPdfText(file)
-  console.log('[AChecker] PDF text preview (first 500 chars):\n', text.slice(0, 500))
   const parsed = parseOptumNote(text)
   if (!parsed.success || !parsed.document) {
     const reason = parsed.errors?.map(e => `${e.field}: ${e.message}`).join(' | ') || 'Unknown parse failure'

@@ -82,6 +82,8 @@ export const useFilesStore = defineStore('files', () => {
     if (isProcessing.value) return
     isProcessing.value = true
 
+    const processedResults = []
+
     for (const file of files.value) {
       if (file.status !== 'pending') continue
 
@@ -91,6 +93,14 @@ export const useFilesStore = defineStore('files', () => {
         const report = await checkerService.validateFile(file.file, { insuranceType: insuranceType.value, treatmentTime: treatmentTime.value })
         file.report = report
         file.status = 'done'
+
+        // Collect successful results for history
+        processedResults.push({
+          fileName: file.name,
+          patient: report.patient,
+          summary: report.summary,
+          processedAt: new Date().toISOString()
+        })
       } catch (err) {
         console.error('[AChecker] validateFile failed:', err)
         file.status = 'error'
@@ -103,6 +113,24 @@ export const useFilesStore = defineStore('files', () => {
     // Auto-select first completed file
     if (!selectedFileId.value && processedFiles.value.length > 0) {
       selectedFileId.value = processedFiles.value[0].id
+    }
+
+    // Save to history if we have successful results
+    if (processedResults.length > 0) {
+      try {
+        const { useHistory } = await import('../composables/useHistory')
+        const history = useHistory()
+
+        processedResults.forEach(result => {
+          history.saveResult(result.fileName, {
+            patient: result.patient,
+            summary: result.summary,
+            processedAt: result.processedAt
+          })
+        })
+      } catch (err) {
+        console.error('[AChecker] Failed to save history:', err)
+      }
     }
   }
 

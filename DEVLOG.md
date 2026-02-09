@@ -1,5 +1,82 @@
 # AChecker 开发日志
 
+## 2026-02-09 Session
+
+### 文本验证规则实现
+
+#### 需求分析
+用户提出需要检测以下问题：
+1. **文本 ↔ 数值矛盾**: 如描述 "improvement" 但疼痛值实际上升
+2. **语义表达矛盾**: 如 "increased ROM limitation" (方向词与名词极性矛盾)
+3. **进展状态与原因逻辑矛盾**: 如 "improvement" + "skipped treatments"
+
+#### 表述收集
+从 4 个模板生成器中提取所有文本表述：
+- `subjective-generator.ts` — progressStatus, progressReasons, severityLevel
+- `objective-generator.ts` — Tightness/Tenderness/Spasm 分级, 肌力, ROM 标签
+- `assessment-generator.ts` — symptomChange, changeLevel, physicalFindings
+- `plan-generator.ts` — 目标动词 (Decrease/Increase), 电刺激选项
+
+**输出文档**: `docs/plans/text-validation-expressions.md`
+
+#### 新增 9 条文本验证规则 (T01-T09)
+
+| 规则ID | 描述 | 严重程度 | 位置 |
+|--------|------|----------|------|
+| T01 | 方向词 + 名词极性矛盾 | HIGH | `checkTextConsistency()` |
+| T02 | 改善描述 + 数值恶化 | CRITICAL | `checkTX()` |
+| T03 | 恶化描述 + 数值改善 | CRITICAL | `checkTX()` |
+| T04 | ROM 描述矛盾 | HIGH | `checkTextConsistency()` |
+| T05 | 肌力描述矛盾 | HIGH | `checkTextConsistency()` |
+| T06 | 进展状态 + 原因逻辑矛盾 | MEDIUM | `checkTX()` |
+| T07 | Pacemaker + 电刺激矛盾 | CRITICAL | `checkTX()` |
+| T08 | Severity 单调性 | HIGH | `checkSequence()` |
+| T09 | 伴随症状单调性 | MEDIUM | `checkSequence()` |
+
+#### 语义分类
+
+**方向词**:
+- 正向: `reduced`, `improvement`, `Decrease`
+- 负向: `increased`, `exacerbate`
+
+**名词极性**:
+- 负向名词 (↓=改善): `tightness`, `tenderness`, `spasms`, `ROM limitation`, `pain`
+- 正向名词 (↑=改善): `strength`, `ROM`, `energy level`
+
+**进展原因**:
+- 正向: `maintain regular treatments`, `energy level improved`
+- 负向: `skipped treatments`, `discontinuous treatment`, `intense work`
+
+#### 代码变更
+
+**修改文件**: `parsers/optum-note/checker/note-checker.ts`
+
+新增常量:
+```typescript
+const POSITIVE_PROGRESS_REASONS = [...]
+const NEGATIVE_PROGRESS_REASONS = [...]
+const NEGATIVE_NOUNS = ['tightness', 'tenderness', 'spasms', 'rom limitation', 'pain']
+const POSITIVE_NOUNS = ['strength', 'rom']
+```
+
+新增函数:
+```typescript
+function checkTextConsistency(visits: VisitRecord[]): CheckError[]
+function parseProgressStatus(cc: string): 'improvement' | 'exacerbate' | 'similar' | null
+function extractProgressReasons(cc: string): { positive: string[], negative: string[] }
+```
+
+#### 测试
+
+**新增测试文件**: `parsers/optum-note/checker/__tests__/text-rules.test.ts`
+- 34 个测试用例，覆盖所有 9 条新规则
+
+#### 构建状态
+- ✅ Frontend Build: 58 modules, 1.26s
+- ✅ 前端自动兼容新规则（动态渲染）
+
+---
+
 ## 2026-02-08 Session
 
 ### 20:49 - 项目检查

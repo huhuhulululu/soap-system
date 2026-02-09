@@ -19,7 +19,25 @@ interface TemplateWhitelist {
 
 let cachedWhitelist: TemplateWhitelist | null = null
 
-function normalizeOption(value: string): string {
+/**
+ * 从预构建 JSON 注入 whitelist（浏览器环境使用，绕过 fs）。
+ * 必须在任何 getTemplateOptionsForField / getTemplateAlignedRules 调用之前执行。
+ */
+export function setWhitelist(data: Record<string, string[]>): void {
+  const allowedFields = new Set<string>(Object.keys(data))
+  const optionsByField = new Map<string, Map<string, string>>()
+  for (const [field, options] of Object.entries(data)) {
+    const m = new Map<string, string>()
+    for (const o of options) {
+      const key = normalizeOption(o)
+      if (!m.has(key)) m.set(key, o)
+    }
+    optionsByField.set(field, m)
+  }
+  cachedWhitelist = { allowedFields, optionsByField }
+}
+
+export function normalizeOption(value: string): string {
   return value
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')

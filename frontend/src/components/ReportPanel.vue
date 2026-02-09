@@ -1,6 +1,10 @@
 <script setup>
-import { computed } from 'vue'
-import { exportReportAsCSV } from '../services/exporter'
+import { computed, ref } from 'vue'
+import CriticalBanner from './CriticalBanner.vue'
+import VisitErrorGroup from './VisitErrorGroup.vue'
+import CorrectionCard from './CorrectionCard.vue'
+import { exportReportAsCSV, copyAllCorrections } from '../services/exporter'
+import { exportAllAsCSV } from '../services/batch-exporter'
 
 const props = defineProps({
   file: {
@@ -10,6 +14,12 @@ const props = defineProps({
 })
 
 const report = computed(() => props.file?.report)
+const summary = computed(() => report.value?.summary || {})
+const patient = computed(() => report.value?.patient || {})
+const errorCount = computed(() => summary.value?.errorCount || { critical: 0, high: 0, medium: 0, low: 0, total: 0 })
+const scoring = computed(() => summary.value?.scoring || { totalScore: 0, grade: 'FAIL' })
+const hasCritical = computed(() => errorCount.value.critical > 0)
+const expandedErrors = ref(new Set())
 
 function getGradeClass(grade) {
   switch (grade) {
@@ -29,23 +39,43 @@ function getGradeText(grade) {
   }
 }
 
-function getSeverityClass(severity) {
-  switch (severity) {
-    case 'CRITICAL': return 'severity-critical'
-    case 'HIGH': return 'severity-high'
-    case 'MEDIUM': return 'severity-medium'
-    case 'LOW': return 'severity-low'
-    default: return ''
+function scrollToCritical() {
+  const errorSection = document.querySelector('.errors-section')
+  if (errorSection) {
+    errorSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
-function getTrendIcon(direction) {
-  switch (direction) {
-    case 'improving': return '↑'
-    case 'worsening': return '↓'
-    case 'stable': return '→'
-    default: return '~'
+function handleErrorClicked(payload) {
+  expandedErrors.value.add(payload.visitIndex)
+  expandedErrors.value = new Set(expandedErrors.value)
+}
+
+async function handleExportAll() {
+  if (!report.value) return
+  try {
+    await exportAllAsCSV(report.value)
+  } catch (error) {
+    alert('导出失败: ' + error.message)
   }
+}
+
+async function handleCopyAllCorrections() {
+  if (!report.value) return
+  try {
+    await copyAllCorrections(report.value)
+    alert('已复制所有纠正内容到剪贴板')
+  } catch (error) {
+    alert('复制失败: ' + error.message)
+  }
+}
+
+function getCorrectionsForVisit(visitIndex) {
+  if (!report.value?.corrections) return []
+
+  return report.value.corrections.filter(correction => {
+    return correction.visitIndex === visitIndex
+  })
 }
 </script>
 
@@ -63,15 +93,21 @@ function getTrendIcon(direction) {
 
   <!-- Report Content -->
   <div v-else-if="report" class="card overflow-hidden">
+    <!-- Critical Banner -->
+    <CriticalBanner
+      :count="errorCount.critical"
+      @click="scrollToCritical"
+    />
+
     <!-- Header -->
     <div class="px-6 py-5 bg-paper-100/50 border-b border-ink-100">
       <div class="flex items-start justify-between">
         <div>
           <h2 class="font-display text-xl font-semibold text-ink-800">
-            {{ report.patient.name }}
+            {{ patient.name }}
           </h2>
           <p class="text-sm text-ink-500 mt-1">
-            患者ID: {{ report.patient.patientId }} · DOB: {{ report.patient.dob }}
+            患者ID: {{ patient.patientId }} · DOB: {{ patient.dob }}
           </p>
         </div>
 
@@ -79,13 +115,13 @@ function getTrendIcon(direction) {
         <div class="text-center space-y-2">
           <div :class="[
             'inline-flex items-center gap-2 px-4 py-2 rounded-lg border',
-            getGradeClass(report.summary.scoring.grade)
+            hasCritical ? 'grade-fail' : getGradeClass(scoring.grade)
           ]">
             <span class="font-display text-2xl font-bold">
-              {{ report.summary.scoring.totalScore }}
+              {{ hasCritical ? 0 : scoring.totalScore }}
             </span>
             <span class="text-sm font-medium">
-              {{ getGradeText(report.summary.scoring.grade) }}
+              {{ hasCritical ? '不通过' : getGradeText(scoring.grade) }}
             </span>
           </div>
           <button @click="exportReportAsCSV(report)" class="block text-xs text-ink-400 hover:text-ink-600 transition-colors">
@@ -96,155 +132,76 @@ function getTrendIcon(direction) {
     </div>
 
     <!-- Stats Row -->
-    <div class="px-6 py-4 grid grid-cols-4 gap-4 border-b border-ink-100">
+    <div class="px-6 py-4 grid grid-cols-3 gap-4 border-b border-ink-100">
       <div>
         <p class="text-xs text-ink-500">总就诊次数</p>
-        <p class="text-lg font-semibold text-ink-800">{{ report.summary.totalVisits }}</p>
+        <p class="text-lg font-semibold text-ink-800">{{ summary.totalVisits }}</p>
       </div>
       <div>
         <p class="text-xs text-ink-500">日期范围</p>
         <p class="text-sm font-medium text-ink-700">
-          {{ report.summary.visitDateRange.first }} - {{ report.summary.visitDateRange.last }}
+          {{ summary.visitDateRange?.first || '-' }} - {{ summary.visitDateRange?.last || '-' }}
         </p>
       </div>
       <div>
         <p class="text-xs text-ink-500">总错误数</p>
-        <p class="text-lg font-semibold" :class="report.summary.errorCount.total > 0 ? 'text-status-fail' : 'text-status-pass'">
-          {{ report.summary.errorCount.total }}
-        </p>
-      </div>
-      <div>
-        <p class="text-xs text-ink-500">Pain趋势</p>
-        <p class="text-sm font-medium text-ink-700 flex items-center gap-1">
-          <span>{{ getTrendIcon(report.timeline.trends.painScale.direction) }}</span>
-          <span class="capitalize">{{ report.timeline.trends.painScale.direction }}</span>
+        <p class="text-lg font-semibold" :class="errorCount.total > 0 ? 'text-status-fail' : 'text-status-pass'">
+          {{ errorCount.total }}
         </p>
       </div>
     </div>
 
-    <!-- Score Breakdown -->
-    <div class="px-6 py-4 border-b border-ink-100">
-      <h3 class="text-sm font-medium text-ink-700 mb-3">评分明细</h3>
-      <div class="space-y-2">
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-ink-500 w-24">SOAP一致性</span>
-          <div class="flex-1 h-2 bg-paper-200 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-ink-600 transition-all"
-              :style="{ width: `${report.summary.scoring.breakdown.soapConsistency}%` }"
-            ></div>
-          </div>
-          <span class="text-xs font-mono text-ink-600 w-8">{{ report.summary.scoring.breakdown.soapConsistency }}</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-ink-500 w-24">时间线逻辑</span>
-          <div class="flex-1 h-2 bg-paper-200 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-ink-600 transition-all"
-              :style="{ width: `${report.summary.scoring.breakdown.timelineLogic}%` }"
-            ></div>
-          </div>
-          <span class="text-xs font-mono text-ink-600 w-8">{{ report.summary.scoring.breakdown.timelineLogic }}</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-ink-500 w-24">规则合规</span>
-          <div class="flex-1 h-2 bg-paper-200 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-ink-600 transition-all"
-              :style="{ width: `${report.summary.scoring.breakdown.ruleCompliance}%` }"
-            ></div>
-          </div>
-          <span class="text-xs font-mono text-ink-600 w-8">{{ report.summary.scoring.breakdown.ruleCompliance }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Timeline -->
-    <div class="px-6 py-4 border-b border-ink-100">
-      <h3 class="text-sm font-medium text-ink-700 mb-3">就诊时间线</h3>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-xs text-ink-500 border-b border-ink-100">
-              <th class="pb-2 font-medium">#</th>
-              <th class="pb-2 font-medium">日期</th>
-              <th class="pb-2 font-medium">类型</th>
-              <th class="pb-2 font-medium">Pain</th>
-              <th class="pb-2 font-medium">变化</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="visit in report.timeline.visits"
-              :key="visit.index"
-              class="border-b border-ink-50 last:border-0"
-            >
-              <td class="py-2 text-ink-400 font-mono">{{ visit.index + 1 }}</td>
-              <td class="py-2 text-ink-700">{{ visit.date }}</td>
-              <td class="py-2">
-                <span :class="[
-                  'px-2 py-0.5 text-xs rounded',
-                  visit.type === 'INITIAL EVALUATION' ? 'bg-status-info/10 text-status-info' : 'bg-paper-200 text-ink-600'
-                ]">
-                  {{ visit.type === 'INITIAL EVALUATION' ? 'IE' : 'TX' }}
-                </span>
-              </td>
-              <td class="py-2 font-mono text-ink-700">{{ visit.painScale }}/10</td>
-              <td class="py-2">
-                <span v-if="visit.symptomChange === '-'" class="text-ink-400">-</span>
-                <span v-else-if="visit.symptomChange === 'improvement'" class="text-status-pass">✓ 改善</span>
-                <span v-else-if="visit.symptomChange === 'no change'" class="text-status-warning">→ 无变化</span>
-                <span v-else class="text-status-fail">↓ 恶化</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Errors -->
-    <div class="px-6 py-4">
+    <!-- Errors Section -->
+    <div class="px-6 py-4 errors-section">
       <h3 class="text-sm font-medium text-ink-700 mb-3">
         错误详情
-        <span v-if="report.allErrors.length > 0" class="text-ink-400 font-normal">
-          ({{ report.allErrors.length }})
+        <span v-if="report.errors.length > 0" class="text-ink-400 font-normal">
+          ({{ report.errors.length }})
         </span>
       </h3>
 
-      <!-- No Errors -->
-      <div v-if="report.allErrors.length === 0" class="py-8 text-center">
-        <div class="w-12 h-12 mx-auto mb-3 bg-status-pass/10 rounded-full flex items-center justify-center">
-          <svg class="w-6 h-6 text-status-pass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <p class="text-sm text-ink-500">未检测到错误</p>
-      </div>
+      <!-- Visit Error Groups -->
+      <VisitErrorGroup
+        :errors="report.errors"
+        :timeline="report.timeline"
+      />
 
-      <!-- Error List -->
-      <div v-else class="space-y-3">
-        <div
-          v-for="error in report.allErrors"
-          :key="error.id"
-          class="p-4 bg-paper-100 rounded-lg border border-ink-100"
-        >
-          <div class="flex items-start gap-3">
-            <span :class="[
-              'flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded',
-              getSeverityClass(error.severity)
-            ]">
-              {{ error.severity }}
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-ink-800">{{ error.ruleName }}</p>
-              <p class="text-sm text-ink-600 mt-1">{{ error.message }}</p>
-              <p class="text-xs text-ink-400 mt-2 font-mono">
-                Visit {{ error.location.visitIndex + 1 }} · {{ error.location.section }}.{{ error.location.field }}
-              </p>
-            </div>
-          </div>
-        </div>
+      <!-- Correction Cards - Show all corrections directly -->
+      <div v-if="report.corrections && report.corrections.length > 0" class="mt-6 space-y-4">
+        <h4 class="text-sm font-medium text-ink-700 flex items-center gap-2">
+          <svg class="w-4 h-4 text-status-pass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          建议修正 ({{ report.corrections.length }})
+        </h4>
+        <CorrectionCard
+          v-for="(correction, idx) in report.corrections"
+          :key="`correction-${correction.visitIndex}-${correction.section}-${idx}`"
+          :correction="correction"
+        />
       </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="px-6 py-4 border-t border-ink-100 flex gap-3">
+      <button
+        @click="handleExportAll"
+        class="px-4 py-2 bg-ink-600 text-white rounded-lg hover:bg-ink-700 transition-colors text-sm font-medium flex items-center gap-2"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        批量导出 CSV
+      </button>
+      <button
+        @click="handleCopyAllCorrections"
+        class="px-4 py-2 bg-white border border-ink-200 text-ink-700 rounded-lg hover:bg-paper-50 transition-colors text-sm font-medium flex items-center gap-2"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        复制所有纠正
+      </button>
     </div>
   </div>
 
@@ -259,3 +216,21 @@ function getTrendIcon(direction) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.grade-pass {
+  @apply bg-status-pass/10 border-status-pass/30 text-status-pass;
+}
+
+.grade-warning {
+  @apply bg-status-warning/10 border-status-warning/30 text-status-warning;
+}
+
+.grade-fail {
+  @apply bg-status-fail/10 border-status-fail/30 text-status-fail;
+}
+
+.errors-section {
+  scroll-margin-top: 1rem;
+}
+</style>

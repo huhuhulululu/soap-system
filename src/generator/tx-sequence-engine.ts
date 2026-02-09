@@ -5,6 +5,16 @@ import { getTemplateOptionsForField } from '../parser/template-rule-whitelist'
 export interface TXSequenceOptions {
   txCount: number
   seed?: number
+  /** 从第几个 TX 开始生成（1-based）。省略时从 1 开始。 */
+  startVisitIndex?: number
+  /** 从用户最后一个 TX 提取的实际状态，作为续写起点。 */
+  initialState?: {
+    pain: number
+    tightness: number
+    tenderness: number
+    spasm: number
+    frequency: number
+  }
 }
 
 export interface TXVisitState {
@@ -359,23 +369,26 @@ export function generateTXSequenceStates(
   options: TXSequenceOptions
 ): TXVisitState[] {
   const txCount = Math.max(1, options.txCount)
+  const startIdx = options.startVisitIndex || 1
+  const remainingTx = txCount - startIdx + 1
   // Non-reproducible by design: even with same seed we mix runtime entropy.
   const rng = createEntropyRng(options.seed)
 
-  const startPain = context.previousIE?.subjective?.painScale?.current ?? 8
+  const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8
+  const startPain = options.initialState?.pain ?? ieStartPain
   const targetPain = parsePainTarget(
     context.previousIE?.plan?.shortTermGoal?.painScaleTarget,
-    Math.max(3, startPain - 2)
+    Math.max(3, ieStartPain - 2)
   )
 
   let prevPain = startPain
   let prevPainScaleLabel = snapPainToGrid(startPain).label
   let prevProgress = 0
   let prevAdl = 3.5
-  let prevFrequency = 3 // 3: constant, 2: frequent, 1: occasional, 0: intermittent
-  let prevTightness = 3
-  let prevTenderness = 3
-  let prevSpasm = 3 // 3: +3, 2: +2, 1: +1, 0: 0
+  let prevFrequency = options.initialState?.frequency ?? 3
+  let prevTightness = options.initialState?.tightness ?? 3
+  let prevTenderness = options.initialState?.tenderness ?? 3
+  let prevSpasm = options.initialState?.spasm ?? 3
   let prevRomDeficit = 0.42
   let prevStrengthDeficit = 0.35
   // 纵向单调约束追踪变量
@@ -420,8 +433,9 @@ export function generateTXSequenceStates(
 
   const visits: TXVisitState[] = []
 
-  for (let i = 1; i <= txCount; i++) {
-    const progressLinear = i / txCount
+  for (let i = startIdx; i <= txCount; i++) {
+    const localIndex = i - startIdx + 1
+    const progressLinear = localIndex / remainingTx
     // S曲线: sqrt 加速早期进度 + smoothstep 平滑过渡
     const acc = Math.sqrt(progressLinear)
     const progressBase = 3 * acc * acc - 2 * acc * acc * acc

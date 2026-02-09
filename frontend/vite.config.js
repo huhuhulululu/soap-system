@@ -15,5 +15,10 @@ export default defineConfig({
     alias: {
       '@': '/src'
     }
+  },
+  test: {
+    globals: true,
+    environment: 'happy-dom',
+    include: ['src/**/*.{test,spec}.{js,ts}']
   }
 })

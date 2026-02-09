@@ -40,3 +40,66 @@ export function exportReportAsCSV(report) {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export function copyAllCorrections(report) {
+  const { allErrors } = report
+
+  if (!allErrors || allErrors.length === 0) {
+    throw new Error('No errors with corrections to copy')
+  }
+
+  const sectionMap = new Map()
+
+  allErrors.forEach(error => {
+    if (!error.correction) return
+
+    const { visitIndex, section } = error.location
+    const visitKey = `Visit ${visitIndex + 1}`
+    const visitType = error.visitType || ''
+    const visitLabel = visitType ? `${visitKey} (${visitType})` : visitKey
+
+    if (!sectionMap.has(section)) {
+      sectionMap.set(section, new Map())
+    }
+
+    const visitMap = sectionMap.get(section)
+    if (!visitMap.has(visitLabel)) {
+      visitMap.set(visitLabel, [])
+    }
+
+    visitMap.get(visitLabel).push(error.correction)
+  })
+
+  const sections = ['Subjective', 'Objective', 'Assessment', 'Plan']
+  const output = []
+
+  sections.forEach(section => {
+    if (!sectionMap.has(section)) return
+
+    output.push(`=== ${section} ===`)
+
+    const visitMap = sectionMap.get(section)
+    const sortedVisits = Array.from(visitMap.keys()).sort((a, b) => {
+      const numA = parseInt(a.match(/\d+/)[0])
+      const numB = parseInt(b.match(/\d+/)[0])
+      return numA - numB
+    })
+
+    sortedVisits.forEach(visitLabel => {
+      const corrections = visitMap.get(visitLabel)
+      output.push(`${visitLabel}:`)
+      corrections.forEach(correction => {
+        output.push(correction)
+      })
+      output.push('')
+    })
+  })
+
+  const text = output.join('\n').trim()
+
+  navigator.clipboard.writeText(text).catch(error => {
+    throw new Error(`Failed to copy to clipboard: ${error.message}`)
+  })
+
+  return text
+}
