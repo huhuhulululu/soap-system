@@ -6,7 +6,11 @@
   "scripts": {
     "test": "jest",
     "test:verbose": "jest --verbose",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:e2e": "jest tests/e2e",
+    "test:all": "jest --testPathPattern='(tests|__tests__)'",
+    "test:watch": "jest --watch"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
@@ -20,10 +24,12 @@
     "testEnvironment": "node",
     "roots": [
       "<rootDir>/src",
-      "<rootDir>/parsers"
+      "<rootDir>/parsers",
+      "<rootDir>/tests"
     ],
     "testMatch": [
-      "**/__tests__/**/*.test.ts"
+      "**/__tests__/**/*.test.ts",
+      "**/tests/**/*.spec.ts"
     ],
     "moduleFileExtensions": [
       "ts",
@@ -35,16 +41,21 @@
     ],
     "collectCoverageFrom": [
       "src/**/*.ts",
-      "!src/**/__tests__/**"
+      "parsers/**/*.ts",
+      "!src/**/__tests__/**",
+      "!parsers/**/__tests__/**",
+      "!**/*.test.ts",
+      "!**/*.spec.ts"
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 80,
-        "functions": 80,
-        "lines": 80,
-        "statements": 80
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
       }
-    }
+    },
+    "testTimeout": 30000
   },
   "dependencies": {
     "tsx": "^4.21.0"

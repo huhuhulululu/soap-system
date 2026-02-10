@@ -116,7 +116,7 @@ export interface TCMDiagnosis {
 
 export interface Assessment {
   date: string // MM/DD/YYYY
-  generalCondition: 'good' | 'fair'
+  generalCondition: 'good' | 'fair' | 'poor'
   symptomChange: 'improvement' | 'slight improvement' | 'no change' | 'exacerbate'
   physicalFindingChange: string
   tcmDiagnosis?: TCMDiagnosis // 仅初诊

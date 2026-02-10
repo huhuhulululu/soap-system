@@ -360,7 +360,7 @@ export function parseSubjective(block: string): Subjective | null {
 
   // Extract body part
   const bodyPart = extractBodyPart(chiefComplaint)
-  const { normalizedBodyPart, laterality } = parseBodyPartAndLaterality(bodyPart || chiefComplaint)
+  const { normalizedBodyPart, laterality } = parseBodyPartAndLaterality(chiefComplaint || bodyPart)
 
   // Radiation
   const radiation = !/without radiation/i.test(chiefComplaint)
@@ -727,9 +727,9 @@ export function parseAssessment(block: string): Assessment | null {
   const date = dateMatch?.[1] || blockDateMatch?.[1] || ''
 
   // General condition
-  const conditionPattern = /general condition is\s+(good|fair)/i
+  const conditionPattern = /general condition is\s+(good|fair|poor)/i
   const conditionMatch = block.match(conditionPattern)
-  const generalCondition = (conditionMatch?.[1]?.toLowerCase() as 'good' | 'fair') || 'good'
+  const generalCondition = (conditionMatch?.[1]?.toLowerCase() as 'good' | 'fair' | 'poor') || 'good'
 
   // Symptom change
   const symptomPattern = /presents with\s+(improvement|slight improvement|no change|exacerbate)/i

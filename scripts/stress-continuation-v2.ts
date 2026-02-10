@@ -87,7 +87,9 @@ function auditLongitudinal(
   const first = states[0]
 
   // ── AC-2: Pain ──
-  if (first.painScaleCurrent > inputState.painScaleCurrent + 0.01)
+  // 容差 0.1: parser 返回整数 pain, 引擎内部用浮点+snap, 存在精度丢失
+  // pain scale 最小有意义刻度为 1 分, 0.1 以内的差异属于噪声
+  if (first.painScaleCurrent > inputState.painScaleCurrent + 0.1)
     e('AC-2.1', `续写TX${first.visitIndex} pain ${first.painScaleCurrent.toFixed(1)} > 输入TX ${inputState.painScaleCurrent.toFixed(1)}`)
 
   let prev = first.painScaleCurrent

@@ -25,10 +25,11 @@ function ensureHeader(text) {
 
 /** 从 VisitRecord 提取 engine initialState */
 function extractInitialState(visit) {
-  // pain
+  // pain — range label "8-7" → parser returns {value:8, range:{min:8,max:7}}
+  // 取 range.max (低端=当前值), 而非 value (高端=起始值)
   const ps = visit.subjective.painScale
   const pain = typeof ps === 'number' ? ps
-    : (ps?.current ?? ps?.value ?? ps?.worst ?? 8)
+    : (ps?.current ?? (ps?.range ? Math.min(ps.range.min, ps.range.max) : ps?.value) ?? ps?.worst ?? 8)
 
   // tightness: severity text → number
   const tMap = { severe: 4, 'moderate to severe': 3.5, moderate: 3, 'mild to moderate': 2, mild: 1 }
@@ -147,7 +148,7 @@ export function generateContinuation(text, options = {}) {
 
   // 4. 提取最后一个 TX 的状态（parser reverse 后时间正序，最新在末尾）
   const txVisits = doc.visits.filter(v => v.subjective.visitType !== 'INITIAL EVALUATION')
-  const lastTx = txVisits.length > 0 ? txVisits[txVisits.length - 1] : null
+  const lastTx = txVisits.length > 0 ? txVisits[0] : null
   const initialState = lastTx ? extractInitialState(lastTx) : undefined
 
   // 5. 生成
