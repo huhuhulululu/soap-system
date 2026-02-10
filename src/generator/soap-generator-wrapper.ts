@@ -52,14 +52,14 @@ function generateDynamicPlanIE(context: GenerationContext): string {
 
   if (bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK') {
     plan += `Decrease Pain Scale to${goals.pain.st}.\n`
-    plan += `Decrease soreness sensation Scale to ${goals.soreness.st}\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.st}\n`
     plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`
     plan += `Increase Muscles Strength to${goals.strength.st}\n\n`
   } else {
     plan += `Decrease Pain Scale to ${goals.pain.st}.\n`
-    plan += `Decrease soreness sensation Scale to 50%\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to 50%\n`
     plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`
@@ -70,7 +70,7 @@ function generateDynamicPlanIE(context: GenerationContext): string {
 
   if (bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK') {
     plan += `Decrease Pain Scale to${goals.pain.lt}\n`
-    plan += `Decrease soreness sensation Scale to ${goals.soreness.lt}\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.lt}\n`
     plan += `Decrease Muscles Tightness to ${formatTightLT(goals.tightness.lt)}\n`
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}\n`
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.lt}\n`

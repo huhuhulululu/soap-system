@@ -1,16 +1,19 @@
 /**
  * 动态 Goals 计算器
- * 纯函数：输入 severity + bodyPart，输出动态 Goals 值和 IE Pain Scale
+ * 基于康复曲线理论，与 tx-sequence-engine 的 progress 对齐
  */
 import type { SeverityLevel, BodyPart } from '../types'
 
 export interface DynamicGoals {
-  pain:       { st: string; lt: string }
-  soreness:   { st: string; lt: string }
-  tightness:  { st: string; lt: string }
-  tenderness: { st: number; lt: number }
-  spasm:      { st: number; lt: number }
-  strength:   { st: string; lt: string }
+  pain:        { st: string; lt: string }
+  symptomType: string  // 'soreness', 'weakness', 'stiffness', 'heaviness', 'numbness'
+  symptomPct:  { st: string; lt: string }  // 症状百分比 (原 soreness)
+  tightness:   { st: string; lt: string }
+  tenderness:  { st: number; lt: number }
+  spasm:       { st: number; lt: number }
+  strength:    { st: string; lt: string }
+  rom:         { st: string; lt: string }
+  adl:         { st: string; lt: string }
 }
 
 export interface IEPainScale {
@@ -19,7 +22,28 @@ export interface IEPainScale {
   current: string
 }
 
-// ===== Pain Scale 映射（与 tx-sequence-engine severityFromPain 反向对齐）=====
+// ===== 康复曲线核心函数 =====
+
+/** Ease-out quadratic: 前期快速改善，后期缓慢 */
+function easeOutQuad(t: number): number {
+  return 1 - (1 - t) * (1 - t)
+}
+
+/** 康复曲线计算 */
+function recoveryCurve(initial: number, target: number, progress: number): number {
+  return initial - (initial - target) * easeOutQuad(progress)
+}
+
+/** 吸附到模板 dropdown 网格 */
+function snapToGrid(value: number): string {
+  const floor = Math.floor(value)
+  const frac = value - floor
+  if (frac >= 0.75) return String(Math.min(10, floor + 1))
+  if (frac >= 0.25) return `${Math.min(10, floor + 1)}-${floor}`
+  return String(floor)
+}
+
+// ===== Pain Scale 映射 =====
 
 const IE_PAIN_SCALE: Record<string, Record<string, IEPainScale>> = {
   SHOULDER: {
@@ -40,15 +64,13 @@ const IE_PAIN_SCALE: Record<string, Record<string, IEPainScale>> = {
 
 // ===== Goals 计算常量 =====
 
-const SEVERITY_TO_TENDER: Record<string, number> = {
-  'severe': 4, 'moderate to severe': 3, 'moderate': 3, 'mild to moderate': 2, 'mild': 1
-}
-
 const TIGHTNESS_LEVELS = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
-
-const IE_SPASM = 3 // generateObjective 固定值
-
 const MAIN_BODY_PARTS: BodyPart[] = ['KNEE', 'SHOULDER', 'LBP', 'NECK']
+
+// ST Goal 进度位置
+const ST_PROGRESS = 0.4
+// LT Goal = 初始值 * 此比率 (0.25 使 Pain 8 → LT 2)
+const OPTIMAL_END_RATIO = 0.25
 
 // ===== 导出函数 =====
 
@@ -64,53 +86,136 @@ export function calculateIEPainScale(severity: SeverityLevel, bp: BodyPart): IEP
   return table[severity] || table['moderate to severe']
 }
 
-export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart): DynamicGoals {
+/** 计算 Pain Goals (基于康复曲线) */
+function calculatePainGoals(painCurrent: number, bp: BodyPart): { st: string; lt: string } {
+  // 边界: 已经很好
+  if (painCurrent <= 3) {
+    return { st: String(painCurrent), lt: String(painCurrent) }
+  }
+  // 边界: 轻度
+  if (painCurrent <= 6) {
+    return { st: String(painCurrent), lt: String(Math.max(2, painCurrent - 2)) }
+  }
+
+  // 正常: 重症 (Pain >= 7)
+  const optimalEnd = Math.max(2, painCurrent * OPTIMAL_END_RATIO)
+  const stActual = recoveryCurve(painCurrent, optimalEnd, ST_PROGRESS)
+  const stTarget = Math.ceil(stActual)
+  const ltTarget = Math.ceil(optimalEnd)
+
+  // ST Goal 格式: 降幅 2-3 级用范围格式
+  const delta = painCurrent - stTarget
+  const painST = (delta >= 2 && delta <= 3 && stTarget >= 5)
+    ? `${stTarget}-${stTarget + 1}`
+    : snapToGrid(stTarget)
+
+  // LT Goal 格式: 使用范围格式 (如 "2-3")
+  const painLT = ltTarget <= 3 ? `${ltTarget}-${ltTarget + 1}` : String(ltTarget)
+
+  return { st: painST, lt: painLT }
+}
+
+/** 计算 Tightness Goals */
+function calculateTightnessGoals(severity: SeverityLevel): { st: string; lt: string } {
+  const idx = TIGHTNESS_LEVELS.indexOf(severity)
+  const current = idx >= 0 ? idx : 3
+  // 边界: 已经很好
+  if (current <= 1) return { st: TIGHTNESS_LEVELS[current], lt: TIGHTNESS_LEVELS[0] }
+  // 正常: ST 降 1 档, LT 降 3 档 (拉大差距)
+  return {
+    st: TIGHTNESS_LEVELS[Math.max(0, current - 1)],
+    lt: TIGHTNESS_LEVELS[Math.max(0, current - 3)]
+  }
+}
+
+/** 计算 Tenderness Goals */
+function calculateTendernessGoals(severity: SeverityLevel, bp: BodyPart): { st: number; lt: number } {
+  const map: Record<string, number> = {
+    'severe': 4, 'moderate to severe': 4, 'moderate': 3, 'mild to moderate': 2, 'mild': 1
+  }
+  const current = map[severity] ?? 3
+  // 边界: 已最优
+  if (current <= 1) return { st: 1, lt: 1 }
+  // ST 降 1 级, LT 降到 1-2 (拉大差距)
+  return {
+    st: Math.max(1, current - 1),
+    lt: Math.max(1, current - 3)
+  }
+}
+
+/** 计算 Spasm Goals */
+function calculateSpasmGoals(current: number = 3): { st: number; lt: number } {
+  if (current <= 1) return { st: 1, lt: 0 }
+  // ST 降 1 级, LT 降到 0-1 (拉大差距)
+  return { st: Math.max(1, current - 1), lt: Math.max(0, current - 3) }
+}
+
+/** 计算 Strength Goals (与 ROM 关联) */
+function calculateStrengthGoals(current: string = '3+/5'): { st: string; lt: string } {
+  const map: Record<string, number> = {
+    '0/5': 0, '1/5': 1, '2/5': 2, '2+/5': 2.5, '3/5': 3, '3+/5': 3.5,
+    '4-/5': 3.8, '4/5': 4, '4+/5': 4.5, '5/5': 5
+  }
+  const val = map[current] ?? 3.5
+  // 边界: 已接近满分
+  if (val >= 4.5) return { st: '4+', lt: '4+' }
+  if (val >= 4) return { st: '4', lt: '4+' }
+  // ST +0.5, LT +1.0 (ROM 改善后才能训练)
+  const stVal = Math.min(5, val + 0.5)
+  const ltVal = Math.min(5, val + 1.0)
+  const format = (v: number) => v >= 4.5 ? '4+' : v >= 4 ? '4' : v >= 3.5 ? '3+' : '3'
+  return { st: format(stVal), lt: format(ltVal) }
+}
+
+/** 计算症状百分比 Goals (原 Soreness，现支持多种症状类型) */
+function calculateSymptomPctGoals(severity: SeverityLevel): { st: string; lt: string } {
+  // 症状百分比与 Pain/Severity 正相关
+  const map: Record<string, { st: string; lt: string }> = {
+    'severe':             { st: '(60%-70%)', lt: '(30%-40%)' },
+    'moderate to severe': { st: '(50%-60%)', lt: '(20%-30%)' },
+    'moderate':           { st: '(40%-50%)', lt: '(20%-30%)' },
+    'mild to moderate':   { st: '(30%-40%)', lt: '(10%-20%)' },
+    'mild':               { st: '(20%-30%)', lt: '(10%-20%)' },
+  }
+  return map[severity] || { st: '(50%-60%)', lt: '(20%-30%)' }
+}
+function calculateROMGoals(severity: SeverityLevel): { st: string; lt: string } {
+  // ROM 改善依赖 Tightness 改善
+  // severe: 50% → ST 70% → LT 85%
+  // mod-sev: 60% → ST 80% → LT 92%
+  // moderate: 70% → ST 85% → LT 95%
+  const map: Record<string, { st: string; lt: string }> = {
+    'severe':             { st: '50%', lt: '70%' },
+    'moderate to severe': { st: '60%', lt: '80%' },
+    'moderate':           { st: '50%', lt: '60%' },
+    'mild to moderate':   { st: '50%', lt: '60%' },
+    'mild':               { st: '50%', lt: '60%' },
+  }
+  return map[severity] || { st: '60%', lt: '80%' }
+}
+
+/** 计算 ADL Goals (与 Tightness 同步) */
+function calculateADLGoals(severity: SeverityLevel): { st: string; lt: string } {
+  // ADL 与 Tightness 同步，使用连字符格式
+  const tightness = calculateTightnessGoals(severity)
+  return {
+    st: tightness.st.replace(/ to /g, '-'),
+    lt: tightness.lt.replace(/ to /g, '-')
+  }
+}
+
+export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, symptomType: string = 'soreness'): DynamicGoals {
   const painCurrent = parsePainFromSeverity(severity)
-  const isMainBP = MAIN_BODY_PARTS.includes(bp)
-
-  // Pain: 重症降 3 级范围，轻症维持
-  let painST: string
-  let painLT: string
-  if (painCurrent <= 4) {
-    painST = String(painCurrent)
-    painLT = String(Math.max(2, painCurrent - 1))
-  } else if (painCurrent <= 6) {
-    painST = String(painCurrent)
-    painLT = String(Math.max(2, painCurrent - 2))
-  } else {
-    painST = `${painCurrent - 3}-${painCurrent - 2}`
-    painLT = String(Math.max(3, painCurrent - 5))
-  }
-  // SHOULDER LT 用范围格式
-  if (bp === 'SHOULDER' && painCurrent >= 7) {
-    const ltBase = Math.max(3, painCurrent - 5)
-    painLT = `${ltBase}-${ltBase + 1}`
-  }
-
-  // Tenderness: ST=当前级别, LT 降 1-2 级
-  // 主要部位: LT 降 1 级; 其他部位: LT 降 2 级
-  const tenderCurrent = SEVERITY_TO_TENDER[severity] || 3
-  const tenderST = tenderCurrent
-  const tenderLT = isMainBP
-    ? Math.max(1, tenderCurrent - 1)
-    : Math.max(1, tenderCurrent - 2)
-
-  // Tightness: ST 降 1 档, LT 降 2 档
-  const tightIdx = TIGHTNESS_LEVELS.indexOf(severity)
-  const tightCurrent = tightIdx >= 0 ? tightIdx : 3
-  const tightSTIdx = Math.max(0, tightCurrent - 1)
-  const tightLTIdx = Math.max(0, tightCurrent - 2)
-
-  // Spasm: 固定 +3 起点
-  const spasmST = Math.max(1, IE_SPASM - 1)
-  const spasmLT = Math.max(0, IE_SPASM - 2)
 
   return {
-    pain:       { st: painST, lt: painLT },
-    soreness:   { st: '(70%-80%)', lt: '(70%-80%)' },
-    tightness:  { st: TIGHTNESS_LEVELS[tightSTIdx], lt: TIGHTNESS_LEVELS[tightLTIdx] },
-    tenderness: { st: tenderST, lt: tenderLT },
-    spasm:      { st: spasmST, lt: spasmLT },
-    strength:   { st: '4', lt: '4+' },
+    pain:        calculatePainGoals(painCurrent, bp),
+    symptomType: symptomType,  // 'soreness', 'weakness', 'stiffness', 'heaviness', 'numbness'
+    symptomPct:  calculateSymptomPctGoals(severity),
+    tightness:   calculateTightnessGoals(severity),
+    tenderness:  calculateTendernessGoals(severity, bp),
+    spasm:       calculateSpasmGoals(3),
+    strength:    calculateStrengthGoals('3+/5'),
+    rom:         calculateROMGoals(severity),
+    adl:         calculateADLGoals(severity),
   }
 }

@@ -15,6 +15,7 @@ import type {
 import { TCM_PATTERNS } from '../knowledge/tcm-patterns'
 import { calculateWeights, selectBestOption, selectBestOptions, WeightContext, type WeightedOption } from '../parser/weight-system'
 import { generateTXSequenceStates, type TXSequenceOptions, type TXVisitState } from './tx-sequence-engine'
+import { calculateDynamicGoals } from './goals-calculator'
 
 /**
  * 保险类型到针刺模板的映射
@@ -1240,6 +1241,11 @@ export function generateAssessment(context: GenerationContext): string {
  */
 export function generatePlanIE(context: GenerationContext): string {
   const bp = context.primaryBodyPart
+  const severity = context.severityLevel || 'moderate to severe'
+
+  // 动态计算 Goals
+  const goals = calculateDynamicGoals(severity, bp)
+  const isMainBP = bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK'
 
   let plan = `Initial Evaluation - Personal one on one contact with the patient (total 20-30 mins)\n`
   plan += `1. Greeting patient.\n`
@@ -1247,51 +1253,51 @@ export function generatePlanIE(context: GenerationContext): string {
   plan += `3. Initial evaluation examination of the patient current condition.\n`
   plan += `4. Explanation with patient for medical decision/treatment plan.\n\n`
 
-  // 短期目标
+  // 短期目标 (使用动态计算值)
   plan += `Short Term Goal (RELIEF TREATMENT FREQUENCY: 12 treatments in 5-6 weeks):\n`
 
-  if (bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK') {
-    // 所有模板精确格式: "to5-6.", "to (70%-80%)", "to4"
-    plan += `Decrease Pain Scale to5-6.\n`
-    plan += `Decrease soreness sensation Scale to (70%-80%)\n`
-    plan += `Decrease Muscles Tightness to moderate\n`
-    plan += `Decrease Muscles Tenderness to Grade 3\n`
-    plan += `Decrease Muscles Spasms to Grade 2\n`
-    plan += `Increase Muscles Strength to4\n\n`
+  if (isMainBP) {
+    // 主要部位: 无空格格式 "to5-6.", "to4"
+    plan += `Decrease Pain Scale to${goals.pain.st}.\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.st}\n`
+    plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`
+    plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`
+    plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`
+    plan += `Increase Muscles Strength to${goals.strength.st}\n\n`
   } else {
-    plan += `Decrease Pain Scale to 5-6.\n`
-    plan += `Decrease soreness sensation Scale to 50%\n`
-    plan += `Decrease Muscles Tightness to moderate\n`
-    plan += `Decrease Muscles Tenderness to Grade 3\n`
-    plan += `Decrease Muscles Spasms to Grade 2\n`
-    plan += `Increase Muscles Strength to 4\n\n`
+    // 其他部位: 有空格格式
+    plan += `Decrease Pain Scale to ${goals.pain.st}.\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to 50%\n`
+    plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`
+    plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`
+    plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`
+    plan += `Increase Muscles Strength to ${goals.strength.st}\n\n`
   }
 
-  // 长期目标
+  // 长期目标 (使用动态计算值)
   plan += `Long Term Goal (ADDITIONAL MAINTENANCE & SUPPORTING TREATMENTS FREQUENCY: 8 treatments in 5-6 weeks):\n`
 
-  // Long Term Pain Scale 目标: KNEE=3, SHOULDER=3-4, DEFAULT=3
-  const ltPainScaleTarget = bp === 'SHOULDER' ? '3-4' : '3'
+  // Tightness LT 格式: "mild-moderate" (连字符)
+  const tightnessLT = goals.tightness.lt.replace(/ to /g, '-')
 
-  if (bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK') {
-    // 所有模板精确格式
-    plan += `Decrease Pain Scale to${ltPainScaleTarget}\n`
-    plan += `Decrease soreness sensation Scale to (70%-80%)\n`
-    plan += `Decrease Muscles Tightness to mild-moderate\n`
-    plan += `Decrease Muscles Tenderness to Grade 2\n`
-    plan += `Decrease Muscles Spasms to Grade 1\n`
-    plan += `Increase Muscles Strength to4+\n`
-    plan += `Increase ROM 60%\n`
-    plan += `Decrease impaired Activities of Daily Living to mild-moderate.`
+  if (isMainBP) {
+    plan += `Decrease Pain Scale to${goals.pain.lt}\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.lt}\n`
+    plan += `Decrease Muscles Tightness to ${tightnessLT}\n`
+    plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}\n`
+    plan += `Decrease Muscles Spasms to Grade ${goals.spasm.lt}\n`
+    plan += `Increase Muscles Strength to${goals.strength.lt}\n`
+    plan += `Increase ROM ${goals.rom.lt}\n`
+    plan += `Decrease impaired Activities of Daily Living to ${goals.adl.lt}.`
   } else {
-    plan += `Decrease Pain Scale to 3\n`
-    plan += `Decrease soreness sensation Scale to 30%\n`
-    plan += `Decrease Muscles Tightness to mild-moderate\n`
-    plan += `Decrease Muscles Tenderness to Grade 1\n`
-    plan += `Decrease Muscles Spasms to Grade 1\n`
-    plan += `Increase Muscles Strength to 4+\n`
-    plan += `Increase ROM 60%\n`
-    plan += `Decrease impaired Activities of Daily Living to mild-moderate.`
+    plan += `Decrease Pain Scale to ${goals.pain.lt}\n`
+    plan += `Decrease ${goals.symptomType} sensation Scale to 30%\n`
+    plan += `Decrease Muscles Tightness to ${tightnessLT}\n`
+    plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}\n`
+    plan += `Decrease Muscles Spasms to Grade ${goals.spasm.lt}\n`
+    plan += `Increase Muscles Strength to ${goals.strength.lt}\n`
+    plan += `Increase ROM ${goals.rom.lt}\n`
+    plan += `Decrease impaired Activities of Daily Living to ${goals.adl.lt}.`
   }
 
   return plan

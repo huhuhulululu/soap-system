@@ -52,31 +52,38 @@ function computeFixes(visit: VisitRecord, prevVisit: VisitRecord | undefined, er
         break
       }
 
+      case 'T02':
+      case 'T03':
       case 'TX03': {
         fixes.push({
           field: 'symptomChange',
           original: error.actual,
-          corrected: error.expected,
+          corrected: 'similar symptom(s) as last visit',
           reason: '基于疼痛变化趋势修正'
         })
         break
       }
 
+      case 'T06':
       case 'TX04': {
+        // improvement + negative reason → positive reason; exacerbate + positive reason → negative reason
+        const isExacerbate = error.message?.includes('exacerbate')
         fixes.push({
           field: 'progressReason',
           original: error.actual,
-          corrected: error.expected,
+          corrected: isExacerbate ? 'discontinuous treatment' : 'maintain regular treatments',
           reason: '修正进展原因以匹配状态'
         })
         break
       }
 
+      case 'T07':
+      case 'X4':
       case 'IE03': {
         fixes.push({
           field: 'electricalStimulation',
-          original: 'true',
-          corrected: 'false',
+          original: 'with',
+          corrected: 'without',
           reason: 'Pacemaker 禁忌电刺激'
         })
         break
@@ -109,6 +116,11 @@ function computeFixes(visit: VisitRecord, prevVisit: VisitRecord | undefined, er
 
 // ============ 应用修正到 Context ============
 
+// tenderness 等级反向映射到 severity
+const TENDER_TO_SEVERITY: Record<string, string> = {
+  '+4': 'severe', '+3': 'moderate to severe', '+2': 'mild to moderate', '+1': 'mild'
+}
+
 function applyFixesToContext(
   context: GenerationContext,
   visit: VisitRecord,
@@ -121,10 +133,14 @@ function applyFixesToContext(
       case 'adlDifficultyLevel':
         updatedContext.severityLevel = fix.corrected as any
         break
-      case 'electricalStimulation':
-        // 这个在 plan 中处理，context 已有 hasPacemaker 标记
+      case 'tenderness':
+        // +4 → severe, +3 → moderate to severe, etc.
+        const mappedSeverity = TENDER_TO_SEVERITY[fix.corrected]
+        if (mappedSeverity) updatedContext.severityLevel = mappedSeverity as any
         break
-      // 其他修正在 visitState 中处理
+      case 'electricalStimulation':
+        updatedContext.hasPacemaker = true
+        break
     }
   }
 
@@ -141,7 +157,9 @@ function generateCorrectedSOAP(
 ): string {
   // 1. 从 document 构建 context
   const ieIndex = document.visits.findIndex(v => v.subjective.visitType === 'INITIAL EVALUATION')
-  const context = bridgeToContext(document, ieIndex)
+  // 如果没有 IE，用当前 visit 的 index
+  const contextIndex = ieIndex >= 0 ? ieIndex : visitIndex
+  const context = bridgeToContext(document, contextIndex)
 
   // 2. 应用修正
   const correctedContext = applyFixesToContext(context, visit, fixes)
@@ -156,6 +174,17 @@ function generateCorrectedSOAP(
   } else {
     // TX: 需要从 visit 构建 visitState
     correctedContext.noteType = 'TX'
+
+    // 处理 tonguePulse fix: 从 IE 继承
+    const tonguePulseFix = fixes.find(f => f.field === 'tonguePulse')
+    let tonguePulse = visit.objective.tonguePulse || { tongue: 'pale', pulse: 'thready' }
+    if (tonguePulseFix && tonguePulseFix.corrected) {
+      // expected 格式: "pale, thin white coat / thready"
+      const parts = tonguePulseFix.corrected.split(' / ')
+      if (parts.length === 2) {
+        tonguePulse = { tongue: parts[0], pulse: parts[1] }
+      }
+    }
 
     // 从 VisitRecord 提取 visitState 关键字段
     const visitState = {
@@ -175,7 +204,7 @@ function generateCorrectedSOAP(
       tendernessGrading: visit.objective.tendernessMuscles?.scaleDescription || '(+2) = Patient states that the area is moderately tender',
       spasmGrading: visit.objective.spasmMuscles?.scaleDescription || '(+2)=Occasional spontaneous spasms',
       needlePoints: visit.plan.acupoints || ['LI4', 'LI11', 'GB34'],
-      tonguePulse: visit.objective.tonguePulse || { tongue: 'pale', pulse: 'thready' },
+      tonguePulse,
       objectiveFactors: {
         sessionGapDays: 3,
         sleepLoad: 0.5,
@@ -272,10 +301,12 @@ export function generateCorrections(document: OptumNoteDocument, errors: CheckEr
     const correctedAnnotatedText = addCorrectionMarkers(correctedFullText, fieldFixes)
 
     // 生成单个修正项（包含完整 SOAP，不再按 section 分割）
+    // section 取第一个 error 的 section
+    const primarySection = visitErrors[0]?.section || 'S'
     corrections.push({
       visitDate: visit.assessment.date || '',
       visitIndex,
-      section: 'S', // 标记为 S，但实际包含完整 SOAP
+      section: primarySection,
       errors: visitErrors,
       fieldFixes,
       correctedFullText,
