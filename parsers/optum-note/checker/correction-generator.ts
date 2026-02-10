@@ -22,9 +22,34 @@ function parsePainCurrent(v: VisitRecord): number {
 
 // ============ 修正计算 ============
 
+import { calculateDynamicGoals } from '../../../src/generator/goals-calculator'
+import type { BodyPart } from '../../../src/types'
+
+// TCM 证型→舌脉映射
+const PATTERN_TO_TONGUE_PULSE: Record<string, { tongue: string; pulse: string }> = {
+  'Qi Stagnation': { tongue: 'pale, thin white coat', pulse: 'string-taut' },
+  'Blood Stasis': { tongue: 'purple, dark spots', pulse: 'choppy' },
+  'Qi & Blood Deficiency': { tongue: 'pale, thin coat', pulse: 'thready, weak' },
+  'Kidney Yang Deficiency': { tongue: 'pale, swollen, teeth marks', pulse: 'deep, slow' },
+  'Kidney Qi Deficiency': { tongue: 'pale', pulse: 'deep, weak' },
+  'Liver Qi Stagnation': { tongue: 'red edges', pulse: 'wiry' },
+  'Wind-Cold': { tongue: 'thin white coat', pulse: 'tight' },
+  'Cold-Damp': { tongue: 'white greasy coat', pulse: 'slippery, slow' },
+}
+
+// 默认穴位 by bodyPart
+const DEFAULT_ACUPOINTS: Record<string, string[]> = {
+  'KNEE': ['ST34', 'ST35', 'ST36', 'GB34', 'SP9', 'SP10'],
+  'SHOULDER': ['LI15', 'LI16', 'SI9', 'SI10', 'GB21', 'SJ14'],
+  'LBP': ['BL23', 'BL25', 'BL40', 'DU4', 'GB30'],
+  'NECK': ['GB20', 'GB21', 'BL10', 'SI14', 'DU14'],
+}
+
 function computeFixes(visit: VisitRecord, prevVisit: VisitRecord | undefined, errors: CheckError[]): FieldFix[] {
   const fixes: FieldFix[] = []
   const pain = parsePainCurrent(visit)
+  const bp = (visit.subjective.bodyPartNormalized || 'LBP') as BodyPart
+  const severity = severityFromPain(pain)
 
   for (const error of errors) {
     switch (error.ruleId) {
@@ -48,6 +73,66 @@ function computeFixes(visit: VisitRecord, prevVisit: VisitRecord | undefined, er
           original: error.actual,
           corrected: `+${minTender}`,
           reason: `Pain=${pain} 应对应 +${minTender} tenderness`
+        })
+        break
+      }
+
+      case 'IE04': {
+        // 舌脉→证型一致：根据证型选择匹配的舌脉
+        const pattern = visit.assessment.localPattern || visit.assessment.tcmDiagnosis?.pattern || 'Qi Stagnation'
+        const tp = PATTERN_TO_TONGUE_PULSE[pattern] || PATTERN_TO_TONGUE_PULSE['Qi Stagnation']
+        fixes.push({
+          field: 'tonguePulse',
+          original: error.actual,
+          corrected: `${tp.tongue} / ${tp.pulse}`,
+          reason: `证型 ${pattern} 应对应匹配的舌脉`
+        })
+        break
+      }
+
+      case 'IE05': {
+        // ST Goal pain < current pain：用 goals-calculator 计算
+        const goals = calculateDynamicGoals(severity, bp)
+        fixes.push({
+          field: 'shortTermGoal.painScaleTarget',
+          original: error.actual,
+          corrected: goals.pain.st,
+          reason: `Pain=${pain} 的 ST Goal 应为 ${goals.pain.st}`
+        })
+        break
+      }
+
+      case 'IE06': {
+        // LT Goal pain < ST Goal pain：用 goals-calculator 计算
+        const goals = calculateDynamicGoals(severity, bp)
+        fixes.push({
+          field: 'longTermGoal.painScaleTarget',
+          original: error.actual,
+          corrected: goals.pain.lt,
+          reason: `Pain=${pain} 的 LT Goal 应为 ${goals.pain.lt}`
+        })
+        break
+      }
+
+      case 'IE07': {
+        // TCM diagnosis 完整：生成默认证型
+        fixes.push({
+          field: 'tcmDiagnosis',
+          original: 'missing',
+          corrected: 'Qi Stagnation (local) + Qi Deficiency (systemic)',
+          reason: '初诊应包含完整 TCM diagnosis'
+        })
+        break
+      }
+
+      case 'IE08': {
+        // 穴位信息存在：根据 bodyPart 生成默认穴位
+        const acupoints = DEFAULT_ACUPOINTS[bp] || DEFAULT_ACUPOINTS['LBP']
+        fixes.push({
+          field: 'acupoints',
+          original: 'empty',
+          corrected: acupoints.join(', '),
+          reason: `${bp} 的默认穴位`
         })
         break
       }
