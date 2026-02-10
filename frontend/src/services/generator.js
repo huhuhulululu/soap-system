@@ -28,7 +28,7 @@ function extractInitialState(visit) {
   // pain
   const ps = visit.subjective.painScale
   const pain = typeof ps === 'number' ? ps
-    : (ps?.current ?? ps?.worst ?? 8)
+    : (ps?.current ?? ps?.value ?? ps?.worst ?? 8)
 
   // tightness: severity text → number
   const tMap = { severe: 4, 'moderate to severe': 3.5, moderate: 3, 'mild to moderate': 2, mild: 1 }

@@ -370,10 +370,18 @@ export function parseSubjective(block: string): Subjective | null {
   const weaknessMatch = block.match(weaknessPattern)
   const muscleWeaknessScale = weaknessMatch?.[1] || ''
 
-  // ADL impairment
+  // ADL impairment — TX format: "impaired performing ADL's with ..."
   const adlPattern = /impaired performing ADL'?s?\s+with\s+(.+?)(?=Pain Scale|$)/is
   const adlMatch = block.match(adlPattern)
-  const adlImpairment = adlMatch?.[1]?.trim() || ''
+  let adlImpairment = adlMatch?.[1]?.trim() || ''
+  // IE format: "There is X difficulty with ADLs like ..."
+  if (!adlImpairment) {
+    const ieAdlPattern = /There is\s+((?:mild|moderate|severe)(?:\s+to\s+(?:mild|moderate|severe))?)\s+difficulty with ADLs? like\s+(.+?)(?=\.\s|\n\n|Pain Scale|$)/is
+    const ieAdlMatch = block.match(ieAdlPattern)
+    if (ieAdlMatch) {
+      adlImpairment = `${ieAdlMatch[1]} difficulty ${ieAdlMatch[2].trim()}`
+    }
+  }
   const adlDifficultyLevel = parseAdlDifficultyLevel(adlImpairment)
 
   // Pain Scale - two formats
@@ -586,7 +594,7 @@ export function parseObjective(block: string): Objective | null {
 
 // ============ Muscle Test Parsers ============
 export function parseTightnessMuscles(block: string): MuscleTest | null {
-  const pattern = /Tightness muscles?\s+noted\s+along:?\s*(.+?)(?:\n\s*)?Grading Scale:\s*(mild|moderate|severe|mild to moderate|moderate to severe)/is
+  const pattern = /Tightness muscles?\s+noted\s+along:?\s*(.+?)(?:\n\s*)?Grading Scale:\s*(mild to moderate|moderate to severe|mild|moderate|severe)/is
   const match = block.match(pattern)
   if (!match) return null
 
@@ -653,7 +661,8 @@ export function parseROM(block: string): ROM | null {
 
   // ROM items: X/5 or X+/5 or X-/5 Movement: XX Degrees(severity) or XX degree (severity)
   // Handle both ": 30" and ":30" formats (with or without space after colon)
-  const romPattern = /(\d[+-]?)\/5\s+([A-Za-z\s()]+?):\s*(\d+)\s*[Dd]egrees?\s*\(?(\w+)\)?/g
+  // Handle "0(normal)" and "-5(severe)" formats without Degrees keyword
+  const romPattern = /(\d[+-]?)\/5\s+([A-Za-z\s()]+?):\s*(-?\d+)\s*(?:[Dd]egrees?)?\s*\(?(\w+)\)?/g
   const items: ROMItem[] = []
 
   let match
@@ -740,6 +749,7 @@ export function parseAssessment(block: string): Assessment | null {
 
   // TCM Diagnosis (初诊)
   let tcmDiagnosis = undefined
+  let systemicFromTcm: string | undefined
   const tcmPattern = /TCM Dx\s*:\s*\n?\s*(.+?)(?=Today's TCM|$)/is
   const tcmMatch = block.match(tcmPattern)
   if (tcmMatch) {
@@ -747,6 +757,7 @@ export function parseAssessment(block: string): Assessment | null {
     const diagMatch = tcmMatch[1].match(diagPattern)
     const principlesPattern = /Today's TCM treatment principles\s*:\s*\n?\s*(.+?)(?=Acupuncture Eval|Plan|$)/is
     const principlesMatch = block.match(principlesPattern)
+    const systemicMatch = tcmMatch[1].match(/but patient also has\s+(.+?)\s+in the general/is)
 
     if (diagMatch) {
       tcmDiagnosis = {
@@ -754,6 +765,7 @@ export function parseAssessment(block: string): Assessment | null {
         pattern: diagMatch[2].trim(),
         treatmentPrinciples: principlesMatch?.[1]?.trim() || '',
       }
+      systemicFromTcm = systemicMatch?.[1]?.trim()
     }
   }
 
@@ -765,7 +777,7 @@ export function parseAssessment(block: string): Assessment | null {
     tcmDiagnosis,
     currentPattern,
     localPattern,
-    systemicPattern: tcmDiagnosis?.pattern,
+    systemicPattern: systemicFromTcm || undefined,
   }
 }
 

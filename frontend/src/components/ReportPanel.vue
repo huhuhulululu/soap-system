@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import CriticalBanner from './CriticalBanner.vue'
 import VisitErrorGroup from './VisitErrorGroup.vue'
-import CorrectionCard from './CorrectionCard.vue'
+import VisitCorrectionCard from './VisitCorrectionCard.vue'
 import { exportReportAsCSV, copyAllCorrections } from '../services/exporter'
 import { exportAllAsCSV } from '../services/batch-exporter'
 
@@ -77,6 +77,27 @@ function getCorrectionsForVisit(visitIndex) {
     return correction.visitIndex === visitIndex
   })
 }
+
+// Group corrections by visit
+const correctionsByVisit = computed(() => {
+  if (!report.value?.corrections) return []
+
+  const grouped = new Map()
+
+  for (const correction of report.value.corrections) {
+    const visitIndex = correction.visitIndex
+    if (!grouped.has(visitIndex)) {
+      grouped.set(visitIndex, {
+        visitIndex,
+        visitDate: correction.visitDate || '',
+        corrections: []
+      })
+    }
+    grouped.get(visitIndex).corrections.push(correction)
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => a.visitIndex - b.visitIndex)
+})
 </script>
 
 <template>
@@ -166,18 +187,20 @@ function getCorrectionsForVisit(visitIndex) {
         :timeline="report.timeline"
       />
 
-      <!-- Correction Cards - Show all corrections directly -->
-      <div v-if="report.corrections && report.corrections.length > 0" class="mt-6 space-y-4">
+      <!-- Correction Cards - Grouped by Visit with Collapsible Cards -->
+      <div v-if="correctionsByVisit.length > 0" class="mt-6 space-y-4">
         <h4 class="text-sm font-medium text-ink-700 flex items-center gap-2">
           <svg class="w-4 h-4 text-status-pass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          建议修正 ({{ report.corrections.length }})
+          建议修正 ({{ correctionsByVisit.length }} 个 Visit)
         </h4>
-        <CorrectionCard
-          v-for="(correction, idx) in report.corrections"
-          :key="`correction-${correction.visitIndex}-${correction.section}-${idx}`"
-          :correction="correction"
+        <VisitCorrectionCard
+          v-for="visit in correctionsByVisit"
+          :key="`visit-${visit.visitIndex}`"
+          :visit-index="visit.visitIndex"
+          :visit-date="visit.visitDate"
+          :corrections="visit.corrections"
         />
       </div>
     </div>
