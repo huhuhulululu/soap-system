@@ -90,7 +90,7 @@ const PLAN_DROPDOWNS = {
   adlLevel: ['mild', 'mild-moderate'],
 
   // TX Plan dropdowns
-  treatmentPrinciplesFocus: ['continue to be emphasize', 'emphasize', 'consist of promoting', 'promote', 'focus', 'pay attention'],
+  treatmentPrinciplesFocus: ['continue to emphasize', 'emphasize', 'consist of promoting', 'promote', 'focus', 'pay attention'],
   treatmentActions: [
     'moving qi',
     'regulates qi',

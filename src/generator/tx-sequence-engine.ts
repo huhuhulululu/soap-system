@@ -177,6 +177,17 @@ export interface TXSequenceOptions {
     tenderness: number
     spasm: number
     frequency: number
+    painTypes?: string[]
+    associatedSymptom?: string
+    symptomScale?: string
+    generalCondition?: string
+    inspection?: string
+    tightnessGrading?: string
+    tendernessGrade?: string
+    tonguePulse?: { tongue: string; pulse: string }
+    acupoints?: string[]
+    electricalStimulation?: boolean
+    treatmentTime?: number
   }
 }
 
@@ -203,6 +214,12 @@ export interface TXVisitState {
     tongue: string
     pulse: string
   }
+  /** 续写继承字段 */
+  painTypes?: string[]
+  inspection?: string
+  symptomScale?: string
+  electricalStimulation?: boolean
+  treatmentTime?: number
   sideProgress?: {
     left: number
     right: number
@@ -544,14 +561,20 @@ export function generateTXSequenceStates(
 
   const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8
   const startPain = options.initialState?.pain ?? ieStartPain
-  const targetPain = parsePainTarget(
+  const shortTermTarget = parsePainTarget(
     context.previousIE?.plan?.shortTermGoal?.painScaleTarget,
     Math.max(3, ieStartPain - 2)
   )
+  const longTermTarget = parsePainTarget(
+    context.previousIE?.plan?.longTermGoal?.painScaleTarget,
+    Math.max(2, ieStartPain - 4)
+  )
+  // 续写时: 如果起点已接近短期目标，切换到长期目标
+  const targetPain = (startPain - shortTermTarget) < 1.5 ? longTermTarget : shortTermTarget
 
   let prevPain = startPain
   let prevPainScaleLabel = snapPainToGrid(startPain).label
-  let prevProgress = 0
+  let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0
   let prevAdl = 3.5
   let prevFrequency = options.initialState?.frequency ?? 3
   let prevTightness = options.initialState?.tightness ?? 3
@@ -560,9 +583,9 @@ export function generateTXSequenceStates(
   let prevRomDeficit = 0.42
   let prevStrengthDeficit = 0.35
   // 纵向单调约束追踪变量
-  let prevTightnessGrading = ''
-  let prevTendernessGrade = ''
-  let prevAssociatedSymptom = ''
+  let prevTightnessGrading = options.initialState?.tightnessGrading ?? ''
+  let prevTendernessGrade = options.initialState?.tendernessGrade ?? ''
+  let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? ''
 
   const associatedSymptomRank = (symptom: string): number => {
     const s = symptom.toLowerCase()
@@ -576,10 +599,12 @@ export function generateTXSequenceStates(
   // === generalCondition: 基于患者基础体质的固定属性 ===
   // 由年龄、基础病、整体证型决定，不随治疗进度变化
   const fixedGeneralCondition: string = (() => {
-    // 1) 如果用户显式指定了 baselineCondition，直接使用
+    // 1) 优先从 initialState 继承（续写场景）
+    if (options.initialState?.generalCondition) return options.initialState.generalCondition
+    // 2) 如果用户显式指定了 baselineCondition，直接使用
     if (context.baselineCondition) return context.baselineCondition
 
-    // 2) 根据整体证型 + 慢性程度自动推断
+    // 3) 根据整体证型 + 慢性程度自动推断
     const sp = (context.systemicPattern || '').toLowerCase()
     const isDeficiency = sp.includes('deficiency') || sp.includes('虚')
     const isYangDeficiency = sp.includes('yang deficiency') || sp.includes('阳虚')
@@ -696,7 +721,7 @@ export function generateTXSequenceStates(
     const adlDelta = prevAdl - adl
     prevAdl = adl
 
-    const frequencyImproveGate = progress > 0.45 || rng() > 0.65
+    const frequencyImproveGate = progress > 0.55 && rng() > 0.45
     const nextFrequency = frequencyImproveGate ? Math.max(0, prevFrequency - (rng() > 0.5 ? 1 : 0)) : prevFrequency
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
@@ -948,6 +973,20 @@ export function generateTXSequenceStates(
       spasmGrading,
       needlePoints,
       tonguePulse: fixedTonguePulse,
+      painTypes: options.initialState?.painTypes,
+      inspection: options.initialState?.inspection,
+      symptomScale: (() => {
+        const raw = options.initialState?.symptomScale
+        if (!raw) return undefined
+        const m = raw.match(/(\d+)/)
+        if (!m) return raw
+        const base = parseInt(m[1], 10)
+        const reduced = Math.max(10, base - Math.round(progress * 25))
+        const snapped = Math.round(reduced / 10) * 10
+        return `${snapped}%`
+      })(),
+      electricalStimulation: options.initialState?.electricalStimulation,
+      treatmentTime: options.initialState?.treatmentTime,
       sideProgress,
       objectiveFactors,
       soaChain: {

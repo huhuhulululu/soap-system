@@ -57,20 +57,21 @@ export {
 } from './parser/rule-engine'
 export type { RuleContext, WeightEffect, FieldWeightMap } from './parser/rule-engine'
 
-// 生成器导出
+// 生成器导出（经 wrapper 层，IE 路径使用动态 Goals）
 export {
   generateSOAPNote,
   exportSOAPAsText,
   generateSubjective,
+  generatePlanIE,
+  exportTXSeriesAsText,
+  // 透传
   generateObjective,
   generateAssessment,
-  generatePlanIE,
   generateSubjectiveTX,
   generateAssessmentTX,
   generatePlanTX,
   generateNeedleProtocol,
-  exportTXSeriesAsText
-} from './generator/soap-generator'
+} from './generator/soap-generator-wrapper'
 export type { TXSeriesTextItem } from './generator/soap-generator'
 export { generateTXSequenceStates } from './generator/tx-sequence-engine'
 export type { TXSequenceOptions, TXVisitState } from './generator/tx-sequence-engine'

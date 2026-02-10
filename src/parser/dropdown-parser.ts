@@ -299,7 +299,7 @@ export function inferFieldPath(context: string, options: string[]): string {
     options.includes('emphasize') ||
     options.includes('promote') ||
     options.includes('pay attention') ||
-    options.includes('continue to be emphasize')
+    options.includes('continue to emphasize')
   ) {
     return 'assessment.treatmentPrinciples.focusOn'
   }

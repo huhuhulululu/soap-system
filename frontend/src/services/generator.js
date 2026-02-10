@@ -50,7 +50,25 @@ function extractInitialState(visit) {
     : fText.includes('intermittent') ? 0
     : 2
 
-  return { pain, tightness, tenderness, spasm, frequency }
+  return {
+    pain, tightness, tenderness, spasm, frequency,
+    painTypes: visit.subjective.painTypes?.length > 0 ? visit.subjective.painTypes : undefined,
+    associatedSymptom: (() => {
+      const m = (visit.subjective.chiefComplaint || '').match(/associated with muscles?\s+(\w+)/i)
+      return m ? m[1].toLowerCase() : undefined
+    })(),
+    symptomScale: visit.subjective.muscleWeaknessScale || undefined,
+    generalCondition: visit.assessment?.generalCondition || undefined,
+    inspection: visit.objective?.inspection || undefined,
+    tightnessGrading: visit.objective.tightnessMuscles?.gradingScale || '',
+    tendernessGrade: tenderMatch ? `+${tenderMatch[1]}` : undefined,
+    tonguePulse: (visit.objective?.tonguePulse?.tongue && visit.objective?.tonguePulse?.pulse)
+      ? { tongue: visit.objective.tonguePulse.tongue, pulse: visit.objective.tonguePulse.pulse }
+      : undefined,
+    acupoints: visit.plan?.acupoints?.length > 0 ? visit.plan.acupoints : undefined,
+    electricalStimulation: visit.plan?.electricalStimulation,
+    treatmentTime: visit.plan?.treatmentTime,
+  }
 }
 
 /** 拼接 ICD/CPT 文本 */
@@ -127,9 +145,9 @@ export function generateContinuation(text, options = {}) {
   context.insuranceType = insuranceType
   context.previousIE = bridgeVisitToSOAPNote(ieVisit)
 
-  // 4. 提取最后一个 TX 的状态（parser reverse 后最新在前，即 txVisits[0]）
+  // 4. 提取最后一个 TX 的状态（parser reverse 后时间正序，最新在末尾）
   const txVisits = doc.visits.filter(v => v.subjective.visitType !== 'INITIAL EVALUATION')
-  const lastTx = txVisits.length > 0 ? txVisits[0] : null
+  const lastTx = txVisits.length > 0 ? txVisits[txVisits.length - 1] : null
   const initialState = lastTx ? extractInitialState(lastTx) : undefined
 
   // 5. 生成

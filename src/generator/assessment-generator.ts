@@ -75,7 +75,7 @@ const SYSTEMIC_PATTERN_OPTIONS = [
  * Treatment principle focus options
  */
 const TREATMENT_FOCUS_OPTIONS = [
-  'continue to be emphasize',
+  'continue to emphasize',
   'consist of promoting',
   'promote',
   'pay attention',

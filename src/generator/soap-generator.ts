@@ -935,7 +935,7 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
   // SHOULDER: Inspection 在前 (模板: "Inspection:" 紧接下拉框值，无空格)
   // KNEE: Inspection 在后
   if (bp === 'SHOULDER') {
-    objective += `Inspection:${inspectionDefault}\n\n`
+    objective += `Inspection:${visitState?.inspection ?? inspectionDefault}\n\n`
   }
 
   // Muscles Testing (纯文本输出，不加 markdown 粗体标记)
@@ -1135,14 +1135,16 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
 
   // KNEE / LBP / NECK: Inspection 在 ROM 之后 (格式: "Inspection: [value]")
   if (bp === 'KNEE' || bp === 'LBP' || bp === 'NECK') {
-    objective += `Inspection: ${inspectionDefault}\n\n`
+    objective += `Inspection: ${visitState?.inspection ?? inspectionDefault}\n\n`
   }
 
   // 舌脉信息 (来自 tone/ 模板, 始终在 Objective 最底部)
   // 格式: tongue\n[舌象]\npulse\n[脉象]
   const toneData = TONE_MAP[context.localPattern]
   if (toneData) {
-    objective += `tongue\n${toneData.tongueDefault}\npulse\n${toneData.pulseDefault}`
+    const tongue = visitState?.tonguePulse?.tongue ?? toneData.tongueDefault
+    const pulse = visitState?.tonguePulse?.pulse ?? toneData.pulseDefault
+    objective += `tongue\n${tongue}\npulse\n${pulse}`
   }
 
   return objective
@@ -1467,7 +1469,7 @@ function applyTxReasonChain(
 
 // TX Plan 治则动词选项 (TX 模板有额外选项 vs IE)
 const TX_VERB_OPTIONS = [
-  'continue to be emphasize', 'emphasize', 'consist of promoting',
+  'continue to emphasize', 'emphasize', 'consist of promoting',
   'promote', 'focus', 'pay attention'
 ]
 
@@ -1529,9 +1531,7 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
   // 权重选择: 疼痛类型
   const painTypeOptions = ['Dull', 'Burning', 'Freezing', 'Shooting', 'Tingling', 'Stabbing', 'Aching', 'Squeezing', 'Cramping', 'pricking', 'weighty', 'cold', 'pin & needles']
   const weightedPainTypes = calculateWeights('subjective.painTypes', painTypeOptions, weightContext)
-  const selectedPainTypes = selectBestOptions(weightedPainTypes, 2)
-
-  // 权重选择: 关联症状 (TX KNEE 默认单选 "soreness")
+  const selectedPainTypes = visitState?.painTypes ?? selectBestOptions(weightedPainTypes, 2)
   const associatedSymptomOptions = ['soreness', 'stiffness', 'heaviness', 'weakness', 'numbness']
   const weightedSymptoms = calculateWeights('subjective.associatedSymptoms', associatedSymptomOptions, weightContext)
   const selectedAssociatedSymptom = visitState?.associatedSymptom || selectBestOption(weightedSymptoms)
@@ -1544,7 +1544,7 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
   const adlGroup1 = allAdl.slice(0, 2)
   const adlGroup2 = allAdl.slice(2, 5)
 
-  const symptomScale = getConfig(SYMPTOM_SCALE_MAP, bp)
+  const symptomScale = visitState?.symptomScale ?? getConfig(SYMPTOM_SCALE_MAP, bp)
 
   let subjective = `Follow up visit\n`
 
@@ -1739,8 +1739,13 @@ export function generatePlanTX(context: GenerationContext): string {
  *   Step 3: Back (Washing hands...)
  *   Step 4: Back (Washing hands...)
  */
-export function generateNeedleProtocol(context: GenerationContext): string {
-  const isFullCode = INSURANCE_NEEDLE_MAP[context.insuranceType] === 'full'
+export function generateNeedleProtocol(context: GenerationContext, visitState?: TXVisitState): string {
+  // 续写时: 从输入TX的实际协议推断 (电刺激或时间>=30 → full)
+  const hasNeedleInfo = visitState?.electricalStimulation != null || visitState?.treatmentTime != null
+  const inheritedFull = hasNeedleInfo
+    ? (visitState!.electricalStimulation === true || (visitState!.treatmentTime != null && visitState!.treatmentTime >= 30))
+    : undefined
+  const isFullCode = inheritedFull ?? (INSURANCE_NEEDLE_MAP[context.insuranceType] === 'full')
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart]
   const bp = context.primaryBodyPart
 
@@ -2128,11 +2133,11 @@ export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisi
     const objective = generateObjective(context, visitState) // Objective 沿用 IE 的客观检查
     const assessment = generateAssessmentTX(context, visitState)
     const planTx = generatePlanTX(context)
-    const needleProtocol = generateNeedleProtocol(context)
+    const needleProtocol = generateNeedleProtocol(context, visitState)
 
     let output = `Subjective\n${subjective}\n\n`
     output += `Objective\n${objective}\n\n`
-    output += `Assesment\n${assessment}\n\n`
+    output += `Assessment\n${assessment}\n\n`
     output += `Plan\n${planTx}\n\n`
     output += needleProtocol
 
