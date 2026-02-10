@@ -1243,8 +1243,9 @@ export function generatePlanIE(context: GenerationContext): string {
   const bp = context.primaryBodyPart
   const severity = context.severityLevel || 'moderate to severe'
 
-  // 动态计算 Goals
-  const goals = calculateDynamicGoals(severity, bp)
+  // 动态计算 Goals (使用 context 中的 associatedSymptom)
+  const symptomType = context.associatedSymptom || 'soreness'
+  const goals = calculateDynamicGoals(severity, bp, symptomType)
   const isMainBP = bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK'
 
   let plan = `Initial Evaluation - Personal one on one contact with the patient (total 20-30 mins)\n`

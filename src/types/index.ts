@@ -269,6 +269,15 @@ export interface GenerationContext {
    * 若未指定，系统会根据 systemicPattern + chronicityLevel 自动推断
    */
   baselineCondition?: 'good' | 'fair' | 'poor'
+  /**
+   * 伴随症状类型 (用于 Goals 中的症状描述)
+   * - 'soreness': 酸痛 (默认)
+   * - 'weakness': 无力
+   * - 'stiffness': 僵硬
+   * - 'heaviness': 沉重
+   * - 'numbness': 麻木
+   */
+  associatedSymptom?: 'soreness' | 'weakness' | 'stiffness' | 'heaviness' | 'numbness'
 }
 
 // ==================== 模板定义 ====================
