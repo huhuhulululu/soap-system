@@ -120,31 +120,38 @@ const generatedNotes = ref([])
 const copiedIndex = ref(-1)
 
 function generate() {
-  if (noteType.value === 'IE') {
-    // IE 模式：生成 IE + 11个 TX
-    const ieText = exportSOAPAsText(generationContext.value, {})
-    const states = generateTXSequenceStates(generationContext.value, {
-      txCount: 11,
-      startVisitIndex: 1
-    })
-    generatedNotes.value = [
-      { visitIndex: 0, text: ieText, type: 'IE' },
-      ...states.map(state => ({
+  try {
+    if (noteType.value === 'IE') {
+      // IE 模式：生成 IE + 11个 TX
+      const ieText = exportSOAPAsText(generationContext.value, {})
+      const states = generateTXSequenceStates(generationContext.value, {
+        txCount: 11,
+        startVisitIndex: 1
+      })
+      generatedNotes.value = [
+        { visitIndex: 0, text: ieText, type: 'IE', _open: false },
+        ...states.map(state => ({
+          visitIndex: state.visitIndex,
+          text: exportSOAPAsText(generationContext.value, state),
+          type: 'TX',
+          _open: false
+        }))
+      ]
+    } else {
+      const states = generateTXSequenceStates(generationContext.value, {
+        txCount: txCount.value,
+        startVisitIndex: 1
+      })
+      generatedNotes.value = states.map(state => ({
         visitIndex: state.visitIndex,
         text: exportSOAPAsText(generationContext.value, state),
-        type: 'TX'
+        type: 'TX',
+        _open: false
       }))
-    ]
-  } else {
-    const states = generateTXSequenceStates(generationContext.value, {
-      txCount: txCount.value,
-      startVisitIndex: 1
-    })
-    generatedNotes.value = states.map(state => ({
-      visitIndex: state.visitIndex,
-      text: exportSOAPAsText(generationContext.value, state),
-      type: 'TX'
-    }))
+    }
+  } catch (e) {
+    console.error('生成错误:', e)
+    alert('生成失败: ' + e.message)
   }
 }
 
