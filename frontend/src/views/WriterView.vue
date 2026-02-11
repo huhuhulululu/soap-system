@@ -192,7 +192,12 @@ function generate(useSeed) {
       : undefined
 
     // 用户输入作为 initialState 基线
+    // painScale.current: "8" | "8-7" | "7" → 取第一个数字作为起始 pain
+    const painRaw = fields['subjective.painScale.current'] || '8'
+    const painNum = parseFloat(painRaw.match(/\d+/)?.[0] || '8')
+
     const initialState = {
+      pain: painNum,
       associatedSymptom: ctx.associatedSymptom || 'soreness'
     }
 
