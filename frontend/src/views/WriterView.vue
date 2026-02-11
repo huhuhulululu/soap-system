@@ -409,6 +409,38 @@ function shortLabel(text, maxLen = 35) {
 function fieldLabel(path) {
   return FIELD_LABELS[path] || path.split('.').pop().replace(/([A-Z])/g, ' $1').trim()
 }
+
+// 逐行 diff: 返回带高亮标记的行数组
+function getDiffLines(idx) {
+  const note = generatedNotes.value[idx]
+  if (!note) return []
+  const lines = note.text.split('\n')
+  // IE 或第一个笔记: 无对比，不高亮
+  if (note.type === 'IE' || idx === 0) {
+    return lines.map(line => ({ text: line, changed: false }))
+  }
+  // 找前一个笔记
+  const prevNote = generatedNotes.value[idx - 1]
+  if (!prevNote) {
+    return lines.map(line => ({ text: line, changed: false }))
+  }
+  const prevLines = prevNote.text.split('\n')
+  // 构建前一个笔记的行集合用于快速查找
+  const prevSet = new Set(prevLines.map(l => l.trim()))
+  // 段标题行不高亮
+  const sectionHeaders = new Set(['Subjective', 'Objective', 'Assessment', 'Plan', 'Follow up visit', ''])
+
+  return lines.map(line => {
+    const trimmed = line.trim()
+    // 空行和段标题不高亮
+    if (sectionHeaders.has(trimmed)) {
+      return { text: line, changed: false }
+    }
+    // 如果这一行在前一个笔记中不存在 → 变化
+    const changed = !prevSet.has(trimmed)
+    return { text: line, changed }
+  })
+}
 </script>
 
 <template>
@@ -614,7 +646,11 @@ function fieldLabel(path) {
                   {{ copiedIndex === idx ? '✓ 已复制' : '全部' }}
                 </button>
               </div>
-              <pre class="text-xs font-mono text-ink-700 whitespace-pre-wrap leading-relaxed">{{ note.text }}</pre>
+              <div class="text-xs font-mono text-ink-700 leading-relaxed">
+                <div v-for="(line, li) in getDiffLines(idx)" :key="li"
+                  class="whitespace-pre-wrap"
+                  :class="line.changed ? 'bg-yellow-100/70 -mx-1 px-1 rounded-sm' : ''">{{ line.text === '' ? '\n' : line.text }}</div>
+              </div>
             </div>
           </div>
         </div>
