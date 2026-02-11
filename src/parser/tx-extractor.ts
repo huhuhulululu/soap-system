@@ -152,3 +152,45 @@ export function buildInitialStateFromExtracted(extracted: ExtractedTXState) {
     associatedSymptom: extracted.associatedSymptom
   }
 }
+
+// ICD/CPT 推断
+const ICD_MAP: Record<BodyPart, { code: string, desc: string, hasLaterality: boolean }> = {
+  LBP: { code: 'M54.5', desc: 'Low back pain', hasLaterality: false },
+  NECK: { code: 'M54.2', desc: 'Cervicalgia', hasLaterality: false },
+  UPPER_BACK: { code: 'M54.6', desc: 'Pain in thoracic spine', hasLaterality: false },
+  MIDDLE_BACK: { code: 'M54.6', desc: 'Pain in thoracic spine', hasLaterality: false },
+  SHOULDER: { code: 'M25.51', desc: 'Pain in shoulder', hasLaterality: true },
+  ELBOW: { code: 'M25.52', desc: 'Pain in elbow', hasLaterality: true },
+  WRIST: { code: 'M25.53', desc: 'Pain in wrist', hasLaterality: true },
+  HAND: { code: 'M79.64', desc: 'Pain in hand and fingers', hasLaterality: true },
+  HIP: { code: 'M25.55', desc: 'Pain in hip', hasLaterality: true },
+  KNEE: { code: 'M25.56', desc: 'Pain in knee', hasLaterality: true },
+  ANKLE: { code: 'M25.57', desc: 'Pain in ankle and joints of foot', hasLaterality: true },
+  FOOT: { code: 'M79.67', desc: 'Pain in foot and toes', hasLaterality: true }
+}
+
+const LATERALITY_SUFFIX: Record<Laterality, string> = {
+  right: '1', left: '2', bilateral: '9'
+}
+
+export function inferDiagnosisCodes(bodyPart: BodyPart, laterality: Laterality) {
+  const icd = ICD_MAP[bodyPart] || ICD_MAP.LBP
+  const code = icd.hasLaterality ? `${icd.code}${LATERALITY_SUFFIX[laterality]}` : icd.code
+  const desc = icd.hasLaterality && laterality !== 'bilateral' 
+    ? `${icd.desc}, ${laterality}` 
+    : icd.desc
+  return [{ icd10: code, description: desc, bodyPart, laterality }]
+}
+
+export function inferProcedureCodes(insuranceType: string, treatmentTime: number) {
+  const isSimple = insuranceType === 'HF' || insuranceType === 'OPTUM'
+  if (isSimple) {
+    return [{ cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false }]
+  }
+  // Full protocol: 97813 + 97814 based on time
+  const units = Math.floor(treatmentTime / 15)
+  return [
+    { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
+    ...(units > 1 ? [{ cpt: '97814', description: 'Acupuncture w/ estim, each addl 15 min', units: units - 1, electricalStimulation: true }] : [])
+  ]
+}

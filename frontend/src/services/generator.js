@@ -8,7 +8,7 @@ import { bridgeToContext, bridgeVisitToSOAPNote } from '../../../parsers/optum-n
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
-import { extractStateFromTX, buildContextFromExtracted, buildInitialStateFromExtracted } from '../../../src/parser/tx-extractor.ts'
+import { extractStateFromTX, buildContextFromExtracted, buildInitialStateFromExtracted, inferDiagnosisCodes, inferProcedureCodes } from '../../../src/parser/tx-extractor.ts'
 import whitelistData from '../data/whitelist.json'
 
 // 初始化 whitelist（一次性，绕过 fs）
@@ -186,7 +186,7 @@ export function generateContinuation(text, options = {}) {
  * 仅 TX 模式：从 TX 文本推断上下文并续写
  */
 function generateFromTXOnly(rawText, txVisits, options) {
-  const { insuranceType = 'OPTUM', generateCount } = options
+  const { insuranceType = 'OPTUM', treatmentTime = 60, generateCount } = options
   
   // 从原始文本提取状态（更准确）
   const extracted = extractStateFromTX(rawText)
@@ -197,6 +197,10 @@ function generateFromTXOnly(rawText, txVisits, options) {
   
   // 构建初始状态
   const initialState = buildInitialStateFromExtracted(extracted)
+  
+  // 推断 ICD/CPT
+  const diagnosisCodes = inferDiagnosisCodes(extracted.bodyPart, extracted.laterality)
+  const procedureCodes = inferProcedureCodes(insuranceType, treatmentTime)
   
   // 推断已有 TX 数量
   const existingTxCount = extracted.estimatedVisitIndex
@@ -215,12 +219,18 @@ function generateFromTXOnly(rawText, txVisits, options) {
   })
   const states = allStates.slice(0, toGenerate)
   
-  // 导出文本（无 ICD/CPT，因为没有 IE）
-  const visits = states.map(state => ({
-    visitIndex: state.visitIndex,
-    text: exportSOAPAsText(context, state),
-    state
-  }))
+  // 导出文本（含推断的 ICD/CPT）
+  const visits = states.map(state => {
+    let text = exportSOAPAsText(context, state)
+    // 追加 ICD/CPT
+    diagnosisCodes.forEach((d, i) => {
+      text += `Diagnosis Code: (${i + 1}) ${d.description} (${d.icd10})\n`
+    })
+    procedureCodes.forEach((p, i) => {
+      text += `Procedure Code: (${i + 1}) ${p.description} (${p.cpt})\n`
+    })
+    return { visitIndex: state.visitIndex, text, state }
+  })
   
   return {
     visits,
