@@ -736,7 +736,13 @@ export function generateTXSequenceStates(
     const adl = clamp(Math.min(prevAdl, adlExpected + (rng() - 0.5) * 0.12), 0.8, 4.0)
     const adlDelta = prevAdl - adl
     prevAdl = adl
-    const adlImproved = adlDelta > 0.1
+    // ADL 改善判定: 基于等级跳变而非微小数值变化
+    // adl 4.0→3.0 = severe→moderate to severe, 3.0→2.0 = moderate, 2.0→1.0 = mild
+    // 只有跨过整数等级线才视为真正改善，避免每次微递减都显示 improved
+    const prevAdlLevel = Math.ceil(prevAdl)  // 注意: prevAdl 已经更新，用 adl + adlDelta 还原
+    const curAdlLevel = Math.ceil(adl)
+    const adlLevelChanged = Math.ceil(adl + adlDelta) > curAdlLevel
+    const adlImproved = adlLevelChanged && adlDelta > 0.3
 
     // severityLevel: 综合 pain + ADL 改善
     // 基础由 pain 决定，但当 ADL 显著改善时允许下调一档
