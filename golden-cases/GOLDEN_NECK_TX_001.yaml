@@ -1,0 +1,80 @@
+id: GOLDEN_NECK_TX_001
+type: excellent
+body_part: NECK
+note_type: TX
+tcm_pattern:
+  local: "Cold-Damp"
+  systemic: "Spleen Qi Deficiency"
+source: "SOAP Generator v1.0"
+quality_score: 100
+strengths:
+  - "证型诊断依据充分"
+  - "S-O-A 逻辑连贯"
+  - "穴位配伍合理"
+  - "零违规通过全部规则检查"
+key_features:
+  painLevel: 7
+  painTypes:
+    - "Dull"
+    - "Aching"
+  tongue: "normal"
+  pulse: "normal"
+  severityLevel: "mild to moderate"
+  laterality: "unspecified"
+audit_result:
+  overall: PASS
+  quality_score: 100
+  violations:
+    []
+
+soap_text: |
+  Subjective
+  Follow up visit
+  Patient reports: there is improvement of symptom(s) because of energy level improved .
+  Patient still c/o Stabbing, Dull pain in neck area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Tilting head to talking the phone, Turning the head when crossing the street and mild to moderate difficulty of Looking down watching steps, Driving for long periods, Sit and watching TV over 20 mins.
+  
+  Pain Scale: 8 /10
+  Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
+  
+  Objective
+  Muscles Testing:
+  Tightness muscles noted along Scalene anterior / med / posterior, Levator Scapulae, Trapezius
+  Grading Scale: mild to moderate
+  
+  Tenderness muscles noted along sternocleidomastoid muscles, Semispinalis capitis, Splenius capitis, Suboccipital muscles
+  
+  Grading Scale: (+2) = Patient states that the area is moderately tender.
+  
+  Muscles spasm noted along Levator Scapulae, Trapezius, Splenius capitis, Suboccipital muscles
+  Frequency Grading Scale:(+3)=>1 but < 10 spontaneous spasms per hour.
+  
+  Cervical Muscles Strength and Spine ROM Assessment:
+  4+/5 Extension (look up): 50 Degrees(mild)
+  5/5 Flexion (look down): 45 Degrees(normal)
+  4/5 Rotation to Right (look to right): 60 Degrees(mild)
+  4-/5 Rotation to Left (look to left): 65 Degrees(mild)
+  4+/5 Flexion to the Right (bending right): 40 Degrees(mild)
+  5/5 Flexion to the Left (bending left): 40 Degrees(mild)
+  
+  Inspection: weak muscles and dry skin without luster
+  
+  
+  
+  Assessment
+  Patient continue treatment for neck area today.
+  The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session well. No adverse side effect post treatment.
+  Current patient still has Cold-Damp in local meridian that cause the pain.
+  
+  Plan
+  Today's treatment principles:
+  continue to emphasize on moving qi to speed up the recovery, soothe the tendon.
+  
+  Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"
+  Daily acupuncture treatment for neck - Personal one on one contact with the patient (Total Operation Time: 15 mins)
+  
+  Back Points: (15 mins) - personal one on one contact with the patient
+  1. Greeting patient, Review of the chart, Routine examination of the patient current condition, washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, marking and cleaning the points, Initial Acupuncture needle inserted without electrical stimulation GB20, GB21, BL10, BL11
+  
+  Removing and properly disposing of needles
+  Post treatment service and education patient about precautions at home after treatment.
+  Documentation

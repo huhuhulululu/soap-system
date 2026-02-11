@@ -462,9 +462,12 @@ function parseBodyPartAndLaterality(raw: string): { normalizedBodyPart: string; 
 
 // ============ Pain Scale Parser ============
 export function parsePainScale(block: string): PainScale | PainScaleDetailed | null {
+  // Normalize spaces around dashes: "6 - 5" → "6-5"
+  const normalized = block.replace(/(\d+)\s*-\s*(\d+)/g, '$1-$2')
+  
   // Format 1: Pain Scale: Worst: X or X-Y ; Best: Y or Y-Z ; Current: Z
   const detailedPattern = /Pain Scale:\s*Worst:\s*(\d+(?:-\d+)?)\s*;\s*Best:\s*(\d+(?:-\d+)?)\s*;\s*Current:\s*(\d+)/i
-  const detailedMatch = block.match(detailedPattern)
+  const detailedMatch = normalized.match(detailedPattern)
   if (detailedMatch) {
     const parseValue = (val: string): number | { min: number; max: number } => {
       if (val.includes('-')) {
@@ -485,7 +488,7 @@ export function parsePainScale(block: string): PainScale | PainScaleDetailed | n
 
   // Format 2: Pain Scale: X /10 or Pain Scale: X-Y /10
   const simplePattern = /Pain Scale:\s*(\d+(?:-\d+)?)\s*\/10/i
-  const simpleMatch = block.match(simplePattern)
+  const simpleMatch = normalized.match(simplePattern)
   if (simpleMatch) {
     const value = simpleMatch[1]
     if (value.includes('-')) {
