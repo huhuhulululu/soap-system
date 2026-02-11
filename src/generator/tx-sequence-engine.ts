@@ -717,12 +717,27 @@ export function generateTXSequenceStates(
       : snapped.label
     const painDelta = prevPain - painScaleCurrent
     prevPain = painScaleCurrent
-    const severityLevel = severityFromPain(painScaleCurrent)
 
     const adlExpected = clamp(prevAdl - (0.18 + rng() * 0.2), 0.8, 4.0)
     const adl = clamp(Math.min(prevAdl, adlExpected + (rng() - 0.5) * 0.12), 0.8, 4.0)
     const adlDelta = prevAdl - adl
     prevAdl = adl
+    const adlImproved = adlDelta > 0.1
+
+    // severityLevel: 综合 pain + ADL 改善
+    // 基础由 pain 决定，但当 ADL 显著改善时允许下调一档
+    // 确保 A 说 "ADL decreased" 时，S 中的 severity 同步降低
+    const baseSeverity = severityFromPain(painScaleCurrent)
+    const severityOrder: SeverityLevel[] = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+    let severityLevel = baseSeverity
+    if (adlImproved && progress > 0.3) {
+      const baseIdx = severityOrder.indexOf(baseSeverity)
+      if (baseIdx > 0) {
+        // ADL 大幅改善 (delta > 0.3) 降两档，否则降一档
+        const drop = adlDelta > 0.3 ? 2 : 1
+        severityLevel = severityOrder[Math.max(0, baseIdx - drop)]
+      }
+    }
 
     const frequencyImproveGate = progress > 0.55 && rng() > 0.45
     const nextFrequency = frequencyImproveGate ? Math.max(0, prevFrequency - (rng() > 0.5 ? 1 : 0)) : prevFrequency
@@ -998,7 +1013,7 @@ export function generateTXSequenceStates(
       soaChain: {
         subjective: {
           painChange: 'improved',
-          adlChange: 'improved',
+          adlChange: adlImproved ? 'improved' : 'stable',
           frequencyChange: frequencyImproved ? 'improved' : 'stable'
         },
         objective: {
