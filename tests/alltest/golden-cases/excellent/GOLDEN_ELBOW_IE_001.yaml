@@ -1,0 +1,102 @@
+---
+metadata:
+  caseId: GOLDEN_ELBOW_IE_001
+  type: excellent
+  category: Initial Evaluation
+  bodyPart: ELBOW
+  pattern: Qi-Blood Stagnation + Damp-Heat
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 42
+  gender: Male
+  chiefComplaint: Right lateral elbow pain, repetitive strain from tennis
+
+subjective:
+  painScale:
+    worst: 8
+    best: 6
+    current: 7
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "5 months, gradual onset with repetitive activity"
+  triggers: "Gripping, twisting motions, playing tennis"
+  characteristics: "Sharp pain on lateral elbow, burning sensation after activity"
+  adlImpact: "Difficulty opening jars, shaking hands, carrying groceries"
+
+objective:
+  inspection: "Slight swelling lateral epicondyle, warmth on palpation"
+  palpation: "Tender lateral epicondyle, tight extensor muscles, warm to touch"
+  rom:
+    current: 130
+    normal: 145
+  tightness: moderate to severe
+  specialTests: "Cozen's test positive, Mill's test positive, grip strength 60% of left"
+  tongue: "Red sides, yellow coating"
+  pulse: "Wiry, rapid (弦数)"
+
+assessment:
+  primaryBodyPart: ELBOW
+  localPattern: Qi-Blood Stagnation + Damp-Heat
+  systemicPattern: Liver Qi Stagnation + Gallbladder Damp-Heat
+  generalCondition: fair
+  diagnosis: "Tennis elbow (Lateral epicondylitis) - TCM: 肘痛 (Zhou Tong)"
+  prognosis: "Good with 6-8 weeks treatment and activity modification"
+  tcmAnalysis: "Overuse → Qi-Blood stagnation; inflammation → Damp-Heat"
+
+plan:
+  treatmentPrinciple: "Move Qi-Blood, Clear Damp-Heat, Relax tendons"
+  acupuncturePoints:
+    - LI11 (Quchi)
+    - LI10 (Shousanli)
+    - TE5 (Waiguan)
+    - LI4 (Hegu)
+    - Ashi points on lateral epicondyle
+    - LV3 (Taichong)
+    - GB34 (Yanglingquan)
+  techniques:
+    - Electroacupuncture LI11-LI10 (2Hz) to move Qi-Blood
+    - Bloodletting on Ashi points to clear Damp-Heat
+    - Retention time: 25 minutes
+  homeAdvice: |
+    - Ice after activity for first 2 weeks
+    - Tennis elbow brace during day
+    - Eccentric wrist extension exercises (gentle)
+    - Avoid aggravating activities (tennis) for 4 weeks
+  frequency: "2x/week for 6 weeks"
+  contraindications:
+    - No heat application (due to Damp-Heat pattern)
+
+auditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 7, within 6-8 ✓)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+  layer2:
+    result: PASS
+    concerns: []
+    patternAlignment:
+      - Pain character (sharp, burning) ✓ matches Qi-Blood Stagnation + Damp-Heat
+      - Tongue (red sides, yellow coating) ✓ matches Damp-Heat
+      - Pulse (wiry, rapid) ✓ matches Liver Qi Stagnation + Heat
+      - Warmth on palpation ✓ confirms Heat pattern
+  layer3:
+    similarity: 0.93
+    matchedCase: TEMPLATE_ELBOW_TENNIS
+  overallQuality: 100
+
+notes: |
+  Excellent IE for tennis elbow with clear Damp-Heat presentation.
+  All IE requirements met (pain=7, severity/chronicity/condition all standard).
+  Comprehensive functional assessment (grip strength, ADL impact).
+  Pattern diagnosis well-supported: warmth + red tongue + rapid pulse = Damp-Heat.
+  Treatment appropriately avoids heat (contraindicated in Damp-Heat).
+  Good integration of Western diagnosis (lateral epicondylitis) with TCM pattern.

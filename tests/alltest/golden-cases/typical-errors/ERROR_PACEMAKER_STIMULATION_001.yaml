@@ -1,0 +1,108 @@
+---
+metadata:
+  caseId: ERROR_PACEMAKER_STIMULATION_001
+  type: typical-error
+  category: Treatment Visit
+  bodyPart: LOW_BACK
+  errorType: SAFETY_PROTOCOL_VIOLATION
+  expectedViolation: AC-6.1
+  qualityScore: 0
+  auditResult: FAIL
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 68
+  gender: Male
+  chiefComplaint: Chronic lower back pain
+  medicalHistory:
+    hasPacemaker: true  # ❌ 有心脏起搏器
+    pacemakerType: "Dual-chamber ICD"
+    implantDate: "2023-05-15"
+    otherConditions: ["Hypertension", "Coronary artery disease"]
+
+context:
+  visitNumber: 2
+  previousPain: 6.5
+  ieBaseline:
+    pain: 7.0
+
+subjective:
+  painScale:
+    worst: 7
+    best: 4
+    current: 5.5
+  chronicityLevel: Chronic
+  severityLevel: moderate
+  painChange: "Improved"
+
+objective:
+  inspection: "Normal lumbar lordosis"
+  palpation: "Tender L4-L5 paraspinals"
+  rom:
+    current: 55
+    normal: 90
+  tightness: moderate
+  tongue: "Pale"
+  pulse: "Regular (pacemaker rhythm)"
+
+assessment:
+  primaryBodyPart: LOW_BACK
+  localPattern: Kidney Yang Deficiency
+  systemicPattern: Qi-Blood Deficiency
+  generalCondition: fair
+  symptomChange: improvement
+
+plan:
+  treatmentPrinciple: "Tonify Kidney Yang, Move Qi-Blood"
+  acupuncturePoints:
+    - BL23 (Shenshu)
+    - BL40 (Weizhong)
+    - GV4 (Mingmen)
+  techniques:
+    - Electroacupuncture BL23-GV4 (2Hz)  # ❌ CRITICAL: 起搏器患者禁用电刺激!
+    - Moxibustion
+  electricalStimulation: true  # ❌ VIOLATION: 明确使用了电刺激
+  frequency: "2x/week"
+
+expectedAuditResults:
+  layer1:
+    result: FAIL
+    violations:
+      - ruleId: AC-6.1
+        severity: CRITICAL
+        issue: "有 Pacemaker 但使用了电刺激"
+        suggestion: "禁止对 Pacemaker 患者使用电刺激"
+  layer2:
+    result: PASS
+  overallResult: FAIL
+
+notes: |
+  典型错误案例: 起搏器患者使用电刺激,严重安全违规。
+
+  违规点:
+  1. AC-6.1: 患者有心脏起搏器 (Pacemaker) 但治疗计划包含电针刺激 (Electroacupuncture)
+
+  安全风险:
+  - 电针可能干扰起搏器功能
+  - 可导致起搏器失效、心律失常、甚至心脏骤停
+  - 属于 CRITICAL 级别禁忌症
+
+  正确做法:
+  1. 完全禁止电针 (Electroacupuncture)
+  2. 可使用手法针刺 (Manual acupuncture)
+  3. 可使用艾灸 (Moxibustion)
+  4. 可使用拔罐 (Cupping)
+  5. 在 Plan 中明确注明 "No electrical stimulation due to pacemaker"
+
+  审查系统作用:
+  - 触发 CRITICAL violation,立即阻止治疗计划
+  - 要求医生移除电刺激相关内容
+  - 保护患者安全,避免医疗事故
+  - 防止医疗诉讼和执照吊销风险
+
+  法律和保险影响:
+  - 违反 FDA 和医疗设备使用规范
+  - 保险公司会拒赔任何相关并发症
+  - 可能导致医疗诉讼

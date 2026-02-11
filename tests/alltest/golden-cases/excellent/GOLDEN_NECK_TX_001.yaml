@@ -1,0 +1,100 @@
+---
+metadata:
+  caseId: GOLDEN_NECK_TX_001
+  type: excellent
+  category: Treatment Visit
+  bodyPart: NECK
+  pattern: Qi-Blood Stagnation + Liver Yang Rising
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 38
+  gender: Female
+  chiefComplaint: Chronic neck pain with headaches, worse with stress
+
+context:
+  visitNumber: 6
+  previousPain: 5.0
+  previousROM: 55
+  previousTightness: moderate
+  ieBaseline:
+    pain: 7.0
+    rom: 45
+    pattern: Qi-Blood Stagnation + Liver Yang Rising
+
+subjective:
+  painScale:
+    worst: 6
+    best: 3
+    current: 4.0
+  chronicityLevel: Chronic
+  severityLevel: mild to moderate
+  painChange: "Continued improvement, headaches less frequent (2x/week → 1x/week)"
+  sleepQuality: "Good, fewer sleep disruptions"
+  stressLevel: "Work stress ongoing but managing better"
+  functionalImprovement: "Can work on computer for 4 hours without break (was 2 hours)"
+
+objective:
+  inspection: "Posture improved, less forward head position"
+  palpation: "Upper trapezius less tender, SCM softer bilaterally"
+  rom:
+    current: 65
+    normal: 80
+  tightness: mild to moderate
+  specialTests: "Spurling test negative, vertebral artery test negative"
+  tongue: "Light red, thin coating"
+  pulse: "Slightly wiry (弦脉), rate normal"
+
+assessment:
+  primaryBodyPart: NECK
+  localPattern: Qi-Blood Stagnation (resolving)
+  systemicPattern: Liver Qi Stagnation (improving)
+  generalCondition: fair
+  symptomChange: improvement
+  progressNote: "Pain ↓1.0, ROM ↑10°, tightness improved, headache frequency ↓50%"
+  tcmAnalysis: "Liver Qi flowing more smoothly, less Yang rising"
+
+plan:
+  treatmentPrinciple: "Continue to Soothe Liver, Move Qi-Blood, Calm Yang"
+  acupuncturePoints:
+    - GB20 (Fengchi)
+    - GB21 (Jianjing)
+    - LV3 (Taichong)
+    - LI4 (Hegu)
+    - BL10 (Tianzhu)
+    - GV20 (Baihui)
+  techniques:
+    - Gentle needling GB20, GV20 to calm Yang
+    - Moderate stimulation on LI4+LV3 (Four Gates)
+    - Retention time: 25 minutes
+  homeAdvice: "Continue neck stretches, stress management techniques, regular breaks"
+  frequency: "1x/week (reduced from 2x/week), continue for 4 more weeks"
+  contraindications: []
+
+auditResults:
+  layer1:
+    result: PASS
+    violations: []
+    longitudinalChecks:
+      - V01: PASS (pain 5.0→4.0, decreased ✓)
+      - V02: PASS (tightness moderate→mild to moderate, improved ✓)
+      - V03: PASS (ROM 55→65, improved ✓)
+      - AC-3.2: PASS (best≤current≤worst: 3≤4≤6 ✓)
+  layer2:
+    result: PASS
+    concerns: []
+  layer3:
+    similarity: 0.91
+    matchedCase: TEMPLATE_NECK_QI_BLOOD_STAGNATION
+  overallQuality: 100
+
+notes: |
+  Excellent TX note demonstrating sustained improvement over treatment course.
+  Visit 6 shows clear progress: pain ↓ from baseline (7.0→4.0), ROM ↑20° total.
+  Treatment frequency appropriately reduced as patient stabilizes.
+  S-O-A chain coherent: subjective improvement → objective gains → assessment confirms progress.
+  Liver pattern addressed with Four Gates + local neck points.

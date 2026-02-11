@@ -1,0 +1,107 @@
+---
+metadata:
+  caseId: EDGE_TIGHTNESS_NO_CHANGE
+  type: edge-case
+  category: Treatment
+  bodyPart: LOWER_BACK
+  edgeType: V02_NO_DETERIORATION
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 46
+  gender: Male
+  chiefComplaint: Follow-up for chronic lower back pain
+
+previousVisit:
+  visitNumber: 3
+  date: "2026-02-03"
+  painScale:
+    current: 7
+  rom:
+    current: 50
+  tightness: moderate
+
+subjective:
+  painScale:
+    worst: 8
+    best: 5
+    current: 6  # ✓ Pain 改善 7→6
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "7 months total, 3 weeks in treatment"
+  characteristics: "Aching reduced, less morning stiffness"
+  adlImpact: "Can sit longer at work, improved sleep"
+  progressNotes: "Pain better overall, tightness unchanged"
+
+objective:
+  inspection: "Improved posture, less guarding"
+  palpation: "Reduced tenderness L4-L5, muscle tension stable"
+  rom:
+    current: 55  # ✓ ROM 改善 50→55
+    normal: 90
+  tightness: moderate  # ✓ EDGE: Tightness 保持不变 moderate→moderate (V02 不触发)
+  specialTests: "SLR improved to 60°, reduced radicular symptoms"
+  tongue: "Pink with thin white coating"
+  pulse: "Moderate, less wiry"
+
+assessment:
+  primaryBodyPart: LOWER_BACK
+  localPattern: Qi Stagnation (improving)
+  systemicPattern: Kidney Qi Deficiency
+  generalCondition: fair
+  progress: "Good improvement in pain and ROM, tightness stable"
+  prognosis: "Continue current treatment plan"
+
+plan:
+  treatmentPrinciple: "Continue Move Qi, Tonify Kidney, Relax tendons"
+  acupuncturePoints:
+    - BL23 (Shenshu)
+    - BL25 (Dachangshu)
+    - BL40 (Weizhong)
+    - GV3 (Yaoyangguan)
+    - KI3 (Taixi)
+  techniques:
+    - Electroacupuncture BL23-BL25
+    - Warming needle on GV3
+    - Retention time: 30 minutes
+  homeAdvice: "Continue core strengthening, maintain proper posture"
+  frequency: "2x/week for 4 weeks"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+  layer2:
+    result: PASS
+    concerns: []
+    validationChecks:
+      - V02: PASS (tightness unchanged moderate→moderate, rule only checks deterioration ✓)
+      - V01: PASS (pain improved 7→6 ✓)
+      - V03: PASS (ROM improved 50→55 ✓)
+  overallResult: PASS
+
+notes: |
+  边界案例: V02 规则无变化测试。
+
+  关键边界:
+  - Tightness: moderate → moderate (保持不变)
+  - V02 规则: 仅检查 tightness 恶化
+  - 无变化不触发 V02
+
+  测试目的:
+  验证审查系统 V02 规则行为:
+  - Tightness 保持不变: 不触发 (PASS)
+  - Tightness 改善: 不触发 (PASS)
+  - Tightness 恶化: 触发 WARNING
+
+  临床意义:
+  治疗进展中,pain 和 ROM 改善,但 tightness 尚未改善。
+  这是正常的治疗反应,tightness 通常改善较慢。
+
+  预期行为:
+  V02 不触发, 整体审查结果 PASS

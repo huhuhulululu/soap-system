@@ -1,0 +1,110 @@
+---
+metadata:
+  caseId: EDGE_PAIN_TOLERANCE
+  type: edge-case
+  category: Treatment
+  bodyPart: SHOULDER
+  edgeType: V01_TOLERANCE_BOUNDARY
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 51
+  gender: Female
+  chiefComplaint: Follow-up for right shoulder pain
+
+previousVisit:
+  visitNumber: 2
+  date: "2026-02-08"
+  painScale:
+    current: 5.0
+  rom:
+    current: 100
+  tightness: moderate
+
+subjective:
+  painScale:
+    worst: 7
+    best: 4
+    current: 5.1  # ✓ EDGE: Pain 上升 0.1 (5.0→5.1), V01 容忍度内,刚好不触发
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "8 months total, 2 weeks in treatment"
+  characteristics: "Aching stable, slight increase in sharp pain on overhead reach"
+  adlImpact: "Daily activities unchanged, functional level stable"
+  progressNotes: "Pain essentially stable, patient reports overuse from gardening yesterday"
+
+objective:
+  inspection: "Shoulder posture unchanged, active ROM stable"
+  palpation: "Tenderness deltoid unchanged, muscle tone similar"
+  rom:
+    current: 102  # ✓ ROM 略有改善 100→102
+    normal: 180
+  tightness: moderate  # ✓ Tightness 保持不变
+  specialTests: "Painful arc stable, Neer test similar to previous"
+  tongue: "Pale with thin white coating"
+  pulse: "Moderate, slightly wiry"
+
+assessment:
+  primaryBodyPart: SHOULDER
+  localPattern: Qi Stagnation
+  systemicPattern: Qi Deficiency
+  generalCondition: fair
+  progress: "Overall stable, ROM slight improvement, pain fluctuation within normal range"
+  prognosis: "Continue treatment, expect gradual improvement"
+
+plan:
+  treatmentPrinciple: "Move Qi, Relax tendons, strengthen Qi"
+  acupuncturePoints:
+    - LI15 (Jianyu)
+    - LI14 (Binao)
+    - SI9 (Jianzhen)
+    - GB21 (Jianjing)
+    - ST36 (Zusanli)
+  techniques:
+    - Warming needle on LI15
+    - Gentle mobilization
+    - Retention time: 30 minutes
+  homeAdvice: "Avoid overuse, continue gentle exercises, apply heat as needed"
+  frequency: "2x/week for 4 weeks"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+  layer2:
+    result: PASS
+    concerns: []
+    validationChecks:
+      - V01: PASS (pain increase 0.1, within tolerance threshold, not triggered ✓)
+      - V02: PASS (tightness unchanged ✓)
+      - V03: PASS (ROM improved +2° ✓)
+  overallResult: PASS
+
+notes: |
+  边界案例: V01 规则容忍度边界测试。
+
+  关键边界:
+  - Pain: 5.0 → 5.1 (上升 0.1)
+  - V01 容忍度: 通常允许微小波动 (如 ≤0.5)
+  - 0.1 的上升应该在容忍度内,不触发
+
+  测试目的:
+  验证审查系统 V01 规则的容忍度机制:
+  - 微小波动 (0.1-0.5): 不触发 (PASS)
+  - 明显上升 (>0.5): 触发 WARNING
+
+  临床意义:
+  疼痛有自然波动,患者可能因活动过度导致暂时性轻微增加。
+  ROM 改善表明整体治疗方向正确,微小疼痛波动可接受。
+
+  预期行为:
+  V01 不触发, 整体审查结果 PASS
+
+  注意:
+  此案例的通过依赖于 V01 规则实现了容忍度机制。
+  如果规则严格要求 pain 必须改善或不变,则此案例应触发 WARNING。

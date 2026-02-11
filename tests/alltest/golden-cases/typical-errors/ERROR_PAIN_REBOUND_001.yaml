@@ -1,0 +1,97 @@
+---
+metadata:
+  caseId: ERROR_PAIN_REBOUND_001
+  type: typical-error
+  category: Treatment Visit
+  bodyPart: KNEE
+  errorType: LONGITUDINAL_LOGIC_VIOLATION
+  expectedViolation: V01
+  qualityScore: 0
+  auditResult: FAIL
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 55
+  gender: Female
+  chiefComplaint: Knee pain treatment follow-up
+
+context:
+  visitNumber: 3
+  previousPain: 5.0
+  previousROM: 100
+  previousTightness: moderate
+  ieBaseline:
+    pain: 7.0
+    rom: 85
+
+subjective:
+  painScale:
+    worst: 8
+    best: 4
+    current: 6.5  # ❌ VIOLATION: Pain 反弹 5.0 → 6.5 (上升 1.5)
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  painChange: "Worse since last visit, pain increased after hiking trip"
+  sleepQuality: "Poor, woke up 3 times due to pain"
+
+objective:
+  inspection: "Knee more swollen than last visit"
+  palpation: "Increased tenderness medial joint line"
+  rom:
+    current: 95  # ROM 反而下降了 100 → 95
+  tightness: moderate to severe  # Tightness 也恶化了
+  specialTests: "McMurray test now positive (was negative)"
+  tongue: "Red, yellow coating"
+  pulse: "Wiry, rapid"
+
+assessment:
+  primaryBodyPart: KNEE
+  localPattern: Qi-Blood Stagnation + Damp-Heat
+  systemicPattern: Liver Qi Stagnation
+  generalCondition: fair
+  symptomChange: exacerbate  # ✓ 这里倒是一致的
+  progressNote: "Patient overdid hiking, caused re-inflammation"
+
+plan:
+  treatmentPrinciple: "Clear Heat, Reduce inflammation, Move Qi-Blood"
+  acupuncturePoints:
+    - ST35 (Dubi)
+    - ST36 (Zusanli)
+    - SP9 (Yinlingquan)
+    - LV3 (Taichong)
+  techniques:
+    - Reduced stimulation due to acute inflammation
+    - Ice recommendation instead of heat
+  frequency: "Increase to 3x/week until inflammation subsides"
+
+expectedAuditResults:
+  layer1:
+    result: FAIL
+    violations:
+      - ruleId: V01
+        severity: CRITICAL
+        issue: "Pain 上升: 5.0 → 6.5 (上升 1.5)"
+      - ruleId: V02
+        severity: CRITICAL
+        issue: "Tightness 恶化: moderate → moderate to severe"
+      - ruleId: V03
+        severity: CRITICAL
+        issue: "ROM 下降: 100° → 95° (下降 5°)"
+  layer2:
+    result: WARNING
+    concerns: []
+  overallResult: FAIL
+
+notes: |
+  典型错误案例: 患者过度活动导致多项指标反弹。
+
+  违规点:
+  1. V01: Pain 反弹 1.5 分 (5.0 → 6.5)
+  2. V02: Tightness 恶化 (moderate → moderate to severe)
+  3. V03: ROM 下降 5° (100 → 95)
+
+  临床现实场景: 患者未遵医嘱,进行剧烈活动导致症状反弹。
+  虽然有合理解释(hiking trip),但审查系统应标记为 CRITICAL 违规,
+  要求医生在 SOAP 中明确记录原因和调整治疗方案。

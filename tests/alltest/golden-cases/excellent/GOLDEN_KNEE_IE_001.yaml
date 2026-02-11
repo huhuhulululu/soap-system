@@ -1,0 +1,82 @@
+---
+metadata:
+  caseId: GOLDEN_KNEE_IE_001
+  type: excellent
+  category: Initial Evaluation
+  bodyPart: KNEE
+  pattern: Cold-Damp + Wind-Cold
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 58
+  gender: Male
+  chiefComplaint: Bilateral knee pain with cold sensation, worse in damp weather
+
+subjective:
+  painScale:
+    worst: 8
+    best: 6
+    current: 7
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "3 years, worsening in past 6 months"
+  triggers: "Cold weather, damp conditions, prolonged standing"
+  characteristics: "Dull aching pain with cold sensation, stiffness in morning"
+
+objective:
+  inspection: "Knee slightly swollen, pale complexion"
+  palpation: "Cold to touch, mild swelling bilateral knee joint"
+  rom:
+    current: 95
+    normal: 135
+  tightness: moderate to severe
+  specialTests: "Negative for meniscal tear, positive cold sensitivity"
+  tongue: "Pale, thick white coating"
+  pulse: "Deep, slow (迟脉)"
+
+assessment:
+  primaryBodyPart: KNEE
+  localPattern: Cold-Damp Obstruction
+  systemicPattern: Yang Deficiency + Kidney Qi Deficiency
+  generalCondition: fair
+  symptomChange: initial_visit
+  prognosis: "Good with warming treatment"
+
+plan:
+  treatmentPrinciple: "Warm Yang, Dispel Cold-Damp, Tonify Kidney Qi"
+  acupuncturePoints:
+    - ST35 (Dubi)
+    - ST36 (Zusanli)
+    - SP9 (Yinlingquan)
+    - GB34 (Yanglingquan)
+    - BL23 (Shenshu)
+    - RN4 (Guanyuan)
+  techniques:
+    - Moxibustion on ST36, BL23, RN4
+    - Warming needle technique
+    - Retention time: 25 minutes
+  homeAdvice: "Keep knees warm, avoid cold/damp exposure, gentle exercise"
+  frequency: "2x/week for 4 weeks"
+  contraindications: []
+
+auditResults:
+  layer1:
+    result: PASS
+    violations: []
+  layer2:
+    result: PASS
+    concerns: []
+  layer3:
+    similarity: 0.95
+    matchedCase: TEMPLATE_KNEE_COLD_DAMP
+  overallQuality: 100
+
+notes: |
+  Perfect example of Cold-Damp knee pain initial evaluation.
+  All S-O-A elements align with Cold-Damp + Yang Deficiency pattern.
+  Tongue (pale, thick white) and Pulse (deep, slow) perfectly match pattern.
+  Treatment principle correctly addresses both local and systemic patterns.

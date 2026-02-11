@@ -1,0 +1,95 @@
+---
+metadata:
+  caseId: GOLDEN_SHOULDER_IE_001
+  type: excellent
+  category: Initial Evaluation
+  bodyPart: SHOULDER
+  pattern: Wind-Cold + Qi Stagnation
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 52
+  gender: Male
+  chiefComplaint: Right shoulder pain with limited range of motion, difficulty reaching overhead
+
+subjective:
+  painScale:
+    worst: 8
+    best: 6
+    current: 7
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "8 months, gradual onset after exposure to cold wind"
+  triggers: "Cold weather, overhead movements, lying on right side"
+  characteristics: "Aching pain with sharp catch on movement, morning stiffness"
+  adlImpact: "Cannot comb hair, difficulty dressing"
+
+objective:
+  inspection: "Shoulder held in protective position, limited active ROM"
+  palpation: "Tender deltoid insertion, tight supraspinatus, cool to touch"
+  rom:
+    current: 90
+    normal: 180
+  tightness: severe
+  specialTests: "Painful arc 60-120°, Neer test positive, Hawkins-Kennedy positive"
+  tongue: "Pale with thin white coating"
+  pulse: "Tight, wiry (紧弦)"
+
+assessment:
+  primaryBodyPart: SHOULDER
+  localPattern: Wind-Cold Invasion + Qi Stagnation
+  systemicPattern: Qi Deficiency
+  generalCondition: fair
+  diagnosis: "Frozen shoulder (Adhesive capsulitis) - TCM: 肩凝症 (Jianning Zheng)"
+  prognosis: "Moderate, requires 8-12 weeks treatment"
+
+plan:
+  treatmentPrinciple: "Expel Wind-Cold, Move Qi, Relax tendons and activate collaterals"
+  acupuncturePoints:
+    - LI15 (Jianyu)
+    - LI14 (Binao)
+    - SI9 (Jianzhen)
+    - SI11 (Tianzong)
+    - GB21 (Jianjing)
+    - LI4 (Hegu)
+    - ST36 (Zusanli)
+  techniques:
+    - Warming needle on LI15, GB21
+    - Moxibustion
+    - Gentle mobilization during retention
+    - Retention time: 30 minutes
+  homeAdvice: "Pendulum exercises, keep shoulder warm, avoid cold exposure"
+  frequency: "3x/week for first 2 weeks, then reassess"
+  contraindications: []
+
+auditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 7, within 6-8 ✓)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+  layer2:
+    result: PASS
+    concerns: []
+    patternAlignment:
+      - Pain character (aching, sharp on movement) ✓ matches Wind-Cold + Qi Stagnation
+      - Tongue (pale, thin white) ✓ matches pattern
+      - Pulse (tight, wiry) ✓ matches pattern
+  layer3:
+    similarity: 0.94
+    matchedCase: TEMPLATE_SHOULDER_FROZEN
+  overallQuality: 100
+
+notes: |
+  Exemplary IE note for frozen shoulder.
+  Perfect IE metrics: pain=7, severity=moderate to severe, chronicity=Chronic, condition=fair.
+  Comprehensive S-O-A documentation with proper special tests.
+  Pattern diagnosis well-supported by tongue/pulse/symptoms.
+  Treatment principle addresses both Wind-Cold and Qi Stagnation.

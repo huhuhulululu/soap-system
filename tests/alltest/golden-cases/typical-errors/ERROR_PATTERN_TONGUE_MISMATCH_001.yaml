@@ -1,0 +1,100 @@
+---
+metadata:
+  caseId: ERROR_PATTERN_TONGUE_MISMATCH_001
+  type: typical-error
+  category: Initial Evaluation
+  bodyPart: KNEE
+  errorType: PATTERN_SYMPTOM_MISMATCH
+  expectedViolation: HS06
+  qualityScore: 35
+  auditResult: WARNING
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 62
+  gender: Male
+  chiefComplaint: Bilateral knee pain with weakness
+
+subjective:
+  painScale:
+    worst: 8
+    best: 6
+    current: 7
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "2 years, gradual worsening"
+  characteristics: "Dull aching pain, worse with exertion, fatigue"
+  triggers: "Walking, standing, cold weather"
+
+objective:
+  inspection: "Pale complexion, appears fatigued"
+  palpation: "Knee cool to touch, soft tissue atrophy"
+  rom:
+    current: 110
+    normal: 135
+  tightness: moderate
+  specialTests: "Muscle strength 3/5 quadriceps"
+  tongue: "Red with yellow coating"  # ❌ VIOLATION: 气虚证但舌象为红黄
+  pulse: "Weak, thready (虚弱)"
+
+assessment:
+  primaryBodyPart: KNEE
+  localPattern: Qi-Blood Deficiency
+  systemicPattern: Spleen Qi Deficiency + Kidney Qi Deficiency  # ❌ 虚证诊断
+  generalCondition: fair
+  tcmAnalysis: "Chronic deficiency leading to knee weakness and pain"
+
+plan:
+  treatmentPrinciple: "Tonify Qi, Strengthen Spleen-Kidney"
+  acupuncturePoints:
+    - ST36 (Zusanli)
+    - SP6 (Sanyinjiao)
+    - BL20 (Pishu)
+    - BL23 (Shenshu)
+    - RN6 (Qihai)
+  techniques:
+    - Tonification technique (Bu Fa)
+    - Moxibustion on ST36, RN6
+    - Retention time: 30 minutes
+  homeAdvice: "Rest, avoid overexertion, warm foods"
+  frequency: "2x/week for 8 weeks"
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+  layer2:
+    result: WARNING
+    concerns:
+      - ruleId: HS06
+        severity: MEDIUM
+        detail: "Qi Deficiency 证型但舌象为 red with yellow coating"
+        reasoning: "气虚证典型舌象应为淡舌薄白苔,红舌黄苔多见于热证或实证"
+        suggestion: "建议复核证型诊断或舌象描述"
+        confidence: 0.78
+  layer3:
+    similarity: 0.65
+  overallResult: WARNING
+
+notes: |
+  典型错误案例: 证型与舌象矛盾。
+
+  违规点:
+  1. HS06: 诊断为 Qi Deficiency (气虚证), 但舌象为 red + yellow coating (红舌黄苔)
+
+  可能原因:
+  1. 舌象记录错误 (应该是 pale tongue, thin white coating)
+  2. 证型诊断错误 (症状和舌象可能是虚实夹杂,有伏热)
+  3. 患者同时存在虚证和热证,但 Assessment 只记录了虚证
+
+  中医理论依据:
+  - 气虚证: 典型舌象为淡舌、薄白苔、舌体胖大有齿痕
+  - 红舌黄苔: 多见于热证、实证、湿热证
+  - 虚弱脉 + 红黄舌 = 可能是气虚伏热或虚实夹杂
+
+  审查系统建议:
+  - 触发 MEDIUM severity warning
+  - Confidence 0.78 (较高),需要人工复核
+  - 要求医生重新评估证型或舌象描述准确性

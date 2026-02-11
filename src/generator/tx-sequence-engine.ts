@@ -643,8 +643,8 @@ export function generateTXSequenceStates(
   const visits: TXVisitState[] = []
 
   for (let i = startIdx; i <= txCount; i++) {
-    const localIndex = i - startIdx + 1
-    const progressLinear = localIndex / remainingTx
+    // progress 基于总疗程进度，而不是当前批次
+    const progressLinear = i / txCount
     // S曲线: sqrt 加速早期进度 + smoothstep 平滑过渡
     const acc = Math.sqrt(progressLinear)
     const progressBase = 3 * acc * acc - 2 * acc * acc * acc

@@ -1,0 +1,92 @@
+---
+metadata:
+  caseId: EDGE_IE_PAIN_UPPER_BOUND
+  type: edge-case
+  category: Initial Evaluation
+  bodyPart: LOWER_BACK
+  edgeType: IE01_UPPER_BOUNDARY
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 55
+  gender: Male
+  chiefComplaint: Severe lower back pain radiating to right leg
+
+subjective:
+  painScale:
+    worst: 9
+    best: 6
+    current: 8.0  # ✓ EDGE: IE01 上限 (8.0), 刚好通过
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "6 months, worsening over last 2 weeks"
+  triggers: "Bending forward, sitting >30 min, morning"
+  characteristics: "Sharp burning pain L4-L5, shooting down right leg"
+  adlImpact: "Cannot sit for work, difficulty walking, disturbed sleep"
+
+objective:
+  inspection: "Antalgic posture, reduced lumbar lordosis"
+  palpation: "Severe paraspinal muscle spasm L4-L5, tender SI joints"
+  rom:
+    current: 30
+    normal: 90
+  tightness: severe
+  specialTests: "SLR positive 40° right, dermatome L5 hypoesthesia"
+  tongue: "Purple with thin yellow coating"
+  pulse: "Wiry, rapid (弦数)"
+
+assessment:
+  primaryBodyPart: LOWER_BACK
+  localPattern: Qi and Blood Stagnation + Damp-Heat
+  systemicPattern: Liver Qi Stagnation
+  generalCondition: fair
+  diagnosis: "Lumbar radiculopathy - TCM: 腰腿痛 (Yao Tui Tong)"
+  prognosis: "Fair, requires 8-12 weeks intensive treatment"
+
+plan:
+  treatmentPrinciple: "Clear Damp-Heat, Move Qi and Blood, Relax tendons and stop pain"
+  acupuncturePoints:
+    - BL23 (Shenshu)
+    - BL25 (Dachangshu)
+    - BL40 (Weizhong)
+    - GB30 (Huantiao)
+    - GB34 (Yanglingquan)
+    - Ashi points L4-L5
+    - LV3 (Taichong)
+  techniques:
+    - Electroacupuncture BL23-BL25, GB30-GB34
+    - Deep needling with rotation
+    - Retention time: 40 minutes
+  homeAdvice: "Ice for acute pain, avoid bending, McKenzie extension exercises"
+  frequency: "3x/week for first 4 weeks, then reassess"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 8.0, exactly at upper bound ✓)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+  layer2:
+    result: PASS
+  overallResult: PASS
+
+notes: |
+  边界案例: IE01 规则上限测试。
+
+  关键边界:
+  - Pain = 8.0 (IE01 上限: 6 ≤ pain ≤ 8)
+  - 刚好满足保险标准,应该 PASS
+
+  测试目的:
+  验证审查系统正确处理边界值 (8.0 应该通过, 8.1 应该失败)
+
+  预期行为:
+  IE01 检查 PASS, 整体审查结果 PASS

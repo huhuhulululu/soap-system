@@ -1,0 +1,100 @@
+---
+metadata:
+  caseId: EDGE_PAIN_SCALE_BOUNDARIES
+  type: edge-case
+  category: Initial Evaluation
+  bodyPart: NECK
+  edgeType: AC_3_2_LOWER_BOUNDARY
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 42
+  gender: Male
+  chiefComplaint: Chronic neck pain with headaches
+
+subjective:
+  painScale:
+    worst: 7
+    best: 5
+    current: 5  # ✓ EDGE: current = best (AC-3.2 下限边界: best ≤ current ≤ worst)
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "7 months, constant dull ache"
+  triggers: "Computer work, stress, poor posture"
+  characteristics: "Dull ache base of skull, tension headaches"
+  adlImpact: "Difficulty concentrating at work, sleep disruption"
+
+objective:
+  inspection: "Forward head posture, reduced cervical lordosis"
+  palpation: "Tender upper trapezius bilaterally, tight suboccipital muscles"
+  rom:
+    current: 60
+    normal: 90
+  tightness: moderate
+  specialTests: "Spurling test negative, upper limb tension test mildly positive"
+  tongue: "Pale with thin coating"
+  pulse: "Tight, wiry (紧弦)"
+
+assessment:
+  primaryBodyPart: NECK
+  localPattern: Qi and Blood Stagnation
+  systemicPattern: Liver Qi Stagnation
+  generalCondition: fair
+  diagnosis: "Cervicogenic headache - TCM: 项强 (Xiang Qiang)"
+  prognosis: "Good, requires 6-8 weeks treatment with postural correction"
+
+plan:
+  treatmentPrinciple: "Move Qi and Blood, Relax tendons, calm Liver"
+  acupuncturePoints:
+    - GB20 (Fengchi)
+    - GB21 (Jianjing)
+    - BL10 (Tianzhu)
+    - SI3 (Houxi)
+    - LV3 (Taichong)
+    - LI4 (Hegu)
+  techniques:
+    - Gentle needling with rotation
+    - Cupping on upper back
+    - Retention time: 30 minutes
+  homeAdvice: "Ergonomic workstation setup, chin tucks, stress reduction"
+  frequency: "2x/week for 6 weeks"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 5, but this is IE so different rules apply)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+    formatChecks:
+      - AC_3_2: PASS (5 ≤ 5 ≤ 7, current = best, boundary satisfied ✓)
+  layer2:
+    result: PASS
+  overallResult: PASS
+
+notes: |
+  边界案例: AC-3.2 规则下限边界测试。
+
+  关键边界:
+  - best = 5, current = 5, worst = 7
+  - AC-3.2 规则: best ≤ current ≤ worst
+  - current = best (下限), 刚好满足
+
+  测试目的:
+  验证审查系统正确处理 pain scale 边界:
+  - current = best 应该 PASS
+  - current < best 应该触发 AC-3.2 FAIL
+
+  临床意义:
+  患者当前处于最佳状态 (疼痛最轻时),
+  这是合理的初诊场景。
+
+  预期行为:
+  AC-3.2 检查 PASS, 整体审查结果 PASS

@@ -141,7 +141,7 @@ export class MedicalLogicChecker {
       check: (note) => {
         const pattern = note.localPattern || ''
         const tongue = note.tongue || ''
-        
+
         if (pattern.includes('Damp') && tongue.includes('dry')) {
           return {
             ruleId: 'HS05',
@@ -151,6 +151,125 @@ export class MedicalLogicChecker {
             reasoning: '湿证通常舌苔腻，不应干燥',
             suggestion: '建议复核证型诊断或舌象描述',
             confidence: 0.75
+          }
+        }
+        return null
+      }
+    })
+
+    // HS06: 气虚证-红舌黄苔矛盾
+    this.heuristics.push({
+      id: 'HS06',
+      name: '气虚证-舌象矛盾',
+      check: (note) => {
+        const systemicPattern = note.systemicPattern || ''
+        const tongue = note.tongue || ''
+
+        if (systemicPattern.includes('Qi Deficiency') &&
+            (tongue.includes('red') || tongue.includes('yellow'))) {
+          return {
+            ruleId: 'HS06',
+            triggered: true,
+            severity: 'MEDIUM',
+            detail: `Qi Deficiency 证型但舌象为 ${tongue}`,
+            reasoning: '气虚证典型舌象应为淡舌薄白苔，红舌黄苔多见于热证或实证',
+            suggestion: '建议复核证型诊断或舌象描述',
+            confidence: 0.78
+          }
+        }
+        return null
+      }
+    })
+
+    // HS07: 血瘀证-淡舌矛盾
+    this.heuristics.push({
+      id: 'HS07',
+      name: '血瘀证-舌象矛盾',
+      check: (note) => {
+        const localPattern = note.localPattern || ''
+        const tongue = note.tongue || ''
+
+        if (localPattern.includes('Blood Stasis') &&
+            (tongue.includes('pale') || tongue.includes('light'))) {
+          return {
+            ruleId: 'HS07',
+            triggered: true,
+            severity: 'MEDIUM',
+            detail: `Blood Stasis 证型但舌象为 ${tongue}`,
+            reasoning: '血瘀证典型舌象应为紫暗舌或舌有瘀点，淡舌多见于血虚证',
+            suggestion: '建议复核证型诊断或舌象描述',
+            confidence: 0.80
+          }
+        }
+        return null
+      }
+    })
+
+    // HS08: 寒湿证-数脉矛盾
+    this.heuristics.push({
+      id: 'HS08',
+      name: '寒湿证-脉象矛盾',
+      check: (note) => {
+        const localPattern = note.localPattern || ''
+        const pulse = note.pulse || ''
+
+        if ((localPattern.includes('Cold-Damp') ||
+             localPattern.includes('Wind-Cold')) &&
+            pulse.includes('rapid')) {
+          return {
+            ruleId: 'HS08',
+            triggered: true,
+            severity: 'MEDIUM',
+            detail: `寒湿/风寒证型但脉象为 rapid (数脉)`,
+            reasoning: '寒湿证典型脉象应为迟脉或缓脉，数脉多见于热证',
+            suggestion: '建议复核证型诊断或脉象描述',
+            confidence: 0.82
+          }
+        }
+        return null
+      }
+    })
+
+    // HS09: 湿热证-迟脉矛盾
+    this.heuristics.push({
+      id: 'HS09',
+      name: '湿热证-脉象矛盾',
+      check: (note) => {
+        const pattern = note.localPattern || note.systemicPattern || ''
+        const pulse = note.pulse || ''
+
+        if (pattern.includes('Damp-Heat') && pulse.includes('slow')) {
+          return {
+            ruleId: 'HS09',
+            triggered: true,
+            severity: 'MEDIUM',
+            detail: `Damp-Heat 证型但脉象为 slow (迟脉)`,
+            reasoning: '湿热证典型脉象应为滑数脉或濡数脉，迟脉多见于寒证',
+            suggestion: '建议复核证型诊断或脉象描述',
+            confidence: 0.79
+          }
+        }
+        return null
+      }
+    })
+
+    // HS10: ADL-疼痛不匹配
+    this.heuristics.push({
+      id: 'HS10',
+      name: 'ADL-疼痛不匹配',
+      check: (note) => {
+        const adl = note.adlDifficulty || 0
+        const pain = note.painScaleCurrent || 0
+
+        if (adl >= 7 && pain < 3) {
+          return {
+            ruleId: 'HS10',
+            triggered: true,
+            severity: 'LOW',
+            detail: `severe ADL difficulty (${adl}/10) 但 mild pain (${pain}/10)`,
+            reasoning: '日常生活活动严重受限通常伴随中度以上疼痛',
+            suggestion: '建议复核 ADL 评估或疼痛评分是否准确',
+            confidence: 0.72
           }
         }
         return null

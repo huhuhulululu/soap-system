@@ -1,0 +1,95 @@
+---
+metadata:
+  caseId: GOLDEN_LBP_TX_001
+  type: excellent
+  category: Treatment Visit
+  bodyPart: LOW_BACK
+  pattern: Qi-Blood Stagnation
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 45
+  gender: Female
+  chiefComplaint: Lower back pain with radiating sensation to right leg
+
+context:
+  visitNumber: 4
+  previousPain: 6.5
+  previousROM: 45
+  previousTightness: moderate to severe
+  ieBaseline:
+    pain: 7.5
+    rom: 40
+    pattern: Qi-Blood Stagnation
+
+subjective:
+  painScale:
+    worst: 7
+    best: 4
+    current: 5.5
+  chronicityLevel: Chronic
+  severityLevel: moderate
+  painChange: "Improved since last visit, less radiating pain"
+  sleepQuality: "Better, can sleep on right side now"
+  functionalImprovement: "Can stand for 30 min without pain (was 15 min)"
+
+objective:
+  inspection: "Posture improved, less antalgic lean"
+  palpation: "Reduced tenderness at L4-L5, QL less tight"
+  rom:
+    current: 60
+    normal: 90
+  tightness: moderate
+  specialTests: "SLR improved to 50° (was 35°)"
+  tongue: "Slightly purple, thin coating"
+  pulse: "Wiry (弦脉)"
+
+assessment:
+  primaryBodyPart: LOW_BACK
+  localPattern: Qi-Blood Stagnation (resolving)
+  systemicPattern: Liver Qi Stagnation
+  generalCondition: fair
+  symptomChange: improvement
+  progressNote: "Pain ↓1.0, ROM ↑15°, tightness improved by 1 grade"
+
+plan:
+  treatmentPrinciple: "Continue to Move Qi, Invigorate Blood, Relax tendons"
+  acupuncturePoints:
+    - BL23 (Shenshu)
+    - BL25 (Dachangshu)
+    - BL40 (Weizhong)
+    - GB30 (Huantiao)
+    - LV3 (Taichong)
+  techniques:
+    - Electroacupuncture on BL23-BL25 (2Hz)
+    - Cupping on lumbar region
+    - Retention time: 30 minutes
+  homeAdvice: "Continue stretches, apply heat before exercise"
+  frequency: "2x/week, reassess after 2 more visits"
+  contraindications: []
+
+auditResults:
+  layer1:
+    result: PASS
+    violations: []
+    longitudinalChecks:
+      - V01: PASS (pain 6.5→5.5, decreased ✓)
+      - V02: PASS (tightness improved ✓)
+      - V03: PASS (ROM 45→60, improved ✓)
+  layer2:
+    result: PASS
+    concerns: []
+  layer3:
+    similarity: 0.92
+    matchedCase: TEMPLATE_LBP_QI_BLOOD_STAGNATION
+  overallQuality: 100
+
+notes: |
+  Excellent TX note showing clear improvement trajectory.
+  All metrics improved: pain ↓1.0, ROM ↑15°, tightness ↓1 grade.
+  S-O-A chain perfectly aligned: subjective improvement → objective gains → assessment confirms progress.
+  No longitudinal violations (V01-V03 all pass).

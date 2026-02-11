@@ -1,0 +1,91 @@
+---
+metadata:
+  caseId: EDGE_IE_PAIN_LOWER_BOUND
+  type: edge-case
+  category: Initial Evaluation
+  bodyPart: KNEE
+  edgeType: IE01_LOWER_BOUNDARY
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 48
+  gender: Female
+  chiefComplaint: Left knee pain with stiffness, difficulty climbing stairs
+
+subjective:
+  painScale:
+    worst: 8
+    best: 4
+    current: 6.0  # ✓ EDGE: IE01 下限 (6.0), 刚好通过
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "5 months, gradual onset"
+  triggers: "Stairs, prolonged standing, cold weather"
+  characteristics: "Deep aching pain with occasional sharp twinge on flexion"
+  adlImpact: "Difficulty squatting, climbing stairs"
+
+objective:
+  inspection: "Mild swelling medial knee, no erythema"
+  palpation: "Tender medial joint line, warmth present"
+  rom:
+    current: 110
+    normal: 135
+  tightness: moderate
+  specialTests: "McMurray test negative, valgus stress mild tenderness"
+  tongue: "Pale with thin white coating"
+  pulse: "Deep, weak (沉弱)"
+
+assessment:
+  primaryBodyPart: KNEE
+  localPattern: Qi and Blood Stagnation
+  systemicPattern: Kidney Qi Deficiency
+  generalCondition: fair
+  diagnosis: "Knee osteoarthritis - TCM: 膝痹 (Xi Bi)"
+  prognosis: "Good, requires 6-8 weeks treatment"
+
+plan:
+  treatmentPrinciple: "Tonify Kidney Qi, Move Qi and Blood, Relax tendons"
+  acupuncturePoints:
+    - ST35 (Dubi)
+    - ST34 (Liangqiu)
+    - SP9 (Yinlingquan)
+    - GB34 (Yanglingquan)
+    - KI3 (Taixi)
+    - BL23 (Shenshu)
+  techniques:
+    - Warming needle on ST35, GB34
+    - Moxibustion on BL23
+    - Retention time: 30 minutes
+  homeAdvice: "Gentle ROM exercises, keep knee warm, avoid prolonged kneeling"
+  frequency: "2x/week for 4 weeks, then reassess"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 6.0, exactly at lower bound ✓)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+  layer2:
+    result: PASS
+  overallResult: PASS
+
+notes: |
+  边界案例: IE01 规则下限测试。
+
+  关键边界:
+  - Pain = 6.0 (IE01 下限: 6 ≤ pain ≤ 8)
+  - 刚好满足保险标准,应该 PASS
+
+  测试目的:
+  验证审查系统正确处理边界值 (6.0 应该通过, 5.9 应该失败)
+
+  预期行为:
+  IE01 检查 PASS, 整体审查结果 PASS

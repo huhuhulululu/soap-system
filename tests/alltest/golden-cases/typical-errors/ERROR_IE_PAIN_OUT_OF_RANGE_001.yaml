@@ -1,0 +1,99 @@
+---
+metadata:
+  caseId: ERROR_IE_PAIN_OUT_OF_RANGE_001
+  type: typical-error
+  category: Initial Evaluation
+  bodyPart: SHOULDER
+  errorType: IE_STANDARD_VIOLATION
+  expectedViolation: IE01
+  qualityScore: 0
+  auditResult: FAIL
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 45
+  gender: Female
+  chiefComplaint: Right shoulder pain
+
+subjective:
+  painScale:
+    worst: 6
+    best: 3
+    current: 4.5  # ❌ VIOLATION: IE 笔记 pain 必须 6-8, 这里是 4.5
+  chronicityLevel: Chronic
+  severityLevel: mild to moderate  # ❌ VIOLATION: IE 必须是 "moderate to severe"
+  duration: "6 months"
+  characteristics: "Mild aching, occasional sharp pain on overhead movement"
+
+objective:
+  inspection: "Normal shoulder contour"
+  palpation: "Mild tenderness anterior shoulder"
+  rom:
+    current: 150
+    normal: 180
+  tightness: mild
+  specialTests: "Neer test mildly positive"
+  tongue: "Pale, thin coating"
+  pulse: "Moderate"
+
+assessment:
+  primaryBodyPart: SHOULDER
+  localPattern: Qi Stagnation
+  systemicPattern: Qi Deficiency
+  generalCondition: good  # ❌ VIOLATION: IE 必须是 "fair"
+  prognosis: "Excellent"
+
+plan:
+  treatmentPrinciple: "Move Qi, relax tendons"
+  acupuncturePoints:
+    - LI15 (Jianyu)
+    - SI9 (Jianzhen)
+  frequency: "1x/week for 4 weeks"
+
+expectedAuditResults:
+  layer1:
+    result: FAIL
+    violations:
+      - ruleId: IE01
+        severity: CRITICAL
+        issue: "IE 笔记 pain (4.5) 不在标准区间 [6, 8]"
+        suggestion: "IE 笔记的 pain 应为 6-8 之间"
+      - ruleId: IE02
+        severity: CRITICAL
+        issue: "IE 笔记 severity 为 'mild to moderate', 不符合标准"
+        suggestion: "IE 笔记必须使用 'moderate to severe'"
+      - ruleId: IE04
+        severity: CRITICAL
+        issue: "IE 笔记 general condition 为 'good', 不符合标准"
+        suggestion: "IE 笔记必须使用 'fair'"
+  layer2:
+    result: PASS
+  overallResult: FAIL
+
+notes: |
+  典型错误案例: IE 笔记不符合保险报销标准。
+
+  违规点:
+  1. IE01: Pain = 4.5 (标准: 6-8)
+  2. IE02: Severity = "mild to moderate" (标准: "moderate to severe")
+  3. IE04: General condition = "good" (标准: "fair")
+
+  业务背景:
+  保险公司对初诊 (IE) 有严格标准,确保只有符合条件的患者才能获得理赔:
+  - Pain 6-8: 中度到重度疼痛,证明需要治疗
+  - Severity "moderate to severe": 严重程度符合慢性疼痛管理标准
+  - Chronicity "Chronic": 持续时间 > 3个月
+  - General condition "fair": 整体状况需要改善
+
+  错误原因:
+  此案例中患者症状较轻 (pain 4.5, mild severity),
+  不应该接受为 IE 笔记,应该:
+  1. 拒绝接诊 (症状不够严重)
+  2. 或建议患者等症状加重再就诊
+  3. 或使用 TX 笔记而非 IE 笔记
+
+  审查系统作用:
+  触发 3 个 CRITICAL 违规,自动拒绝此笔记,
+  防止医生提交不符合保险标准的 IE 笔记导致拒赔。

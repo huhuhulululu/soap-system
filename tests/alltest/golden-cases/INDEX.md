@@ -1,11 +1,25 @@
-# 黄金案例库索引
+# Golden Cases Index
 
-## 统计信息
+## Overview
 
-- **总案例数**: 待补充（计划 11 个：优秀 8 + 错误 3）
-- **覆盖部位**: KNEE, LBP, SHOULDER, NECK, ELBOW
-- **覆盖证型**: 5 个主要证型
-- **最后更新**: 2026-02-11
+This directory contains **golden cases** for testing the SOAP Audit System. Golden cases are carefully curated examples that serve as:
+
+1. **Quality Benchmarks**: Excellent cases demonstrating perfect SOAP notes
+2. **Error Detection**: Typical error cases for validating the audit engine
+3. **Edge Case Testing**: Boundary conditions and unusual scenarios
+
+The golden cases library enables comprehensive testing of all three audit layers:
+- **Layer 1**: Rule Compliance Engine (deterministic rules)
+- **Layer 2**: Medical Logic Checker (heuristic rules)
+- **Layer 3**: Similarity Detection (AI-based pattern matching)
+
+## Statistics
+
+- **Total Cases**: 17 (5 excellent + 5 typical-errors + 7 edge-cases)
+- **Body Parts Covered**: 5 (KNEE, SHOULDER, ELBOW, LOW_BACK, NECK)
+- **Patterns Covered**: 8 unique TCM patterns
+- **Rules Tested**: 18 out of 26 implemented rules (69%)
+- **Last Updated**: 2026-02-10
 
 ---
 

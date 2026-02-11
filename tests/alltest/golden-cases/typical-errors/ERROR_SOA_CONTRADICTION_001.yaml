@@ -1,0 +1,98 @@
+---
+metadata:
+  caseId: ERROR_SOA_CONTRADICTION_001
+  type: typical-error
+  category: Treatment Visit
+  bodyPart: LOW_BACK
+  errorType: SOA_CHAIN_VIOLATION
+  expectedViolation: AC-4.1
+  qualityScore: 0
+  auditResult: FAIL
+  createdBy: Agent2-CaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 48
+  gender: Male
+  chiefComplaint: Lower back pain follow-up
+
+context:
+  visitNumber: 5
+  previousPain: 6.0
+  previousROM: 50
+  previousTightness: moderate to severe
+  ieBaseline:
+    pain: 7.5
+    rom: 40
+
+subjective:
+  painScale:
+    worst: 7
+    best: 3
+    current: 4.5  # Pain 下降了 1.5 分 (6.0 → 4.5)
+  chronicityLevel: Chronic
+  severityLevel: moderate
+  painChange: "Better since last visit, less sharp pain"
+  functionalImprovement: "Can bend forward more easily"
+  sleepQuality: "Good, minimal disruption"
+
+objective:
+  inspection: "Posture improved, stands straighter"
+  palpation: "Less tender paraspinals, QL less tight"
+  rom:
+    current: 65  # ROM 改善了 15° (50 → 65)
+  tightness: moderate  # Tightness 改善了 (moderate to severe → moderate)
+  specialTests: "SLR improved to 60°"
+  tongue: "Pale, thin white coating"
+  pulse: "Moderate"
+
+assessment:
+  primaryBodyPart: LOW_BACK
+  localPattern: Kidney Yang Deficiency
+  systemicPattern: Qi Deficiency
+  generalCondition: fair
+  symptomChange: exacerbate  # ❌ VIOLATION: Pain ↓1.5 但说 "exacerbate"
+  progressNote: "Patient condition deteriorating despite treatment"  # ❌ 完全矛盾
+
+plan:
+  treatmentPrinciple: "Aggressive intervention needed"
+  acupuncturePoints:
+    - BL23 (Shenshu)
+    - BL40 (Weizhong)
+    - GV4 (Mingmen)
+  techniques:
+    - Increase treatment intensity
+    - Add moxibustion
+  frequency: "Increase to 3x/week"  # ❌ 症状改善却增加频率?
+
+expectedAuditResults:
+  layer1:
+    result: FAIL
+    violations:
+      - ruleId: AC-4.1
+        severity: HIGH
+        issue: "pain 下降 1.5 但 symptomChange 为 'exacerbate'"
+        suggestion: "应改为 'improvement' 或 'slight improvement'"
+  layer2:
+    result: WARNING
+    concerns:
+      - ruleId: HS10
+        severity: LOW
+        detail: "所有客观指标改善,但主观评估矛盾"
+  overallResult: FAIL
+
+notes: |
+  典型错误案例: S-O-A 链逻辑矛盾。
+
+  违规点:
+  1. AC-4.1: Pain ↓1.5, ROM ↑15°, Tightness ↓1 grade, 但 Assessment 说 "exacerbate"
+  2. Plan 建议增加治疗频率,与实际改善情况不符
+
+  错误根源:
+  - 可能是复制粘贴错误 (copy-paste from previous note)
+  - 或医生评估与客观数据脱节
+
+  审查系统作用:
+  此类矛盾会导致保险公司拒赔 (documented improvement contradicts treatment escalation)
+  应触发 HIGH severity violation 要求人工审核。

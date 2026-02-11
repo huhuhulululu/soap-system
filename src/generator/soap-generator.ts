@@ -256,17 +256,22 @@ function getDifficultyFactor(difficulty: ROMDifficulty): number {
 }
 
 /**
- * 肌力等级循环数组 (来自 v9.0, 按 difficulty 分组)
+ * 肌力等级 - 根据 Pain 和 difficulty 计算
+ * Pain 高 → Strength 低
  */
-const STRENGTH_GRADES: Record<ROMDifficulty, string[]> = {
-  EASY:   ['5/5',  '5/5',  '5/5',  '4+/5', '4+/5'],
-  MEDIUM: ['4+/5', '4/5',  '4/5',  '4-/5', '4-/5'],
-  HARD:   ['4/5',  '4-/5', '3+/5', '3/5',  '3/5']
-}
-
-function getStrengthByDifficulty(difficulty: ROMDifficulty, index: number): string {
-  const grades = STRENGTH_GRADES[difficulty]
-  return grades[index % grades.length]
+function getStrengthByPainAndDifficulty(painLevel: number, difficulty: ROMDifficulty): string {
+  // Pain 0-3: 5/5, Pain 4-5: 4+/5, Pain 6-7: 4/5, Pain 8-9: 4-/5, Pain 10: 3+/5
+  const baseGrades = ['5/5', '5/5', '5/5', '5/5', '4+/5', '4+/5', '4/5', '4/5', '4-/5', '4-/5', '3+/5']
+  const painInt = Math.round(Math.min(painLevel, 10))
+  const baseGrade = baseGrades[painInt]
+  
+  // HARD difficulty 再降一级
+  if (difficulty === 'HARD') {
+    const ladder = ['3/5', '3+/5', '4-/5', '4/5', '4+/5', '5/5']
+    const idx = ladder.indexOf(baseGrade)
+    return idx > 0 ? ladder[idx - 1] : '3/5'
+  }
+  return baseGrade
 }
 
 /**
@@ -1016,7 +1021,9 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     const ladder = ['3/5', '3+/5', '4-/5', '4/5', '4+/5', '5/5']
     const idx = ladder.indexOf(strength)
     if (idx < 0) return strength
-    return ladder[Math.max(0, Math.min(ladder.length - 1, idx + step))]
+    // 最高只能提升到 4+/5，不能到 5/5（除非原本就是 5/5）
+    const maxIdx = strength === '5/5' ? 5 : 4
+    return ladder[Math.max(0, Math.min(maxIdx, idx + step))]
   }
 
   /**
@@ -1031,11 +1038,8 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     const painVariation = [-1, 0, 1][variationSeed]
     const effectivePain = Math.max(1, Math.min(10, adjustedPain + painVariation))
 
-    // v9.0 核心公式
-    // Strength: TX 模式下 HARD 动作随 progress 降级为 MEDIUM (模板选项: 4+/5~2-/5)
-    const strengthDifficulty: ROMDifficulty = (visitState && rom.difficulty === 'HARD' && visitState.progress > 0.6)
-      ? 'MEDIUM' : rom.difficulty
-    let strength = getStrengthByDifficulty(strengthDifficulty, index + sideOffset)
+    // Strength 根据 Pain 计算
+    let strength = getStrengthByPainAndDifficulty(effectivePain, rom.difficulty)
     if (visitState) {
       const step = visitState.progress > 0.7 ? 2 : visitState.progress > 0.45 ? 1 : 0
       strength = bumpStrength(strength, step)

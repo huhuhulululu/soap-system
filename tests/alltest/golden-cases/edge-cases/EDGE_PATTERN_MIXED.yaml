@@ -1,0 +1,118 @@
+---
+metadata:
+  caseId: EDGE_PATTERN_MIXED
+  type: edge-case
+  category: Initial Evaluation
+  bodyPart: KNEE
+  edgeType: HS06_COMPLEX_PATTERN
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 54
+  gender: Male
+  chiefComplaint: Bilateral knee pain with swelling and weakness
+
+subjective:
+  painScale:
+    worst: 8
+    best: 5
+    current: 7
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "9 months, gradual onset with periodic flare-ups"
+  triggers: "Damp weather, prolonged standing, fatigue"
+  characteristics: "Heavy aching with heat sensation during flare-ups, fatigue worsens symptoms"
+  adlImpact: "Difficulty standing for work, stairs challenging, energy low"
+
+objective:
+  inspection: "Bilateral knee mild effusion, slight warmth, no erythema"
+  palpation: "Tender medial joint lines bilaterally, warmth to touch, soft tissue edema"
+  rom:
+    current: 115
+    normal: 135
+  tightness: moderate
+  specialTests: "McMurray negative, mild valgus laxity bilaterally"
+  tongue: "Pale body with yellow greasy coating"  # ✓ EDGE: 虚证(淡)+ 湿热证(苔黄腻)
+  pulse: "Weak and slippery (弱滑)"  # ✓ EDGE: 虚证(弱)+ 湿证(滑)
+
+assessment:
+  primaryBodyPart: KNEE
+  localPattern: Damp-Heat Accumulation  # ✓ 实证成分: 湿热
+  systemicPattern: Qi Deficiency  # ✓ 虚证成分: 气虚
+  generalCondition: fair
+  diagnosis: "Knee osteoarthritis with effusion - TCM: 膝痹 (湿热痹阻,气虚失运)"
+  prognosis: "Moderate, requires 8-10 weeks treatment addressing both excess and deficiency"
+  diagnosticNotes: "Complex mixed pattern - Qi Deficiency (pale tongue, weak pulse, fatigue) with Damp-Heat accumulation (yellow greasy coating, warmth, swelling)"
+
+plan:
+  treatmentPrinciple: "Clear Damp-Heat, Tonify Qi, Move Qi and drain dampness"
+  acupuncturePoints:
+    - ST35 (Dubi)  # Clear local Damp-Heat
+    - ST34 (Liangqiu)  # Clear Heat, stop pain
+    - SP9 (Yinlingquan)  # Resolve Dampness
+    - SP6 (Sanyinjiao)  # Strengthen Spleen, resolve Damp
+    - ST36 (Zusanli)  # Tonify Qi
+    - BL20 (Pishu)  # Strengthen Spleen Qi
+    - LV8 (Ququan)  # Clear Damp-Heat from lower jiao
+  techniques:
+    - Reducing method on ST35, SP9 (clear Damp-Heat)
+    - Tonifying method on ST36, BL20 (strengthen Qi)
+    - Even method on SP6
+    - Retention time: 35 minutes
+  herbalConsideration: "Si Miao San (清热) + Bu Zhong Yi Qi Tang (补气) - refer to herbalist"
+  homeAdvice: "Elevate legs when resting, avoid damp environments, moderate activity to build strength, dietary advice: avoid greasy/sweet foods"
+  frequency: "3x/week for first 4 weeks, then reassess"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 7, within 6-8 ✓)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+  layer2:
+    result: PASS
+    concerns: []
+    patternChecks:
+      - HS06: PASS (complex mixed pattern handled correctly ✓)
+      - Pattern: Qi Deficiency (pale tongue, weak pulse) + Damp-Heat (yellow greasy coating, warmth, swelling)
+      - Tongue: Pale body (虚) + yellow greasy coating (湿热) - valid mixed presentation
+      - Pulse: Weak (虚) + slippery (湿) - consistent with mixed pattern
+      - Treatment: Appropriately addresses both deficiency (tonify) and excess (clear)
+  overallResult: PASS
+
+notes: |
+  边界案例: HS06 规则复杂证型测试。
+
+  关键边界:
+  - 虚实夹杂证型 (Qi Deficiency + Damp-Heat)
+  - 舌象: 淡(虚) + 苔黄腻(湿热)
+  - 脉象: 弱(虚) + 滑(湿)
+  - 治则: 清热祛湿 + 补气健脾
+
+  测试目的:
+  验证审查系统 HS06 在复杂情况下的表现:
+  - 虚实夹杂是临床常见情况,不应触发矛盾警告
+  - 舌脉可以同时有虚证和实证特征
+  - 治疗原则应同时处理虚证和实证
+
+  临床意义:
+  真实临床场景中,纯虚或纯实较少见。
+  气虚患者运化无力,容易湿邪内停,形成虚实夹杂。
+  治疗必须标本兼治,既清湿热(治标),又补气(治本)。
+
+  HS06 规则应识别:
+  - 证型组合合理(气虚 + 湿热 常见组合)
+  - 舌脉支持混合诊断
+  - 治疗原则平衡虚实
+
+  预期行为:
+  HS06 检查 PASS (识别为合理的混合证型)
+  整体审查结果 PASS

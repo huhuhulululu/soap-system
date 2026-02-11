@@ -1,0 +1,102 @@
+---
+metadata:
+  caseId: EDGE_PAIN_SCALE_BOUNDARIES_2
+  type: edge-case
+  category: Initial Evaluation
+  bodyPart: HIP
+  edgeType: AC_3_2_UPPER_BOUNDARY
+  qualityScore: 100
+  auditResult: PASS
+  createdBy: Agent-EdgeCaseGenerator
+  createdAt: 2026-02-10
+  validated: true
+
+patient:
+  age: 58
+  gender: Female
+  chiefComplaint: Right hip pain with difficulty walking
+
+subjective:
+  painScale:
+    worst: 8
+    best: 4
+    current: 8  # ✓ EDGE: current = worst (AC-3.2 上限边界: best ≤ current ≤ worst)
+  chronicityLevel: Chronic
+  severityLevel: moderate to severe
+  duration: "10 months, gradual worsening"
+  triggers: "Weight bearing, stairs, getting up from sitting"
+  characteristics: "Deep aching in groin, sharp pain on rotation"
+  adlImpact: "Requires cane for walking, difficulty with shoes/socks"
+
+objective:
+  inspection: "Antalgic gait, favoring right leg"
+  palpation: "Deep tenderness anterior hip, restricted internal rotation"
+  rom:
+    current: 80
+    normal: 120
+  tightness: severe
+  specialTests: "FABER test positive, Thomas test positive for hip flexor tightness"
+  tongue: "Pale purple with thin coating"
+  pulse: "Deep, choppy (沉涩)"
+
+assessment:
+  primaryBodyPart: HIP
+  localPattern: Qi and Blood Stagnation
+  systemicPattern: Kidney and Liver Deficiency
+  generalCondition: fair
+  diagnosis: "Hip osteoarthritis - TCM: 髋痹 (Kuan Bi)"
+  prognosis: "Moderate, requires long-term management 12+ weeks"
+
+plan:
+  treatmentPrinciple: "Tonify Kidney and Liver, Move Qi and Blood, Relax tendons"
+  acupuncturePoints:
+    - GB30 (Huantiao)
+    - GB34 (Yanglingquan)
+    - ST31 (Biguan)
+    - BL54 (Zhibian)
+    - KI3 (Taixi)
+    - LV8 (Ququan)
+    - BL23 (Shenshu)
+  techniques:
+    - Deep needling GB30 with rotation
+    - Warming needle on BL23
+    - Moxibustion on KI3
+    - Retention time: 35 minutes
+  homeAdvice: "Use cane, hip flexor stretches, avoid prolonged sitting, heat therapy"
+  frequency: "3x/week for 8 weeks, then reassess"
+  contraindications: []
+
+expectedAuditResults:
+  layer1:
+    result: PASS
+    violations: []
+    ieChecks:
+      - IE01: PASS (pain = 8, within 6-8 ✓)
+      - IE02: PASS (severity = moderate to severe ✓)
+      - IE03: PASS (chronicity = Chronic ✓)
+      - IE04: PASS (general condition = fair ✓)
+    formatChecks:
+      - AC_3_2: PASS (4 ≤ 8 ≤ 8, current = worst, boundary satisfied ✓)
+  layer2:
+    result: PASS
+  overallResult: PASS
+
+notes: |
+  边界案例: AC-3.2 规则上限边界测试。
+
+  关键边界:
+  - best = 4, current = 8, worst = 8
+  - AC-3.2 规则: best ≤ current ≤ worst
+  - current = worst (上限), 刚好满足
+
+  测试目的:
+  验证审查系统正确处理 pain scale 边界:
+  - current = worst 应该 PASS
+  - current > worst 应该触发 AC-3.2 FAIL
+
+  临床意义:
+  患者当前处于最严重状态 (疼痛最重时),
+  合理的初诊场景,患者在疼痛高峰期寻求治疗。
+
+  预期行为:
+  AC-3.2 检查 PASS, 整体审查结果 PASS
