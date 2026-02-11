@@ -138,10 +138,14 @@ const copiedIndex = ref(-1)
 
 function generate() {
   try {
+    const ctx = generationContext.value
+    // TX 上下文: noteType 切为 TX，其余继承
+    const txCtx = { ...ctx, noteType: 'TX' }
+
     if (noteType.value === 'IE') {
       // IE 模式：生成 IE + 11个 TX
-      const ieText = exportSOAPAsText(generationContext.value, {})
-      const states = generateTXSequenceStates(generationContext.value, {
+      const ieText = exportSOAPAsText(ctx, {})
+      const states = generateTXSequenceStates(txCtx, {
         txCount: 11,
         startVisitIndex: 1
       })
@@ -149,19 +153,19 @@ function generate() {
         { visitIndex: 0, text: ieText, type: 'IE', _open: false },
         ...states.map(state => ({
           visitIndex: state.visitIndex,
-          text: exportSOAPAsText(generationContext.value, state),
+          text: exportSOAPAsText(txCtx, state),
           type: 'TX',
           _open: false
         }))
       ]
     } else {
-      const states = generateTXSequenceStates(generationContext.value, {
+      const states = generateTXSequenceStates(txCtx, {
         txCount: txCount.value,
         startVisitIndex: 1
       })
       generatedNotes.value = states.map(state => ({
         visitIndex: state.visitIndex,
-        text: exportSOAPAsText(generationContext.value, state),
+        text: exportSOAPAsText(txCtx, state),
         type: 'TX',
         _open: false
       }))

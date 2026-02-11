@@ -1002,7 +1002,8 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
 
   // ==================== ROM评估 (v9.0 引擎) ====================
   const romData = ROM_MAP[bp]
-  const romType = (bp === 'NECK' || bp === 'LBP') ? 'Spine ROM' : 'Joint ROM'
+  const isSpine = bp === 'NECK' || bp === 'LBP' || bp === 'MIDDLE_BACK' || bp === 'UPPER_BACK'
+  const romType = isSpine ? 'Spine ROM' : 'Joint ROM'
 
   // v9.0: 用 pain level 驱动 (整数), 而非 severity 字符串
   // IE 用 severity 推断 pain, TX 用 visitState.painScaleCurrent
@@ -1137,7 +1138,7 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     objective += `${romLabel} Muscles Strength and ${romType}${romSuffix}\n`
 
     if (romData) {
-      const degreeLabel = (bp === 'LBP' || bp === 'NECK') ? 'Degrees' : 'degree'
+      const degreeLabel = isSpine ? 'Degrees' : 'degree'
       const romAdj = visitState ? Math.min(10, Math.round((visitState.progress * 8) + (visitState.soaChain.objective.romTrend === 'improved' ? 3 : 1))) : 0
       romData.forEach((rom, index) => {
         const { strength, romValue, limitation } = computeRom(rom, index, 0, painLevel, romAdj)
@@ -1147,8 +1148,8 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     objective += `\n`
   }
 
-  // KNEE / LBP / NECK: Inspection 在 ROM 之后 (格式: "Inspection: [value]")
-  if (bp === 'KNEE' || bp === 'LBP' || bp === 'NECK') {
+  // Inspection 在 ROM 之后 (SHOULDER 已在前面输出, 其余部位在此输出)
+  if (bp !== 'SHOULDER') {
     objective += `Inspection: ${visitState?.inspection ?? inspectionDefault}\n\n`
   }
 
