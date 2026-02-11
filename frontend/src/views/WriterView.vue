@@ -232,28 +232,86 @@ function copyAll() {
   setTimeout(() => copiedIndex.value = -1, 1500)
 }
 
+// 简化 frequency 文本: "Constant (symptoms occur...)" → "Constant"
+function shortFreq(f) {
+  if (!f) return ''
+  return f.split('(')[0].trim()
+}
+
+// 简化 spasm: "(+3)=>1 but..." → "+3"
+function shortSpasm(s) {
+  if (!s) return ''
+  const m = s.match(/\(([^)]+)\)/)
+  return m ? m[1] : s
+}
+
+// 简化 tightness: 取首字母大写
+function shortTight(t) {
+  if (!t) return ''
+  const map = { 'severe': 'Sev', 'moderate to severe': 'M-S', 'moderate': 'Mod', 'mild to moderate': 'Mi-M', 'mild': 'Mild' }
+  return map[t.toLowerCase()] || t
+}
+
+// 简化 tenderness: "(+3) = Patient complains..." → "+3"
+function shortTender(t) {
+  if (!t) return ''
+  const m = t.match(/\(([^)]+)\)/)
+  return m ? m[1] : t
+}
+
 // 提取评估变化摘要 (用于折叠栏展示)
 function getNoteSummary(note, idx) {
   if (!note.state || note.type === 'IE') return null
   const s = note.state
-  // 获取前一个 TX 的数据用于对比
   const prevNote = idx > 0 ? generatedNotes.value[idx - 1] : null
   const prevState = prevNote?.state
   const prevPain = prevState ? prevState.painScaleLabel : '8'
   const prevSymptom = prevState?.symptomScale || '70%'
+  const prevFreq = prevState ? shortFreq(prevState.painFrequency) : 'Constant'
+  const prevTight = prevState ? shortTight(prevState.tightnessGrading) : ''
+  const prevTender = prevState ? shortTender(prevState.tendernessGrading) : ''
+  const prevSpasm = prevState ? shortSpasm(prevState.spasmGrading) : ''
 
-  const items = []
-  // Pain 变化
-  items.push({ label: 'Pain', from: prevPain, to: s.painScaleLabel })
-  // Symptom Scale
+  // 数值变化项
+  const values = []
+  values.push({ label: 'Pain', from: prevPain, to: s.painScaleLabel })
   if (s.symptomScale) {
-    items.push({ label: 'Symptom', from: prevSymptom, to: s.symptomScale })
+    values.push({ label: 'Sx', from: prevSymptom, to: s.symptomScale })
   }
-  // Severity
-  if (prevState && prevState.severityLevel !== s.severityLevel) {
-    items.push({ label: 'Severity', from: prevState.severityLevel, to: s.severityLevel })
+  const curFreq = shortFreq(s.painFrequency)
+  if (curFreq && curFreq !== prevFreq) {
+    values.push({ label: 'Freq', from: prevFreq, to: curFreq })
   }
-  return items
+  const curTight = shortTight(s.tightnessGrading)
+  if (curTight && prevTight && curTight !== prevTight) {
+    values.push({ label: 'Tight', from: prevTight, to: curTight })
+  }
+  const curTender = shortTender(s.tendernessGrading)
+  if (curTender && prevTender && curTender !== prevTender) {
+    values.push({ label: 'Tender', from: prevTender, to: curTender })
+  }
+  const curSpasm = shortSpasm(s.spasmGrading)
+  if (curSpasm && prevSpasm && curSpasm !== prevSpasm) {
+    values.push({ label: 'Spasm', from: prevSpasm, to: curSpasm })
+  }
+
+  // 趋势项 (来自 soaChain)
+  const trends = []
+  const chain = s.soaChain
+  if (chain?.objective?.romTrend && chain.objective.romTrend !== 'stable') {
+    trends.push({ label: 'ROM', trend: chain.objective.romTrend })
+  }
+  if (chain?.objective?.strengthTrend && chain.objective.strengthTrend !== 'stable') {
+    trends.push({ label: 'ST', trend: chain.objective.strengthTrend })
+  }
+  if (chain?.subjective?.frequencyChange === 'improved') {
+    trends.push({ label: 'Freq', trend: 'improved' })
+  }
+  if (chain?.subjective?.adlChange === 'improved') {
+    trends.push({ label: 'ADL', trend: 'improved' })
+  }
+
+  return { values, trends }
 }
 
 // 多选面板展开状态
@@ -410,18 +468,27 @@ function fieldLabel(path) {
           </div>
           <div v-for="(note, idx) in generatedNotes" :key="idx" class="bg-white rounded-xl border border-ink-200 mb-3">
             <!-- 折叠栏头部 -->
-            <div class="px-4 py-2.5 border-b border-ink-100 cursor-pointer" @click="note._open = !note._open">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                  <span class="text-xs font-mono bg-ink-100 text-ink-600 px-2 py-0.5 rounded">{{ note.type }}{{ note.visitIndex || '' }}</span>
+            <div class="px-4 py-2 border-b border-ink-100 cursor-pointer" @click="note._open = !note._open">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <span class="text-xs font-mono bg-ink-100 text-ink-600 px-2 py-0.5 rounded flex-shrink-0">{{ note.type }}{{ note.visitIndex || '' }}</span>
                   <!-- 评估变化指标 -->
-                  <div v-if="getNoteSummary(note, idx)" class="flex items-center gap-2">
-                    <span v-for="item in getNoteSummary(note, idx)" :key="item.label"
-                      class="text-[10px] text-ink-400 font-mono">
-                      <span class="text-ink-500">{{ item.label }}</span>
-                      <span class="text-ink-300 mx-0.5">{{ item.from }}</span>
-                      <span class="text-ink-400">&rarr;</span>
+                  <div v-if="getNoteSummary(note, idx)" class="flex items-center gap-x-2 gap-y-0.5 flex-wrap min-w-0">
+                    <!-- 数值变化 -->
+                    <span v-for="item in getNoteSummary(note, idx).values" :key="'v-'+item.label"
+                      class="text-[10px] font-mono whitespace-nowrap">
+                      <span class="text-ink-400">{{ item.label }}</span>
+                      <span class="text-ink-300 mx-px">{{ item.from }}</span>
+                      <span class="text-ink-300">&rarr;</span>
                       <span class="font-medium" :class="item.from !== item.to ? 'text-green-600' : 'text-ink-400'">{{ item.to }}</span>
+                    </span>
+                    <!-- 趋势标签 -->
+                    <span v-for="item in getNoteSummary(note, idx).trends" :key="'t-'+item.label"
+                      class="text-[9px] px-1.5 py-px rounded-full whitespace-nowrap"
+                      :class="item.trend.includes('improved') || item.trend.includes('reduced')
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-amber-50 text-amber-600'">
+                      {{ item.label }} {{ item.trend === 'improved' || item.trend === 'reduced' ? '&uarr;' : '~' }}
                     </span>
                   </div>
                 </div>
