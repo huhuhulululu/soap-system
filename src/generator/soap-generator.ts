@@ -592,9 +592,15 @@ export function generateSubjective(context: GenerationContext): string {
   const durationValue = context.symptomDuration?.value ?? '3'
   const durationUnit = context.symptomDuration?.unit ?? 'month(s)'
   const radiation = context.painRadiation ?? 'without radiation'
-  // Pain worst/best 从 current 推导
   const painWorst = Math.min(10, painCurrent + 1)
   const painBest = Math.max(1, painCurrent - 2)
+  // 病因和缓解因素: 优先用户选择，回退到部位推导
+  const causatives = context.causativeFactors && context.causativeFactors.length > 0
+    ? context.causativeFactors
+    : ['age related/degenerative changes']
+  const relievers = context.relievingFactors && context.relievingFactors.length > 0
+    ? context.relievingFactors
+    : ['Changing positions', 'Resting', 'Massage']
 
   // 根据证型选择疼痛类型
   const painTypeOptions = ['Dull', 'Burning', 'Freezing', 'Shooting', 'Tingling', 'Stabbing', 'Aching', 'Squeezing', 'Cramping', 'pricking', 'weighty', 'cold', 'pin & needles']
@@ -642,21 +648,18 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `-${bodyPartAreaName} (${radiation}) `
     subjective += `for ${durationValue} ${durationUnit} got worse in recent 1-2 month(s) `
     subjective += `associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) `
-    subjective += `${causativeConnector} age related/degenerative changes, over used due to nature of work.\n`
+    subjective += `${causativeConnector} ${causatives.join(', ')}.\n`
 
     // 加重因素 + ADL (同一段)
     // "The pain is [aggravated by] [factors], impaired performing ADL's with [severity] difficulty of [ADL activities]."
     subjective += `The pain is aggravated by ${selectedExac.join(', ')}, `
     subjective += `impaired performing ADL's with ${context.severityLevel} difficulty of ${selectedAdl.join(', ')}. `
 
-    // 缓解因素: "[Stretching] can temporarily relieve the pain slightly but limited."
-    subjective += `Stretching can temporarily relieve the pain slightly but limited. `
+    subjective += `${relievers.join(', ')} can temporarily relieve the pain slightly but limited. `
 
-    // 活动变化 + 未改善
     subjective += `Patient has decrease outside activity, `
     subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`
 
-    // 次要部位 - SHOULDER 格式: "Bilateral -shoulder area" (空格+连字符)
     if (context.secondaryBodyParts && context.secondaryBodyParts.length > 0) {
       const secondaryNames = context.secondaryBodyParts.map(b => BODY_PART_NAMES[b]).join(', ')
       subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the ${lateralityUpper} -${bodyPartAreaName} pain.\n\n`
@@ -672,9 +675,8 @@ export function generateSubjective(context: GenerationContext): string {
     // 但 ADL 用 SHOULDER 风格: "difficulty of" + 两组
     subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} ${radiation} . `
     subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent 1 week(s). `
-    subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} age related/degenerative changes.\n`
+    subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(', ')}.\n`
 
-    // 加重因素 + ADL (SHOULDER 风格: 合并为一段, "difficulty of" + 两组)
     const allAdl = selectBestOptions(weightedAdl, 4)
     const neckAdlGroup1 = allAdl.slice(0, 2)
     const neckAdlGroup2 = allAdl.slice(2, 4)
@@ -685,8 +687,7 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `impaired performing ADL's with ${context.severityLevel} difficulty of ${neckAdlGroup1.join(', ')} `
     subjective += `and ${context.severityLevel} difficulty of ${neckAdlGroup2.join(', ')}. `
 
-    // 缓解因素 (SHOULDER 风格)
-    subjective += `Stretching can temporarily relieve the pain slightly but limited. `
+    subjective += `${relievers.join(', ')} can temporarily relieve the pain slightly but limited. `
 
     // 活动变化 + 未改善
     subjective += `Patient has decrease outside activity, `
@@ -707,13 +708,12 @@ export function generateSubjective(context: GenerationContext): string {
     // "Patient c/o [Chronic] pain [in bilateral] Knee area which is [Dull, Aching] [without radiation]."
     subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} ${radiation}. `
     subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent 1 week(s). `
-    subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} age related/degenerative changes.\n\n`
+    subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(', ')}.\n\n`
 
-    // KNEE/LBP 模板格式: "The pain is [aggravated by] [factor] . There is [severity] difficulty with ADLs like [activities]."
     const selectedAdl = selectBestOptions(weightedAdl, 3)
     subjective += `The pain is aggravated by ${exacerbatingFactors.slice(0, 1).join(', ')} . There is ${context.severityLevel} difficulty with ADLs like ${selectedAdl.join(', ')}.\n\n`
 
-    subjective += `Changing positions, Resting, Massage can temporarily relieve the pain. `
+    subjective += `${relievers.join(', ')} can temporarily relieve the pain. `
     subjective += `Due to this condition patient has decrease outside activity. `
     subjective += `The pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`
 

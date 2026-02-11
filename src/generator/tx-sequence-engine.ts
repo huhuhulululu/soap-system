@@ -594,9 +594,13 @@ export function generateTXSequenceStates(
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0
   let prevAdl = 3.5
   let prevFrequency = options.initialState?.frequency ?? 3
-  let prevTightness = options.initialState?.tightness ?? 3
-  let prevTenderness = options.initialState?.tenderness ?? 3
-  let prevSpasm = options.initialState?.spasm ?? 3
+  // Tightness/Tenderness/Spasm 初始值: 从 pain 推导 (severe→4, mod-sev→3.5, mod→3, mi-mod→2, mild→1)
+  const initSeverity = severityFromPain(startPain)
+  const severityToInit: Record<string, number> = { 'severe': 4, 'moderate to severe': 3.5, 'moderate': 3, 'mild to moderate': 2, 'mild': 1 }
+  const initObjLevel = severityToInit[initSeverity] ?? 3
+  let prevTightness = options.initialState?.tightness ?? Math.round(initObjLevel)
+  let prevTenderness = options.initialState?.tenderness ?? Math.round(initObjLevel)
+  let prevSpasm = options.initialState?.spasm ?? Math.round(initObjLevel)
   let prevRomDeficit = 0.42
   let prevStrengthDeficit = 0.35
   // 纵向单调约束追踪变量
@@ -695,37 +699,11 @@ export function generateTXSequenceStates(
       NOISE_CAP
     )
 
-    // TX1 special handling: ensure pain decreases 0.5-1.5 from IE
-    let rawPain: number
-    let tx1Decrease: number | null = null
-    if (i === startIdx) {
-      const minDecrease = 0.5
-      const maxDecrease = 1.5
-      tx1Decrease = minDecrease + rng() * (maxDecrease - minDecrease)
-      rawPain = clamp(startPain - tx1Decrease, targetPain, startPain - minDecrease)
-    } else {
-      // Improvement-only: never worse than previous visit.
-      rawPain = clamp(Math.min(prevPain, expectedPain + painNoise), targetPain, startPain)
-    }
-    // 吸附到模板整数刻度
+    // 统一康复曲线: TX1-TX11 使用同一套逻辑，不强制 TX1 降幅
+    // pain 只允许保持或降低（≤ prevPain），允许平稳
+    const rawPain = clamp(Math.min(prevPain, expectedPain + painNoise), targetPain, startPain)
     const snapped = snapPainToGrid(rawPain)
-    // 纵向约束: 吸附后的值不能比上次高
-    let painScaleCurrent = Math.min(prevPain, snapped.value)
-
-    // TX1: ensure final pain respects 0.5-1.5 decrease even after snapping
-    if (i === startIdx && tx1Decrease !== null) {
-      const minDecrease = 0.5
-      const maxDecrease = 1.5
-      const targetTx1Pain = startPain - tx1Decrease
-      // If snapping pushed it back up, force the decrease
-      if (painScaleCurrent > startPain - minDecrease) {
-        painScaleCurrent = clamp(targetTx1Pain, targetPain, startPain - minDecrease)
-      }
-      // If it decreased too much, cap at maxDecrease
-      if (painScaleCurrent < startPain - maxDecrease) {
-        painScaleCurrent = startPain - maxDecrease
-      }
-    }
+    const painScaleCurrent = Math.min(prevPain, snapped.value)
 
     const painScaleLabel = painScaleCurrent < snapped.value
       ? snapPainToGrid(painScaleCurrent).label
@@ -771,8 +749,12 @@ export function generateTXSequenceStates(
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
 
-    const nextTightness = Math.max(1, prevTightness - (progress > 0.55 && rng() > 0.35 ? 1 : 0))
-    const nextTenderness = Math.max(1, prevTenderness - (progress > 0.50 && rng() > 0.45 ? 1 : 0))
+    // Tightness/Tenderness: 慢于 pain，有随机因子
+    // 递减概率随 progress 增加，但比 pain 滞后
+    const tightnessGate = progress > 0.40 && rng() > 0.40
+    const nextTightness = Math.max(1, prevTightness - (tightnessGate ? 1 : 0))
+    const tendernessGate = progress > 0.45 && rng() > 0.45
+    const nextTenderness = Math.max(1, prevTenderness - (tendernessGate ? 1 : 0))
     const tightnessTrend: 'reduced' | 'slightly reduced' | 'stable' =
       nextTightness < prevTightness ? (prevTightness - nextTightness >= 1 ? 'reduced' : 'slightly reduced') : 'stable'
     const tendernessTrend: 'reduced' | 'slightly reduced' | 'stable' =
@@ -780,15 +762,20 @@ export function generateTXSequenceStates(
     prevTightness = nextTightness
     prevTenderness = nextTenderness
 
-    // Spasm: 基于 progress 确定性递减, 比 tenderness 慢一拍
+    // Spasm: 基于 progress 分段目标 + rng 随机因子，纵向只降不升
     const spasmTarget = progress >= 0.85 ? 0 : progress >= 0.60 ? 1 : progress >= 0.40 ? 2 : 3
-    const nextSpasm = Math.min(prevSpasm, Math.max(spasmTarget, prevSpasm - 1))
+    const spasmGate = rng() > 0.4
+    const nextSpasm = Math.min(prevSpasm, spasmGate ? Math.max(spasmTarget, prevSpasm - 1) : prevSpasm)
     const spasmTrend: 'reduced' | 'slightly reduced' | 'stable' =
       nextSpasm < prevSpasm ? 'reduced' : 'stable'
     prevSpasm = nextSpasm
 
-    const nextRomDeficit = clamp(Math.min(prevRomDeficit, prevRomDeficit - (0.04 + rng() * 0.06)), 0.08, 0.6)
-    const nextStrengthDeficit = clamp(Math.min(prevStrengthDeficit, prevStrengthDeficit - (0.03 + rng() * 0.05)), 0.06, 0.6)
+    // ROM/Strength: 独立进度，滞后于 pain，互相联动
+    // romProgress 约为 pain progress 的 85%，strength 再滞后 5%
+    const romProgress = progress * 0.85
+    const strengthProgress = romProgress * 0.95
+    const nextRomDeficit = clamp(Math.min(prevRomDeficit, prevRomDeficit - (0.03 + rng() * 0.05) * (romProgress > 0.2 ? 1 : 0.3)), 0.08, 0.6)
+    const nextStrengthDeficit = clamp(Math.min(prevStrengthDeficit, prevStrengthDeficit - (0.02 + rng() * 0.04) * (strengthProgress > 0.2 ? 1 : 0.3)), 0.06, 0.6)
     let romTrend: 'improved' | 'slightly improved' | 'stable' =
       nextRomDeficit < prevRomDeficit - 0.055 ? 'improved'
         : nextRomDeficit < prevRomDeficit ? 'slightly improved'

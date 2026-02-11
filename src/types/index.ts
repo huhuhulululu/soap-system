@@ -288,6 +288,10 @@ export interface GenerationContext {
   symptomDuration?: { value: string; unit: string }
   /** 用户输入的放射痛描述 */
   painRadiation?: string
+  /** 用户选择的病因 */
+  causativeFactors?: string[]
+  /** 用户选择的缓解因素 */
+  relievingFactors?: string[]
 }
 
 // ==================== 模板定义 ====================

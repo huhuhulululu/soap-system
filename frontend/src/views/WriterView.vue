@@ -204,7 +204,9 @@ const generationContext = computed(() => ({
     value: fields['subjective.symptomDuration.value'] || '3',
     unit: fields['subjective.symptomDuration.unit'] || 'month(s)'
   },
-  painRadiation: fields['subjective.painRadiation'] || 'without radiation'
+  painRadiation: fields['subjective.painRadiation'] || 'without radiation',
+  causativeFactors: fields['subjective.causativeFactors'] || ['age related/degenerative changes'],
+  relievingFactors: fields['subjective.relievingFactors'] || ['Changing positions', 'Resting', 'Massage']
 }))
 
 // 生成结果
