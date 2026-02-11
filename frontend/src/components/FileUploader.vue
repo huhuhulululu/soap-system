@@ -109,7 +109,7 @@ function openFilePicker() {
 
       <!-- Text -->
       <h2 class="font-display text-2xl font-semibold text-ink-800 mb-2">
-        上传 Optum Note PDF
+        上传 AC NOTE PDF
       </h2>
       <p class="text-ink-500 mb-6">
         拖放文件到此处，或点击选择文件
