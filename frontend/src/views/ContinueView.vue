@@ -79,7 +79,7 @@ function copyAll() {
             v-model="inputText"
             @blur="doParse"
             class="w-full h-64 p-3 border border-ink-200 rounded-lg text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-ink-300"
-            placeholder="粘贴从 PDF 提取的完整文本（包含 IE 和已有 TX）..."
+            placeholder="粘贴 IE+TX 或仅 TX 文本..."
           />
         </div>
 
@@ -103,6 +103,11 @@ function copyAll() {
             </div>
           </div>
 
+          <!-- 推断模式提示 -->
+          <div v-if="result.parseSummary?.inferred" class="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-700">
+            ⚠️ 仅 TX 模式：上下文由系统推断，无 ICD/CPT 输出
+          </div>
+
           <!-- 解析摘要 -->
           <div v-if="result.parseSummary" class="bg-paper-100 rounded-lg p-3 text-xs space-y-1">
             <div class="flex justify-between">
@@ -113,16 +118,16 @@ function copyAll() {
               <span class="text-ink-500">证型</span>
               <span class="text-ink-800 font-medium">{{ result.parseSummary.localPattern }}</span>
             </div>
-            <div class="flex justify-between">
+            <div v-if="result.parseSummary.iePain" class="flex justify-between">
               <span class="text-ink-500">IE Pain</span>
               <span class="text-ink-800 font-medium">{{ result.parseSummary.iePain }}</span>
             </div>
             <div v-if="result.parseSummary.lastTxPain != null" class="flex justify-between">
-              <span class="text-ink-500">最后 TX Pain</span>
+              <span class="text-ink-500">{{ result.parseSummary.inferred ? '当前 TX Pain' : '最后 TX Pain' }}</span>
               <span class="text-ink-800 font-medium">{{ result.parseSummary.lastTxPain }}</span>
             </div>
             <div class="flex justify-between">
-              <span class="text-ink-500">已有 TX</span>
+              <span class="text-ink-500">{{ result.parseSummary.inferred ? '推断 TX 序号' : '已有 TX' }}</span>
               <span class="text-ink-800 font-medium">{{ result.parseSummary.existingTxCount }}</span>
             </div>
             <div class="flex items-center justify-between pt-1 border-t border-ink-200">

@@ -1,12 +1,14 @@
 /**
  * 续写生成服务
  * 调用链: parseOptumNote → bridge → engine → exportSOAPAsText → 拼接 ICD/CPT
+ * 支持: IE+TX 模式 和 仅TX模式
  */
 import { parseOptumNote } from '../../../parsers/optum-note/parser.ts'
 import { bridgeToContext, bridgeVisitToSOAPNote } from '../../../parsers/optum-note/checker/bridge.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
+import { extractStateFromTX, buildContextFromExtracted, buildInitialStateFromExtracted } from '../../../src/parser/tx-extractor.ts'
 import whitelistData from '../data/whitelist.json'
 
 // 初始化 whitelist（一次性，绕过 fs）
@@ -111,14 +113,21 @@ export function generateContinuation(text, options = {}) {
 
   const doc = parsed.document
 
-  // 2. 找 IE
+  // 2. 找 IE 和 TX
   const ieIndex = doc.visits.findIndex(v => v.subjective.visitType === 'INITIAL EVALUATION')
+  const txVisits = doc.visits.filter(v => v.subjective.visitType !== 'INITIAL EVALUATION')
+  
+  // === 仅 TX 模式 ===
+  if (ieIndex < 0 && txVisits.length > 0) {
+    return generateFromTXOnly(text, txVisits, options)
+  }
+  
   if (ieIndex < 0) {
-    return { error: '未找到初诊记录 (INITIAL EVALUATION)', visits: [] }
+    return { error: '未找到初诊记录 (INITIAL EVALUATION) 或复诊记录 (TX)', visits: [] }
   }
 
   const ieVisit = doc.visits[ieIndex]
-  const existingTxCount = doc.visits.filter(v => v.subjective.visitType !== 'INITIAL EVALUATION').length
+  const existingTxCount = txVisits.length
   const maxNew = 11 - existingTxCount
   if (maxNew <= 0) {
     return { error: '已有 ' + existingTxCount + ' 个 TX，已达上限 11', visits: [] }
@@ -134,7 +143,6 @@ export function generateContinuation(text, options = {}) {
   context.previousIE = bridgeVisitToSOAPNote(ieVisit)
 
   // 4. 提取最后一个 TX 的状态（parser reverse 后时间正序，最新在末尾）
-  const txVisits = doc.visits.filter(v => v.subjective.visitType !== 'INITIAL EVALUATION')
   const lastTx = txVisits.length > 0 ? txVisits[0] : null
   const initialState = lastTx ? extractInitialState(lastTx) : undefined
 
@@ -170,6 +178,66 @@ export function generateContinuation(text, options = {}) {
       lastTxPain: initialState?.pain,
       existingTxCount,
       toGenerate
+    }
+  }
+}
+
+/**
+ * 仅 TX 模式：从 TX 文本推断上下文并续写
+ */
+function generateFromTXOnly(rawText, txVisits, options) {
+  const { insuranceType = 'OPTUM', generateCount } = options
+  
+  // 从原始文本提取状态（更准确）
+  const extracted = extractStateFromTX(rawText)
+  
+  // 构建上下文
+  const context = buildContextFromExtracted(extracted)
+  context.insuranceType = insuranceType
+  
+  // 构建初始状态
+  const initialState = buildInitialStateFromExtracted(extracted)
+  
+  // 推断已有 TX 数量
+  const existingTxCount = extracted.estimatedVisitIndex
+  const maxNew = 11 - existingTxCount
+  if (maxNew <= 0) {
+    return { error: '推断已有 ' + existingTxCount + ' 个 TX，已达上限', visits: [] }
+  }
+  
+  const toGenerate = Math.min(generateCount || maxNew, maxNew)
+  
+  // 生成
+  const allStates = generateTXSequenceStates(context, {
+    txCount: 11,
+    startVisitIndex: existingTxCount + 1,
+    initialState
+  })
+  const states = allStates.slice(0, toGenerate)
+  
+  // 导出文本（无 ICD/CPT，因为没有 IE）
+  const visits = states.map(state => ({
+    visitIndex: state.visitIndex,
+    text: exportSOAPAsText(context, state),
+    state
+  }))
+  
+  return {
+    visits,
+    context,
+    ieVisit: null,
+    existingTxCount,
+    txOnlyMode: true,
+    parseSummary: {
+      bodyPart: extracted.bodyPart,
+      laterality: extracted.laterality,
+      localPattern: extracted.localPattern,
+      chronicityLevel: 'Chronic',
+      iePain: null,
+      lastTxPain: extracted.painScale,
+      existingTxCount,
+      toGenerate,
+      inferred: true // 标记为推断模式
     }
   }
 }

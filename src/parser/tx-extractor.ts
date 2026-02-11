@@ -1,0 +1,154 @@
+/**
+ * TX 文本提取器
+ * 从 TX 文本中提取状态和推断上下文
+ */
+
+import type { BodyPart, Laterality } from '../types'
+
+export interface ExtractedTXState {
+  bodyPart: BodyPart
+  laterality: Laterality
+  localPattern: string
+  painScale: number
+  painFrequency: number
+  symptomScale: string
+  tightness: number
+  tenderness: number
+  spasm: number
+  associatedSymptom: string
+  estimatedProgress: number
+  estimatedVisitIndex: number
+}
+
+const BODY_PART_MAP: Record<string, BodyPart> = {
+  'lower back': 'LBP', 'lumbar': 'LBP', 'lumbosacral': 'LBP',
+  'neck': 'NECK', 'cervical': 'NECK',
+  'shoulder': 'SHOULDER',
+  'knee': 'KNEE',
+  'elbow': 'ELBOW',
+  'hip': 'HIP',
+  'upper back': 'UPPER_BACK',
+  'middle back': 'MIDDLE_BACK', 'mid back': 'MIDDLE_BACK',
+  'ankle': 'ANKLE', 'foot': 'FOOT',
+  'wrist': 'WRIST', 'hand': 'HAND'
+}
+
+const PATTERN_MAP: Record<string, string> = {
+  'qi stagnation': 'Qi Stagnation',
+  'blood stasis': 'Blood Stasis',
+  'phlegm-damp': 'Phlegm-Damp',
+  'phlegm damp': 'Phlegm-Damp',
+  'damp-heat': 'Damp-Heat',
+  'wind-cold': 'Wind-Cold Invasion',
+  'blood deficiency': 'Blood Deficiency',
+  'qi & blood deficiency': 'Qi & Blood Deficiency'
+}
+
+const TIGHTNESS_MAP: Record<string, number> = {
+  'severe': 4, 'moderate to severe': 3.5, 'moderate': 3, 'mild to moderate': 2, 'mild': 1
+}
+
+const FREQUENCY_MAP: Record<string, number> = {
+  'constant': 3, 'frequent': 2, 'occasional': 1, 'intermittent': 0
+}
+
+export function extractStateFromTX(text: string): ExtractedTXState {
+  const lower = text.toLowerCase()
+  
+  // Body part
+  let bodyPart: BodyPart = 'LBP'
+  for (const [key, val] of Object.entries(BODY_PART_MAP)) {
+    if (lower.includes(key)) { bodyPart = val; break }
+  }
+  
+  // Laterality
+  let laterality: Laterality = 'bilateral'
+  if (/\bleft\b/.test(lower) && !/\bright\b/.test(lower)) laterality = 'left'
+  else if (/\bright\b/.test(lower) && !/\bleft\b/.test(lower)) laterality = 'right'
+  
+  // Local pattern
+  let localPattern = 'Qi Stagnation'
+  const patternMatch = text.match(/(?:has|still has)\s+([\w\s&-]+)\s+in local/i)
+  if (patternMatch) {
+    const p = patternMatch[1].toLowerCase().trim()
+    localPattern = PATTERN_MAP[p] || 'Qi Stagnation'
+  }
+  
+  // Pain scale
+  const painMatch = text.match(/Pain Scale[:\s]*(\d+)/i)
+  const painScale = painMatch ? parseInt(painMatch[1]) : 7
+  
+  // Pain frequency
+  let painFrequency = 2
+  const freqMatch = text.match(/Pain frequency[:\s]*(\w+)/i)
+  if (freqMatch) {
+    painFrequency = FREQUENCY_MAP[freqMatch[1].toLowerCase()] ?? 2
+  }
+  
+  // Symptom scale
+  const scaleMatch = text.match(/scale as\s*(\d+%)/i)
+  const symptomScale = scaleMatch ? scaleMatch[1] : '70%'
+  
+  // Tightness
+  let tightness = 3
+  const tightMatch = text.match(/Grading Scale[:\s]*([\w\s]+)\n/i)
+  if (tightMatch) {
+    tightness = TIGHTNESS_MAP[tightMatch[1].toLowerCase().trim()] ?? 3
+  }
+  
+  // Tenderness
+  const tenderMatch = text.match(/\(\+(\d)\)/)
+  const tenderness = tenderMatch ? parseInt(tenderMatch[1]) : 3
+  
+  // Spasm
+  const spasmMatch = text.match(/Frequency Grading Scale[:\s]*\(\+(\d)\)/i)
+  const spasm = spasmMatch ? parseInt(spasmMatch[1]) : 2
+  
+  // Associated symptom
+  const assocMatch = text.match(/associated with muscles\s+(\w+)/i)
+  const associatedSymptom = assocMatch ? assocMatch[1].toLowerCase() : 'soreness'
+  
+  // Estimate progress based on indicators
+  const painProgress = (8 - painScale) / 5  // 8→3 = 0→1
+  const tightProgress = (4 - tightness) / 3  // 4→1 = 0→1
+  const tenderProgress = (4 - tenderness) / 3
+  const freqProgress = (3 - painFrequency) / 3
+  const estimatedProgress = Math.min(0.95, Math.max(0.1, 
+    (painProgress + tightProgress + tenderProgress + freqProgress) / 4
+  ))
+  
+  // Estimate visit index (assuming 11 TX total)
+  const estimatedVisitIndex = Math.max(1, Math.round(estimatedProgress * 10))
+  
+  return {
+    bodyPart, laterality, localPattern,
+    painScale, painFrequency, symptomScale,
+    tightness, tenderness, spasm, associatedSymptom,
+    estimatedProgress, estimatedVisitIndex
+  }
+}
+
+export function buildContextFromExtracted(extracted: ExtractedTXState) {
+  return {
+    noteType: 'TX' as const,
+    insuranceType: 'OPTUM' as const,
+    primaryBodyPart: extracted.bodyPart,
+    laterality: extracted.laterality,
+    localPattern: extracted.localPattern,
+    systemicPattern: 'Kidney Yang Deficiency',
+    chronicityLevel: 'Chronic' as const,
+    severityLevel: 'moderate' as const
+  }
+}
+
+export function buildInitialStateFromExtracted(extracted: ExtractedTXState) {
+  return {
+    pain: extracted.painScale,
+    tightness: extracted.tightness,
+    tenderness: extracted.tenderness,
+    spasm: extracted.spasm,
+    frequency: extracted.painFrequency,
+    symptomScale: extracted.symptomScale,
+    associatedSymptom: extracted.associatedSymptom
+  }
+}
