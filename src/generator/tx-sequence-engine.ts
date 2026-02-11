@@ -744,15 +744,14 @@ export function generateTXSequenceStates(
     const adlImproved = adlLevelChanged && adlDelta > 0.3
     prevAdl = adl
 
-    // severityLevel: 综合 pain + ADL，且纵向只降不升
+    // severityLevel: 基于 pain，ADL 改善时最多降 1 档，纵向只降不升
     const baseSeverity = severityFromPain(painScaleCurrent)
     const severityOrder: SeverityLevel[] = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
     let severityLevel = baseSeverity
     if (adlImproved && progress > 0.3) {
       const baseIdx = severityOrder.indexOf(baseSeverity)
       if (baseIdx > 0) {
-        const drop = adlDelta > 0.3 ? 2 : 1
-        severityLevel = severityOrder[Math.max(0, baseIdx - drop)]
+        severityLevel = severityOrder[baseIdx - 1]
       }
     }
     // 纵向约束: severity 只降不升
@@ -763,8 +762,12 @@ export function generateTXSequenceStates(
     }
     prevSeverity = severityLevel
 
-    const frequencyImproveGate = progress > 0.55 && rng() > 0.45
-    const nextFrequency = frequencyImproveGate ? Math.max(0, prevFrequency - (rng() > 0.5 ? 1 : 0)) : prevFrequency
+    // Frequency 改善: 基于 progress 分段确定目标，与 pain 下降联动
+    // Constant(3) → Frequent(2) → Occasional(1) → Intermittent(0)
+    const frequencyTarget = progress >= 0.80 ? 1 :    // 后期至少 Occasional
+                            progress >= 0.55 ? 2 :    // 中后期至少 Frequent
+                            progress >= 0.30 ? 3 : 3  // 早期保持 Constant
+    const nextFrequency = Math.min(prevFrequency, Math.max(frequencyTarget, prevFrequency - (rng() > 0.6 ? 1 : 0)))
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
 
