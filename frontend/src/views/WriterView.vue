@@ -171,7 +171,9 @@ const generationContext = computed(() => ({
   localPattern: fields['assessment.tcmDiagnosis.localPattern'] || 'Qi Stagnation',
   systemicPattern: fields['assessment.tcmDiagnosis.systemicPattern'] || 'Kidney Yang Deficiency',
   chronicityLevel: fields['subjective.chronicityLevel'] || 'Chronic',
-  severityLevel: fields['subjective.adlDifficulty.level'] || 'moderate'
+  severityLevel: fields['subjective.adlDifficulty.level'] || 'moderate',
+  // 用户选择的伴随症状 (取第一个作为主症状)
+  associatedSymptom: (fields['subjective.associatedSymptoms'] || [])[0] || 'soreness'
 }))
 
 // 生成结果
@@ -185,17 +187,22 @@ function generate(useSeed) {
   try {
     const ctx = generationContext.value
     const txCtx = { ...ctx, noteType: 'TX' }
-    // seed: 用户指定 > 输入框 > 不指定(自动生成)
     const seed = useSeed != null ? useSeed
       : seedInput.value ? parseInt(seedInput.value, 10) || undefined
       : undefined
+
+    // 用户输入作为 initialState 基线
+    const initialState = {
+      associatedSymptom: ctx.associatedSymptom || 'soreness'
+    }
 
     if (noteType.value === 'IE') {
       const ieText = exportSOAPAsText(ctx, {})
       const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
         txCount: 11,
         startVisitIndex: 1,
-        seed
+        seed,
+        initialState
       })
       currentSeed.value = actualSeed
       generatedNotes.value = [
@@ -212,7 +219,8 @@ function generate(useSeed) {
       const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
         txCount: txCount.value,
         startVisitIndex: 1,
-        seed
+        seed,
+        initialState
       })
       currentSeed.value = actualSeed
       generatedNotes.value = states.map(state => ({
