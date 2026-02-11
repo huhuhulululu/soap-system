@@ -114,46 +114,43 @@
 
 ## 实施计划
 
-### Phase 1: 紧急修复 (今天)
+### Phase 1: 紧急修复 (今天) ✅
 - [x] 修复 `Subjective:?` 正则
-- [ ] 添加 SVR-01 ~ SVR-06 测试
+- [x] 添加 SVR-01 ~ SVR-12 测试 (15 用例)
+- [x] 添加 E2E-01 ~ E2E-08 测试 (14 用例)
 
-### Phase 2: 核心覆盖 (明天)
-- [ ] 添加 SVR-07 ~ SVR-12 测试
-- [ ] 添加 PH-01 ~ PH-08 测试
-- [ ] 添加 PS-01 ~ PS-15 测试
+### Phase 2: 核心覆盖 ✅
+- [x] 添加 PH-01 ~ PH-08 测试 (8 用例)
+- [x] 添加 PS-01 ~ PS-15 测试 (15 用例)
 
-### Phase 3: 完整覆盖 (后天)
-- [ ] 添加 PO-01 ~ PO-12 测试
-- [ ] 添加 E2E-01 ~ E2E-10 测试
-- [ ] 添加 FE-01 ~ FE-05 测试
+### Phase 3: 完整覆盖 ✅
+- [x] 添加 PO-01 ~ PO-12 测试 (12 用例)
+- [x] 添加 FE-01 ~ FE-06 测试 (8 用例)
 
 ## 测试文件结构
 
 ```
-tests/unit/
-├── parser/
-│   ├── split-visit-records.spec.ts    # SVR-01 ~ SVR-12
-│   ├── parse-header.spec.ts           # PH-01 ~ PH-08
-│   ├── parse-subjective.spec.ts       # PS-01 ~ PS-15
-│   ├── parse-objective.spec.ts        # PO-01 ~ PO-12
-│   └── parse-assessment-plan.spec.ts  # 补充
-├── integration/
-│   └── parser-e2e.spec.ts             # E2E-01 ~ E2E-10
-└── frontend/
-    └── continuation-flow.spec.ts      # FE-01 ~ FE-05
+tests/unit/parser/
+├── split-visit-records.spec.ts    # 15 用例 ✅
+├── parse-header.spec.ts           # 8 用例 ✅
+├── parse-subjective.spec.ts       # 15 用例 ✅
+├── parse-objective.spec.ts        # 12 用例 ✅
+└── parser-e2e.spec.ts             # 14 用例 ✅
+
+tests/integration/
+└── continuation-flow.test.ts      # 8 用例 ✅ (tsx 运行)
 ```
 
 ## 总计
 
-| 类别 | 用例数 |
-|------|--------|
-| splitVisitRecords | 12 |
-| parseHeader | 8 |
-| parseSubjective | 15 |
-| parseObjective | 12 |
-| 端到端 | 10 |
-| 前端集成 | 5 |
-| **总计** | **62** |
+| 类别 | 计划 | 实际 |
+|------|------|------|
+| splitVisitRecords | 12 | 15 |
+| parseHeader | 8 | 8 |
+| parseSubjective | 15 | 15 |
+| parseObjective | 12 | 12 |
+| 端到端 | 10 | 14 |
+| 前端集成 | 5 | 8 |
+| **总计** | **62** | **72** |
 
-当前: 47 用例 → 目标: 109 用例 (+62)
+之前: 682 用例 → 现在: 746 用例 (+64 Jest) + 8 集成测试
