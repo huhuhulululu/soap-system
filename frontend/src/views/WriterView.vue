@@ -410,35 +410,82 @@ function fieldLabel(path) {
   return FIELD_LABELS[path] || path.split('.').pop().replace(/([A-Z])/g, ' $1').trim()
 }
 
-// 逐行 diff: 返回带高亮标记的行数组
+// 行内 word diff: 对比同位置的两行，返回 segments 数组
+// 每个 segment: { text, hl: boolean }
+function diffLineWords(curLine, prevLine) {
+  if (!prevLine || prevLine.trim() === '') {
+    // 无前一行可对比 → 不高亮
+    return [{ text: curLine, hl: false }]
+  }
+  if (curLine.trim() === prevLine.trim()) {
+    return [{ text: curLine, hl: false }]
+  }
+  // 按 word 边界拆分，保留空格和标点
+  const splitTokens = (s) => s.match(/[\w%.+\-/()]+|[^\w%.+\-/()]+/g) || [s]
+  const curTokens = splitTokens(curLine)
+  const prevTokens = splitTokens(prevLine)
+  const prevSet = new Set(prevTokens.map(t => t.trim().toLowerCase()).filter(Boolean))
+
+  // 简单策略：逐 token 对比位置，相同位置 token 不同则高亮
+  // 但位置对齐在插入/删除时会偏移，所以用混合策略：
+  // 1. 先按位置对齐
+  // 2. 位置不同的 token，如果它在 prevSet 中也不存在 → 高亮
+  const segments = []
+  let lastHl = false
+  let buf = ''
+
+  for (let i = 0; i < curTokens.length; i++) {
+    const t = curTokens[i]
+    const pt = i < prevTokens.length ? prevTokens[i] : null
+    const tClean = t.trim().toLowerCase()
+    // 空白/标点 token 不独立高亮
+    if (!tClean || /^[,.:;!?\s]+$/.test(tClean)) {
+      buf += t
+      continue
+    }
+    // 判断: 位置相同且内容相同 → 不高亮
+    // 位置不同但在 prev 整体中存在 → 不高亮 (只是位置移动)
+    // 位置不同且 prev 中不存在 → 高亮 (真正新内容)
+    const samePos = pt && pt.trim().toLowerCase() === tClean
+    const existsInPrev = prevSet.has(tClean)
+    const hl = !samePos && !existsInPrev
+
+    if (hl !== lastHl && buf) {
+      segments.push({ text: buf, hl: lastHl })
+      buf = ''
+    }
+    lastHl = hl
+    buf += t
+  }
+  if (buf) segments.push({ text: buf, hl: lastHl })
+  return segments
+}
+
+// 逐行 diff: 返回每行的 segments
 function getDiffLines(idx) {
   const note = generatedNotes.value[idx]
   if (!note) return []
   const lines = note.text.split('\n')
-  // IE 或第一个笔记: 无对比，不高亮
-  if (note.type === 'IE' || idx === 0) {
-    return lines.map(line => ({ text: line, changed: false }))
-  }
-  // 找前一个笔记
-  const prevNote = generatedNotes.value[idx - 1]
-  if (!prevNote) {
-    return lines.map(line => ({ text: line, changed: false }))
-  }
-  const prevLines = prevNote.text.split('\n')
-  // 构建前一个笔记的行集合用于快速查找
-  const prevSet = new Set(prevLines.map(l => l.trim()))
-  // 段标题行不高亮
   const sectionHeaders = new Set(['Subjective', 'Objective', 'Assessment', 'Plan', 'Follow up visit', ''])
 
-  return lines.map(line => {
+  // IE 或第一个笔记: 无对比
+  if (note.type === 'IE' || idx === 0) {
+    return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
+  }
+  const prevNote = generatedNotes.value[idx - 1]
+  if (!prevNote) {
+    return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
+  }
+  const prevLines = prevNote.text.split('\n')
+
+  return lines.map((line, li) => {
     const trimmed = line.trim()
-    // 空行和段标题不高亮
     if (sectionHeaders.has(trimmed)) {
-      return { text: line, changed: false }
+      return { segments: [{ text: line, hl: false }] }
     }
-    // 如果这一行在前一个笔记中不存在 → 变化
-    const changed = !prevSet.has(trimmed)
-    return { text: line, changed }
+    // 找对应的前一行 (同位置)
+    const prevLine = li < prevLines.length ? prevLines[li] : ''
+    return { segments: diffLineWords(line, prevLine) }
   })
 }
 </script>
@@ -647,9 +694,10 @@ function getDiffLines(idx) {
                 </button>
               </div>
               <div class="text-xs font-mono text-ink-700 leading-relaxed">
-                <div v-for="(line, li) in getDiffLines(idx)" :key="li"
-                  class="whitespace-pre-wrap"
-                  :class="line.changed ? 'bg-yellow-100/70 -mx-1 px-1 rounded-sm' : ''">{{ line.text === '' ? '\n' : line.text }}</div>
+                <div v-for="(line, li) in getDiffLines(idx)" :key="li" class="whitespace-pre-wrap"><template
+                  v-for="(seg, si) in line.segments" :key="si"><mark
+                    v-if="seg.hl" class="bg-yellow-200/80 text-ink-800 rounded-sm px-px">{{ seg.text }}</mark><template
+                    v-else>{{ seg.text === '' && si === 0 ? '\n' : seg.text }}</template></template></div>
               </div>
             </div>
           </div>
