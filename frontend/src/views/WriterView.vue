@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import whitelist from '../data/whitelist.json'
 import { TEMPLATE_ONLY_RULES } from '../../../src/parser/template-logic-rules.ts'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
@@ -12,6 +12,7 @@ setWhitelist(whitelist)
 // 选择器
 const insuranceType = ref('OPTUM')
 const bodyPart = ref('LBP')
+const laterality = ref('bilateral')
 const cptCode = ref('97810')
 const noteType = ref('IE')
 const txCount = ref(3)
@@ -19,6 +20,47 @@ const txCount = ref(3)
 const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
 const CPT_OPTIONS = [{ value: '97810', label: '97810' }, { value: 'full', label: 'Full Code' }]
+
+// 各部位的侧别选项
+// 四肢关节: left / right / bilateral
+// 脊柱中线: 无侧别选项 (固定 bilateral/unspecified)
+const LATERALITY_MAP = {
+  'SHOULDER': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'KNEE': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'ELBOW': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'HIP': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  // 脊柱部位无侧别
+  'LBP': null,
+  'NECK': null,
+}
+
+// 当前部位是否有侧别选项
+const lateralityOptions = computed(() => LATERALITY_MAP[bodyPart.value] || null)
+
+// 部位切换时重置侧别
+watch(bodyPart, (bp) => {
+  if (LATERALITY_MAP[bp]) {
+    laterality.value = 'bilateral'  // 有侧别的部位默认 bilateral
+  } else {
+    laterality.value = 'bilateral'  // 脊柱部位固定 bilateral
+  }
+})
 
 // 固定字段（不显示，由引擎自动处理）
 const FIXED_FIELDS = new Set([
@@ -125,7 +167,7 @@ const generationContext = computed(() => ({
   noteType: noteType.value,
   insuranceType: insuranceType.value,
   primaryBodyPart: bodyPart.value,
-  laterality: 'bilateral',
+  laterality: laterality.value,
   localPattern: fields['assessment.tcmDiagnosis.localPattern'] || 'Qi Stagnation',
   systemicPattern: fields['assessment.tcmDiagnosis.systemicPattern'] || 'Kidney Yang Deficiency',
   chronicityLevel: fields['subjective.chronicityLevel'] || 'Chronic',
@@ -389,6 +431,17 @@ function fieldLabel(path) {
               <select v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option v-for="p in BODY_PARTS" :key="p" :value="p">{{ p }}</option>
               </select>
+              <!-- 侧别选择 (仅四肢关节部位显示) -->
+              <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
+                <button v-for="opt in lateralityOptions" :key="opt.value"
+                  @click="laterality = opt.value"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-all duration-150"
+                  :class="laterality === opt.value
+                    ? 'bg-ink-800 text-paper-50 border-ink-800'
+                    : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  {{ opt.label }}
+                </button>
+              </div>
             </div>
             <div>
               <label class="text-xs text-ink-500 mb-1 block">CPT Code</label>
