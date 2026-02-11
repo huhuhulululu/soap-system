@@ -150,11 +150,12 @@ function generate() {
         startVisitIndex: 1
       })
       generatedNotes.value = [
-        { visitIndex: 0, text: ieText, type: 'IE', _open: false },
+        { visitIndex: 0, text: ieText, type: 'IE', state: null, _open: false },
         ...states.map(state => ({
           visitIndex: state.visitIndex,
           text: exportSOAPAsText(txCtx, state),
           type: 'TX',
+          state,
           _open: false
         }))
       ]
@@ -167,6 +168,7 @@ function generate() {
         visitIndex: state.visitIndex,
         text: exportSOAPAsText(txCtx, state),
         type: 'TX',
+        state,
         _open: false
       }))
     }
@@ -174,6 +176,47 @@ function generate() {
     console.error('生成错误:', e)
     alert('生成失败: ' + e.message)
   }
+}
+
+// 将完整文本按 S/O/A/P 切分
+function splitSOAP(text) {
+  if (!text) return { S: '', O: '', A: '', P: '' }
+  const sections = { S: '', O: '', A: '', P: '' }
+  // 匹配段标题行
+  const markers = [
+    { key: 'S', re: /^Subjective\n/m },
+    { key: 'O', re: /^Objective\n/m },
+    { key: 'A', re: /^Assessment\n/m },
+    { key: 'P', re: /^Plan\n/m }
+  ]
+  // 找到各段在文本中的起始位置
+  const positions = markers.map(m => {
+    const match = text.match(m.re)
+    return { key: m.key, start: match ? text.indexOf(match[0]) : -1, headerLen: match ? match[0].length : 0 }
+  }).filter(p => p.start >= 0).sort((a, b) => a.start - b.start)
+
+  positions.forEach((pos, i) => {
+    const contentStart = pos.start + pos.headerLen
+    const contentEnd = i < positions.length - 1 ? positions[i + 1].start : text.length
+    sections[pos.key] = text.slice(contentStart, contentEnd).replace(/\n{2,}$/, '').trim()
+  })
+  return sections
+}
+
+// 复制状态追踪: { idx: number, section: string } | null
+const copiedSection = ref(null)
+
+function copySection(idx, sectionKey) {
+  const note = generatedNotes.value[idx]
+  if (!note) return
+  const parts = splitSOAP(note.text)
+  navigator.clipboard.writeText(parts[sectionKey] || '')
+  copiedSection.value = { idx, section: sectionKey }
+  setTimeout(() => copiedSection.value = null, 1500)
+}
+
+function isCopied(idx, sectionKey) {
+  return copiedSection.value?.idx === idx && copiedSection.value?.section === sectionKey
 }
 
 function copyNote(idx) {
@@ -187,6 +230,30 @@ function copyAll() {
   navigator.clipboard.writeText(all)
   copiedIndex.value = -999
   setTimeout(() => copiedIndex.value = -1, 1500)
+}
+
+// 提取评估变化摘要 (用于折叠栏展示)
+function getNoteSummary(note, idx) {
+  if (!note.state || note.type === 'IE') return null
+  const s = note.state
+  // 获取前一个 TX 的数据用于对比
+  const prevNote = idx > 0 ? generatedNotes.value[idx - 1] : null
+  const prevState = prevNote?.state
+  const prevPain = prevState ? prevState.painScaleLabel : '8'
+  const prevSymptom = prevState?.symptomScale || '70%'
+
+  const items = []
+  // Pain 变化
+  items.push({ label: 'Pain', from: prevPain, to: s.painScaleLabel })
+  // Symptom Scale
+  if (s.symptomScale) {
+    items.push({ label: 'Symptom', from: prevSymptom, to: s.symptomScale })
+  }
+  // Severity
+  if (prevState && prevState.severityLevel !== s.severityLevel) {
+    items.push({ label: 'Severity', from: prevState.severityLevel, to: s.severityLevel })
+  }
+  return items
 }
 
 // 多选面板展开状态
@@ -342,18 +409,48 @@ function fieldLabel(path) {
             </button>
           </div>
           <div v-for="(note, idx) in generatedNotes" :key="idx" class="bg-white rounded-xl border border-ink-200 mb-3">
-            <div class="flex items-center justify-between px-4 py-2.5 border-b border-ink-100 cursor-pointer" @click="note._open = !note._open">
-              <span class="text-xs font-mono bg-ink-100 text-ink-600 px-2 py-0.5 rounded">{{ note.type }}{{ note.visitIndex || '' }}</span>
-              <div class="flex items-center gap-2">
-                <button @click.stop="copyNote(idx)" class="px-2.5 py-1 text-xs border border-ink-200 rounded hover:bg-paper-100">
-                  {{ copiedIndex === idx ? '✓' : '复制' }}
-                </button>
-                <svg class="w-4 h-4 text-ink-400 transition-transform" :class="{ 'rotate-180': note._open }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <!-- 折叠栏头部 -->
+            <div class="px-4 py-2.5 border-b border-ink-100 cursor-pointer" @click="note._open = !note._open">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-xs font-mono bg-ink-100 text-ink-600 px-2 py-0.5 rounded">{{ note.type }}{{ note.visitIndex || '' }}</span>
+                  <!-- 评估变化指标 -->
+                  <div v-if="getNoteSummary(note, idx)" class="flex items-center gap-2">
+                    <span v-for="item in getNoteSummary(note, idx)" :key="item.label"
+                      class="text-[10px] text-ink-400 font-mono">
+                      <span class="text-ink-500">{{ item.label }}</span>
+                      <span class="text-ink-300 mx-0.5">{{ item.from }}</span>
+                      <span class="text-ink-400">&rarr;</span>
+                      <span class="font-medium" :class="item.from !== item.to ? 'text-green-600' : 'text-ink-400'">{{ item.to }}</span>
+                    </span>
+                  </div>
+                </div>
+                <svg class="w-4 h-4 text-ink-400 transition-transform flex-shrink-0" :class="{ 'rotate-180': note._open }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </div>
+            <!-- 展开内容 -->
             <div v-show="note._open" class="p-4">
+              <!-- S/O/A/P 分段复制按钮 -->
+              <div class="flex items-center gap-1.5 mb-3">
+                <button v-for="sec in ['S','O','A','P']" :key="sec"
+                  @click="copySection(idx, sec)"
+                  class="px-2.5 py-1 text-[11px] font-mono font-medium border rounded-md transition-all duration-150"
+                  :class="isCopied(idx, sec)
+                    ? 'bg-green-50 border-green-300 text-green-600'
+                    : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
+                  {{ isCopied(idx, sec) ? '✓ ' + sec : sec }}
+                </button>
+                <div class="w-px h-4 bg-ink-150 mx-1"></div>
+                <button @click="copyNote(idx)"
+                  class="px-2.5 py-1 text-[11px] border rounded-md transition-all duration-150"
+                  :class="copiedIndex === idx
+                    ? 'bg-green-50 border-green-300 text-green-600'
+                    : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
+                  {{ copiedIndex === idx ? '✓ 已复制' : '全部' }}
+                </button>
+              </div>
               <pre class="text-xs font-mono text-ink-700 whitespace-pre-wrap leading-relaxed">{{ note.text }}</pre>
             </div>
           </div>
