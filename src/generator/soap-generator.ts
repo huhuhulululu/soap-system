@@ -2204,7 +2204,7 @@ export function exportTXSeriesAsText(
   }
   assertTemplateSupported(txContext)
 
-  const states = generateTXSequenceStates(txContext, options)
+  const { states } = generateTXSequenceStates(txContext, options)
   return states.map(state => ({
     visitIndex: state.visitIndex,
     state,

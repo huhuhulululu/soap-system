@@ -149,13 +149,13 @@ export function generateContinuation(text, options = {}) {
   // 5. 生成
   // txCount 应该是总疗程数（11），这样 progress 才能正确反映在整个疗程中的位置
   const hasPacemaker = context.hasPacemaker || false
-  const allStates = generateTXSequenceStates(context, {
+  const txResult = generateTXSequenceStates(context, {
     txCount: 11,
     startVisitIndex: existingTxCount + 1,
     initialState
   })
   // 只取需要的数量
-  const states = allStates.slice(0, toGenerate)
+  const states = txResult.states.slice(0, toGenerate)
 
   // 6. 导出文本 + ICD/CPT
   const visits = states.map(state => {
@@ -212,12 +212,12 @@ function generateFromTXOnly(rawText, txVisits, options) {
   const toGenerate = Math.min(generateCount || maxNew, maxNew)
   
   // 生成
-  const allStates = generateTXSequenceStates(context, {
+  const txResult2 = generateTXSequenceStates(context, {
     txCount: 11,
     startVisitIndex: existingTxCount + 1,
     initialState
   })
-  const states = allStates.slice(0, toGenerate)
+  const states = txResult2.states.slice(0, toGenerate)
   
   // 导出文本（含推断的 ICD/CPT）
   const visits = states.map(state => {

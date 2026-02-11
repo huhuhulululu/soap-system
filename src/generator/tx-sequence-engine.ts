@@ -267,20 +267,29 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-function createEntropyRng(seed?: number): () => number {
+/**
+ * 创建 RNG。
+ * - 传入 seed: 纯确定性，可复现
+ * - 不传 seed: 混合运行时熵，不可复现
+ * 返回 { rng, seed } — seed 用于记录和复现
+ */
+function createSeededRng(seed?: number): { rng: () => number; seed: number } {
+  if (seed != null) {
+    // 确定性模式：相同 seed 产生相同序列
+    return { rng: mulberry32(seed >>> 0), seed: seed >>> 0 }
+  }
+  // 熵模式：生成随机 seed
   const now = Date.now()
   const randomBits = Math.floor(Math.random() * 0xffffffff)
   const perfBits = (() => {
     try {
-      // Node runtime entropy
       return Number(process.hrtime.bigint() % BigInt(0xffffffff))
     } catch {
       return Math.floor(Math.random() * 0xffffffff)
     }
   })()
-
-  const mixed = ((seed ?? 0) ^ now ^ randomBits ^ perfBits) >>> 0
-  return mulberry32(mixed)
+  const generatedSeed = (now ^ randomBits ^ perfBits) >>> 0
+  return { rng: mulberry32(generatedSeed), seed: generatedSeed }
 }
 
 function parsePainTarget(target: string | undefined, fallback: number): number {
@@ -552,15 +561,20 @@ function pickMultiple(
   return shuffledTop.slice(0, count).map(x => x.option)
 }
 
+export interface TXSequenceResult {
+  states: TXVisitState[]
+  /** 用于复现的 seed，传回 options.seed 即可得到相同结果 */
+  seed: number
+}
+
 export function generateTXSequenceStates(
   context: GenerationContext,
   options: TXSequenceOptions
-): TXVisitState[] {
+): TXSequenceResult {
   const txCount = Math.max(1, options.txCount)
   const startIdx = options.startVisitIndex || 1
   const remainingTx = txCount - startIdx + 1
-  // Non-reproducible by design: even with same seed we mix runtime entropy.
-  const rng = createEntropyRng(options.seed)
+  const { rng, seed: actualSeed } = createSeededRng(options.seed)
 
   const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8
   const startPain = options.initialState?.pain ?? ieStartPain
@@ -1027,5 +1041,5 @@ export function generateTXSequenceStates(
     })
   }
 
-  return visits
+  return { states: visits, seed: actualSeed }
 }

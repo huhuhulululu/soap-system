@@ -135,20 +135,27 @@ const generationContext = computed(() => ({
 // 生成结果
 const generatedNotes = ref([])
 const copiedIndex = ref(-1)
+const currentSeed = ref(null)       // 当前生成使用的 seed
+const seedInput = ref('')           // 用户输入的 seed (复现用)
+const seedCopied = ref(false)
 
-function generate() {
+function generate(useSeed) {
   try {
     const ctx = generationContext.value
-    // TX 上下文: noteType 切为 TX，其余继承
     const txCtx = { ...ctx, noteType: 'TX' }
+    // seed: 用户指定 > 输入框 > 不指定(自动生成)
+    const seed = useSeed != null ? useSeed
+      : seedInput.value ? parseInt(seedInput.value, 10) || undefined
+      : undefined
 
     if (noteType.value === 'IE') {
-      // IE 模式：生成 IE + 11个 TX
       const ieText = exportSOAPAsText(ctx, {})
-      const states = generateTXSequenceStates(txCtx, {
+      const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
         txCount: 11,
-        startVisitIndex: 1
+        startVisitIndex: 1,
+        seed
       })
+      currentSeed.value = actualSeed
       generatedNotes.value = [
         { visitIndex: 0, text: ieText, type: 'IE', state: null, _open: false },
         ...states.map(state => ({
@@ -160,10 +167,12 @@ function generate() {
         }))
       ]
     } else {
-      const states = generateTXSequenceStates(txCtx, {
+      const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
         txCount: txCount.value,
-        startVisitIndex: 1
+        startVisitIndex: 1,
+        seed
       })
+      currentSeed.value = actualSeed
       generatedNotes.value = states.map(state => ({
         visitIndex: state.visitIndex,
         text: exportSOAPAsText(txCtx, state),
@@ -175,6 +184,20 @@ function generate() {
   } catch (e) {
     console.error('生成错误:', e)
     alert('生成失败: ' + e.message)
+  }
+}
+
+function copySeed() {
+  if (currentSeed.value == null) return
+  navigator.clipboard.writeText(String(currentSeed.value))
+  seedCopied.value = true
+  setTimeout(() => seedCopied.value = false, 1500)
+}
+
+function regenerate() {
+  // 用相同 seed 重新生成（复现）
+  if (currentSeed.value != null) {
+    generate(currentSeed.value)
   }
 }
 
@@ -448,10 +471,17 @@ function fieldLabel(path) {
           <p>💡 Assessment 和 Plan 由引擎根据 S/O 自动推导生成</p>
         </div>
 
-        <!-- 生成按钮 -->
-        <button @click="generate" class="w-full py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
-          生成 {{ noteType === 'TX' ? `${txCount} 个 TX` : 'IE' }}
-        </button>
+        <!-- Seed 输入 + 生成按钮 -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-ink-400 flex-shrink-0">Seed</label>
+            <input v-model="seedInput" type="text" placeholder="留空随机"
+              class="flex-1 px-2.5 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+          </div>
+          <button @click="generate()" class="w-full py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
+            生成 {{ noteType === 'TX' ? `${txCount} 个 TX` : 'IE' }}
+          </button>
+        </div>
       </div>
 
       <!-- 右栏: 结果 -->
@@ -461,7 +491,20 @@ function fieldLabel(path) {
         </div>
         <div v-else>
           <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-semibold text-ink-700">生成结果 ({{ generatedNotes.length }})</h2>
+            <div class="flex items-center gap-3">
+              <h2 class="text-sm font-semibold text-ink-700">生成结果 ({{ generatedNotes.length }})</h2>
+              <div v-if="currentSeed != null" class="flex items-center gap-1.5">
+                <span class="text-[10px] font-mono text-ink-400">seed:{{ currentSeed }}</span>
+                <button @click="copySeed" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors"
+                  :title="'复制 seed 用于复现'">
+                  {{ seedCopied ? '✓' : '复制' }}
+                </button>
+                <button @click="regenerate" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors"
+                  title="用相同 seed 重新生成">
+                  重跑
+                </button>
+              </div>
+            </div>
             <button @click="copyAll" class="px-3 py-1.5 text-xs border border-ink-200 rounded-lg hover:bg-paper-100">
               {{ copiedIndex === -999 ? '✓ 已复制' : '复制全部' }}
             </button>
