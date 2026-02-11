@@ -182,15 +182,26 @@ export function inferDiagnosisCodes(bodyPart: BodyPart, laterality: Laterality) 
   return [{ icd10: code, description: desc, bodyPart, laterality }]
 }
 
-export function inferProcedureCodes(insuranceType: string, treatmentTime: number) {
+export function inferProcedureCodes(insuranceType: string, treatmentTime: number, hasElectricalStim = false) {
+  // HF/OPTUM: 简化协议，15min，无电刺激
   const isSimple = insuranceType === 'HF' || insuranceType === 'OPTUM'
   if (isSimple) {
     return [{ cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false }]
   }
-  // Full protocol: 97813 + 97814 based on time
+  
+  // Full protocol: 根据电刺激决定 CPT
   const units = Math.floor(treatmentTime / 15)
-  return [
-    { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
-    ...(units > 1 ? [{ cpt: '97814', description: 'Acupuncture w/ estim, each addl 15 min', units: units - 1, electricalStimulation: true }] : [])
-  ]
+  if (hasElectricalStim) {
+    // 有电刺激: 97813 + 97814
+    return [
+      { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
+      ...(units > 1 ? [{ cpt: '97814', description: 'Acupuncture w/ estim, each addl 15 min', units: units - 1, electricalStimulation: true }] : [])
+    ]
+  } else {
+    // 无电刺激: 97810 + 97811
+    return [
+      { cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false },
+      ...(units > 1 ? [{ cpt: '97811', description: 'Acupuncture w/o estim, each addl 15 min', units: units - 1, electricalStimulation: false }] : [])
+    ]
+  }
 }
