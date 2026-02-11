@@ -4,6 +4,10 @@ import whitelist from '../data/whitelist.json'
 import { TEMPLATE_ONLY_RULES } from '../../../src/parser/template-logic-rules.ts'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
+import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
+
+// 初始化 whitelist
+setWhitelist(whitelist)
 
 // 选择器
 const insuranceType = ref('OPTUM')
