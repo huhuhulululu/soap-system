@@ -2,7 +2,7 @@
  * Goals 动态计算高压测试
  * 全组合测试: 4部位 × 5严重度 × 5症状类型 = 100 组合
  */
-import { describe, it, expect } from 'vitest'
+
 import { calculateDynamicGoals, parsePainFromSeverity } from '../goals-calculator'
 import { generatePlanIE } from '../soap-generator'
 import { generateTXSequenceStates } from '../tx-sequence-engine'
@@ -82,7 +82,7 @@ describe('Goals 约束验证', () => {
 describe('generatePlanIE 高压测试', () => {
   const baseContext: Partial<GenerationContext> = {
     noteType: 'IE',
-    laterality: 'Bilateral',
+    laterality: 'bilateral',
     insuranceType: 'OPTUM',
     chronicityLevel: 'Chronic',
   }
@@ -125,7 +125,7 @@ describe('IE + TX 序列对齐测试', () => {
   const baseContext: GenerationContext = {
     noteType: 'IE',
     primaryBodyPart: 'KNEE',
-    laterality: 'Bilateral',
+    laterality: 'bilateral',
     insuranceType: 'OPTUM',
     severityLevel: 'moderate to severe',
     chronicityLevel: 'Chronic',

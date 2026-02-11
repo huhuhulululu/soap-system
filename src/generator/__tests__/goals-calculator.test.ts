@@ -2,7 +2,7 @@
  * Goals 动态计算测试
  * 多部位、多阶段 SOAP 生成功能测试
  */
-import { describe, it, expect } from 'vitest'
+
 import { calculateDynamicGoals, parsePainFromSeverity, calculateIEPainScale } from '../goals-calculator'
 import { generatePlanIE } from '../soap-generator'
 import type { GenerationContext, SeverityLevel, BodyPart } from '../../types'
@@ -164,7 +164,7 @@ describe('goals-calculator', () => {
 describe('generatePlanIE - Multi Body Part', () => {
   const baseContext: Partial<GenerationContext> = {
     noteType: 'IE',
-    laterality: 'Bilateral',
+    laterality: 'bilateral',
     insuranceType: 'OPTUM',
     severityLevel: 'moderate to severe',
     chronicityLevel: 'Chronic',
@@ -216,7 +216,7 @@ describe('generatePlanIE - Multi Severity', () => {
       const context: GenerationContext = {
         noteType: 'IE',
         primaryBodyPart: 'KNEE',
-        laterality: 'Bilateral',
+        laterality: 'bilateral',
         insuranceType: 'OPTUM',
         severityLevel: severity,
         chronicityLevel: 'Chronic',
@@ -240,7 +240,7 @@ describe('generatePlanIE - Symptom Types', () => {
       const context: GenerationContext = {
         noteType: 'IE',
         primaryBodyPart: 'KNEE',
-        laterality: 'Bilateral',
+        laterality: 'bilateral',
         insuranceType: 'OPTUM',
         severityLevel: 'moderate to severe',
         chronicityLevel: 'Chronic',

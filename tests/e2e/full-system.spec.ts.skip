@@ -5,7 +5,7 @@
  * 测试流程: PDF解析 → 数据桥接 → 文档校验 → 纠错生成 → SOAP生成 → 验证
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals'
+
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -158,7 +158,7 @@ describe('Module 2: Data Bridge', () => {
     it('should convert OptumNoteDocument to GenerationContext', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         expect(ctx.noteType).toMatch(/^(IE|TX)$/)
         expect(ctx.primaryBodyPart).toBeTruthy()
         expect(ctx.laterality).toBeTruthy()
@@ -170,7 +170,7 @@ describe('Module 2: Data Bridge', () => {
     it('should infer insurance type correctly', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         expect(['OPTUM', 'WC', 'HF', 'NONE']).toContain(ctx.insuranceType)
       }
     })
@@ -201,7 +201,7 @@ describe('Module 3: Document Checker', () => {
         const report = checkDocument({ document: tc.document })
         expect(report).toBeDefined()
         expect(report.errors).toBeInstanceOf(Array)
-        expect(typeof report.score).toBe('number')
+        expect(typeof report.summary.scoring.totalScore).toBe('number')
       }
     })
 
@@ -219,8 +219,8 @@ describe('Module 3: Document Checker', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
         const report = checkDocument({ document: tc.document })
-        expect(report.score).toBeGreaterThanOrEqual(0)
-        expect(report.score).toBeLessThanOrEqual(100)
+        expect(report.summary.scoring.totalScore).toBeGreaterThanOrEqual(0)
+        expect(report.summary.scoring.totalScore).toBeLessThanOrEqual(100)
       }
     })
   })
@@ -249,7 +249,7 @@ describe('Module 4: Correction Generator', () => {
         const corrections = generateCorrections(tc.document, report.errors)
         for (const correction of corrections) {
           expect(correction.visitIndex).toBeDefined()
-          expect(correction.fixes).toBeInstanceOf(Array)
+          expect(correction.fieldFixes).toBeInstanceOf(Array)
         }
       }
     })
@@ -262,7 +262,7 @@ describe('Module 5: SOAP Generator', () => {
     it('should generate IE SOAP note from context', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         ctx.noteType = 'IE'
 
         const soap = generateSOAPNote(ctx)
@@ -276,7 +276,7 @@ describe('Module 5: SOAP Generator', () => {
     it('should generate valid HTML content', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         ctx.noteType = 'IE'
 
         const soap = generateSOAPNote(ctx)
@@ -292,7 +292,7 @@ describe('Module 5: SOAP Generator', () => {
     it('should generate TX SOAP note with previousIE', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
 
         // First generate IE
         ctx.noteType = 'IE'
@@ -313,7 +313,7 @@ describe('Module 5: SOAP Generator', () => {
     it('should generate TX sequence with progressive improvement', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         ctx.noteType = 'IE'
         const ieNote = generateSOAPNote(ctx)
 
@@ -340,7 +340,7 @@ describe('Module 6: SOAP Validator', () => {
     it('should validate generated SOAP notes', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         ctx.noteType = 'IE'
 
         const soap = generateSOAPNote(ctx)
@@ -356,7 +356,7 @@ describe('Module 6: SOAP Validator', () => {
     it('should format validation results', () => {
       for (const tc of testCases) {
         if (!tc.document) continue
-        const ctx = bridgeToContext(tc.document)
+        const ctx = bridgeToContext(tc.document, 0)
         ctx.noteType = 'IE'
 
         const soap = generateSOAPNote(ctx)
@@ -383,7 +383,7 @@ describe('Module 7: Full Pipeline Integration', () => {
       expect(checkReport).toBeDefined()
 
       // Step 3: Bridge to context
-      const ctx = bridgeToContext(parseResult.document)
+      const ctx = bridgeToContext(parseResult.document, 0)
       expect(ctx).toBeDefined()
 
       // Step 4: Generate IE
@@ -411,7 +411,7 @@ describe('Module 7: Full Pipeline Integration', () => {
     for (const tc of testCases) {
       if (!tc.document) continue
 
-      const ctx = bridgeToContext(tc.document)
+      const ctx = bridgeToContext(tc.document, 0)
       if (!ctx.secondaryBodyParts?.length) continue
 
       ctx.noteType = 'IE'
@@ -426,7 +426,7 @@ describe('Module 7: Full Pipeline Integration', () => {
     for (const tc of testCases) {
       if (!tc.document) continue
 
-      const ctx = bridgeToContext(tc.document)
+      const ctx = bridgeToContext(tc.document, 0)
       ctx.noteType = 'IE'
       const ieNote = generateSOAPNote(ctx)
 
@@ -453,7 +453,7 @@ describe('Module 8: Edge Cases', () => {
     for (const tc of testCases) {
       if (!tc.document) continue
 
-      const ctx = bridgeToContext(tc.document)
+      const ctx = bridgeToContext(tc.document, 0)
       ctx.hasPacemaker = true
       ctx.noteType = 'IE'
 
@@ -469,7 +469,7 @@ describe('Module 8: Edge Cases', () => {
     for (const tc of testCases) {
       if (!tc.document) continue
 
-      const ctx = bridgeToContext(tc.document)
+      const ctx = bridgeToContext(tc.document, 0)
       ctx.severityLevel = 'severe'
       ctx.noteType = 'IE'
 
@@ -483,7 +483,7 @@ describe('Module 8: Edge Cases', () => {
     for (const tc of testCases) {
       if (!tc.document) continue
 
-      const ctx = bridgeToContext(tc.document)
+      const ctx = bridgeToContext(tc.document, 0)
       ctx.laterality = 'bilateral'
       ctx.noteType = 'IE'
 

@@ -1,0 +1,159 @@
+{
+  "chronicityLevel": {
+    "type": "single",
+    "options": [
+      "Acute",
+      "Sub Acute",
+      "Chronic"
+    ],
+    "source": "ie/AC-IE SHOULDER.md"
+  },
+  "laterality": {
+    "type": "single",
+    "options": [
+      "along right",
+      "along left",
+      "along bilateral",
+      "in left",
+      "in right",
+      "in bilateral"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  },
+  "severityLevel": {
+    "type": "single",
+    "options": [
+      "severe",
+      "moderate to severe",
+      "moderate",
+      "mild to moderate",
+      "mild"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  },
+  "painScale": {
+    "type": "single",
+    "options": [
+      "10",
+      "10-9",
+      "9",
+      "9-8",
+      "8",
+      "8-7",
+      "7",
+      "7-6",
+      "6",
+      "6-5",
+      "5",
+      "5-4",
+      "4",
+      "4-3",
+      "3",
+      "3-2",
+      "2",
+      "2-1",
+      "1",
+      "1-0",
+      "0"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  },
+  "tendernessScale": {
+    "type": "single",
+    "options": [
+      "(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure",
+      "(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure",
+      "(+2) = Patient states that the area is moderately tender",
+      "(+1)=Patient states that the area is mildly tender-annoying"
+    ],
+    "source": "ie/AC-IE THIGH.md"
+  },
+  "spasmScale": {
+    "type": "multi",
+    "options": [
+      "local muscles tightness",
+      "local muscles tenderness",
+      "local muscles spasms",
+      "local muscles trigger points",
+      "joint ROM limitation",
+      "muscles strength",
+      "joints swelling",
+      "last visit"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  },
+  "painTypes": {
+    "type": "multi",
+    "options": [
+      "Dull",
+      "Burning",
+      "Freezing",
+      "Shooting",
+      "Tingling",
+      "Stabbing",
+      "Aching",
+      "Squeezing",
+      "Cramping",
+      "pricking",
+      "weighty",
+      "cold",
+      "pin &amp; needles"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  },
+  "localPattern": {
+    "type": "multi",
+    "options": [
+      "Qi Stagnation",
+      "Blood Stasis",
+      "Liver Qi Stagnation",
+      "Blood Deficiency",
+      "Qi &amp; Blood Deficiency",
+      "Wind-Cold Invasion",
+      "Cold-Damp + Wind-Cold",
+      "LV/GB Damp-Heat",
+      "Phlegm-Damp",
+      "Phlegm-Heat",
+      "Damp-Heat"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  },
+  "systemicPattern": {
+    "type": "multi",
+    "options": [
+      "Kidney Yang Deficiency",
+      "Kidney Yin Deficiency",
+      "Kidney Qi Deficiency",
+      "LU &amp; KI Deficiency",
+      "Kidney Essence Deficiency",
+      "Yin Deficiency Fire",
+      "Qi Deficiency",
+      "Blood Deficiency",
+      "Qi &amp; Blood Deficiency",
+      "Phlegm-Damp",
+      "Phlegm-Heat",
+      "Liver Yang Rising",
+      "LV/GB Fire",
+      "LV/GB Damp-Heat",
+      "Spleen Deficiency",
+      "Damp-Heat",
+      "ST &amp; Intestine Damp-Heat",
+      "Stomach Heat",
+      "Food Retention",
+      "Wei Qi Deficiency",
+      "Ying &amp; Wei Disharmony",
+      "LU Wind-Heat",
+      "Excessive Heat Flaring"
+    ],
+    "source": "ie/AC-IE THIGH.md"
+  },
+  "generalCondition": {
+    "type": "single",
+    "options": [
+      "good",
+      "fair",
+      "poor"
+    ],
+    "source": "tx/AC-TX SHOULDER.md"
+  }
+}
