@@ -840,20 +840,35 @@ export function generateTXSequenceStates(
       'because of'
     )
     const reason = pickSingle('subjective.reason', ruleContext, progress, rng, 'energy level improved')
-    let associatedSymptom = pickSingle('subjective.associatedSymptoms', ruleContext, progress, rng, 'soreness')
-    if (progress > 0.7) {
-      associatedSymptom = findTemplateOption(
-        'subjective.associatedSymptoms',
-        ['soreness', 'stiffness', associatedSymptom],
-        associatedSymptom
-      )
-    }
+    // Associated Symptom: 基于 progress 确定性递减
+    // 等级: soreness(1) < stiffness(2) < heaviness(3) < weakness/numbness(4)
+    // 早期用较重症状，后期向轻症状过渡
+    const symptomByProgress: string[] = ['soreness', 'soreness', 'stiffness', 'heaviness']
+    let associatedSymptom: string
     if (prevAssociatedSymptom) {
+      // 有前值: 保持或向更轻方向变化
       const prevRank = associatedSymptomRank(prevAssociatedSymptom)
-      const curRank = associatedSymptomRank(associatedSymptom)
-      if (curRank > prevRank) {
+      // progress > 0.5 时尝试降一级
+      if (progress > 0.5 && prevRank > 1 && rng() > 0.5) {
+        const targetRank = prevRank - 1
+        const rankToSymptom: Record<number, string> = { 1: 'soreness', 2: 'stiffness', 3: 'heaviness' }
+        associatedSymptom = findTemplateOption(
+          'subjective.associatedSymptoms',
+          [rankToSymptom[targetRank] || 'soreness', prevAssociatedSymptom],
+          prevAssociatedSymptom
+        )
+      } else {
         associatedSymptom = prevAssociatedSymptom
       }
+    } else {
+      // 无前值 (TX1): 基于严重度选择初始症状，不随机到 weakness
+      // moderate to severe / severe → stiffness; moderate 以下 → soreness
+      const initSymptom = severityOrder.indexOf(severityLevel) >= 3 ? 'stiffness' : 'soreness'
+      associatedSymptom = findTemplateOption(
+        'subjective.associatedSymptoms',
+        [initSymptom, 'soreness'],
+        'soreness'
+      )
     }
     prevAssociatedSymptom = associatedSymptom
     const painFrequency = pickSingle(
