@@ -184,24 +184,28 @@ export function inferDiagnosisCodes(bodyPart: BodyPart, laterality: Laterality) 
 
 export function inferProcedureCodes(insuranceType: string, treatmentTime: number, hasElectricalStim = false) {
   // HF/OPTUM: 简化协议，15min，无电刺激
-  const isSimple = insuranceType === 'HF' || insuranceType === 'OPTUM'
-  if (isSimple) {
+  if (insuranceType === 'HF' || insuranceType === 'OPTUM') {
     return [{ cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false }]
   }
   
-  // Full protocol: 根据电刺激决定 CPT
-  const units = Math.floor(treatmentTime / 15)
-  if (hasElectricalStim) {
-    // 有电刺激: 97813 + 97814
+  // WC full code: 97813×1 + 97814×2 + 97811×1
+  if (insuranceType === 'WC') {
     return [
       { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
-      ...(units > 1 ? [{ cpt: '97814', description: 'Acupuncture w/ estim, each addl 15 min', units: units - 1, electricalStimulation: true }] : [])
-    ]
-  } else {
-    // 无电刺激: 97810 + 97811
-    return [
-      { cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false },
-      ...(units > 1 ? [{ cpt: '97811', description: 'Acupuncture w/o estim, each addl 15 min', units: units - 1, electricalStimulation: false }] : [])
+      { cpt: '97814', description: 'Acupuncture w/ estim, each addl 15 min', units: 2, electricalStimulation: true },
+      { cpt: '97811', description: 'Acupuncture w/o estim, each addl 15 min', units: 1, electricalStimulation: false }
     ]
   }
+  
+  // VC full code: 97813×1 + 97814×1 + 97811×2
+  if (insuranceType === 'VC') {
+    return [
+      { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
+      { cpt: '97814', description: 'Acupuncture w/ estim, each addl 15 min', units: 1, electricalStimulation: true },
+      { cpt: '97811', description: 'Acupuncture w/o estim, each addl 15 min', units: 2, electricalStimulation: false }
+    ]
+  }
+  
+  // 其他: 默认 97810
+  return [{ cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false }]
 }
