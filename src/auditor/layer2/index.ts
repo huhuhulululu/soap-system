@@ -187,9 +187,10 @@ export class MedicalLogicChecker {
       name: '血瘀证-舌象矛盾',
       check: (note) => {
         const localPattern = note.localPattern || ''
+        const systemicPattern = note.systemicPattern || ''
         const tongue = note.tongue || ''
 
-        if (localPattern.includes('Blood Stasis') &&
+        if ((localPattern.includes('Blood Stasis') || systemicPattern.includes('Blood Stasis')) &&
             (tongue.includes('pale') || tongue.includes('light'))) {
           return {
             ruleId: 'HS07',
@@ -258,8 +259,11 @@ export class MedicalLogicChecker {
       id: 'HS10',
       name: 'ADL-疼痛不匹配',
       check: (note) => {
-        const adl = note.adlDifficulty || 0
-        const pain = note.painScaleCurrent || 0
+        const adl = note.adlDifficulty
+        const pain = note.painScaleCurrent
+
+        // 显式检查undefined,避免使用||0导致的误触发
+        if (adl === undefined || pain === undefined) return null
 
         if (adl >= 7 && pain < 3) {
           return {
@@ -279,7 +283,7 @@ export class MedicalLogicChecker {
 
   check(note: any): Layer2Result {
     const concerns: HeuristicResult[] = []
-    
+
     for (const h of this.heuristics) {
       const result = h.check(note)
       if (result) {
@@ -287,11 +291,17 @@ export class MedicalLogicChecker {
       }
     }
 
+    // 只有 HIGH 或 MEDIUM severity 才返回 WARNING
+    const hasHighOrMediumConcern = concerns.some(c =>
+      c.severity === 'HIGH' || c.severity === 'MEDIUM'
+    )
+
     return {
       layer: 'medical_logic',
-      result: concerns.length > 0 ? 'WARNING' : 'PASS',
+      result: hasHighOrMediumConcern ? 'WARNING' : 'PASS',
       concerns,
-      manualReviewRequired: concerns.some(c => c.confidence > 0.8)
+      // 基于 severity 判定，而非 confidence
+      manualReviewRequired: hasHighOrMediumConcern
     }
   }
 }
