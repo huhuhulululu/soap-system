@@ -16,16 +16,50 @@ const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
 const CPT_OPTIONS = [{ value: '97810', label: '97810' }, { value: 'full', label: 'Full Code' }]
 
-// 固定字段（不显示）
+// 固定字段（不显示，由引擎自动处理）
 const FIXED_FIELDS = new Set([
   'subjective.painTypes',
+  'subjective.chronicityLevel',
   'assessment.tcmDiagnosis.localPattern',
   'assessment.tcmDiagnosis.systemicPattern',
   'assessment.generalCondition',
+  'assessment.treatmentPrinciples.focusOn',
   'objective.tonguePulse.tongue',
   'objective.tonguePulse.pulse',
-  'subjective.chronicityLevel', // 由基础设置决定
+  'objective.muscleTesting.muscles',
+  'plan.evaluationType',
+  'plan.shortTermGoal.treatmentFrequency',
+  'plan.needleProtocol.totalTime',
+  'plan.needleProtocol.electricalStimulation',
+  'plan.needleProtocol.points',
 ])
+
+// 字段中文名称映射
+const FIELD_LABELS = {
+  'subjective.symptomScale': '症状量表',
+  'subjective.symptomDuration.value': '病程时长',
+  'subjective.symptomDuration.unit': '时长单位',
+  'subjective.adlDifficulty.level': 'ADL难度',
+  'subjective.adlDifficulty.activities': 'ADL活动',
+  'subjective.painScale.worst': '最痛评分',
+  'subjective.painScale.best': '最轻评分',
+  'subjective.painScale.current': '当前评分',
+  'subjective.painFrequency': '疼痛频率',
+  'subjective.painRadiation': '放射痛',
+  'subjective.associatedSymptoms': '伴随症状',
+  'subjective.causativeFactors': '病因',
+  'subjective.exacerbatingFactors': '加重因素',
+  'subjective.relievingFactors': '缓解因素',
+  'subjective.symptomChange': '症状变化',
+  'subjective.reasonConnector': '连接词',
+  'subjective.reason': '原因',
+  'subjective.painScale': '疼痛评分',
+  'objective.muscleTesting.tightness.gradingScale': '紧张度',
+  'objective.muscleTesting.tenderness.gradingScale': '压痛度',
+  'objective.spasmGrading': '痉挛度',
+  'objective.rom.degrees': 'ROM角度',
+  'objective.rom.strength': '肌力',
+}
 
 // 动态字段值
 const fields = reactive({})
@@ -65,8 +99,8 @@ function getNestedValue(obj, path) {
 const dynamicFields = computed(() => ({
   S: Object.keys(whitelist).filter(k => k.startsWith('subjective.') && !FIXED_FIELDS.has(k)),
   O: Object.keys(whitelist).filter(k => k.startsWith('objective.') && !FIXED_FIELDS.has(k)),
-  A: Object.keys(whitelist).filter(k => k.startsWith('assessment.') && !FIXED_FIELDS.has(k)),
-  P: Object.keys(whitelist).filter(k => k.startsWith('plan.') && !FIXED_FIELDS.has(k))
+  A: [], // A部分由引擎自动推导
+  P: []  // P部分由证型决定
 }))
 
 // 生成上下文
@@ -116,7 +150,7 @@ function copyAll() {
 }
 
 function fieldLabel(path) {
-  return path.split('.').pop().replace(/([A-Z])/g, ' $1').trim()
+  return FIELD_LABELS[path] || path.split('.').pop().replace(/([A-Z])/g, ' $1').trim()
 }
 </script>
 
@@ -161,20 +195,25 @@ function fieldLabel(path) {
           </div>
         </div>
 
-        <!-- 动态字段（仅显示可变字段） -->
-        <div v-for="(section, key) in { S: 'Subjective', O: 'Objective', A: 'Assessment', P: 'Plan' }" :key="key"
+        <!-- 动态字段（仅显示用户可控字段） -->
+        <div v-for="(section, key) in { S: 'Subjective', O: 'Objective' }" :key="key"
           class="bg-white rounded-xl border border-ink-200 p-4"
           v-show="dynamicFields[key].length > 0">
           <h3 class="text-sm font-semibold text-ink-700 mb-3">{{ section }} <span class="text-ink-400 font-normal">({{ dynamicFields[key].length }})</span></h3>
           <div class="space-y-2 max-h-56 overflow-y-auto">
-            <div v-for="fieldPath in dynamicFields[key].slice(0, 12)" :key="fieldPath" class="flex items-center gap-2">
-              <label class="text-xs text-ink-500 w-32 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+            <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath" class="flex items-center gap-2">
+              <label class="text-xs text-ink-500 w-24 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
               <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
-                <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt }}</option>
+                <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 40 ? opt.substring(0, 40) + '...' : opt }}</option>
               </select>
               <span v-if="getRecommendedOptions(fieldPath).length" class="text-xs text-green-600" title="有推荐">✓</span>
             </div>
           </div>
+        </div>
+
+        <!-- A/P 说明 -->
+        <div class="bg-paper-100 rounded-xl border border-ink-100 p-3 text-xs text-ink-500">
+          <p>💡 Assessment 和 Plan 由引擎根据 S/O 自动推导生成</p>
         </div>
 
         <!-- 生成按钮 -->
