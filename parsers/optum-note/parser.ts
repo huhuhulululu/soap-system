@@ -240,12 +240,12 @@ export function parseHeader(text: string): DocumentHeader | null {
 
 // ============ Visit Record Splitter ============
 export function splitVisitRecords(text: string): string[] {
-  // Split by "Subjective:" keyword
-  const parts = text.split(/(?=Subjective:)/i)
+  // Split by "Subjective" keyword (with or without colon), must be at word boundary
+  const parts = text.split(/(?=\bSubjective:?[\s\n])/i)
 
   // Filter: must have Subjective. Procedure Code is optional (may be at end of doc)
   return parts.filter((part) => {
-    return /Subjective:/i.test(part) && part.trim().length > 200
+    return /\bSubjective:?[\s\n]/i.test(part) && part.trim().length > 200
   })
 }
 
@@ -345,8 +345,8 @@ export function parseVisitRecord(block: string, index: number): VisitParseResult
 
 // ============ Subjective Parser ============
 export function parseSubjective(block: string): Subjective | null {
-  // Visit type
-  const isInitial = /Subjective:\s*INITIAL EVALUATION/i.test(block)
+  // Visit type - support with or without colon
+  const isInitial = /Subjective:?\s*\n?\s*INITIAL EVALUATION/i.test(block)
   const visitType: VisitType = isInitial ? 'INITIAL EVALUATION' : 'Follow up visit'
 
   // Chief complaint - Patient c/o or Patient still c/o
@@ -662,7 +662,8 @@ export function parseROM(block: string): ROM | null {
   // ROM items: X/5 or X+/5 or X-/5 Movement: XX Degrees(severity) or XX degree (severity)
   // Handle both ": 30" and ":30" formats (with or without space after colon)
   // Handle "0(normal)" and "-5(severe)" formats without Degrees keyword
-  const romPattern = /(\d[+-]?)\/5\s+([A-Za-z\s()]+?):\s*(-?\d+)\s*(?:[Dd]egrees?)?\s*\(?(\w+)\)?/g
+  // Handle "Flexion(fully bent): 80 Degrees(moderate)" format
+  const romPattern = /(\d[+-]?)\/5\s+([A-Za-z]+)(?:\([^)]+\))?:\s*(-?\d+)\s*(?:[Dd]egrees?)?\s*\(?(\w+)\)?/g
   const items: ROMItem[] = []
 
   let match
@@ -716,8 +717,8 @@ export function parseTonguePulse(block: string): TonguePulse | null {
 
 // ============ Assessment Parser ============
 export function parseAssessment(block: string): Assessment | null {
-  // Must have Assessment keyword
-  if (!/Assessment\s*:/i.test(block)) return null
+  // Must have Assessment keyword (with or without colon)
+  if (!/Assessment\s*:?[\s\n]/i.test(block)) return null
 
   // Date pattern: standalone date near Assessment or at block start
   const datePattern = /(\d{2}\/\d{2}\/\d{4})\s*\n?\s*(?:Assessment:|Tongue)/i
@@ -741,10 +742,20 @@ export function parseAssessment(block: string): Assessment | null {
   const physicalMatch = block.match(physicalPattern)
   const physicalFindingChange = physicalMatch?.[1]?.trim() || ''
 
-  // Current pattern
+  // Current pattern - try multiple formats
+  // Format 1: "Current patient still has X"
+  // Format 2: From TCM Dx "due to X in local meridian"
   const patternPattern = /Current patient still has\s+(.+?)(?=\.\n|\.\s|that cause)/is
   const patternMatch = block.match(patternPattern)
-  const currentPattern = patternMatch?.[1]?.trim() || ''
+  let currentPattern = patternMatch?.[1]?.trim() || ''
+  
+  // If not found, try to extract from TCM Dx
+  if (!currentPattern) {
+    const tcmLocalPattern = /due to\s+(.+?)\s+in local meridian/i
+    const tcmLocalMatch = block.match(tcmLocalPattern)
+    currentPattern = tcmLocalMatch?.[1]?.trim() || ''
+  }
+  
   const localPattern = normalizeLocalPattern(currentPattern)
 
   // TCM Diagnosis (初诊)
