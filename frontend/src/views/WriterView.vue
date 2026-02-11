@@ -65,13 +65,25 @@ const FIELD_LABELS = {
   'objective.rom.strength': '肌力',
 }
 
+// 多选字段
+const MULTI_SELECT_FIELDS = new Set([
+  'subjective.associatedSymptoms',
+  'subjective.exacerbatingFactors',
+  'subjective.relievingFactors',
+  'subjective.adlDifficulty.activities'
+])
+
 // 动态字段值
 const fields = reactive({})
 
 // 初始化字段默认值
 Object.keys(whitelist).forEach(key => {
   const opts = whitelist[key]
-  fields[key] = Array.isArray(opts) && opts.length > 0 ? opts[0] : ''
+  if (MULTI_SELECT_FIELDS.has(key)) {
+    fields[key] = opts.length > 0 ? [opts[0]] : []
+  } else {
+    fields[key] = Array.isArray(opts) && opts.length > 0 ? opts[0] : ''
+  }
 })
 
 // 根据规则计算推荐选项
@@ -224,12 +236,21 @@ function fieldLabel(path) {
           v-show="dynamicFields[key].length > 0">
           <h3 class="text-sm font-semibold text-ink-700 mb-3">{{ section }} <span class="text-ink-400 font-normal">({{ dynamicFields[key].length }})</span></h3>
           <div class="space-y-2 max-h-56 overflow-y-auto">
-            <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath" class="flex items-center gap-2">
-              <label class="text-xs text-ink-500 w-24 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
-              <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
+            <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath" class="flex items-start gap-2">
+              <label class="text-xs text-ink-500 w-24 truncate pt-1" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+              <!-- 多选字段 -->
+              <div v-if="MULTI_SELECT_FIELDS.has(fieldPath)" class="flex-1 flex flex-wrap gap-1">
+                <label v-for="opt in whitelist[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-xs px-2 py-1 border rounded cursor-pointer"
+                  :class="fields[fieldPath].includes(opt) ? 'bg-ink-100 border-ink-400' : 'border-ink-200 hover:bg-paper-100'">
+                  <input type="checkbox" :value="opt" v-model="fields[fieldPath]" class="hidden" />
+                  {{ opt.length > 20 ? opt.substring(0, 20) + '...' : opt }}
+                </label>
+              </div>
+              <!-- 单选字段 -->
+              <select v-else v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
                 <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 40 ? opt.substring(0, 40) + '...' : opt }}</option>
               </select>
-              <span v-if="getRecommendedOptions(fieldPath).length" class="text-xs text-green-600" title="有推荐">✓</span>
+              <span v-if="getRecommendedOptions(fieldPath).length" class="text-xs text-green-600 pt-1" title="有推荐">✓</span>
             </div>
           </div>
         </div>
