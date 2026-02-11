@@ -1,0 +1,63 @@
+{
+  "name": "soap-system",
+  "version": "1.0.0",
+  "description": "SOAP Medical Notes Validation System",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "jest",
+    "test:verbose": "jest --verbose",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:e2e": "jest tests/e2e",
+    "test:all": "jest --testPathPattern='(tests|__tests__)'",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.3.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/parsers",
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts",
+      "**/tests/**/*.spec.ts"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "parsers/**/*.ts",
+      "!src/**/__tests__/**",
+      "!parsers/**/__tests__/**",
+      "!**/*.test.ts",
+      "!**/*.spec.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    },
+    "testTimeout": 30000
+  },
+  "dependencies": {
+    "tsx": "^4.21.0"
+  }
+}

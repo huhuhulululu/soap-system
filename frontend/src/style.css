@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    @apply font-sans leading-relaxed;
+    background: linear-gradient(135deg, #fefdfb 0%, #f7f3eb 100%);
+    min-height: 100vh;
+  }
+
+  ::selection {
+    @apply bg-ink-200 text-ink-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-5 py-2.5 bg-ink-800 text-paper-50 font-medium rounded-lg
+           hover:bg-ink-700 active:bg-ink-900
+           transition-all duration-200 ease-out
+           focus:outline-none focus:ring-2 focus:ring-ink-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 bg-paper-200 text-ink-800 font-medium rounded-lg
+           hover:bg-paper-300 active:bg-paper-400
+           transition-all duration-200 ease-out border border-ink-200
+           focus:outline-none focus:ring-2 focus:ring-ink-300 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-ink-100/50
+           transition-shadow duration-300 hover:shadow-md;
+  }
+
+  .grade-pass {
+    @apply bg-status-pass/10 text-status-pass border-status-pass/30;
+  }
+
+  .grade-warning {
+    @apply bg-status-warning/10 text-status-warning border-status-warning/30;
+  }
+
+  .grade-fail {
+    @apply bg-status-fail/10 text-status-fail border-status-fail/30;
+  }
+
+  .severity-critical {
+    @apply text-status-fail bg-status-fail/10;
+  }
+
+  .severity-high {
+    @apply text-orange-600 bg-orange-50;
+  }
+
+  .severity-medium {
+    @apply text-status-warning bg-status-warning/10;
+  }
+
+  .severity-low {
+    @apply text-status-info bg-status-info/10;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-paper-200 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-ink-300 rounded-full hover:bg-ink-400;
+}
+
+/* Drag & drop zone styles */
+.dropzone-active {
+  @apply border-ink-500 bg-ink-50/50;
+}
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
