@@ -204,12 +204,18 @@ function calculateADLGoals(severity: SeverityLevel): { st: string; lt: string } 
   }
 }
 
-export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, symptomType: string = 'soreness'): DynamicGoals {
-  const painCurrent = parsePainFromSeverity(severity)
+/**
+ * @param severity - ADL severity level
+ * @param bp - body part
+ * @param symptomType - associated symptom type
+ * @param painOverride - 用户实际 pain 值 (可选，优先于 severity 反推)
+ */
+export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, symptomType: string = 'soreness', painOverride?: number): DynamicGoals {
+  const painCurrent = painOverride ?? parsePainFromSeverity(severity)
 
   return {
     pain:        calculatePainGoals(painCurrent, bp),
-    symptomType: symptomType,  // 'soreness', 'weakness', 'stiffness', 'heaviness', 'numbness'
+    symptomType: symptomType,
     symptomPct:  calculateSymptomPctGoals(severity),
     tightness:   calculateTightnessGoals(severity),
     tenderness:  calculateTendernessGoals(severity, bp),

@@ -64,20 +64,22 @@ watch(bodyPart, (bp) => {
 
 // 固定字段（不显示，由引擎自动处理）
 const FIXED_FIELDS = new Set([
-  'subjective.painTypes',
   'subjective.chronicityLevel',
+  'subjective.adlDifficulty.level',  // severity 由 pain 推导
   'assessment.tcmDiagnosis.localPattern',
   'assessment.tcmDiagnosis.systemicPattern',
   'assessment.generalCondition',
   'assessment.treatmentPrinciples.focusOn',
-  'objective.tonguePulse.tongue',
-  'objective.tonguePulse.pulse',
   'objective.muscleTesting.muscles',
   'plan.evaluationType',
   'plan.shortTermGoal.treatmentFrequency',
   'plan.needleProtocol.totalTime',
-  'plan.needleProtocol.electricalStimulation',
   'plan.needleProtocol.points',
+  // 以下字段移出 FIXED_FIELDS，让用户可控:
+  // 'subjective.painTypes'               → 用户多选
+  // 'objective.tonguePulse.tongue'        → 证型默认 + 用户可调
+  // 'objective.tonguePulse.pulse'         → 证型默认 + 用户可调
+  // 'plan.needleProtocol.electricalStimulation' → 用户可控
 ])
 
 // 字段中文名称映射
@@ -100,6 +102,10 @@ const FIELD_LABELS = {
   'subjective.reasonConnector': '连接词',
   'subjective.reason': '原因',
   'subjective.painScale': '疼痛评分',
+  'subjective.painTypes': '疼痛类型',
+  'objective.tonguePulse.tongue': '舌象',
+  'objective.tonguePulse.pulse': '脉象',
+  'plan.needleProtocol.electricalStimulation': '电刺激',
   'objective.muscleTesting.tightness.gradingScale': '紧张度',
   'objective.muscleTesting.tenderness.gradingScale': '压痛度',
   'objective.spasmGrading': '痉挛度',
@@ -109,6 +115,7 @@ const FIELD_LABELS = {
 
 // 多选字段
 const MULTI_SELECT_FIELDS = new Set([
+  'subjective.painTypes',
   'subjective.associatedSymptoms',
   'subjective.causativeFactors',
   'subjective.exacerbatingFactors',
@@ -154,6 +161,25 @@ function getNestedValue(obj, path) {
   return path.split('.').reduce((o, k) => o?.[k], obj)
 }
 
+// Severity 从 Pain 自动推导（与 tx-sequence-engine 的 severityFromPain 一致）
+function severityFromPain(pain) {
+  if (pain >= 9) return 'severe'
+  if (pain >= 7) return 'moderate to severe'
+  if (pain >= 6) return 'moderate'
+  if (pain >= 4) return 'mild to moderate'
+  return 'mild'
+}
+
+function parsePainValue(raw) {
+  if (!raw) return 8
+  const m = raw.match(/\d+/)
+  return m ? parseInt(m[0], 10) : 8
+}
+
+// 当前 pain 数值和推导的 severity
+const currentPain = computed(() => parsePainValue(fields['subjective.painScale.current']))
+const derivedSeverity = computed(() => severityFromPain(currentPain.value))
+
 // 动态字段分组（过滤掉固定字段）
 const dynamicFields = computed(() => ({
   S: Object.keys(whitelist).filter(k => k.startsWith('subjective.') && !FIXED_FIELDS.has(k)),
@@ -171,9 +197,14 @@ const generationContext = computed(() => ({
   localPattern: fields['assessment.tcmDiagnosis.localPattern'] || 'Qi Stagnation',
   systemicPattern: fields['assessment.tcmDiagnosis.systemicPattern'] || 'Kidney Yang Deficiency',
   chronicityLevel: fields['subjective.chronicityLevel'] || 'Chronic',
-  severityLevel: fields['subjective.adlDifficulty.level'] || 'moderate',
-  // 用户选择的伴随症状 (取第一个作为主症状)
-  associatedSymptom: (fields['subjective.associatedSymptoms'] || [])[0] || 'soreness'
+  severityLevel: derivedSeverity.value,          // 从 pain 推导
+  painCurrent: currentPain.value,                 // 用户实际 pain 值
+  associatedSymptom: (fields['subjective.associatedSymptoms'] || [])[0] || 'soreness',
+  symptomDuration: {
+    value: fields['subjective.symptomDuration.value'] || '3',
+    unit: fields['subjective.symptomDuration.unit'] || 'month(s)'
+  },
+  painRadiation: fields['subjective.painRadiation'] || 'without radiation'
 }))
 
 // 生成结果
@@ -192,13 +223,20 @@ function generate(useSeed) {
       : undefined
 
     // 用户输入作为 initialState 基线
-    // painScale.current: "8" | "8-7" | "7" → 取第一个数字作为起始 pain
-    const painRaw = fields['subjective.painScale.current'] || '8'
-    const painNum = parseFloat(painRaw.match(/\d+/)?.[0] || '8')
+    // frequency 映射: painFrequency 文本 → 0-3 等级
+    const freqText = fields['subjective.painFrequency'] || ''
+    const freqLevel = freqText.includes('Constant') ? 3
+      : freqText.includes('Frequent') ? 2
+      : freqText.includes('Occasional') ? 1
+      : freqText.includes('Intermittent') ? 0
+      : 3
 
     const initialState = {
-      pain: painNum,
-      associatedSymptom: ctx.associatedSymptom || 'soreness'
+      pain: ctx.painCurrent,
+      associatedSymptom: ctx.associatedSymptom || 'soreness',
+      symptomScale: fields['subjective.symptomScale'] || '70%',
+      frequency: freqLevel,
+      painTypes: fields['subjective.painTypes'] || ['Dull', 'Aching']
     }
 
     if (noteType.value === 'IE') {

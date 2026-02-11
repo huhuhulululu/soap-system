@@ -282,6 +282,12 @@ export interface GenerationContext {
    * - 'numbness': 麻木
    */
   associatedSymptom?: 'soreness' | 'weakness' | 'stiffness' | 'heaviness' | 'numbness'
+  /** 用户实际输入的当前疼痛值 (数字, 0-10) */
+  painCurrent?: number
+  /** 用户输入的症状持续时间 { value: '3', unit: 'month(s)' } */
+  symptomDuration?: { value: string; unit: string }
+  /** 用户输入的放射痛描述 */
+  painRadiation?: string
 }
 
 // ==================== 模板定义 ====================

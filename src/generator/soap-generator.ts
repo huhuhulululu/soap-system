@@ -587,6 +587,15 @@ export function generateSubjective(context: GenerationContext): string {
   const lateralityUpper = laterality.charAt(0).toUpperCase() + laterality.slice(1)
   const pattern = TCM_PATTERNS[context.localPattern]
 
+  // 用户输入值 (带默认回退)
+  const painCurrent = context.painCurrent ?? 8
+  const durationValue = context.symptomDuration?.value ?? '3'
+  const durationUnit = context.symptomDuration?.unit ?? 'month(s)'
+  const radiation = context.painRadiation ?? 'without radiation'
+  // Pain worst/best 从 current 推导
+  const painWorst = Math.min(10, painCurrent + 1)
+  const painBest = Math.max(1, painCurrent - 2)
+
   // 根据证型选择疼痛类型
   const painTypeOptions = ['Dull', 'Burning', 'Freezing', 'Shooting', 'Tingling', 'Stabbing', 'Aching', 'Squeezing', 'Cramping', 'pricking', 'weighty', 'cold', 'pin & needles']
   const weightContext: WeightContext = {
@@ -630,8 +639,8 @@ export function generateSubjective(context: GenerationContext): string {
     const selectedExac = selectBestOptions(weightedExac, 4)
 
     subjective += `Patient c/o ${context.chronicityLevel} ${selectedPainTypes.join(', ')} pain in ${laterality}`
-    subjective += `-${bodyPartAreaName} (without radiation) `
-    subjective += `for more than 10 year(s) got worse in recent 1-2 month(s) `
+    subjective += `-${bodyPartAreaName} (${radiation}) `
+    subjective += `for ${durationValue} ${durationUnit} got worse in recent 1-2 month(s) `
     subjective += `associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) `
     subjective += `${causativeConnector} age related/degenerative changes, over used due to nature of work.\n`
 
@@ -653,8 +662,7 @@ export function generateSubjective(context: GenerationContext): string {
       subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the ${lateralityUpper} -${bodyPartAreaName} pain.\n\n`
     }
 
-    // SHOULDER 疼痛评分默认值: 7/6/7-6
-    subjective += `Pain Scale: Worst: 7 ; Best: 6 ; Current: 7-6\n`
+    subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
     subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
     subjective += `Walking aid :none\n\n`
     subjective += `Medical history/Contraindication or Precision: N/A`
@@ -662,8 +670,8 @@ export function generateSubjective(context: GenerationContext): string {
     // ===== NECK 模板句式 =====
     // 开头与 KNEE/LBP 类似: "Patient c/o Chronic pain in [location] which is [types] [radiation]."
     // 但 ADL 用 SHOULDER 风格: "difficulty of" + 两组
-    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} without radiation . `
-    subjective += `The patient has been complaining of the pain for 3 month(s) which got worse in recent 1 week(s). `
+    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} ${radiation} . `
+    subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent 1 week(s). `
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} age related/degenerative changes.\n`
 
     // 加重因素 + ADL (SHOULDER 风格: 合并为一段, "difficulty of" + 两组)
@@ -690,16 +698,15 @@ export function generateSubjective(context: GenerationContext): string {
       subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the Cervical area.\n\n`
     }
 
-    // NECK 疼痛评分默认值: 8/6/8
-    subjective += `Pain Scale: Worst: 8 ; Best: 6 ; Current: 8\n`
+    subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
     subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
     subjective += `Walking aid :none\n\n`
     subjective += `Medical history/Contraindication or Precision: N/A`
   } else {
     // ===== KNEE / LBP / 其他部位模板句式 =====
     // "Patient c/o [Chronic] pain [in bilateral] Knee area which is [Dull, Aching] [without radiation]."
-    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} without radiation. `
-    subjective += `The patient has been complaining of the pain for 3 month(s) which got worse in recent 1 week(s). `
+    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} ${radiation}. `
+    subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent 1 week(s). `
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} age related/degenerative changes.\n\n`
 
     // KNEE/LBP 模板格式: "The pain is [aggravated by] [factor] . There is [severity] difficulty with ADLs like [activities]."
@@ -716,8 +723,7 @@ export function generateSubjective(context: GenerationContext): string {
       subjective += `Patient also complaints of chronic pain on the ${secondaryNames} area comes and goes, which is less severe compared to the ${lateralityUpper} ${bodyPartAreaName} pain.\n\n`
     }
 
-    // 疼痛评分 - KNEE/LBP 模板默认值
-    subjective += `Pain Scale: Worst: 8 ; Best: 6 ; Current: 8\n`
+    subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
     subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
     subjective += `Walking aid :none\n\n`
     subjective += `Medical history/Contraindication or Precision: N/A`
@@ -1257,9 +1263,9 @@ export function generatePlanIE(context: GenerationContext): string {
   const bp = context.primaryBodyPart
   const severity = context.severityLevel || 'moderate to severe'
 
-  // 动态计算 Goals (使用 context 中的 associatedSymptom)
+  // 动态计算 Goals (使用 context 中的 associatedSymptom 和实际 pain)
   const symptomType = context.associatedSymptom || 'soreness'
-  const goals = calculateDynamicGoals(severity, bp, symptomType)
+  const goals = calculateDynamicGoals(severity, bp, symptomType, context.painCurrent)
   const isMainBP = bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK'
 
   let plan = `Initial Evaluation - Personal one on one contact with the patient (total 20-30 mins)\n`
