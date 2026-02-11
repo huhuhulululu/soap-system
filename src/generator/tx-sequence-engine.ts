@@ -600,6 +600,7 @@ export function generateTXSequenceStates(
   let prevRomDeficit = 0.42
   let prevStrengthDeficit = 0.35
   // 纵向单调约束追踪变量
+  let prevSeverity: SeverityLevel = severityFromPain(options.initialState?.pain ?? 8)
   let prevTightnessGrading = options.initialState?.tightnessGrading ?? ''
   let prevTendernessGrade = options.initialState?.tendernessGrade ?? ''
   let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? ''
@@ -735,29 +736,32 @@ export function generateTXSequenceStates(
     const adlExpected = clamp(prevAdl - (0.18 + rng() * 0.2), 0.8, 4.0)
     const adl = clamp(Math.min(prevAdl, adlExpected + (rng() - 0.5) * 0.12), 0.8, 4.0)
     const adlDelta = prevAdl - adl
-    prevAdl = adl
-    // ADL 改善判定: 基于等级跳变而非微小数值变化
-    // adl 4.0→3.0 = severe→moderate to severe, 3.0→2.0 = moderate, 2.0→1.0 = mild
-    // 只有跨过整数等级线才视为真正改善，避免每次微递减都显示 improved
-    const prevAdlLevel = Math.ceil(prevAdl)  // 注意: prevAdl 已经更新，用 adl + adlDelta 还原
+    // ADL 改善判定: 先计算再更新 prevAdl
+    // 跨过整数等级线 + delta 足够大才视为真正改善
+    const prevAdlLevel = Math.ceil(prevAdl)
     const curAdlLevel = Math.ceil(adl)
-    const adlLevelChanged = Math.ceil(adl + adlDelta) > curAdlLevel
+    const adlLevelChanged = prevAdlLevel > curAdlLevel
     const adlImproved = adlLevelChanged && adlDelta > 0.3
+    prevAdl = adl
 
-    // severityLevel: 综合 pain + ADL 改善
-    // 基础由 pain 决定，但当 ADL 显著改善时允许下调一档
-    // 确保 A 说 "ADL decreased" 时，S 中的 severity 同步降低
+    // severityLevel: 综合 pain + ADL，且纵向只降不升
     const baseSeverity = severityFromPain(painScaleCurrent)
     const severityOrder: SeverityLevel[] = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
     let severityLevel = baseSeverity
     if (adlImproved && progress > 0.3) {
       const baseIdx = severityOrder.indexOf(baseSeverity)
       if (baseIdx > 0) {
-        // ADL 大幅改善 (delta > 0.3) 降两档，否则降一档
         const drop = adlDelta > 0.3 ? 2 : 1
         severityLevel = severityOrder[Math.max(0, baseIdx - drop)]
       }
     }
+    // 纵向约束: severity 只降不升
+    const curSevIdx = severityOrder.indexOf(severityLevel)
+    const prevSevIdx = severityOrder.indexOf(prevSeverity)
+    if (curSevIdx > prevSevIdx && prevSevIdx >= 0) {
+      severityLevel = prevSeverity
+    }
+    prevSeverity = severityLevel
 
     const frequencyImproveGate = progress > 0.55 && rng() > 0.45
     const nextFrequency = frequencyImproveGate ? Math.max(0, prevFrequency - (rng() > 0.5 ? 1 : 0)) : prevFrequency
