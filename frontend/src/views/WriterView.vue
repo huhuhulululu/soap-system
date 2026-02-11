@@ -68,6 +68,7 @@ const FIELD_LABELS = {
 // 多选字段
 const MULTI_SELECT_FIELDS = new Set([
   'subjective.associatedSymptoms',
+  'subjective.causativeFactors',
   'subjective.exacerbatingFactors',
   'subjective.relievingFactors',
   'subjective.adlDifficulty.activities'
@@ -184,6 +185,33 @@ function copyAll() {
   setTimeout(() => copiedIndex.value = -1, 1500)
 }
 
+// 多选面板展开状态
+const expandedPanels = reactive({})
+
+function togglePanel(fieldPath) {
+  expandedPanels[fieldPath] = !expandedPanels[fieldPath]
+}
+
+function toggleOption(fieldPath, opt) {
+  const arr = fields[fieldPath]
+  const idx = arr.indexOf(opt)
+  if (idx >= 0) {
+    arr.splice(idx, 1)
+  } else {
+    arr.push(opt)
+  }
+}
+
+function removeOption(fieldPath, opt) {
+  const arr = fields[fieldPath]
+  const idx = arr.indexOf(opt)
+  if (idx >= 0) arr.splice(idx, 1)
+}
+
+function shortLabel(text, maxLen = 35) {
+  return text.length > maxLen ? text.substring(0, maxLen) + '...' : text
+}
+
 function fieldLabel(path) {
   return FIELD_LABELS[path] || path.split('.').pop().replace(/([A-Z])/g, ' $1').trim()
 }
@@ -235,22 +263,53 @@ function fieldLabel(path) {
           class="bg-white rounded-xl border border-ink-200 p-4"
           v-show="dynamicFields[key].length > 0">
           <h3 class="text-sm font-semibold text-ink-700 mb-3">{{ section }} <span class="text-ink-400 font-normal">({{ dynamicFields[key].length }})</span></h3>
-          <div class="space-y-2 max-h-56 overflow-y-auto">
-            <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath" class="flex items-start gap-2">
-              <label class="text-xs text-ink-500 w-24 truncate pt-1" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+          <div class="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+            <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath">
               <!-- 多选字段 -->
-              <div v-if="MULTI_SELECT_FIELDS.has(fieldPath)" class="flex-1 flex flex-wrap gap-1">
-                <label v-for="opt in whitelist[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-xs px-2 py-1 border rounded cursor-pointer"
-                  :class="fields[fieldPath].includes(opt) ? 'bg-ink-100 border-ink-400' : 'border-ink-200 hover:bg-paper-100'">
-                  <input type="checkbox" :value="opt" v-model="fields[fieldPath]" class="hidden" />
-                  {{ opt.length > 20 ? opt.substring(0, 20) + '...' : opt }}
-                </label>
+              <div v-if="MULTI_SELECT_FIELDS.has(fieldPath)" class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs text-ink-500 font-medium" :title="fieldPath">
+                    {{ fieldLabel(fieldPath) }}
+                    <span class="text-ink-300 font-normal ml-1">({{ fields[fieldPath].length }})</span>
+                  </label>
+                  <button @click="togglePanel(fieldPath)" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors px-1.5 py-0.5 rounded hover:bg-paper-100">
+                    {{ expandedPanels[fieldPath] ? '收起' : '编辑' }}
+                  </button>
+                </div>
+                <!-- 已选标签 -->
+                <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
+                  <span v-for="opt in fields[fieldPath]" :key="opt"
+                    class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
+                    {{ shortLabel(opt, 30) }}
+                    <button @click="removeOption(fieldPath, opt)" class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
+                      <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </span>
+                  <span v-if="fields[fieldPath].length === 0" class="text-[10px] text-ink-300 italic py-0.5">未选择</span>
+                </div>
+                <!-- 展开的选项面板 -->
+                <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-40 overflow-y-auto">
+                  <div class="flex flex-wrap gap-1">
+                    <button v-for="opt in whitelist[fieldPath]" :key="opt"
+                      @click="toggleOption(fieldPath, opt)"
+                      class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150"
+                      :class="fields[fieldPath].includes(opt)
+                        ? 'bg-ink-800 text-paper-50 border-ink-800'
+                        : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
+                      :title="opt">
+                      {{ shortLabel(opt) }}
+                    </button>
+                  </div>
+                </div>
               </div>
               <!-- 单选字段 -->
-              <select v-else v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
-                <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 40 ? opt.substring(0, 40) + '...' : opt }}</option>
-              </select>
-              <span v-if="getRecommendedOptions(fieldPath).length" class="text-xs text-green-600 pt-1" title="有推荐">✓</span>
+              <div v-else class="flex items-center gap-2">
+                <label class="text-xs text-ink-500 w-24 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
+                  <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 40 ? opt.substring(0, 40) + '...' : opt }}</option>
+                </select>
+                <span v-if="getRecommendedOptions(fieldPath).length" class="text-xs text-green-600" title="有推荐">✓</span>
+              </div>
             </div>
           </div>
         </div>
