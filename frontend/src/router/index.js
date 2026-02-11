@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import CheckerView from '../views/CheckerView.vue'
 import HistoryView from '../views/HistoryView.vue'
 import ContinueView from '../views/ContinueView.vue'
+import WriterView from '../views/WriterView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,6 +16,11 @@ const router = createRouter({
       path: '/continue',
       name: 'continue',
       component: ContinueView
+    },
+    {
+      path: '/writer',
+      name: 'writer',
+      component: WriterView
     },
     {
       path: '/history',

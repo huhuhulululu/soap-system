@@ -612,9 +612,13 @@ export function parseObjective(block: string): Objective | null {
 
 // ============ Muscle Test Parsers ============
 export function parseTightnessMuscles(block: string): MuscleTest | null {
+  // 支持有冒号和无冒号的格式
   const pattern = /Tightness muscles?\s+noted\s+along:?\s*(.+?)(?:\n\s*)?Grading Scale:\s*(mild to moderate|moderate to severe|mild|moderate|severe)/is
   const match = block.match(pattern)
-  if (!match) return null
+  if (!match) {
+    // 返回默认值而不是 null
+    return { muscles: [], gradingScale: 'moderate' }
+  }
 
   const muscles = match[1]
     .split(/,\s*(?!Band)|\s+and\s+/)
@@ -626,9 +630,12 @@ export function parseTightnessMuscles(block: string): MuscleTest | null {
 }
 
 export function parseTendernessMuscles(block: string): TendernessTest | null {
-  const sectionPattern = /Tenderness muscles?\s+(?:noted\s+)?along:?\s*(.+?)(?:\n\s*)?(?:Grading|Tenderness)\s+Scale:\s*\(\+(\d)\)\s*=?\s*(.+?)(?=\n|Muscles spasm|Spasm|$)/is
+  // 支持 "Grading Scale: (+4)" 格式
+  const sectionPattern = /Tenderness muscles?\s+(?:noted\s+)?along:?\s*(.+?)(?:\n\s*)?(?:Grading|Tenderness)\s+Scale:\s*\(\+(\d)\)\s*=?\s*(.+?)(?=\n|Muscles\s*s?\s*pasm|Spasm|$)/is
   const match = block.match(sectionPattern)
-  if (!match) return null
+  if (!match) {
+    return { muscles: [], scale: 2, scaleDescription: 'moderate' }
+  }
 
   const muscles = match[1]
     .split(/,\s*(?!Band)|\s+and\s+/)
@@ -643,9 +650,12 @@ export function parseTendernessMuscles(block: string): TendernessTest | null {
 }
 
 export function parseSpasmMuscles(block: string): SpasmTest | null {
-  const sectionPattern = /Muscles?\s*spasm\s+noted\s+along:?\s*(.+?):?\s*(?:\n\s*)?Frequency\s*Grading\s*Scale:\s*\(\+(\d)\)\s*=?>?\s*(.+?)(?=\n|[A-Z][a-z]+ (?:Knee|Shoulder|elbow|Elbow|Muscles)|Muscles Strength|$)/is
+  // 支持 "Muscles s pasm" 格式 (有空格)
+  const sectionPattern = /Muscles?\s*s?\s*pasm\s+noted\s+along:?\s*(.+?):?\s*(?:\n\s*)?Frequency\s*Grading\s*Scale:\s*\(\+(\d)\)\s*=?>?\s*(.+?)(?=\n|[A-Z][a-z]+ (?:Knee|Shoulder|elbow|Elbow|Muscles)|Muscles Strength|$)/is
   const match = block.match(sectionPattern)
-  if (!match) return null
+  if (!match) {
+    return { muscles: [], frequencyScale: 2, scaleDescription: 'moderate' }
+  }
 
   const muscles = match[1]
     .split(/,\s*(?!Band)|\s+and\s+/)
@@ -678,10 +688,8 @@ export function parseROM(block: string): ROM | null {
   }
 
   // ROM items: X/5 or X+/5 or X-/5 Movement: XX Degrees(severity) or XX degree (severity)
-  // Handle both ": 30" and ":30" formats (with or without space after colon)
-  // Handle "0(normal)" and "-5(severe)" formats without Degrees keyword
-  // Handle "Flexion(fully bent): 80 Degrees(moderate)" format
-  const romPattern = /(\d[+-]?)\/5\s+([A-Za-z]+)(?:\([^)]+\))?:\s*(-?\d+)\s*(?:[Dd]egrees?)?\s*\(?(\w+)\)?/g
+  // 支持 "3+ /5" 格式 (强度和斜杠之间有空格)
+  const romPattern = /(\d[+-]?)\s*\/5\s+([A-Za-z][A-Za-z\s]*)(?:\([^)]+\))?:\s*(-?\d+)\s*(?:[Dd]egrees?)?\s*\(?(\w+)\)?/g
   const items: ROMItem[] = []
 
   let match
@@ -694,7 +702,9 @@ export function parseROM(block: string): ROM | null {
     })
   }
 
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return { bodyPart: bodyPart || 'Unknown', items: [] }
+  }
 
   return { bodyPart: bodyPart || 'Unknown', items }
 }
@@ -703,16 +713,17 @@ export function parseROM(block: string): ROM | null {
 export function parseTonguePulse(block: string): TonguePulse | null {
   // Try multiple patterns for tongue/pulse extraction
   // Pattern 1: "tongue" ... "pulse" ... (with or without colons/newlines)
+  // 支持 "tongue  big tongue with white sticky coat  pulse  string - taut" 格式
   const tonguePattern = /tongue\s*:?\s*\n?\s*(.+?)(?=\n?\s*pulse)/is
-  const pulsePattern = /pulse\s*:?\s*\n?\s*(.+?)(?=\n\s*Assessment|\n\s*\d{2}\/\d{2}\/\d{4}|$)/is
+  const pulsePattern = /pulse\s*:?\s*\n?\s*(.+?)(?=\n\s*A\s*ssessment|\n\s*\d{2}\/\d{2}\/\d{4}|$)/is
 
   const tongueMatch = block.match(tonguePattern)
   const pulseMatch = block.match(pulsePattern)
 
   if (tongueMatch && pulseMatch) {
     return {
-      tongue: tongueMatch[1].trim().replace(/\s+/g, ' '),
-      pulse: pulseMatch[1].trim().replace(/\s+/g, ' '),
+      tongue: tongueMatch[1].trim().replace(/\s+/g, ' ').replace(/\s*-\s*/g, '-'),
+      pulse: pulseMatch[1].trim().replace(/\s+/g, ' ').replace(/\s*-\s*/g, '-'),
     }
   }
 
@@ -726,11 +737,8 @@ export function parseTonguePulse(block: string): TonguePulse | null {
     }
   }
 
-  // Fallback: if Assessment section exists, return N/A
-  if (/Assessment:/i.test(block)) {
-    return { tongue: 'N/A', pulse: 'N/A' }
-  }
-  return null
+  // Fallback: return N/A
+  return { tongue: 'N/A', pulse: 'N/A' }
 }
 
 // ============ Assessment Parser ============
@@ -860,6 +868,10 @@ export function parsePlan(block: string): Plan | null {
   const principlesMatch = block.match(principlesPattern)
   const treatmentPrinciples = principlesMatch?.[1]?.trim() || ''
 
+  // Parse Goals (IE only)
+  const shortTermGoal = parseGoal(block, 'Short Term Goal')
+  const longTermGoal = parseGoal(block, 'Long Term Goal')
+
   // Only return null if we found absolutely nothing
   if (!needleMatch && !timeMatch && !positionMatch && acupoints.length === 0) return null
 
@@ -869,7 +881,69 @@ export function parsePlan(block: string): Plan | null {
     treatmentPosition,
     acupoints,
     electricalStimulation,
+    shortTermGoal,
+    longTermGoal,
     treatmentPrinciples,
+  }
+}
+
+// ============ Goal Parser ============
+function parseGoal(block: string, goalType: 'Short Term Goal' | 'Long Term Goal'): Plan['shortTermGoal'] | undefined {
+  const endMarker = goalType === 'Short Term Goal' ? 'Long Term Goal' : 'Select Needle'
+  const pattern = new RegExp(`${goalType}\\s*\\([^)]+\\)\\s*:?\\s*(.+?)(?=${endMarker}|$)`, 'is')
+  const match = block.match(pattern)
+  if (!match) return undefined
+
+  const section = match[1]
+  
+  // Frequency from header
+  const freqMatch = block.match(new RegExp(`${goalType}\\s*\\(([^)]+)\\)`, 'i'))
+  const frequency = freqMatch?.[1]?.trim() || ''
+
+  // Pain Scale target
+  const painMatch = section.match(/Decrease\s+Pain\s+Scale\s+to\s+([\d\s-]+)/i)
+  const painScaleTarget = painMatch?.[1]?.trim().replace(/\s+/g, '') || ''
+
+  // Sensation target (weakness/soreness/stiffness)
+  const sensationMatch = section.match(/Decrease\s+(\w+)\s+sensation\s+Scale\s+to\s+([\d%]+)/i)
+  const sensationScaleTarget = sensationMatch ? `${sensationMatch[2]}` : ''
+
+  // Tightness target
+  const tightnessMatch = section.match(/Tightness\s+to\s+(mild|moderate|severe|mild\s*-\s*moderate|moderate\s*-\s*severe)/i)
+  const tightnessTarget = tightnessMatch?.[1]?.trim() || ''
+
+  // Tenderness target
+  const tendernessMatch = section.match(/Tenderness\s+to\s+Grade\s*(\d)/i)
+  const tendernessTarget = tendernessMatch ? `Grade ${tendernessMatch[1]}` : ''
+
+  // Spasms target
+  const spasmsMatch = section.match(/Spasms\s+to\s+Grade\s*(\d)/i)
+  const spasmsTarget = spasmsMatch ? `Grade ${spasmsMatch[1]}` : ''
+
+  // Strength target
+  const strengthMatch = section.match(/Strength\s+to\s+([\d+-]+)/i)
+  const strengthTarget = strengthMatch?.[1]?.trim() || ''
+
+  // ROM target (LT only)
+  const romMatch = section.match(/(?:Increase\s+)?ROM\s+([\d%]+)/i)
+  const romTarget = romMatch?.[1]?.trim() || undefined
+
+  // ADL target (LT only)
+  const adlMatch = section.match(/Activities\s+of\s+Daily\s+Living\s+to\s+(mild|moderate|severe|mild\s*-\s*moderate|moderate\s*-\s*severe)/i)
+  const adlTarget = adlMatch?.[1]?.trim() || undefined
+
+  if (!painScaleTarget && !tightnessTarget && !tendernessTarget) return undefined
+
+  return {
+    frequency,
+    painScaleTarget,
+    sensationScaleTarget,
+    tightnessTarget,
+    tendernessTarget,
+    spasmsTarget,
+    strengthTarget,
+    romTarget,
+    adlTarget
   }
 }
 

@@ -462,6 +462,7 @@ function addProgressBias(
 ): Array<{ option: string; weight: number; reasons: string[] }> {
   const isLate = progress >= 0.67
   const isMid = progress >= 0.34 && progress < 0.67
+  const isEarly = progress < 0.34
 
   return weighted
     .map(item => {
@@ -469,9 +470,11 @@ function addProgressBias(
       const text = item.option.toLowerCase()
 
       if (fieldPath === 'subjective.symptomChange') {
-        if (text.includes('improvement of symptom')) bias += 80
-        if (text.includes('exacerbate') || text.includes('similar')) bias -= 100
-        if (text.includes('came back')) bias -= 60
+        // 遵循现有规则：早期允许多样性，后期倾向改善
+        if (text.includes('improvement of symptom')) bias += isLate ? 60 : (isMid ? 25 : 5)
+        if (text.includes('exacerbate')) bias -= 70 // 加重少见
+        if (text.includes('similar')) bias -= isLate ? 60 : (isMid ? 25 : 0)
+        if (text.includes('came back')) bias -= isLate ? 55 : (isMid ? 15 : -5)
       }
 
       if (fieldPath === 'subjective.reason') {
@@ -776,13 +779,17 @@ export function generateTXSequenceStates(
 
     const ruleContext = buildRuleContext(context, painScaleCurrent, severityLevel)
 
-    const symptomChange = pickSingle(
+    let symptomChange = pickSingle(
       'subjective.symptomChange',
       ruleContext,
       progress,
       rng,
       'improvement of symptom(s)'
     )
+    // 后期 (progress > 0.7) 强制使用改善表述
+    if (progress > 0.7 && !symptomChange.includes('improvement of symptom')) {
+      symptomChange = 'improvement of symptom(s)'
+    }
     const reasonConnector = pickSingle(
       'subjective.reasonConnector',
       ruleContext,
@@ -961,7 +968,7 @@ export function generateTXSequenceStates(
       painScaleCurrent,
       painScaleLabel,
       severityLevel,
-      symptomChange: 'improvement of symptom(s)',
+      symptomChange,
       reasonConnector,
       reason,
       associatedSymptom,
@@ -976,12 +983,11 @@ export function generateTXSequenceStates(
       painTypes: options.initialState?.painTypes,
       inspection: options.initialState?.inspection,
       symptomScale: (() => {
-        const raw = options.initialState?.symptomScale
-        if (!raw) return undefined
+        const raw = options.initialState?.symptomScale || '70%'
         const m = raw.match(/(\d+)/)
         if (!m) return raw
         const base = parseInt(m[1], 10)
-        const reduced = Math.max(10, base - Math.round(progress * 25))
+        const reduced = Math.max(10, base - Math.round(progress * 30))
         const snapped = Math.round(reduced / 10) * 10
         return `${snapped}%`
       })(),

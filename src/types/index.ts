@@ -261,6 +261,10 @@ export interface GenerationContext {
   hasMetalImplant?: boolean
   previousIE?: SOAPNote
   /**
+   * 原始 SOAP 数据 (用于 Checker 修正时保留原始字段)
+   */
+  originalSOAP?: SOAPNote
+  /**
    * 患者基础体质状况 (基于年龄、基础病、整体证型)
    * 这是固定属性，不随治疗进度变化
    * - 'good': 年轻、体质好、无严重基础病

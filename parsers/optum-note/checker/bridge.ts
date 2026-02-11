@@ -75,6 +75,82 @@ function parsePainCurrent(visit: VisitRecord): number {
   return 7
 }
 
+// 从 chiefComplaint 提取 duration
+function parseDuration(cc: string): { value: number; unit: 'day(s)' | 'week(s)' | 'month(s)' | 'year(s)' } {
+  const m = cc.match(/for\s+(?:more\s+than\s+)?(\d+)\s*(day|week|month|year)/i)
+  if (m) {
+    const val = parseInt(m[1], 10)
+    const u = m[2].toLowerCase()
+    if (u.startsWith('day')) return { value: val, unit: 'day(s)' }
+    if (u.startsWith('week')) return { value: val, unit: 'week(s)' }
+    if (u.startsWith('month')) return { value: val, unit: 'month(s)' }
+    if (u.startsWith('year')) return { value: val, unit: 'year(s)' }
+  }
+  return { value: 3, unit: 'month(s)' }
+}
+
+// 从 chiefComplaint 提取 recentWorsening
+function parseRecentWorsening(cc: string): { value: number; unit: 'day(s)' | 'week(s)' | 'month(s)' | 'year(s)' } | undefined {
+  const m = cc.match(/(?:got\s+)?worse\s+in\s+recent\s+(\d+(?:-\d+)?)\s*(day|week|month|year)/i)
+  if (m) {
+    const val = parseInt(m[1].split('-')[0], 10)
+    const u = m[2].toLowerCase()
+    if (u.startsWith('day')) return { value: val, unit: 'day(s)' }
+    if (u.startsWith('week')) return { value: val, unit: 'week(s)' }
+    if (u.startsWith('month')) return { value: val, unit: 'month(s)' }
+    if (u.startsWith('year')) return { value: val, unit: 'year(s)' }
+  }
+  return undefined
+}
+
+// 从 chiefComplaint 提取 associatedSymptoms
+function parseAssociatedSymptoms(cc: string): string[] {
+  const m = cc.match(/associated\s+with\s+muscles?\s+([^(]+)/i)
+  if (m) {
+    return m[1].split(/,\s*/).map(s => s.trim()).filter(Boolean)
+  }
+  return ['soreness']
+}
+
+// 从 chiefComplaint 提取 causativeFactors
+function parseCausativeFactors(cc: string): string[] {
+  const m = cc.match(/(?:due to|because of)\s+([^.]+)/i)
+  if (m) {
+    return m[1].split(/,\s*/).map(s => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
+// 从 adlImpairment 提取 exacerbatingFactors
+function parseExacerbatingFactors(adl: string): string[] {
+  const m = adl.match(/aggravated\s+by\s+([^,]+(?:,\s*[^,]+)*)/i)
+  if (m) {
+    return m[1].split(/,\s*/).map(s => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
+// 从 adlImpairment 提取 relievingFactors
+function parseRelievingFactors(adl: string): string[] {
+  const m = adl.match(/([^.]+)\s+can\s+temporarily\s+relieve/i)
+  if (m) {
+    return m[1].split(/,\s*/).map(s => s.trim()).filter(Boolean)
+  }
+  return ['Stretching']
+}
+
+// 从 adlImpairment 提取 ADL activities
+function parseAdlActivities(adl: string): string[] {
+  const m = adl.match(/difficulty\s+of\s+([^.]+)/gi)
+  if (m) {
+    return m.flatMap(match => {
+      const inner = match.replace(/difficulty\s+of\s+/i, '')
+      return inner.split(/\s+and\s+|\s*,\s*/).map(s => s.trim()).filter(Boolean)
+    })
+  }
+  return []
+}
+
 function inferInsurance(visit: VisitRecord): InsuranceType {
   const has97810 = visit.procedureCodes.some(x => x.cpt === '97810')
   return has97810 ? 'OPTUM' : 'WC'
@@ -87,6 +163,17 @@ export function bridgeVisitToSOAPNote(visit: VisitRecord): SOAPNote {
   const bestNum = typeof best === 'number' ? best : (best?.min || current - 2)
   const localPattern = extractLocalPattern(visit.assessment.currentPattern || '')
   const systemicPattern = visit.assessment.tcmDiagnosis?.pattern || 'Blood Deficiency'
+  const cc = visit.subjective.chiefComplaint || ''
+  const adl = visit.subjective.adlImpairment || ''
+
+  // 从 chiefComplaint 和 adlImpairment 提取原始字段
+  const duration = parseDuration(cc)
+  const recentWorsening = parseRecentWorsening(cc)
+  const associatedSymptoms = parseAssociatedSymptoms(cc)
+  const causativeFactors = parseCausativeFactors(cc)
+  const exacerbatingFactors = parseExacerbatingFactors(adl)
+  const relievingFactors = parseRelievingFactors(adl)
+  const adlActivities = parseAdlActivities(adl)
 
   return {
     header: {
@@ -97,27 +184,41 @@ export function bridgeVisitToSOAPNote(visit: VisitRecord): SOAPNote {
     },
     subjective: {
       visitType: visit.subjective.visitType,
-      chronicityLevel: visit.subjective.chronicityLevel || (/\bchronic\b/i.test(visit.subjective.chiefComplaint) ? 'Chronic' : /\bsub\s*acute\b/i.test(visit.subjective.chiefComplaint) ? 'Sub Acute' : 'Acute'),
+      chronicityLevel: visit.subjective.chronicityLevel || (/\bchronic\b/i.test(cc) ? 'Chronic' : /\bsub\s*acute\b/i.test(cc) ? 'Sub Acute' : 'Acute'),
       primaryBodyPart: { bodyPart, laterality },
       secondaryBodyParts: [],
       painTypes: visit.subjective.painTypes as any,
       painRadiation: visit.subjective.radiation ? 'with radiation' : 'without radiation',
-      symptomDuration: { value: 1, unit: 'month(s)' },
-      associatedSymptoms: [],
+      symptomDuration: { ...duration, recentWorsening },
+      associatedSymptoms,
       symptomPercentage: visit.subjective.muscleWeaknessScale || '70%',
-      causativeFactors: [],
-      exacerbatingFactors: [],
-      relievingFactors: [],
+      causativeFactors,
+      exacerbatingFactors,
+      relievingFactors,
       adlDifficulty: {
         level: parseSeverityFromVisit(visit),
-        activities: visit.subjective.adlImpairment ? [visit.subjective.adlImpairment] : []
+        activities: adlActivities.length > 0 ? adlActivities : (adl ? [adl] : [])
       },
       activityChanges: [],
-      painScale: {
-        worst: typeof (visit.subjective.painScale as any).worst === 'number' ? (visit.subjective.painScale as any).worst : Math.max(current, 8),
-        best: bestNum,
-        current
-      },
+      painScale: (() => {
+        const ps = visit.subjective.painScale as any
+        // Format 1: {worst, best, current}
+        if (typeof ps?.worst === 'number') {
+          return {
+            worst: ps.worst,
+            best: typeof ps.best === 'number' ? ps.best : (ps.best?.min || ps.worst - 1),
+            current: ps.current
+          }
+        }
+        // Format 2: {value} or {value, range}
+        if (typeof ps?.value === 'number') {
+          const val = ps.value
+          const rangeMax = ps.range?.max || val - 1
+          return { worst: val, best: rangeMax, current: val }
+        }
+        // Fallback
+        return { worst: 7, best: 6, current: 7 }
+      })(),
       painFrequency: visit.subjective.painFrequency,
       walkingAid: visit.subjective.walkingAid,
       medicalHistory: visit.subjective.medicalHistory
@@ -167,22 +268,45 @@ export function bridgeVisitToSOAPNote(visit: VisitRecord): SOAPNote {
       evaluationType: visit.subjective.visitType === 'INITIAL EVALUATION' ? 'Initial Evaluation' : 'Re-Evaluation',
       contactTime: `${visit.plan.treatmentTime}`,
       steps: [],
-      shortTermGoal: {
+      shortTermGoal: visit.plan.shortTermGoal ? {
         treatmentFrequency: 12,
         weeksDuration: '5-6 weeks',
-        painScaleTarget: visit.plan.shortTermGoal?.painScaleTarget || '5-6',
-        symptomTargets: []
-      },
-      longTermGoal: {
+        painScaleTarget: visit.plan.shortTermGoal.painScaleTarget || '5-6',
+        symptomTargets: [
+          ...(visit.plan.shortTermGoal.sensationScaleTarget ? [{ symptom: 'soreness', targetValue: visit.plan.shortTermGoal.sensationScaleTarget }] : []),
+          ...(visit.plan.shortTermGoal.tightnessTarget ? [{ symptom: 'Tightness', targetValue: visit.plan.shortTermGoal.tightnessTarget }] : []),
+          ...(visit.plan.shortTermGoal.tendernessTarget ? [{ symptom: 'Tenderness', targetValue: visit.plan.shortTermGoal.tendernessTarget }] : []),
+          ...(visit.plan.shortTermGoal.spasmsTarget ? [{ symptom: 'Spasms', targetValue: visit.plan.shortTermGoal.spasmsTarget }] : []),
+          ...(visit.plan.shortTermGoal.strengthTarget ? [{ symptom: 'Strength', targetValue: visit.plan.shortTermGoal.strengthTarget }] : [])
+        ]
+      } : undefined,
+      longTermGoal: visit.plan.longTermGoal ? {
         treatmentFrequency: 8,
         weeksDuration: '5-6 weeks',
-        painScaleTarget: visit.plan.longTermGoal?.painScaleTarget || '3',
-        symptomTargets: []
-      },
+        painScaleTarget: visit.plan.longTermGoal.painScaleTarget || '3',
+        symptomTargets: [
+          ...(visit.plan.longTermGoal.sensationScaleTarget ? [{ symptom: 'soreness', targetValue: visit.plan.longTermGoal.sensationScaleTarget }] : []),
+          ...(visit.plan.longTermGoal.tightnessTarget ? [{ symptom: 'Tightness', targetValue: visit.plan.longTermGoal.tightnessTarget }] : []),
+          ...(visit.plan.longTermGoal.tendernessTarget ? [{ symptom: 'Tenderness', targetValue: visit.plan.longTermGoal.tendernessTarget }] : []),
+          ...(visit.plan.longTermGoal.spasmsTarget ? [{ symptom: 'Spasms', targetValue: visit.plan.longTermGoal.spasmsTarget }] : []),
+          ...(visit.plan.longTermGoal.strengthTarget ? [{ symptom: 'Strength', targetValue: visit.plan.longTermGoal.strengthTarget }] : []),
+          ...(visit.plan.longTermGoal.romTarget ? [{ symptom: 'ROM', targetValue: visit.plan.longTermGoal.romTarget }] : []),
+          ...(visit.plan.longTermGoal.adlTarget ? [{ symptom: 'ADL', targetValue: visit.plan.longTermGoal.adlTarget }] : [])
+        ]
+      } : undefined,
       needleProtocol: {
         needleSizes: visit.plan.needleSpecs.map(n => `${n.gauge}x${n.length}`),
         totalTime: visit.plan.treatmentTime,
-        sections: []
+        sections: visit.plan.acupoints?.length > 0 ? [{
+          name: 'Treatment',
+          duration: visit.plan.treatmentTime,
+          steps: [{
+            stepNumber: 1,
+            preparation: [],
+            electricalStimulation: visit.plan.electricalStimulation ? 'with' : 'without',
+            points: visit.plan.acupoints
+          }]
+        }] : []
       }
     },
     diagnosisCodes: visit.diagnosisCodes.map(d => ({ icd10: d.icd10, description: d.description, bodyPart, laterality })),
@@ -206,6 +330,9 @@ export function bridgeToContext(doc: OptumNoteDocument, visitIndex: number): Gen
   const localPattern = extractLocalPattern(visit.assessment.currentPattern || visit.assessment.tcmDiagnosis?.pattern || visit.assessment.tcmDiagnosis?.diagnosis || 'Qi Stagnation')
   const systemicPattern = visit.assessment.systemicPattern || visit.assessment.tcmDiagnosis?.pattern || inferSystemicPattern(doc)
 
+  // 提取原始 SOAP 数据
+  const originalSOAP = bridgeVisitToSOAPNote(visit)
+
   const context: GenerationContext = {
     noteType: visit.subjective.visitType === 'INITIAL EVALUATION' ? 'IE' : 'TX',
     insuranceType: inferInsurance(visit),
@@ -215,7 +342,9 @@ export function bridgeToContext(doc: OptumNoteDocument, visitIndex: number): Gen
     chronicityLevel: visit.subjective.chronicityLevel || (/\bchronic\b/i.test(visit.subjective.chiefComplaint) ? 'Chronic' : /\bsub\s*acute\b/i.test(visit.subjective.chiefComplaint) ? 'Sub Acute' : 'Acute'),
     localPattern,
     systemicPattern,
-    hasPacemaker: !!visit.subjective.medicalHistory?.some(x => /pacemaker/i.test(x))
+    hasPacemaker: !!visit.subjective.medicalHistory?.some(x => /pacemaker/i.test(x)),
+    // 传递原始数据供生成器使用
+    originalSOAP
   }
 
   if (context.noteType === 'TX') {
