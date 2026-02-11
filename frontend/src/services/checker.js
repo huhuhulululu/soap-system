@@ -86,8 +86,15 @@ function normalizeReport(report) {
   }
 }
 
+/** 检测无 header 时注入假 header */
+function ensureHeader(text) {
+  if (/PATIENT:|DOB:/i.test(text)) return text
+  return 'UNKNOWN, PATIENT (DOB: 01/01/2000 ID: 0000000000) Date of Service: 01/01/2025 Printed on: 01/01/2025\n' + text
+}
+
 async function validateFile(file, options = {}) {
-  const text = await extractPdfText(file)
+  const rawText = await extractPdfText(file)
+  const text = ensureHeader(rawText)
   const parsed = parseOptumNote(text)
   if (!parsed.success || !parsed.document) {
     const reason = parsed.errors?.map(e => `${e.field}: ${e.message}`).join(' | ') || 'Unknown parse failure'
