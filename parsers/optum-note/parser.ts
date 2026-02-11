@@ -450,14 +450,28 @@ function parseBodyPartAndLaterality(raw: string): { normalizedBodyPart: string; 
     /\bright\b/.test(text) ? 'right' :
     'unspecified'
 
-  if (/\bknee\b/.test(text)) return { normalizedBodyPart: 'KNEE', laterality }
-  if (/\bshoulder\b/.test(text)) return { normalizedBodyPart: 'SHOULDER', laterality }
-  if (/\belbow\b/.test(text)) return { normalizedBodyPart: 'ELBOW', laterality }
-  if (/\bhip\b/.test(text)) return { normalizedBodyPart: 'HIP', laterality }
-  if (/\bneck\b|\bcervical\b/.test(text)) return { normalizedBodyPart: 'NECK', laterality }
-  if (/\blower back\b|\blbp\b/.test(text)) return { normalizedBodyPart: 'LBP', laterality }
-  if (/\bupper back\b/.test(text)) return { normalizedBodyPart: 'UPPER_BACK', laterality }
-  return { normalizedBodyPart: 'UNKNOWN', laterality }
+  // Find the FIRST body part mentioned (by position in text)
+  const bodyParts: Array<{ name: string; pattern: RegExp }> = [
+    { name: 'KNEE', pattern: /\bknee\b/i },
+    { name: 'SHOULDER', pattern: /\bshoulder\b/i },
+    { name: 'ELBOW', pattern: /\belbow\b/i },
+    { name: 'HIP', pattern: /\bhip\b/i },
+    { name: 'NECK', pattern: /\b(?:neck|cervical)\b/i },
+    { name: 'LBP', pattern: /\b(?:lower back|lbp|lumbar)\b/i },
+    { name: 'UPPER_BACK', pattern: /\bupper back\b/i },
+  ]
+
+  let firstMatch: { name: string; index: number } | null = null
+  for (const bp of bodyParts) {
+    const match = text.match(bp.pattern)
+    if (match && match.index !== undefined) {
+      if (!firstMatch || match.index < firstMatch.index) {
+        firstMatch = { name: bp.name, index: match.index }
+      }
+    }
+  }
+
+  return { normalizedBodyPart: firstMatch?.name || 'UNKNOWN', laterality }
 }
 
 // ============ Pain Scale Parser ============

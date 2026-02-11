@@ -31,6 +31,7 @@ interface TestResult {
   check: { score: number; errors: number; grade: string }
   continuation: { success: boolean; generated: number; error?: string }
   audit: { passed: number; failed: number }
+  content: { bodyPartMatch: boolean; muscleMatch: boolean; painLogic: boolean }
 }
 
 async function testFile(filePath: string): Promise<TestResult> {
@@ -40,7 +41,8 @@ async function testFile(filePath: string): Promise<TestResult> {
     parse: { success: false, visits: 0, ie: false },
     check: { score: 0, errors: 0, grade: 'F' },
     continuation: { success: false, generated: 0 },
-    audit: { passed: 0, failed: 0 }
+    audit: { passed: 0, failed: 0 },
+    content: { bodyPartMatch: true, muscleMatch: true, painLogic: true }
   }
 
   // 1. 解析
@@ -86,8 +88,25 @@ async function testFile(filePath: string): Promise<TestResult> {
         result.continuation.generated = contResult.visits?.length || 0
         
         // 4. 审核续写结果
-        let prevPain = contResult.parseSummary?.iePain || 8
+        // previousPain 应该是最后一个 TX 的 pain，不是 IE 的 pain
+        let prevPain = contResult.parseSummary?.lastTxPain || contResult.parseSummary?.iePain || 8
+        const bodyPart = contResult.parseSummary?.bodyPart || 'KNEE'
+        
         for (const tx of contResult.visits || []) {
+          // 内容验证: 检查生成的文本是否包含正确的部位
+          const txText = tx.text || ''
+          const bodyPartInText = txText.toLowerCase().includes(bodyPart.toLowerCase()) ||
+            (bodyPart === 'LBP' && /lumbar|lower back/i.test(txText)) ||
+            (bodyPart === 'NECK' && /cervical|neck/i.test(txText))
+          if (!bodyPartInText) {
+            result.content.bodyPartMatch = false
+          }
+          
+          // 检查 Pain 逻辑: 不应该上升
+          if (tx.state.painScaleCurrent > prevPain + 0.5) {
+            result.content.painLogic = false
+          }
+          
           const report = agent.audit({
             noteType: 'TX',
             primaryBodyPart: contResult.parseSummary?.bodyPart || 'KNEE',
@@ -128,8 +147,8 @@ async function main() {
   const results: TestResult[] = []
   
   // 表头
-  console.log('文件名'.padEnd(35) + ' | 解析 | 访问 | IE | 评分 | 错误 | 等级 | 续写 | 生成 | 审核')
-  console.log('─'.repeat(100))
+  console.log('文件名'.padEnd(35) + ' | 解析 | 访问 | IE | 评分 | 错误 | 等级 | 续写 | 生成 | 审核  | 内容')
+  console.log('─'.repeat(115))
 
   for (const file of files) {
     const filePath = path.join(dir, file)
@@ -148,8 +167,11 @@ async function main() {
     const audit = r.audit.passed > 0 || r.audit.failed > 0 
       ? `${r.audit.passed}/${r.audit.passed + r.audit.failed}` 
       : '➖'
+    const content = r.continuation.success 
+      ? (r.content.bodyPartMatch && r.content.painLogic ? '✅' : '❌')
+      : '➖'
     
-    console.log(`${shortName} | ${parseOk}   | ${visits} | ${ie}  | ${score} | ${errors} | ${grade} | ${contOk}   | ${generated} | ${audit}`)
+    console.log(`${shortName} | ${parseOk}   | ${visits} | ${ie}  | ${score} | ${errors} | ${grade} | ${contOk}   | ${generated} | ${audit.padStart(5)} | ${content}`)
   }
 
   // 统计
