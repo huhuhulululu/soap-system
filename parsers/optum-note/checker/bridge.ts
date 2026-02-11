@@ -16,7 +16,8 @@ const BODY_PART_MAP: Array<{ pattern: RegExp; bodyPart: BodyPart; laterality?: L
   { pattern: /\bleft\s+shoulder\b/i, bodyPart: 'SHOULDER', laterality: 'left' },
   { pattern: /\bbilateral\s+shoulder\b/i, bodyPart: 'SHOULDER', laterality: 'bilateral' },
   { pattern: /\bcervical\b|\bneck\b/i, bodyPart: 'NECK' },
-  { pattern: /\blower back\b|\blbp\b/i, bodyPart: 'LBP' },
+  { pattern: /\blower back\b|\blbp\b|\blumbar\b/i, bodyPart: 'LBP' },
+  { pattern: /\bmid\s*back\b|\bmiddle\s*back\b|\bthoracic\b/i, bodyPart: 'MIDDLE_BACK' },
   { pattern: /\bhip\b/i, bodyPart: 'HIP' },
   { pattern: /\belbow\b/i, bodyPart: 'ELBOW' }
 ]

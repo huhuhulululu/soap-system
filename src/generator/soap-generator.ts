@@ -64,6 +64,7 @@ const SUPPORTED_TX_BODY_PARTS = new Set<BodyPart>([
   'ELBOW',
   'KNEE',
   'LBP',
+  'MIDDLE_BACK',
   'NECK',
   'SHOULDER'
 ])
@@ -102,7 +103,8 @@ export const MUSCLE_MAP: Record<string, string[]> = {
   'ELBOW': ['Biceps', 'Triceps', 'Brachioradialis', 'Supinator', 'Pronator teres'],
   'WRIST': ['Flexor carpi radialis', 'Flexor carpi ulnaris', 'Extensor carpi radialis', 'Extensor carpi ulnaris'],
   'ANKLE': ['Gastrocnemius', 'Soleus', 'Tibialis anterior', 'Peroneus longus/brevis'],
-  'UPPER_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector spinae (thoracic)', 'Latissimus dorsi']
+  'UPPER_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector spinae (thoracic)', 'Latissimus dorsi'],
+  'MIDDLE_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector Spinae', 'Latissimus Dorsi', 'Serratus Posterior', 'Multifidus']
 }
 
 /**
@@ -117,7 +119,8 @@ export const ADL_MAP: Record<string, string[]> = {
   'ELBOW': ['Lifting objects', 'Carrying bags', 'Opening doors', 'Typing', 'Writing'],
   'WRIST': ['Typing', 'Gripping objects', 'Writing', 'Cooking', 'Opening jars'],
   'ANKLE': ['Walking', 'Running', 'Going up/down stairs', 'Driving', 'Standing on tiptoes'],
-  'UPPER_BACK': ['Sitting for long periods', 'Reaching overhead', 'Carrying bags', 'Deep breathing']
+  'UPPER_BACK': ['Sitting for long periods', 'Reaching overhead', 'Carrying bags', 'Deep breathing'],
+  'MIDDLE_BACK': ['Sitting for long periods', 'Twisting motions', 'Bending forward', 'Lifting objects', 'Deep breathing', 'Reaching overhead']
 }
 
 /**
@@ -199,6 +202,12 @@ const ROM_MAP: Record<string, ROMMovement[]> = {
     { movement: 'Plantarflexion', normalDegrees: 50, difficulty: 'MEDIUM' },
     { movement: 'Inversion', normalDegrees: 35, difficulty: 'MEDIUM' },
     { movement: 'Eversion', normalDegrees: 15, difficulty: 'HARD' }
+  ],
+  'MIDDLE_BACK': [
+    { movement: 'Flexion', normalDegrees: 90, difficulty: 'MEDIUM' },
+    { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
+    { movement: 'Rotation to Right', normalDegrees: 45, difficulty: 'MEDIUM' },
+    { movement: 'Rotation to Left', normalDegrees: 45, difficulty: 'MEDIUM' }
   ]
 }
 
@@ -1779,7 +1788,8 @@ export function generateNeedleProtocol(context: GenerationContext, visitState?: 
     'NECK': ['GB20', 'GB21', 'BL10', 'BL11', 'A SHI POINTS'],
     'SHOULDER': ['GB21', 'BL10', 'BL11', 'BL17', 'LI15', 'LI16', 'SI9', 'SI10', 'SI11', 'SI12', 'SI14', 'SI15', 'SJ10', 'A SHI POINTS'],
     'HIP': ['GB29', 'GB30', 'BL54', 'A SHI POINTS'],
-    'ELBOW': ['LI12', 'SI8', 'A SHI POINTS']
+    'ELBOW': ['LI12', 'SI8', 'A SHI POINTS'],
+    'MIDDLE_BACK': ['BL15', 'BL17', 'BL18', 'BL20', 'DU9', 'DU10', 'HUATUO JIA JI', 'A SHI POINTS']
   }
 
   const eStim = context.hasPacemaker ? 'without' : 'with'

@@ -97,7 +97,8 @@ async function testFile(filePath: string): Promise<TestResult> {
           const txText = tx.text || ''
           const bodyPartInText = txText.toLowerCase().includes(bodyPart.toLowerCase()) ||
             (bodyPart === 'LBP' && /lumbar|lower back/i.test(txText)) ||
-            (bodyPart === 'NECK' && /cervical|neck/i.test(txText))
+            (bodyPart === 'NECK' && /cervical|neck/i.test(txText)) ||
+            (bodyPart === 'MIDDLE_BACK' && /middle back|midback|thoracic/i.test(txText))
           if (!bodyPartInText) {
             result.content.bodyPartMatch = false
           }

@@ -459,6 +459,7 @@ function parseBodyPartAndLaterality(raw: string): { normalizedBodyPart: string; 
     { name: 'NECK', pattern: /\b(?:neck|cervical)\b/i },
     { name: 'LBP', pattern: /\b(?:lower back|lbp|lumbar)\b/i },
     { name: 'UPPER_BACK', pattern: /\bupper back\b/i },
+    { name: 'MIDDLE_BACK', pattern: /\b(?:mid\s*back|middle\s*back|thoracic)\b/i },
   ]
 
   let firstMatch: { name: string; index: number } | null = null

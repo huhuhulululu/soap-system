@@ -96,6 +96,12 @@ const MUSCLE_CONFIGS: Record<string, MuscleConfig> = {
     defaultTightness: ['Biceps', 'Triceps', 'Brachioradialis'],
     defaultTenderness: ['Biceps', 'Brachioradialis', 'Extensor Carpi'],
     defaultSpasm: ['Triceps', 'Brachioradialis', 'Supinator']
+  },
+  MIDDLE_BACK: {
+    muscles: 'Rhomboids|Middle Trapezius|Erector Spinae|Latissimus Dorsi|Serratus Posterior|Multifidus',
+    defaultTightness: ['Rhomboids', 'Middle Trapezius', 'Erector Spinae'],
+    defaultTenderness: ['Rhomboids', 'Latissimus Dorsi', 'Multifidus'],
+    defaultSpasm: ['Middle Trapezius', 'Erector Spinae', 'Serratus Posterior']
   }
 }
 

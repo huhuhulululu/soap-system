@@ -196,6 +196,14 @@ const ACUPOINT_DATA: Record<string, AcupointConfig> = {
     backPoints2: ['LI5', 'SJ4', 'SJ5', 'SI4', 'SI5', 'A SHI POINTS'],
     backPointsSimple: ['LI5', 'SJ4', 'SJ5', 'SI4', 'SI5', 'LU7', 'LU9', 'PC6', 'PC7', 'HT7', 'A SHI POINTS'],
     needleSizes: 'Select Needle Size :36#x0.5\" , 34#x1\" ,<span class="ppnSelectComboSingle 30#|32#|34#">30#</span>&nbsp;x1.5\"'
+  },
+  'MIDDLE_BACK': {
+    frontPoints1: ['GB34', 'ST36', 'SP6', 'LV3', 'REN4', 'REN6', 'KD3'],
+    frontPoints2: ['GB34', 'ST36', 'SP6', 'LV3', 'REN4', 'REN6', 'KD3'],
+    backPoints1: ['BL15', 'BL16', 'BL17', 'BL18', 'BL19', 'BL20', 'BL21', 'DU9', 'DU10', 'DU11', 'HUATUO JIA JI', 'A SHI POINTS'],
+    backPoints2: ['BL15', 'BL16', 'BL17', 'BL18', 'BL19', 'BL20', 'BL21', 'DU9', 'DU10', 'DU11', 'HUATUO JIA JI', 'A SHI POINTS'],
+    backPointsSimple: ['BL15', 'BL17', 'BL18', 'BL20', 'DU9', 'DU10', 'HUATUO JIA JI', 'A SHI POINTS'],
+    needleSizes: 'Select Needle Size : 34#x1\" ,<span class="ppnSelectComboSingle 30#|32#|34#">30#</span>&nbsp;x1.5\",<span class="ppnSelectComboSingle 30#|32#">30#</span>&nbsp;x2\",30#x3\"'
   }
 }
 
