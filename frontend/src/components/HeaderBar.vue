@@ -17,7 +17,7 @@
           <h1 class="font-display text-xl font-semibold text-ink-900 tracking-tight">
             AChecker
           </h1>
-          <p class="text-xs text-ink-400 font-medium">AC NOTE CHECKER SYSTEM</p>
+          <p class="text-xs text-ink-400 font-medium">AC NOTE CHECK SYSTEM</p>
         </div>
       </div>
 
