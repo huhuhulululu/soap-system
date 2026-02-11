@@ -72,34 +72,21 @@ function extractInitialState(visit) {
   }
 }
 
-/** 拼接 ICD/CPT 文本 */
-function formatIcdCpt(ieVisit, insuranceType, hasPacemaker, treatmentTime) {
+/** 拼接 ICD/CPT 文本 - 直接沿用 IE 的代码 */
+function formatIcdCpt(ieVisit) {
   let result = ''
 
   // ICD from IE
-  const codes = ieVisit.diagnosisCodes || []
-  if (codes.length > 0) {
-    codes.forEach((d, i) => {
-      result += `\nDiagnosis Code: (${i + 1}) ${d.description} (${d.icd10})\n`
-    })
-  }
+  const diagCodes = ieVisit.diagnosisCodes || []
+  diagCodes.forEach((d, i) => {
+    result += `Diagnosis Code: (${i + 1}) ${d.description} (${d.icd10})\n`
+  })
 
-  // CPT: OPTUM/HF → 97810/97811 (without estim), others → 97813/97814 (with estim)
-  // Pacemaker forces without estim regardless of insurance
-  const isSimpleCode = insuranceType === 'OPTUM' || insuranceType === 'HF'
-  const withEstim = !isSimpleCode && !hasPacemaker
-  const baseCode = withEstim ? '97813' : '97810'
-  const addOnCode = withEstim ? '97814' : '97811'
-  const baseDesc = withEstim ? 'ACUP W/ ESTIM 1ST 15 MIN' : 'ACUP 1/> WO ESTIM 1ST 15 MIN'
-  const addOnDesc = withEstim ? 'ACUP W/ ESTIM EA ADDL 15 MIN' : 'ACUP WO ESTIM EA ADDL 15 MIN'
-
-  const units = Math.max(1, Math.floor((treatmentTime || 15) / 15))
-  let cptIdx = 1
-  result += `Procedure Code: (${cptIdx}) ${baseDesc} (${baseCode})\n`
-  for (let u = 1; u < units; u++) {
-    cptIdx++
-    result += `Procedure Code: (${cptIdx}) ${addOnDesc} (${addOnCode})\n`
-  }
+  // CPT from IE - 直接沿用，不编造
+  const procCodes = ieVisit.procedureCodes || []
+  procCodes.forEach((p, i) => {
+    result += `Procedure Code: (${i + 1}) ${p.description} (${p.cpt})\n`
+  })
 
   return result
 }
@@ -162,7 +149,7 @@ export function generateContinuation(text, options = {}) {
   // 6. 导出文本 + ICD/CPT
   const visits = states.map(state => {
     let soap = exportSOAPAsText(context, state)
-    soap += formatIcdCpt(ieVisit, insuranceType, hasPacemaker, treatmentTime)
+    soap += formatIcdCpt(ieVisit)
     return { visitIndex: state.visitIndex, text: soap, state }
   })
 
