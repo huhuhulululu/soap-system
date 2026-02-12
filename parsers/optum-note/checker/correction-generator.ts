@@ -10,16 +10,9 @@ import { exportSOAPAsText } from '../../../src/generator/soap-generator'
 import type { GenerationContext } from '../../../src/types'
 import { severityFromPain, expectedTenderMinScaleByPain } from '../../../src/shared/severity'
 import { getPatternTonguePulse } from '../../../src/shared/tcm-mappings'
+import { extractPainCurrent } from '../../../src/shared/field-parsers'
 
 // ============ 辅助函数 ============
-
-function parsePainCurrent(v: VisitRecord): number {
-  const ps = v.subjective.painScale as any
-  if ('current' in ps && typeof ps.current === 'number') return ps.current
-  if ('range' in ps && ps.range && typeof ps.range.max === 'number') return ps.range.max
-  if ('value' in ps && typeof ps.value === 'number') return ps.value
-  return 7
-}
 
 // ============ 修正计算 ============
 
@@ -36,7 +29,7 @@ const DEFAULT_ACUPOINTS: Record<string, string[]> = {
 
 function computeFixes(visit: VisitRecord, prevVisit: VisitRecord | undefined, errors: CheckError[]): FieldFix[] {
   const fixes: FieldFix[] = []
-  const pain = parsePainCurrent(visit)
+  const pain = extractPainCurrent(visit.subjective.painScale)
   const bp = (visit.subjective.bodyPartNormalized || 'LBP') as BodyPart
   const severity = severityFromPain(pain)
 
@@ -264,8 +257,8 @@ function generateCorrectedSOAP(
     const visitState = {
       visitIndex,
       progress: 0.5, // 简化处理
-      painScaleCurrent: parsePainCurrent(visit),
-      painScaleLabel: String(parsePainCurrent(visit)),
+      painScaleCurrent: extractPainCurrent(visit.subjective.painScale),
+      painScaleLabel: String(extractPainCurrent(visit.subjective.painScale)),
       severityLevel: correctedContext.severityLevel,
       symptomChange: fixes.find(f => f.field === 'symptomChange')?.corrected || 'improvement of symptom(s)',
       reasonConnector: 'because of',

@@ -29,6 +29,7 @@ import {
   ParseError,
   ParseWarning,
 } from './types'
+import { parseAdlSeverity } from '../../src/shared/field-parsers'
 
 // ============ PDF Text Normalizer ============
 /** Fix common PDF extraction artifacts where spaces break known keywords */
@@ -382,7 +383,7 @@ export function parseSubjective(block: string): Subjective | null {
       adlImpairment = `${ieAdlMatch[1]} difficulty ${ieAdlMatch[2].trim()}`
     }
   }
-  const adlDifficultyLevel = parseAdlDifficultyLevel(adlImpairment)
+  const adlDifficultyLevel = parseAdlSeverity(adlImpairment)
 
   // Pain Scale - two formats
   const painScale = parsePainScale(block)
@@ -433,22 +434,15 @@ function parseChronicityLevel(chiefComplaint: string, block: string): Subjective
   return 'Acute'
 }
 
-function parseAdlDifficultyLevel(adlText: string): NonNullable<Subjective['adlDifficultyLevel']> {
-  const t = (adlText || '').toLowerCase()
-  if (t.includes('moderate to severe')) return 'moderate to severe'
-  if (t.includes('mild to moderate')) return 'mild to moderate'
-  if (t.includes('severe')) return 'severe'
-  if (t.includes('moderate')) return 'moderate'
-  return 'mild'
-}
+// parseAdlDifficultyLevel 已迁移至 src/shared/field-parsers.ts (parseAdlSeverity)
 
 function parseBodyPartAndLaterality(raw: string): { normalizedBodyPart: string; laterality: Subjective['laterality'] } {
   const text = raw.toLowerCase()
   const laterality: Subjective['laterality'] =
     /\bbilateral\b/.test(text) ? 'bilateral' :
-    /\bleft\b/.test(text) ? 'left' :
-    /\bright\b/.test(text) ? 'right' :
-    'unspecified'
+      /\bleft\b/.test(text) ? 'left' :
+        /\bright\b/.test(text) ? 'right' :
+          'unspecified'
 
   // Find the FIRST body part mentioned (by position in text)
   const bodyParts: Array<{ name: string; pattern: RegExp }> = [
@@ -479,7 +473,7 @@ function parseBodyPartAndLaterality(raw: string): { normalizedBodyPart: string; 
 export function parsePainScale(block: string): PainScale | PainScaleDetailed | null {
   // Normalize spaces around dashes: "6 - 5" → "6-5"
   const normalized = block.replace(/(\d+)\s*-\s*(\d+)/g, '$1-$2')
-  
+
   // Format 1: Pain Scale: Worst: X or X-Y ; Best: Y or Y-Z ; Current: Z
   const detailedPattern = /Pain Scale:\s*Worst:\s*(\d+(?:-\d+)?)\s*;\s*Best:\s*(\d+(?:-\d+)?)\s*;\s*Current:\s*(\d+)/i
   const detailedMatch = normalized.match(detailedPattern)
@@ -774,14 +768,14 @@ export function parseAssessment(block: string): Assessment | null {
   const patternPattern = /Current patient still has\s+(.+?)(?=\.\n|\.\s|that cause)/is
   const patternMatch = block.match(patternPattern)
   let currentPattern = patternMatch?.[1]?.trim() || ''
-  
+
   // If not found, try to extract from TCM Dx
   if (!currentPattern) {
     const tcmLocalPattern = /due to\s+(.+?)\s+in local meridian/i
     const tcmLocalMatch = block.match(tcmLocalPattern)
     currentPattern = tcmLocalMatch?.[1]?.trim() || ''
   }
-  
+
   const localPattern = normalizeLocalPattern(currentPattern)
 
   // TCM Diagnosis (初诊)
@@ -895,7 +889,7 @@ function parseGoal(block: string, goalType: 'Short Term Goal' | 'Long Term Goal'
   if (!match) return undefined
 
   const section = match[1]
-  
+
   // Frequency from header
   const freqMatch = block.match(new RegExp(`${goalType}\\s*\\(([^)]+)\\)`, 'i'))
   const frequency = freqMatch?.[1]?.trim() || ''

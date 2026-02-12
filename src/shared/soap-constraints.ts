@@ -6,6 +6,12 @@
 
 import { severityFromPain, expectedTenderMinScaleByPain } from './severity'
 import { isPainTypeConsistentWithPattern, isTonguePatternConsistent } from './tcm-mappings'
+import {
+  parseTendernessScale,
+  parseSpasmScale,
+  severityToRank,
+  parseFrequencyLevel,
+} from './field-parsers'
 
 // ============ Types ============
 
@@ -52,36 +58,6 @@ export interface ContextSnapshot {
 }
 
 // ============ Parsers ============
-
-function parseTendernessScale(grading: string): number {
-  const m = grading.match(/\+(\d)/)
-  return m ? parseInt(m[1], 10) : 2
-}
-
-function parseSpasmScale(grading: string): number {
-  const m = grading.match(/\+(\d)/)
-  return m ? parseInt(m[1], 10) : 2
-}
-
-const SEVERITY_RANK: Record<string, number> = {
-  mild: 1, 'mild to moderate': 2, moderate: 3, 'moderate to severe': 4, severe: 5,
-}
-
-function severityRank(s: string): number {
-  return SEVERITY_RANK[s.toLowerCase()] ?? 3
-}
-
-const FREQUENCY_RANK: Record<string, number> = {
-  intermittent: 0, occasional: 1, frequent: 2, constant: 3,
-}
-
-function frequencyRank(f: string): number {
-  const lower = f.toLowerCase()
-  for (const [key, rank] of Object.entries(FREQUENCY_RANK)) {
-    if (lower.includes(key)) return rank
-  }
-  return 2
-}
 
 const SYMPTOM_RANK: Record<string, number> = {
   soreness: 1, stiffness: 2, heaviness: 3, weakness: 4, numbness: 4,
@@ -218,8 +194,8 @@ function checkSequence(visits: VisitSnapshot[]): ConstraintError[] {
     }
 
     // V03: tightness monotonic
-    const prevTightRank = severityRank(prev.tightnessGrading)
-    const curTightRank = severityRank(cur.tightnessGrading)
+    const prevTightRank = severityToRank(prev.tightnessGrading)
+    const curTightRank = severityToRank(cur.tightnessGrading)
     if (curTightRank > prevTightRank) {
       errors.push({
         ruleId: 'V03', severity: 'HIGH', visitIndex: idx,
@@ -240,8 +216,8 @@ function checkSequence(visits: VisitSnapshot[]): ConstraintError[] {
     }
 
     // V07: frequency monotonic
-    const prevFreq = frequencyRank(prev.painFrequency)
-    const curFreq = frequencyRank(cur.painFrequency)
+    const prevFreq = parseFrequencyLevel(prev.painFrequency)
+    const curFreq = parseFrequencyLevel(cur.painFrequency)
     if (curFreq > prevFreq) {
       errors.push({
         ruleId: 'V07', severity: 'MEDIUM', visitIndex: idx,
@@ -268,7 +244,7 @@ function checkSequence(visits: VisitSnapshot[]): ConstraintError[] {
     }
 
     // T08: ADL severity monotonic (via severityLevel)
-    if (severityRank(cur.severityLevel) > severityRank(prev.severityLevel)) {
+    if (severityToRank(cur.severityLevel) > severityToRank(prev.severityLevel)) {
       errors.push({
         ruleId: 'T08', severity: 'HIGH', visitIndex: idx,
         message: 'ADL severity 恶化',

@@ -47,8 +47,13 @@ export interface Subjective {
   laterality?: 'left' | 'right' | 'bilateral' | 'unspecified'
   radiation: boolean
   muscleWeaknessScale: string // e.g., "40%", "50%-60%"
+  /** @deprecated 使用 adlDifficultyLevel + adlActivities 替代，将在 Phase 5 删除 */
   adlImpairment: string
-  adlDifficultyLevel?: 'mild' | 'mild to moderate' | 'moderate' | 'moderate to severe' | 'severe'
+  adlDifficultyLevel: 'mild' | 'mild to moderate' | 'moderate' | 'moderate to severe' | 'severe'
+  /** 具体 ADL 活动列表 (从 adlImpairment 提取) */
+  adlActivities?: string[]
+  /** 保留原始 ADL 文本用于调试 */
+  adlRawText?: string
   painScale: PainScale | PainScaleDetailed
   painFrequency: PainFrequency
   painFrequencyRange: string // e.g., "51% and 75%", "76% and 100%"
@@ -123,6 +128,8 @@ export interface Assessment {
   currentPattern: string // e.g., "Qi & Blood Deficiency in local meridian"
   localPattern?: string
   systemicPattern?: string
+  /** 进展原因 (正向/负向)，由 Parser 从 chiefComplaint 提取 */
+  progressReasons?: { positive: string[]; negative: string[] }
 }
 
 // ============ Plan Types ============

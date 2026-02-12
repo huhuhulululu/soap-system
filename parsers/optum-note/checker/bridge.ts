@@ -7,6 +7,10 @@ import type {
   InsuranceType
 } from '../../../src/types'
 import type { OptumNoteDocument, VisitRecord } from '../types'
+import {
+  extractPainCurrent,
+  parseAdlSeverity,
+} from '../../../src/shared/field-parsers'
 
 const BODY_PART_MAP: Array<{ pattern: RegExp; bodyPart: BodyPart; laterality?: Laterality }> = [
   { pattern: /\bright\s+knee\b/i, bodyPart: 'KNEE', laterality: 'right' },
@@ -52,27 +56,10 @@ function inferSystemicPattern(doc: OptumNoteDocument, fallback = 'Blood Deficien
   return fromIE || fallback
 }
 
-function parseSeverityFromAdlText(adlText: string): SeverityLevel {
-  const t = (adlText || '').toLowerCase()
-  if (t.includes('moderate to severe')) return 'moderate to severe'
-  if (t.includes('mild to moderate')) return 'mild to moderate'
-  if (t.includes('severe')) return 'severe'
-  if (t.includes('moderate')) return 'moderate'
-  return 'mild'
-}
-
 function parseSeverityFromVisit(visit: VisitRecord): SeverityLevel {
   const level = visit.subjective.adlDifficultyLevel
   if (level) return level
-  return parseSeverityFromAdlText(visit.subjective.adlImpairment)
-}
-
-function parsePainCurrent(visit: VisitRecord): number {
-  const ps = visit.subjective.painScale as any
-  if (typeof ps?.current === 'number') return ps.current
-  if (typeof ps?.value === 'number') return ps.value
-  if (typeof ps?.range?.max === 'number') return ps.range.max
-  return 7
+  return parseAdlSeverity(visit.subjective.adlImpairment)
 }
 
 // 从 chiefComplaint 提取 duration
@@ -158,7 +145,7 @@ function inferInsurance(visit: VisitRecord): InsuranceType {
 
 export function bridgeVisitToSOAPNote(visit: VisitRecord): SOAPNote {
   const { bodyPart, laterality } = parseBodyPartString(visit.subjective.bodyPart || visit.subjective.chiefComplaint)
-  const current = parsePainCurrent(visit)
+  const current = extractPainCurrent(visit.subjective.painScale)
   const best = (visit.subjective.painScale as any)?.best
   const bestNum = typeof best === 'number' ? best : (best?.min || current - 2)
   const localPattern = extractLocalPattern(visit.assessment.currentPattern || '')

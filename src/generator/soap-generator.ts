@@ -16,6 +16,13 @@ import { TCM_PATTERNS } from '../knowledge/tcm-patterns'
 import { calculateWeights, selectBestOption, selectBestOptions, WeightContext, type WeightedOption } from '../parser/weight-system'
 import { generateTXSequenceStates, type TXSequenceOptions, type TXVisitState } from './tx-sequence-engine'
 import { calculateDynamicGoals } from './goals-calculator'
+import {
+  BODY_PART_MUSCLES,
+  BODY_PART_ADL,
+  BODY_PART_ROM,
+  romLimitFactor,
+  type ROMMovement,
+} from '../shared/body-part-constants'
 
 /**
  * 保险类型到针刺模板的映射
@@ -91,37 +98,11 @@ const LATERALITY_NAMES: Record<Laterality, string> = {
   'unspecified': ''
 }
 
-/**
- * 身体部位对应的肌肉映射 (来自模板 ppnSelectCombo)
- */
-export const MUSCLE_MAP: Record<string, string[]> = {
-  'LBP': ['iliocostalis', 'spinalis', 'longissimus', 'Iliopsoas Muscle', 'Quadratus Lumborum', 'Gluteal Muscles', 'The Multifidus muscles'],
-  'NECK': ['Scalene anterior / med / posterior', 'Levator Scapulae', 'Trapezius', 'sternocleidomastoid muscles', 'Semispinalis capitis', 'Splenius capitis', 'Suboccipital muscles'],
-  'SHOULDER': ['upper trapezius', 'greater tuberosity', 'lesser tuberosity', 'AC joint', 'levator scapula', 'rhomboids', 'middle deltoid', 'deltoid ant fibres', 'bicep long head', 'supraspinatus', 'triceps short head'],
-  'KNEE': ['Gluteus Maximus', 'Gluteus medius / minimus', 'Piriformis muscle', 'Quadratus femoris', 'Adductor longus/ brev/ magnus', 'Iliotibial Band ITB', 'Rectus Femoris', 'Gastronemius muscle', 'Hamstrings muscle group', 'Tibialis Post/ Anterior', 'Plantar Fasciitis', 'Intrinsic Foot Muscle group', 'Achilles Tendon'],
-  'HIP': ['Gluteus Maximus', 'Gluteus Medius', 'Piriformis', 'Iliopsoas', 'TFL', 'Adductors'],
-  'ELBOW': ['Biceps', 'Triceps', 'Brachioradialis', 'Supinator', 'Pronator teres'],
-  'WRIST': ['Flexor carpi radialis', 'Flexor carpi ulnaris', 'Extensor carpi radialis', 'Extensor carpi ulnaris'],
-  'ANKLE': ['Gastrocnemius', 'Soleus', 'Tibialis anterior', 'Peroneus longus/brevis'],
-  'UPPER_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector spinae (thoracic)', 'Latissimus dorsi'],
-  'MIDDLE_BACK': ['Rhomboids', 'Middle Trapezius', 'Erector Spinae', 'Latissimus Dorsi', 'Serratus Posterior', 'Multifidus']
-}
+/** @deprecated 使用 BODY_PART_MUSCLES (from body-part-constants) */
+export const MUSCLE_MAP = BODY_PART_MUSCLES
 
-/**
- * 身体部位对应的 ADL 困难活动 (来自模板 ppnSelectCombo)
- */
-export const ADL_MAP: Record<string, string[]> = {
-  'LBP': ['Standing for long periods of time', 'Walking for long periods of time', 'Bending over to wear/tie a shoe', 'Rising from a chair', 'Getting out of bed', 'Going up and down stairs', 'Lifting objects'],
-  'NECK': ['Sit and watching TV over 20 mins', 'Tilting head to talking the phone', 'Turning the head when crossing the street', 'Looking down watching steps', 'Gargling', 'Driving for long periods'],
-  'SHOULDER': ['holding the pot for cooking', 'performing household chores', 'working long time in front of computer', 'long hours of driving', 'pushing/pulling cart, box, door', 'doing laundry', 'handing/carrying moderate objects', 'put on/take off the clothes', 'reach top of cabinet to get object(s)', 'reach to back to unzip', 'raising up the hand to comb hair', 'touch opposite side shoulder to put coat on', 'abduct arm get the objects from other people', 'adduction arm to put pant on'],
-  'KNEE': ['performing household chores', 'long hours of driving', 'Going up and down stairs', 'Bending over to wear/tie a shoe', 'Rising from a chair', 'Standing for long periods of time', 'Walking for long periods of time', 'Getting out of bed', 'standing for cooking', 'bending knee to sit position', 'bending down put in/out of the shoes'],
-  'HIP': ['Walking for long periods', 'Sitting for long periods', 'Getting in/out of car', 'Climbing stairs', 'Putting on socks/shoes'],
-  'ELBOW': ['Lifting objects', 'Carrying bags', 'Opening doors', 'Typing', 'Writing'],
-  'WRIST': ['Typing', 'Gripping objects', 'Writing', 'Cooking', 'Opening jars'],
-  'ANKLE': ['Walking', 'Running', 'Going up/down stairs', 'Driving', 'Standing on tiptoes'],
-  'UPPER_BACK': ['Sitting for long periods', 'Reaching overhead', 'Carrying bags', 'Deep breathing'],
-  'MIDDLE_BACK': ['Sitting for long periods', 'Twisting motions', 'Bending forward', 'Lifting objects', 'Deep breathing', 'Reaching overhead']
-}
+/** @deprecated 使用 BODY_PART_ADL (from body-part-constants) */
+export const ADL_MAP = BODY_PART_ADL
 
 /**
  * ADL 年龄+性别过滤规则
@@ -268,113 +249,11 @@ const EXACERBATING_FACTORS_MAP: Record<string, string[]> = {
   'UPPER_BACK': ['Prolonged sitting', 'Poor posture', 'Carrying heavy bags', 'Deep breathing']
 }
 
-/**
- * 身体部位对应的 ROM 测试项目
- */
-/**
- * ROM 运动数据 (v9.0 优化: 增加 difficulty 维度)
- * difficulty: EASY=大角度简单运动, MEDIUM=标准运动, HARD=小角度/困难运动
- */
+// ROM_MAP 和 ROMMovement 类型已迁移至 src/shared/body-part-constants.ts
+const ROM_MAP = BODY_PART_ROM
 type ROMDifficulty = 'EASY' | 'MEDIUM' | 'HARD'
-interface ROMMovement { movement: string; normalDegrees: number; difficulty: ROMDifficulty }
 
-const ROM_MAP: Record<string, ROMMovement[]> = {
-  'LBP': [
-    { movement: 'Flexion', normalDegrees: 90, difficulty: 'MEDIUM' },
-    { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
-    { movement: 'Rotation to Right', normalDegrees: 45, difficulty: 'MEDIUM' },
-    { movement: 'Rotation to Left', normalDegrees: 45, difficulty: 'MEDIUM' },
-    { movement: 'Flexion to the Right', normalDegrees: 30, difficulty: 'EASY' },
-    { movement: 'Flexion to the Left', normalDegrees: 30, difficulty: 'EASY' }
-  ],
-  'NECK': [
-    { movement: 'Extension (look up)', normalDegrees: 60, difficulty: 'MEDIUM' },
-    { movement: 'Flexion (look down)', normalDegrees: 50, difficulty: 'EASY' },
-    { movement: 'Rotation to Right (look to right)', normalDegrees: 80, difficulty: 'MEDIUM' },
-    { movement: 'Rotation to Left (look to left)', normalDegrees: 80, difficulty: 'MEDIUM' },
-    { movement: 'Flexion to the Right (bending right)', normalDegrees: 45, difficulty: 'EASY' },
-    { movement: 'Flexion to the Left (bending left)', normalDegrees: 45, difficulty: 'EASY' }
-  ],
-  'SHOULDER': [
-    { movement: 'Abduction', normalDegrees: 180, difficulty: 'HARD' },
-    { movement: 'Horizontal Adduction', normalDegrees: 45, difficulty: 'EASY' },
-    { movement: 'Flexion', normalDegrees: 180, difficulty: 'HARD' },
-    { movement: 'Extension', normalDegrees: 60, difficulty: 'MEDIUM' },
-    { movement: 'External Rotation', normalDegrees: 90, difficulty: 'MEDIUM' },
-    { movement: 'Internal Rotation', normalDegrees: 90, difficulty: 'MEDIUM' }
-  ],
-  'KNEE': [
-    { movement: 'Flexion(fully bent)', normalDegrees: 130, difficulty: 'HARD' },
-    { movement: 'Extension(fully straight)', normalDegrees: 0, difficulty: 'EASY' }
-  ],
-  'HIP': [
-    { movement: 'Flexion', normalDegrees: 120, difficulty: 'MEDIUM' },
-    { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
-    { movement: 'Abduction', normalDegrees: 45, difficulty: 'MEDIUM' },
-    { movement: 'Adduction', normalDegrees: 30, difficulty: 'EASY' },
-    { movement: 'Internal Rotation', normalDegrees: 45, difficulty: 'HARD' },
-    { movement: 'External Rotation', normalDegrees: 45, difficulty: 'MEDIUM' }
-  ],
-  'ELBOW': [
-    { movement: 'Flexion', normalDegrees: 150, difficulty: 'EASY' },
-    { movement: 'Extension', normalDegrees: 0, difficulty: 'EASY' },
-    { movement: 'Supination', normalDegrees: 90, difficulty: 'MEDIUM' },
-    { movement: 'Pronation', normalDegrees: 90, difficulty: 'MEDIUM' }
-  ],
-  'WRIST': [
-    { movement: 'Flexion', normalDegrees: 80, difficulty: 'MEDIUM' },
-    { movement: 'Extension', normalDegrees: 70, difficulty: 'MEDIUM' },
-    { movement: 'Radial Deviation', normalDegrees: 20, difficulty: 'HARD' },
-    { movement: 'Ulnar Deviation', normalDegrees: 30, difficulty: 'HARD' }
-  ],
-  'ANKLE': [
-    { movement: 'Dorsiflexion', normalDegrees: 20, difficulty: 'HARD' },
-    { movement: 'Plantarflexion', normalDegrees: 50, difficulty: 'MEDIUM' },
-    { movement: 'Inversion', normalDegrees: 35, difficulty: 'MEDIUM' },
-    { movement: 'Eversion', normalDegrees: 15, difficulty: 'HARD' }
-  ],
-  'MIDDLE_BACK': [
-    { movement: 'Flexion', normalDegrees: 90, difficulty: 'MEDIUM' },
-    { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
-    { movement: 'Rotation to Right', normalDegrees: 45, difficulty: 'MEDIUM' },
-    { movement: 'Rotation to Left', normalDegrees: 45, difficulty: 'MEDIUM' }
-  ]
-}
-
-// ==================== v9.0 ROM 计算引擎 ====================
-
-/**
- * 疼痛→受限因子 (线性插值, 基于 v9.0 并为模板下拉框校准)
- *
- * 控制点:
- *   pain 0  → 1.00
- *   pain 3  → 0.95
- *   pain 6  → 0.85
- *   pain 8  → 0.77
- *   pain 10 → 0.60
- *
- * 使用线性插值消除分段跳变, 使 ±1 pain variation 不会导致 ROM 跳崖
- */
-function getLimitationFactor(painLevel: number): number {
-  const breakpoints = [
-    { pain: 0, factor: 1.00 },
-    { pain: 3, factor: 0.95 },
-    { pain: 6, factor: 0.85 },
-    { pain: 8, factor: 0.77 },
-    { pain: 10, factor: 0.60 }
-  ]
-  const p = Math.max(0, Math.min(10, painLevel))
-  // 找到所在区间并线性插值
-  for (let i = 0; i < breakpoints.length - 1; i++) {
-    if (p <= breakpoints[i + 1].pain) {
-      const lo = breakpoints[i]
-      const hi = breakpoints[i + 1]
-      const t = (p - lo.pain) / (hi.pain - lo.pain)
-      return lo.factor + t * (hi.factor - lo.factor)
-    }
-  }
-  return breakpoints[breakpoints.length - 1].factor
-}
+// getLimitationFactor 已迁移至 src/shared/body-part-constants.ts (romLimitFactor)
 
 /**
  * 难度因子 (来自 v9.0)
@@ -394,7 +273,7 @@ function getStrengthByPainAndDifficulty(painLevel: number, difficulty: ROMDiffic
   const baseGrades = ['5/5', '5/5', '5/5', '5/5', '4+/5', '4+/5', '4/5', '4/5', '4-/5', '4-/5', '3+/5']
   const painInt = Math.round(Math.min(painLevel, 10))
   const baseGrade = baseGrades[painInt]
-  
+
   // HARD difficulty 再降一级
   if (difficulty === 'HARD') {
     const ladder = ['3/5', '3+/5', '4-/5', '4/5', '4+/5', '5/5']
@@ -422,7 +301,7 @@ function calculateLimitation(romValue: number, normalRom: number): string {
  * 然后四舍五入到 5 的倍数
  */
 function calculateRomValue(normalDegrees: number, painLevel: number, difficulty: ROMDifficulty): number {
-  const limitFactor = getLimitationFactor(painLevel)
+  const limitFactor = romLimitFactor(painLevel)
   const diffFactor = getDifficultyFactor(difficulty)
   const raw = normalDegrees * limitFactor * diffFactor
   return Math.round(raw / 5) * 5  // 四舍五入到 5 的倍数
@@ -1163,7 +1042,7 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     ? Math.max(
       1,
       basePain
-        - (visitState.progress * 2.8)
+      - (visitState.progress * 2.8)
     )
     : basePain
 
@@ -1281,8 +1160,8 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
   } else {
     // LBP / NECK / 其他部位
     const romLabel = bp === 'NECK' ? 'Cervical' :
-                     bp === 'LBP' ? 'Lumbar' :
-                     `${laterality ? laterality.charAt(0).toUpperCase() + laterality.slice(1) + ' ' : ''}${bodyPartName.charAt(0).toUpperCase() + bodyPartName.slice(1)}`
+      bp === 'LBP' ? 'Lumbar' :
+        `${laterality ? laterality.charAt(0).toUpperCase() + laterality.slice(1) + ' ' : ''}${bodyPartName.charAt(0).toUpperCase() + bodyPartName.slice(1)}`
     const romSuffix = bp === 'NECK' ? ' Assessment:' : ''
     objective += `${romLabel} Muscles Strength and ${romType}${romSuffix}\n`
 
@@ -1734,8 +1613,8 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
   } else if (bp === 'NECK') {
     // NECK 模板方向下拉无 "bilateral", bilateral 时只用 "in"
     const neckDirection = laterality === 'bilateral' ? 'in' :
-                          laterality === 'left' ? 'in left side' :
-                          laterality === 'right' ? 'in right side' : 'in'
+      laterality === 'left' ? 'in left side' :
+        laterality === 'right' ? 'in right side' : 'in'
     subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain ${neckDirection} ${bodyPartAreaName} area `
   } else if (bp === 'LBP') {
     subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain on ${bodyPartAreaName} area `

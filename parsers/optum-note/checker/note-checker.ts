@@ -11,30 +11,16 @@ import { generateCorrections } from './correction-generator'
 import { isTonguePatternConsistent, isPainTypeConsistentWithPattern } from '../../../src/shared/tcm-mappings'
 import { isAdlConsistentWithBodyPart } from '../../../src/shared/adl-mappings'
 import { severityFromPain, expectedTenderMinScaleByPain } from '../../../src/shared/severity'
-
-function scoreByStrength(str: string): number {
-  const t = str.trim()
-  const map: Record<string, number> = {
-    '0/5': 0, '1/5': 1, '2/5': 2, '2+/5': 2.5, '3/5': 3, '3+/5': 3.5,
-    '4-/5': 3.8, '4/5': 4, '4+/5': 4.5, '5/5': 5
-  }
-  return map[t] ?? 4
-}
-
-function parsePainCurrent(v: VisitRecord): number {
-  const ps = v.subjective.painScale as any
-  if (typeof ps?.current === 'number') return ps.current
-  if (typeof ps?.value === 'number') return ps.value
-  if (typeof ps?.range?.max === 'number') return ps.range.max
-  return 7
-}
-
-function parseGoalPainTarget(raw?: string): number | null {
-  if (!raw) return null
-  const nums = raw.match(/\d+/g)?.map(Number) || []
-  if (nums.length === 0) return null
-  return Math.min(...nums)
-}
+import {
+  extractPainCurrent,
+  parseGoalPainTarget,
+  parseAdlSeverity,
+  parseStrengthScore,
+  parseFrequencyLevel,
+  parseProgressStatus,
+  extractProgressReasons,
+  compareSeverity,
+} from '../../../src/shared/field-parsers'
 
 function avgRomSeverityRank(visit: VisitRecord): number {
   const rank: Record<string, number> = { severe: 0, moderate: 1, mild: 2, normal: 3 }
@@ -47,71 +33,6 @@ function isTonePatternConsistent(localPattern: string | undefined, tongue: strin
   return isTonguePatternConsistent(localPattern, tongue, pulse)
 }
 
-function parseAdlSeverity(adlText: string): string {
-  const t = (adlText || '').toLowerCase()
-  if (t.includes('moderate to severe')) return 'moderate to severe'
-  if (t.includes('mild to moderate')) return 'mild to moderate'
-  if (t.includes('severe')) return 'severe'
-  if (t.includes('moderate')) return 'moderate'
-  return 'mild'
-}
-
-function frequencyLevel(v: string): number {
-  const t = (v || '').toLowerCase()
-  if (t.includes('intermittent')) return 0
-  if (t.includes('occasional')) return 1
-  if (t.includes('frequent')) return 2
-  return 3
-}
-
-// T06: Progress status + reason logic lists
-const POSITIVE_PROGRESS_REASONS = [
-  'maintain regular treatments',
-  'reduced level of pain',
-  'energy level improved',
-  'sleep quality improved',
-  'continuous treatment',
-  'can move joint more freely'
-]
-
-const NEGATIVE_PROGRESS_REASONS = [
-  'skipped treatments',
-  'discontinuous treatment',
-  'stopped treatment',
-  'intense work',
-  'bad posture',
-  'lack of exercise',
-  'exposure to cold air'
-]
-
-function parseProgressStatus(chiefComplaint: string): 'improvement' | 'exacerbate' | 'similar' | null {
-  const cc = (chiefComplaint || '').toLowerCase()
-  if (cc.includes('improvement of symptom')) return 'improvement'
-  if (cc.includes('exacerbate of symptom')) return 'exacerbate'
-  if (cc.includes('similar symptom')) return 'similar'
-  return null
-}
-
-function extractProgressReasons(chiefComplaint: string): { positive: string[], negative: string[] } {
-  const cc = (chiefComplaint || '').toLowerCase()
-  const positive: string[] = []
-  const negative: string[] = []
-
-  for (const reason of POSITIVE_PROGRESS_REASONS) {
-    if (cc.includes(reason.toLowerCase())) {
-      positive.push(reason)
-    }
-  }
-
-  for (const reason of NEGATIVE_PROGRESS_REASONS) {
-    if (cc.includes(reason.toLowerCase())) {
-      negative.push(reason)
-    }
-  }
-
-  return { positive, negative }
-}
-
 function trend(cur: number, prev: number): '↓' | '→' | '↑' {
   if (cur < prev) return '↓'
   if (cur > prev) return '↑'
@@ -122,18 +43,10 @@ function err(params: Omit<CheckError, 'id'>): CheckError {
   return { id: `${params.ruleId}-${params.visitIndex}-${params.field}`, ...params }
 }
 
-function compareSeverity(cur: string, prev: string): number {
-  const order = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
-  const c = order.indexOf(cur)
-  const p = order.indexOf(prev)
-  if (c < 0 || p < 0) return 0
-  return c - p
-}
-
 function checkIE(visit: VisitRecord, visitIndex: number): CheckError[] {
   const errors: CheckError[] = []
   const date = visit.assessment.date || ''
-  const pain = parsePainCurrent(visit)
+  const pain = extractPainCurrent(visit.subjective.painScale)
   const expectedSev = severityFromPain(pain)
   const actualSev = parseAdlSeverity(visit.subjective.adlImpairment)
 
@@ -268,7 +181,7 @@ function checkIE(visit: VisitRecord, visitIndex: number): CheckError[] {
 function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit: VisitRecord | undefined, visitIndex: number): CheckError[] {
   const errors: CheckError[] = []
   const date = visit.assessment.date || ''
-  const pain = parsePainCurrent(visit)
+  const pain = extractPainCurrent(visit.subjective.painScale)
   const expectedSev = severityFromPain(pain)
   const actualSev = parseAdlSeverity(visit.subjective.adlImpairment)
 
@@ -304,7 +217,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   }
 
   if (prevVisit) {
-    const prevPain = parsePainCurrent(prevVisit)
+    const prevPain = extractPainCurrent(prevVisit.subjective.painScale)
     const delta = pain - prevPain
     const saysImprove = /improvement/i.test(visit.assessment.symptomChange || '')
     if (saysImprove && delta > 0) {
@@ -327,7 +240,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   if (prevVisit) {
     const saysImprove = /improvement/i.test(visit.assessment.symptomChange || '')
     if (saysImprove) {
-      const prevPain = parsePainCurrent(prevVisit)
+      const prevPain = extractPainCurrent(prevVisit.subjective.painScale)
       const prevTenderness = prevVisit.objective.tendernessMuscles.scale
       const prevTightness = prevVisit.objective.tightnessMuscles.gradingScale
       const curTenderness = visit.objective.tendernessMuscles.scale
@@ -363,7 +276,7 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   if (prevVisit) {
     const saysExacerbate = /exacerbate/i.test(visit.assessment.symptomChange || '')
     if (saysExacerbate) {
-      const prevPain = parsePainCurrent(prevVisit)
+      const prevPain = extractPainCurrent(prevVisit.subjective.painScale)
       const prevTenderness = prevVisit.objective.tendernessMuscles.scale
       const prevTightness = prevVisit.objective.tightnessMuscles.gradingScale
       const curTenderness = visit.objective.tendernessMuscles.scale
@@ -516,7 +429,7 @@ function avgRom(visit: VisitRecord): number {
 
 function avgStrength(visit: VisitRecord): number {
   if (!visit.objective.rom.items.length) return 0
-  const sum = visit.objective.rom.items.reduce((s, x) => s + scoreByStrength(x.strength), 0)
+  const sum = visit.objective.rom.items.reduce((s, x) => s + parseStrengthScore(x.strength), 0)
   return sum / visit.objective.rom.items.length
 }
 
@@ -536,8 +449,8 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
     const date = cur.assessment.date || ''
     const idx = i
 
-    const prevPain = parsePainCurrent(prev)
-    const curPain = parsePainCurrent(cur)
+    const prevPain = extractPainCurrent(prev.subjective.painScale)
+    const curPain = extractPainCurrent(cur.subjective.painScale)
     if (curPain > prevPain) {
       errors.push(err({
         ruleId: 'V01', severity: 'HIGH', visitDate: date, visitIndex: idx,
@@ -591,7 +504,7 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
       }))
     }
 
-    if (frequencyLevel(cur.subjective.painFrequency) > frequencyLevel(prev.subjective.painFrequency)) {
+    if (parseFrequencyLevel(cur.subjective.painFrequency) > parseFrequencyLevel(prev.subjective.painFrequency)) {
       errors.push(err({
         ruleId: 'V07', severity: 'MEDIUM', visitDate: date, visitIndex: idx,
         section: 'S', field: 'painFrequency', ruleName: 'frequency 不增加',
@@ -696,16 +609,16 @@ function scoreDocument(errors: CheckError[], txCount: number): ScoreBreakdown {
 function buildTimeline(visits: VisitRecord[], errors: CheckError[]): TimelineEntry[] {
   return visits.map((v, i) => {
     const prev = i > 0 ? visits[i - 1] : undefined
-    const pain = parsePainCurrent(v)
-    const prevPain = prev ? parsePainCurrent(prev) : pain
+    const pain = extractPainCurrent(v.subjective.painScale)
+    const prevPain = prev ? extractPainCurrent(prev.subjective.painScale) : pain
     const curT = v.objective.tendernessMuscles.scale
     const prevT = prev ? prev.objective.tendernessMuscles.scale : curT
     const curTight = v.objective.tightnessMuscles.gradingScale
     const prevTight = prev ? prev.objective.tightnessMuscles.gradingScale : curTight
     const curSpasm = v.objective.spasmMuscles.frequencyScale
     const prevSpasm = prev ? prev.objective.spasmMuscles.frequencyScale : curSpasm
-    const curF = frequencyLevel(v.subjective.painFrequency)
-    const prevF = prev ? frequencyLevel(prev.subjective.painFrequency) : curF
+    const curF = parseFrequencyLevel(v.subjective.painFrequency)
+    const prevF = prev ? parseFrequencyLevel(prev.subjective.painFrequency) : curF
     const curRom = avgRom(v)
     const prevRom = prev ? avgRom(prev) : curRom
     const curStrength = avgStrength(v)
@@ -734,18 +647,18 @@ function buildTimeline(visits: VisitRecord[], errors: CheckError[]): TimelineEnt
 // ============ ICD / CPT Code Checks ============
 
 const ICD_BODY_MAP: Record<string, string[]> = {
-  KNEE:       ['M17', 'M25.56', 'M25.46', 'M25.36', 'M76.5', 'M23', 'M22'],
-  SHOULDER:   ['M25.51', 'M75', 'M79.61'],
-  ELBOW:      ['M25.52', 'M77.0', 'M77.1'],
-  NECK:       ['M54.2', 'M54.6', 'M47.81', 'M50'],
-  LBP:        ['M54.5', 'M54.4', 'M54.3', 'M47.8', 'M51'],
+  KNEE: ['M17', 'M25.56', 'M25.46', 'M25.36', 'M76.5', 'M23', 'M22'],
+  SHOULDER: ['M25.51', 'M75', 'M79.61'],
+  ELBOW: ['M25.52', 'M77.0', 'M77.1'],
+  NECK: ['M54.2', 'M54.6', 'M47.81', 'M50'],
+  LBP: ['M54.5', 'M54.4', 'M54.3', 'M47.8', 'M51'],
   UPPER_BACK: ['M54.6', 'M54.2'],
-  HIP:        ['M25.55', 'M16'],
+  HIP: ['M25.55', 'M16'],
 }
 
 const LATERALITY_ICD_SUFFIX: Record<string, string[]> = {
-  right:     ['1', '91'],
-  left:      ['2', '92'],
+  right: ['1', '91'],
+  left: ['2', '92'],
   bilateral: ['3', '93'],
 }
 
@@ -1037,7 +950,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
   for (let i = 0; i < visits.length; i++) {
     const v = visits[i]
     const date = v.assessment.date || ''
-    const pain = parsePainCurrent(v)
+    const pain = extractPainCurrent(v.subjective.painScale)
     const isIE = v.subjective.visitType === 'INITIAL EVALUATION'
 
     // S2: painTypes vs localPattern
@@ -1072,7 +985,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       }
       const ranks = { numbness: 4, weakness: 4, heaviness: 3, stiffness: 2, soreness: 1 }
       const curSymptom = extractSymptom(v.subjective.chiefComplaint)
-      const prevSymptom = extractSymptom(visits[i-1].subjective.chiefComplaint)
+      const prevSymptom = extractSymptom(visits[i - 1].subjective.chiefComplaint)
       if (curSymptom && prevSymptom) {
         const curRank = ranks[curSymptom as keyof typeof ranks] || 0
         const prevRank = ranks[prevSymptom as keyof typeof ranks] || 0
@@ -1113,7 +1026,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     const limitFactor = pain >= 8 ? 0.77 : pain >= 6 ? 0.85 : pain >= 3 ? 0.95 : 1.0
     const bodyPart = (v.subjective.bodyPartNormalized || '').toLowerCase()
     const normals = normalDegrees[bodyPart] || {}
-    
+
     for (const rom of v.objective.rom.items) {
       const movement = rom.movement.toLowerCase()
       const normal = normals[movement] || (movement.includes('abduction') ? 180 : 90)
@@ -1133,20 +1046,20 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       const normal = normals[movement] || 90
       const ratio = rom.degrees / normal
       const severity = rom.severity?.toLowerCase()
-      if ((severity === 'normal' && ratio < 0.85) || 
-          (severity === 'severe' && ratio > 0.55) ||
-          (severity === 'mild' && (ratio < 0.5 || ratio > 0.95))) {
+      if ((severity === 'normal' && ratio < 0.85) ||
+        (severity === 'severe' && ratio > 0.55) ||
+        (severity === 'mild' && (ratio < 0.5 || ratio > 0.95))) {
         errors.push(err({
           ruleId: 'O2', severity: 'HIGH', visitDate: date, visitIndex: i,
           section: 'O', field: 'rom.severity', ruleName: 'ROM limitation label vs degrees',
-          message: 'ROM severity label inconsistent with degrees', expected: 'consistent label', actual: `${severity} at ${(ratio*100).toFixed(0)}%`
+          message: 'ROM severity label inconsistent with degrees', expected: 'consistent label', actual: `${severity} at ${(ratio * 100).toFixed(0)}%`
         }))
       }
     }
 
     // O3: Strength vs ROM limitation direction
     for (const rom of v.objective.rom.items) {
-      const strength = scoreByStrength(rom.strength)
+      const strength = parseStrengthScore(rom.strength)
       const severity = rom.severity?.toLowerCase()
       if ((severity === 'severe' && strength > 4) || (severity === 'normal' && strength < 4)) {
         errors.push(err({
@@ -1257,9 +1170,9 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     const expectedTenderness = pain >= 7 ? 2 : pain <= 4 ? 2 : 1
     const actualTightness = v.objective.tightnessMuscles.gradingScale.toLowerCase()
     const actualTenderness = v.objective.tendernessMuscles.scale
-    
+
     if ((pain >= 7 && !actualTightness.includes('moderate') && !actualTightness.includes('severe')) ||
-        (pain <= 4 && (actualTightness.includes('severe') || actualTenderness > 2))) {
+      (pain <= 4 && (actualTightness.includes('severe') || actualTenderness > 2))) {
       errors.push(err({
         ruleId: 'X1', severity: 'CRITICAL', visitDate: date, visitIndex: i,
         section: 'O', field: 'tightness/tenderness', ruleName: 'Pain→Severity→Tightness→Tenderness chain',
@@ -1301,8 +1214,8 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     }
 
     // X4: Pacemaker→Electrical Stimulation
-    const hasPacemaker = (v.subjective.medicalHistory?.some(h => h.toLowerCase().includes('pacemaker')) || 
-                         v.subjective.chiefComplaint.toLowerCase().includes('pacemaker'))
+    const hasPacemaker = (v.subjective.medicalHistory?.some(h => h.toLowerCase().includes('pacemaker')) ||
+      v.subjective.chiefComplaint.toLowerCase().includes('pacemaker'))
     if (hasPacemaker && v.plan.electricalStimulation) {
       errors.push(err({
         ruleId: 'X4', severity: 'CRITICAL', visitDate: date, visitIndex: i,
