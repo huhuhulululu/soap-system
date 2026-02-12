@@ -98,6 +98,24 @@ describe('Phase 1: 数据贯通', () => {
       expect(text).toContain('with radiation to R arm')
     })
 
+    it('Pain Types IE 和 TX 一致使用用户选择', () => {
+      const userPainTypes = ['Burning', 'Stabbing']
+      // IE
+      const ieCtx = makeContext({ noteType: 'IE', painTypes: userPainTypes })
+      const ieText = exportSOAPAsText(ieCtx)
+      expect(ieText).toContain('Burning')
+      expect(ieText).toContain('Stabbing')
+      // TX
+      const txCtx = makeContext({ noteType: 'TX', painTypes: userPainTypes })
+      const { states } = generateTXSequenceStates(txCtx, {
+        txCount: 1, startVisitIndex: 1, seed: SEED,
+        initialState: { pain: 8, associatedSymptom: 'soreness', painTypes: userPainTypes }
+      })
+      const txText = exportSOAPAsText(txCtx, states[0])
+      expect(txText).toContain('Burning')
+      expect(txText).toContain('Stabbing')
+    })
+
     it('Causative Factors 使用用户输入', () => {
       const ctx = makeContext({
         noteType: 'IE',

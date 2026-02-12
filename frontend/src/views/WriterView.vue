@@ -211,6 +211,7 @@ const generationContext = computed(() => ({
     unit: fields['subjective.symptomDuration.unit'] || 'month(s)'
   },
   painRadiation: fields['subjective.painRadiation'] || 'without radiation',
+  painTypes: fields['subjective.painTypes'] || ['Dull', 'Aching'],
   causativeFactors: fields['subjective.causativeFactors'] || ['age related/degenerative changes'],
   relievingFactors: fields['subjective.relievingFactors'] || ['Changing positions', 'Resting', 'Massage'],
   // Phase 3 新增

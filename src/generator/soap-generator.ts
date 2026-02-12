@@ -745,8 +745,10 @@ export function generateSubjective(context: GenerationContext): string {
     hasPacemaker: context.hasPacemaker
   }
 
-  const weightedPainTypes = calculateWeights('subjective.painTypes', painTypeOptions, weightContext)
-  const selectedPainTypes = selectBestOptions(weightedPainTypes, 2)
+  // Pain Types: 优先使用用户选择，回退到权重系统
+  const selectedPainTypes = (context.painTypes && context.painTypes.length > 0)
+    ? context.painTypes
+    : selectBestOptions(calculateWeights('subjective.painTypes', painTypeOptions, weightContext), 2)
 
   // 获取身体部位特有配置
   const associatedSymptoms = getConfig(ASSOCIATED_SYMPTOMS_MAP, context.primaryBodyPart)
@@ -1685,10 +1687,11 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
   const reasonWithChain = applyTxReasonChain(weightedReason, selectedChange, context)
   const selectedReason = visitState?.reason || selectBestOption(reasonWithChain)
 
-  // 权重选择: 疼痛类型
+  // Pain Types: visitState > context > 权重系统
   const painTypeOptions = ['Dull', 'Burning', 'Freezing', 'Shooting', 'Tingling', 'Stabbing', 'Aching', 'Squeezing', 'Cramping', 'pricking', 'weighty', 'cold', 'pin & needles']
-  const weightedPainTypes = calculateWeights('subjective.painTypes', painTypeOptions, weightContext)
-  const selectedPainTypes = visitState?.painTypes ?? selectBestOptions(weightedPainTypes, 2)
+  const selectedPainTypes = visitState?.painTypes
+    ?? (context.painTypes && context.painTypes.length > 0 ? context.painTypes : null)
+    ?? selectBestOptions(calculateWeights('subjective.painTypes', painTypeOptions, weightContext), 2)
   const associatedSymptomOptions = ['soreness', 'stiffness', 'heaviness', 'weakness', 'numbness']
   const weightedSymptoms = calculateWeights('subjective.associatedSymptoms', associatedSymptomOptions, weightContext)
   const selectedAssociatedSymptom = visitState?.associatedSymptom || selectBestOption(weightedSymptoms)
