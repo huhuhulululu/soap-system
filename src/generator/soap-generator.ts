@@ -754,9 +754,12 @@ export function generateSubjective(context: GenerationContext): string {
     ? context.painTypes
     : selectBestOptions(calculateWeights('subjective.painTypes', painTypeOptions, weightContext), 2)
 
-  // 获取身体部位特有配置
-  const associatedSymptoms = getConfig(ASSOCIATED_SYMPTOMS_MAP, context.primaryBodyPart)
-  const symptomScale = getConfig(SYMPTOM_SCALE_MAP, context.primaryBodyPart)
+  // 获取身体部位特有配置 — 优先使用用户输入
+  const associatedSymptoms = context.associatedSymptom
+    ? [context.associatedSymptom]
+    : getConfig(ASSOCIATED_SYMPTOMS_MAP, context.primaryBodyPart)
+  const symptomScale = context.symptomScale
+    ?? getConfig(SYMPTOM_SCALE_MAP, context.primaryBodyPart)
   const causativeConnector = getConfig(CAUSATIVE_CONNECTOR_MAP, context.primaryBodyPart)
   const notImproved = getConfig(NOT_IMPROVED_MAP, context.primaryBodyPart)
 

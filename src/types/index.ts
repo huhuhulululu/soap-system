@@ -286,6 +286,8 @@ export interface GenerationContext {
   painCurrent?: number
   /** 用户选择的疼痛类型 */
   painTypes?: string[]
+  /** 用户选择的症状量表百分比 (如 "70%") */
+  symptomScale?: string
   /** 用户输入的症状持续时间 { value: '3', unit: 'month(s)' } */
   symptomDuration?: { value: string; unit: string }
   /** 用户输入的放射痛描述 */
