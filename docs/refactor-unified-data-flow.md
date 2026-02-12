@@ -202,11 +202,9 @@ types.ts 中存在冗余的双轨设计：
 | ICD 侧性后缀 | generator.js 写死 | note-checker.ts 期望动态 | `ICD_LATERALITY_SUFFIX` |
 | 肌肉映射(权重) | weight-system.ts `bodyPartMuscles`:226 | — | `BODY_PART_MUSCLES` |
 | ADL映射(权重) | weight-system.ts `bodyPartAdl`:328 | — | `BODY_PART_ADL` |
-| 肌肉配置(HTML) | objective-generator.ts `MUSCLE_CONFIGS`:63 | — | `BODY_PART_MUSCLES` |
 | severityFromPain | tx-sequence-engine.ts:336 (本地副本) | — | `severity.ts` (已有，需删除重复) |
 
-> **⚠️ 复核注：** `objective-generator.ts` 的 KNEE 肌肉列表 (`Quadriceps, Vastus lateralis...`) 与
-> `soap-generator.ts` 的 KNEE 列表 (`Gluteus Maximus, Piriformis...`) **完全不同**，需在统一时决定以哪个为准。
+> **⚠️ 复核注 (2026-02-12)：** `objective-generator.ts` 已确认为孤立文件（零调用方），已从重构范围中移除。
 
 ### 2.2 更新 `soap-generator.ts`
 
@@ -229,10 +227,9 @@ types.ts 中存在冗余的双轨设计：
 - 删除本地 `bodyPartMuscles` (line 225-231)，改为从 `body-part-constants` 导入
 - 删除本地 `bodyPartAdl` (line 328-336)，改为从 `body-part-constants` 导入
 
-### 2.6 更新 `objective-generator.ts`
+### ~~2.6 更新 `objective-generator.ts`~~ [已移除]
 
-- `MUSCLE_CONFIGS` (line 63-106) 的 `muscles` 字段改为从 `body-part-constants` 导入
-- 注意：`defaultTightness` / `defaultTenderness` / `defaultSpasm` 为 HTML 生成专用，保留在本地
+> `objective-generator.ts` 经审计确认为孤立文件（9 个导出函数，零调用方），不纳入重构范围。
 
 **回滚点**: `git tag v2.1-phase2`
 
@@ -427,7 +424,7 @@ failed? → 返回 { valid: false, errors, text }
 | tx-sequence-engine.ts | `severityFromPain()` (line 336) | `import { severityFromPain } from '../shared/severity'` |
 | weight-system.ts | `bodyPartMuscles` (line 225) | `body-part-constants.BODY_PART_MUSCLES` |
 | weight-system.ts | `bodyPartAdl` (line 328) | `body-part-constants.BODY_PART_ADL` |
-| objective-generator.ts | `MUSCLE_CONFIGS.muscles` (line 63) | `body-part-constants.BODY_PART_MUSCLES` |
+| ~~objective-generator.ts~~ | ~~`MUSCLE_CONFIGS.muscles` (line 63)~~ | ~~已移除：孤立文件，零调用方~~ |
 
 ---
 
