@@ -580,9 +580,13 @@ export function generateTXSequenceStates(
 
   const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8
   const startPain = options.initialState?.pain ?? ieStartPain
+  // 与 goals-calculator 对齐: easeOutQuad 康复曲线
+  const stFallback = Math.ceil(
+    ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.4) * (1 - 0.4))
+  )
   const shortTermTarget = parsePainTarget(
     context.previousIE?.plan?.shortTermGoal?.painScaleTarget,
-    Math.max(3, ieStartPain - 2)
+    stFallback
   )
   const longTermTarget = parsePainTarget(
     context.previousIE?.plan?.longTermGoal?.painScaleTarget,
@@ -658,7 +662,7 @@ export function generateTXSequenceStates(
     const acc = Math.sqrt(progressLinear)
     const progressBase = 3 * acc * acc - 2 * acc * acc * acc
     const progressNoise = (rng() - 0.5) * 0.08
-    const rawProgress = clamp((progressBase * progressMultiplier) + progressNoise, 0.05, 0.98)
+    const rawProgress = clamp((progressBase * progressMultiplier) + progressNoise, 0.05, 1.0)
     const progress = Math.max(prevProgress, rawProgress)
     prevProgress = progress
 
@@ -776,8 +780,17 @@ export function generateTXSequenceStates(
       (progress > 0.7 && painDelta < 0.2 && adlDelta < 0.12 && !frequencyImproved) ||
       painScaleLabel === prevPainScaleLabel
     if (plateau) {
-      romTrend = 'stable'
-      strengthTrend = 'stable'
+      if (progress > 0.9) {
+        // 后期: 随机保留 ROM 或 strength 其中一个的自然趋势
+        if (rng() > 0.5) {
+          strengthTrend = 'stable'
+        } else {
+          romTrend = 'stable'
+        }
+      } else {
+        romTrend = 'stable'
+        strengthTrend = 'stable'
+      }
     }
     prevPainScaleLabel = painScaleLabel
     prevRomDeficit = nextRomDeficit
