@@ -1008,7 +1008,9 @@ export function generateTXSequenceStates(
         const m = raw.match(/(\d+)/)
         if (!m) return raw
         const base = parseInt(m[1], 10)
-        const reduced = Math.max(10, base - Math.round(progress * 30))
+        // 用 progress 的平方使早期递减更平缓，避免 IE→TX1 跳变
+        const reduction = Math.round(progress * progress * 40)
+        const reduced = Math.max(10, base - reduction)
         const snapped = Math.round(reduced / 10) * 10
         return `${snapped}%`
       })(),
