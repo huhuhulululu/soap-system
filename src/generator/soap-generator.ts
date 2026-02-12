@@ -124,6 +124,136 @@ export const ADL_MAP: Record<string, string[]> = {
 }
 
 /**
+ * ADL 年龄+性别过滤规则
+ * weight: 正数=增权, 负数=降权/排除
+ * condition: age/gender 条件
+ */
+interface ADLDemographicRule {
+  adl: string
+  weight: number
+  condition: { minAge?: number; maxAge?: number; gender?: 'Male' | 'Female' }
+}
+
+const ADL_DEMOGRAPHIC_RULES: ADLDemographicRule[] = [
+  // 高龄通用
+  { adl: 'long hours of driving', weight: -50, condition: { minAge: 65 } },
+  { adl: 'working long time in front of computer', weight: -60, condition: { minAge: 65 } },
+  { adl: 'Typing', weight: -60, condition: { minAge: 65 } },
+  { adl: 'running/jumping/participating in physical exercise', weight: -70, condition: { minAge: 65 } },
+  // 高龄增权
+  { adl: 'Going up and down stairs', weight: 30, condition: { minAge: 65 } },
+  { adl: 'Climbing stairs', weight: 30, condition: { minAge: 65 } },
+  { adl: 'Bending over to wear/tie a shoe', weight: 30, condition: { minAge: 65 } },
+  { adl: 'bending down put in/out of the shoes', weight: 25, condition: { minAge: 65 } },
+  { adl: 'Putting on socks/shoes', weight: 40, condition: { minAge: 65 } },
+  { adl: 'Getting in/out of car', weight: 30, condition: { minAge: 65 } },
+  { adl: 'Rising from a chair', weight: 20, condition: { minAge: 65 } },
+  { adl: 'Looking down watching steps', weight: 40, condition: { minAge: 65 } },
+  // 高龄男性
+  { adl: 'holding the pot for cooking', weight: -60, condition: { minAge: 65, gender: 'Male' } },
+  { adl: 'doing laundry', weight: -50, condition: { minAge: 65, gender: 'Male' } },
+  { adl: 'performing household chores', weight: -40, condition: { minAge: 65, gender: 'Male' } },
+  // 高龄女性
+  { adl: 'Lifting objects', weight: -30, condition: { minAge: 65, gender: 'Female' } },
+  { adl: 'reach top of cabinet to get object(s)', weight: 15, condition: { gender: 'Female' } },
+  // 年轻人降权
+  { adl: 'Rising from a chair', weight: -40, condition: { maxAge: 35 } },
+  { adl: 'Getting out of bed', weight: -40, condition: { maxAge: 35 } },
+  // 中年增权
+  { adl: 'working long time in front of computer', weight: 40, condition: { minAge: 35, maxAge: 65 } },
+  { adl: 'long hours of driving', weight: 20, condition: { minAge: 35, maxAge: 65 } },
+]
+
+/** 根据年龄+性别调整 ADL 权重 */
+export function filterADLByDemographics(
+  adlList: string[],
+  age?: number,
+  gender?: 'Male' | 'Female'
+): string[] {
+  if (!age && !gender) return adlList
+  const weightMap = new Map<string, number>()
+  for (const rule of ADL_DEMOGRAPHIC_RULES) {
+    const c = rule.condition
+    const ageOk = (!c.minAge || (age && age >= c.minAge)) && (!c.maxAge || (age && age <= c.maxAge))
+    const genderOk = !c.gender || c.gender === gender
+    if (ageOk && genderOk) {
+      weightMap.set(rule.adl, (weightMap.get(rule.adl) ?? 0) + rule.weight)
+    }
+  }
+  // 排除权重 <= -50 的 ADL，保留其余并按权重排序
+  return adlList
+    .filter(adl => (weightMap.get(adl) ?? 0) > -50)
+    .sort((a, b) => (weightMap.get(b) ?? 0) - (weightMap.get(a) ?? 0))
+}
+
+/**
+ * ADL → Muscle 关联映射
+ * 当患者报告某 ADL 困难时，优先关注哪些肌肉
+ */
+export const ADL_MUSCLE_MAP: Record<string, Record<string, string[]>> = {
+  'LBP': {
+    'Standing for long periods of time': ['Iliopsoas Muscle', 'Quadratus Lumborum'],
+    'Walking for long periods of time': ['Gluteal Muscles', 'Iliopsoas Muscle'],
+    'Bending over to wear/tie a shoe': ['longissimus', 'The Multifidus muscles'],
+    'Rising from a chair': ['Gluteal Muscles', 'Quadratus Lumborum', 'Iliopsoas Muscle'],
+    'Getting out of bed': ['The Multifidus muscles', 'iliocostalis'],
+    'Going up and down stairs': ['Gluteal Muscles', 'Iliopsoas Muscle'],
+    'Lifting objects': ['spinalis', 'longissimus', 'The Multifidus muscles']
+  },
+  'KNEE': {
+    'Going up and down stairs': ['Rectus Femoris', 'Gluteus Maximus', 'Gastronemius muscle'],
+    'Rising from a chair': ['Rectus Femoris', 'Gluteus Maximus'],
+    'Standing for long periods of time': ['Rectus Femoris', 'Iliotibial Band ITB', 'Gluteus medius / minimus'],
+    'Walking for long periods of time': ['Rectus Femoris', 'Hamstrings muscle group', 'Tibialis Post/ Anterior'],
+    'Bending over to wear/tie a shoe': ['Hamstrings muscle group', 'Gastronemius muscle'],
+    'bending knee to sit position': ['Rectus Femoris', 'Hamstrings muscle group'],
+    'bending down put in/out of the shoes': ['Hamstrings muscle group', 'Gastronemius muscle']
+  },
+  'SHOULDER': {
+    'holding the pot for cooking': ['middle deltoid', 'supraspinatus', 'bicep long head'],
+    'performing household chores': ['upper trapezius', 'rhomboids'],
+    'working long time in front of computer': ['upper trapezius', 'levator scapula', 'rhomboids'],
+    'reach top of cabinet to get object(s)': ['supraspinatus', 'middle deltoid', 'upper trapezius'],
+    'raising up the hand to comb hair': ['supraspinatus', 'greater tuberosity', 'middle deltoid'],
+    'put on/take off the clothes': ['supraspinatus', 'greater tuberosity', 'lesser tuberosity'],
+    'pushing/pulling cart, box, door': ['deltoid ant fibres', 'triceps short head', 'bicep long head']
+  },
+  'NECK': {
+    'Sit and watching TV over 20 mins': ['Semispinalis capitis', 'Splenius capitis'],
+    'Tilting head to talking the phone': ['Scalene anterior / med / posterior', 'Levator Scapulae'],
+    'Turning the head when crossing the street': ['sternocleidomastoid muscles', 'Splenius capitis'],
+    'Looking down watching steps': ['Semispinalis capitis', 'Suboccipital muscles'],
+    'Driving for long periods': ['Trapezius', 'Levator Scapulae', 'Scalene anterior / med / posterior']
+  },
+  'HIP': {
+    'Walking for long periods': ['Gluteus Maximus', 'Gluteus Medius', 'Iliopsoas'],
+    'Sitting for long periods': ['Iliopsoas', 'Piriformis'],
+    'Getting in/out of car': ['Iliopsoas', 'Gluteus Maximus', 'Adductors'],
+    'Climbing stairs': ['Gluteus Maximus', 'Gluteus Medius', 'TFL'],
+    'Putting on socks/shoes': ['Iliopsoas', 'Piriformis', 'Adductors']
+  },
+  'ELBOW': {
+    'Lifting objects': ['Biceps', 'Brachioradialis'],
+    'Carrying bags': ['Biceps', 'Brachioradialis'],
+    'Opening doors': ['Supinator', 'Pronator teres'],
+    'Typing': ['Pronator teres', 'Brachioradialis'],
+    'Writing': ['Pronator teres', 'Triceps']
+  }
+}
+
+/**
+ * 每个部位的肌肉严重度排序 (受累时影响 ADL 最多的排前面)
+ */
+export const MUSCLE_SEVERITY_ORDER: Record<string, string[]> = {
+  'LBP': ['Gluteal Muscles', 'Iliopsoas Muscle', 'The Multifidus muscles', 'longissimus', 'Quadratus Lumborum', 'spinalis', 'iliocostalis'],
+  'NECK': ['Semispinalis capitis', 'Splenius capitis', 'Trapezius', 'Scalene anterior / med / posterior', 'Levator Scapulae', 'sternocleidomastoid muscles', 'Suboccipital muscles'],
+  'SHOULDER': ['supraspinatus', 'upper trapezius', 'middle deltoid', 'deltoid ant fibres', 'bicep long head', 'rhomboids', 'levator scapula', 'greater tuberosity', 'lesser tuberosity', 'AC joint', 'triceps short head'],
+  'KNEE': ['Rectus Femoris', 'Hamstrings muscle group', 'Gluteus Maximus', 'Gastronemius muscle', 'Gluteus medius / minimus', 'Iliotibial Band ITB', 'Tibialis Post/ Anterior'],
+  'HIP': ['Iliopsoas', 'Gluteus Maximus', 'Gluteus Medius', 'Piriformis', 'Adductors', 'TFL'],
+  'ELBOW': ['Biceps', 'Brachioradialis', 'Pronator teres', 'Supinator', 'Triceps']
+}
+
+/**
  * 身体部位对应的加重因素 (来自模板 ppnSelectCombo)
  */
 const EXACERBATING_FACTORS_MAP: Record<string, string[]> = {

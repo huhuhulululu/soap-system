@@ -292,6 +292,12 @@ export interface GenerationContext {
   causativeFactors?: string[]
   /** 用户选择的缓解因素 */
   relievingFactors?: string[]
+  /** 患者年龄 */
+  age?: number
+  /** 患者性别 */
+  gender?: 'Male' | 'Female'
+  /** 病史列表 */
+  medicalHistory?: string[]
 }
 
 // ==================== 模板定义 ====================

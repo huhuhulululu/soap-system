@@ -16,10 +16,16 @@ const laterality = ref('bilateral')
 const cptCode = ref('97810')
 const noteType = ref('IE')
 const txCount = ref(3)
+const patientAge = ref(55)
+const patientGender = ref('Female')
+const secondaryBodyParts = ref([])
+const medicalHistory = ref(['N/A'])
 
 const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
 const CPT_OPTIONS = [{ value: '97810', label: '97810' }, { value: 'full', label: 'Full Code' }]
+const GENDER_OPTIONS = ['Male', 'Female']
+const MEDICAL_HISTORY_OPTIONS = ['N/A', 'Pacemaker', 'Diabetes', 'Hypertension', 'Heart Disease', 'Metal Implant', 'Stroke', 'Cancer', 'Kidney Disease', 'Liver Disease', 'Thyroid Disorder', 'Arthritis', 'Osteoporosis']
 
 // 各部位的侧别选项
 // 四肢关节: left / right / bilateral
@@ -206,7 +212,13 @@ const generationContext = computed(() => ({
   },
   painRadiation: fields['subjective.painRadiation'] || 'without radiation',
   causativeFactors: fields['subjective.causativeFactors'] || ['age related/degenerative changes'],
-  relievingFactors: fields['subjective.relievingFactors'] || ['Changing positions', 'Resting', 'Massage']
+  relievingFactors: fields['subjective.relievingFactors'] || ['Changing positions', 'Resting', 'Massage'],
+  // Phase 3 新增
+  age: patientAge.value,
+  gender: patientGender.value,
+  secondaryBodyParts: secondaryBodyParts.value,
+  hasPacemaker: medicalHistory.value.includes('Pacemaker'),
+  medicalHistory: medicalHistory.value.filter(h => h !== 'N/A')
 }))
 
 // 生成结果
@@ -592,6 +604,57 @@ function getDiffLines(idx) {
           <div v-if="noteType === 'TX'" class="flex items-center gap-2">
             <label class="text-xs text-ink-500">TX数量:</label>
             <input type="number" v-model.number="txCount" min="1" max="11" class="w-16 px-2 py-1 border border-ink-200 rounded text-sm text-center" />
+          </div>
+        </div>
+
+        <!-- 患者信息 -->
+        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-3">
+          <h2 class="text-sm font-semibold text-ink-700">患者信息</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-ink-500 mb-1 block">年龄</label>
+              <input type="number" v-model.number="patientAge" min="1" max="120" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label class="text-xs text-ink-500 mb-1 block">性别</label>
+              <div class="flex gap-1 mt-0.5">
+                <button v-for="g in GENDER_OPTIONS" :key="g" @click="patientGender = g"
+                  class="flex-1 py-2 text-xs font-medium rounded-md border transition-all"
+                  :class="patientGender === g ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  {{ g }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- 次要部位 -->
+          <div>
+            <label class="text-xs text-ink-500 mb-1 block">次要部位 <span class="text-ink-300">(可选)</span></label>
+            <div class="flex flex-wrap gap-1">
+              <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
+                @click="secondaryBodyParts.includes(bp) ? secondaryBodyParts.splice(secondaryBodyParts.indexOf(bp), 1) : secondaryBodyParts.push(bp)"
+                class="px-2.5 py-1 text-[11px] rounded-md border transition-all"
+                :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                {{ bp }}
+              </button>
+            </div>
+          </div>
+          <!-- 病史 -->
+          <div>
+            <label class="text-xs text-ink-500 mb-1 block">病史</label>
+            <div class="flex flex-wrap gap-1">
+              <button v-for="h in MEDICAL_HISTORY_OPTIONS" :key="h"
+                @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : (h === 'N/A' ? (medicalHistory.length = 0, medicalHistory.push('N/A')) : (medicalHistory = medicalHistory.filter(x => x !== 'N/A'), medicalHistory.push(h)))"
+                class="px-2.5 py-1 text-[11px] rounded-md border transition-all"
+                :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                {{ h }}
+              </button>
+            </div>
+          </div>
+          <!-- Severity 显示 (从 Pain 推导) -->
+          <div class="flex items-center gap-2 text-xs text-ink-400 bg-paper-50 rounded-lg px-3 py-2">
+            <span>Severity:</span>
+            <span class="font-medium text-ink-600">{{ derivedSeverity }}</span>
+            <span class="text-ink-300">(Pain {{ currentPain }} 推导)</span>
           </div>
         </div>
 
