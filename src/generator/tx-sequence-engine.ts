@@ -323,8 +323,9 @@ function snapPainToGrid(rawPain: number): { value: number; label: string } {
     return { value: val, label: `${val}` }
   } else if (frac >= 0.25) {
     // 在两个整数之间 → 范围标签 "(floor+1)-floor"
+    // value 用实际 rawPain 而非上界, 确保纵向约束能检测到下降
     const hi = Math.min(10, floor + 1)
-    return { value: hi, label: `${hi}-${floor}` }
+    return { value: clamped, label: `${hi}-${floor}` }
   } else {
     // 接近当前整数
     return { value: floor, label: `${floor}` }
