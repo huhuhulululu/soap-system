@@ -164,15 +164,73 @@ export function useDiffHighlight(generatedNotes: Ref<GeneratedNote[]>) {
     if (!prevNote) {
       return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
     }
-    const prevLines = prevNote.text.split('\n')
 
-    return lines.map((line, li) => {
+    // Split into SOAP sections for alignment
+    const splitSections = (text: string) => {
+      const secs: Record<string, string[]> = { _pre: [] }
+      let cur = '_pre'
+      for (const line of text.split('\n')) {
+        const t = line.trim()
+        if (['Subjective', 'Objective', 'Assessment', 'Plan'].includes(t)) {
+          cur = t
+          secs[cur] = secs[cur] || []
+        } else {
+          secs[cur] = secs[cur] || []
+          secs[cur].push(line)
+        }
+      }
+      return secs
+    }
+
+    const curSecs = splitSections(note.text)
+    const prevSecs = splitSections(prevNote.text)
+
+    // Build a set of previous lines per section for matching
+    const prevLineMap = new Map<string, Set<string>>()
+    for (const [sec, secLines] of Object.entries(prevSecs)) {
+      prevLineMap.set(sec, new Set(secLines.map(l => l.trim().toLowerCase())))
+    }
+
+    return lines.map((line) => {
       const trimmed = line.trim()
       if (sectionHeaders.has(trimmed)) {
         return { segments: [{ text: line, hl: false }] }
       }
-      const prevLine = li < prevLines.length ? prevLines[li] : ''
-      return { segments: diffLineWords(line, prevLine) }
+
+      // Find which section this line belongs to
+      let curSection = '_pre'
+      let found = false
+      for (const l of note.text.split('\n')) {
+        const lt = l.trim()
+        if (['Subjective', 'Objective', 'Assessment', 'Plan'].includes(lt)) curSection = lt
+        if (l === line && !found) { found = true; break }
+      }
+
+      // Find best matching previous line in same section
+      const prevSecLines = prevSecs[curSection] || []
+      let bestMatch = ''
+      let bestScore = 0
+      for (const pl of prevSecLines) {
+        if (pl.trim() === trimmed) { bestMatch = pl; bestScore = 1; break }
+        // Simple similarity: shared word ratio
+        const curWords = new Set(trimmed.toLowerCase().split(/\s+/))
+        const prevWords = new Set(pl.trim().toLowerCase().split(/\s+/))
+        const shared = [...curWords].filter(w => prevWords.has(w)).length
+        const score = shared / Math.max(curWords.size, prevWords.size, 1)
+        if (score > bestScore && score > 0.4) { bestScore = score; bestMatch = pl }
+      }
+
+      if (bestScore >= 1) {
+        return { segments: [{ text: line, hl: false }] }
+      }
+      if (bestMatch) {
+        return { segments: diffLineWords(line, bestMatch) }
+      }
+      // No match found — entire line is new
+      if (trimmed) {
+        return { segments: [{ text: line, hl: true }] }
+      }
+      return { segments: [{ text: line, hl: false }] }
     })
   }
 

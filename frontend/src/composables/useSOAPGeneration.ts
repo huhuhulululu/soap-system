@@ -18,7 +18,9 @@ export interface UseSOAPGenerationOptions {
   patientAge: Ref<number>
   patientGender: Ref<string>
   secondaryBodyParts: Ref<string[]>
+  secondaryLaterality: Ref<Record<string, string>>
   medicalHistory: Ref<string[]>
+  ieTxCount?: Ref<number>
   derivedSeverity: ComputedRef<string>
   currentPain: ComputedRef<number>
 }
@@ -36,10 +38,12 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     patientAge,
     patientGender,
     secondaryBodyParts,
+    secondaryLaterality,
     medicalHistory,
     derivedSeverity,
     currentPain,
   } = options
+  const ieTxCount = options.ieTxCount
 
   const generationContext = computed(() => ({
     noteType: noteType.value,
@@ -51,15 +55,16 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     chronicityLevel: (fields['subjective.chronicityLevel'] as string) || 'Chronic',
     severityLevel: derivedSeverity.value,
     painCurrent: currentPain.value,
+    associatedSymptoms: (fields['subjective.associatedSymptoms'] as string[]) || ['soreness'],
     associatedSymptom: ((fields['subjective.associatedSymptoms'] as string[])?.[0]) || 'soreness',
     symptomDuration: {
       value: (fields['subjective.symptomDuration.value'] as string) || '3',
-      unit: (fields['subjective.symptomDuration.unit'] as string) || 'month(s)',
+      unit: (fields['subjective.symptomDuration.unit'] as string) || 'year(s)',
     },
     painRadiation: (fields['subjective.painRadiation'] as string) || 'without radiation',
     recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
     painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
-    symptomScale: (fields['subjective.symptomScale'] as string) || '70%',
+    symptomScale: (fields['subjective.symptomScale'] as string) || '70%-80%',
     painFrequency:
       (fields['subjective.painFrequency'] as string) ||
       'Constant (symptoms occur between 76% and 100% of the time)',
@@ -71,7 +76,10 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     ],
     age: patientAge.value,
     gender: patientGender.value,
-    secondaryBodyParts: secondaryBodyParts.value,
+    secondaryBodyParts: secondaryBodyParts.value.map(bp => {
+      const lat = secondaryLaterality.value[bp]
+      return lat && lat !== 'bilateral' ? `${lat} ${bp}` : bp
+    }),
     hasPacemaker: medicalHistory.value.includes('Pacemaker'),
     hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
     medicalHistory: medicalHistory.value.filter((h: string) => h !== 'N/A'),
@@ -82,6 +90,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
   const currentSeed = ref<number | null>(null)
   const seedInput = ref('')
   const seedCopied = ref(false)
+  const generationError = ref('')
 
   function generate(useSeed?: number) {
     try {
@@ -108,7 +117,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
       const initialState = {
         pain: ctx.painCurrent,
         associatedSymptom: ctx.associatedSymptom || 'soreness',
-        symptomScale: (fields['subjective.symptomScale'] as string) || '70%',
+        symptomScale: (fields['subjective.symptomScale'] as string) || '70%-80%',
         frequency: freqLevel,
         painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
       }
@@ -116,7 +125,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
       if (noteType.value === 'IE') {
         const ieText = exportSOAPAsText(ctx, {})
         const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
-          txCount: 11,
+          txCount: ieTxCount ? ieTxCount.value : 11,
           startVisitIndex: 1,
           seed,
           initialState,
@@ -149,8 +158,8 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
         }))
       }
     } catch (e) {
-      console.error('生成错误:', e)
-      alert('生成失败: ' + (e as Error).message)
+      generationError.value = '生成失败: ' + (e as Error).message
+      setTimeout(() => { generationError.value = '' }, 5000)
     }
   }
 
@@ -229,6 +238,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
   return {
     generationContext,
     generatedNotes,
+    generationError,
     copiedIndex,
     currentSeed,
     seedInput,

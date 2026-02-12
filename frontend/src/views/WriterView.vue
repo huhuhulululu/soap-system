@@ -36,21 +36,32 @@ const recentWorseValue = ref('1')
 const recentWorseUnit = ref('week(s)')
 const secondaryBodyParts = ref([])
 const secondaryLaterality = reactive({})
-const medicalHistory = ref(['N/A'])
+const medicalHistory = ref([])
 
 const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
 const CPT_OPTIONS = [{ value: '97810', label: '97810' }, { value: 'full', label: 'Full Code' }]
 const GENDER_OPTIONS = ['Male', 'Female']
-// 病史选项 — 从模板 ppnSelectCombo 完整提取
-const MEDICAL_HISTORY_OPTIONS = [
-  'N/A', 'Smoking', 'Alcohol', 'Diabetes', 'Hypertension', 'Heart Disease',
-  'Liver Disease', 'Pacemaker', 'Anemia', 'Lung Disease', 'Kidney Disease',
-  'Heart Murmur', 'Thyroid', 'Stroke', 'Asthma', 'Herniated Disk',
-  'tinnitus', 'Pinched Nerve', 'Osteoporosis', 'Fractures', 'Hysterectomy',
-  'Hyperlipidemia', 'stomach trouble', 'C-section', 'Parkinson',
-  'Cholesterol', 'Joint Replacement', 'Prostate'
+// 病史选项 — 分组
+const MEDICAL_HISTORY_GROUPS = [
+  {
+    label: '心血管',
+    items: ['Hypertension', 'Heart Disease', 'Heart Murmur', 'Pacemaker', 'Stroke', 'Cholesterol', 'Hyperlipidemia'],
+  },
+  {
+    label: '代谢/内科',
+    items: ['Diabetes', 'Thyroid', 'Liver Disease', 'Kidney Disease', 'Anemia', 'Asthma', 'Lung Disease', 'stomach trouble', 'Prostate'],
+  },
+  {
+    label: '骨骼肌肉',
+    items: ['Herniated Disk', 'Osteoporosis', 'Fractures', 'Joint Replacement', 'Pinched Nerve'],
+  },
+  {
+    label: '其他',
+    items: ['Smoking', 'Alcohol', 'Parkinson', 'tinnitus', 'Hysterectomy', 'C-section'],
+  },
 ]
+const ALL_MEDICAL_HISTORY_OPTIONS = MEDICAL_HISTORY_GROUPS.flatMap(g => g.items)
 
 // 各部位的放射痛选项 (按医学合理性过滤)
 const RADIATION_MAP = {
@@ -177,6 +188,7 @@ const soapGen = useSOAPGeneration({
   patientAge,
   patientGender,
   secondaryBodyParts,
+  secondaryLaterality: computed(() => ({ ...secondaryLaterality })),
   medicalHistory,
   derivedSeverity,
   currentPain,
@@ -184,6 +196,7 @@ const soapGen = useSOAPGeneration({
 const {
   generationContext,
   generatedNotes,
+  generationError,
   copiedIndex,
   currentSeed,
   seedInput,
@@ -204,9 +217,8 @@ const { getNoteSummary, getDiffLines } = diffHighlight
 
 // 病史推荐的整体证型
 const recommendedPatterns = computed(() => {
-  const history = medicalHistory.value.filter(h => h !== 'N/A')
-  if (history.length === 0) return []
-  return inferSystemicPatterns(history, patientAge.value)
+  if (medicalHistory.value.length === 0) return []
+  return inferSystemicPatterns(medicalHistory.value, patientAge.value)
 })
 
 // 局部证型推导：疼痛类型、伴随症状、部位、慢性程度
@@ -253,48 +265,82 @@ const STEP1_SUBJECTIVE_FIELDS = [
   'subjective.associatedSymptoms',
   'subjective.causativeFactors',
   'subjective.relievingFactors',
-  'subjective.exacerbatingFactors',
 ]
 
-// 第二步：审核 R 项配置（顺序固定，txOnly 仅 TX 显示）
-const STEP2_REVIEW_CONFIG = [
-  { path: '__severity', readOnly: true },
-  { path: 'assessment.tcmDiagnosis.localPattern' },
-  { path: 'assessment.tcmDiagnosis.systemicPattern' },
-  { path: 'objective.tonguePulse.tongue' },
-  { path: 'objective.tonguePulse.pulse' },
-  { path: 'objective.muscleTesting.tightness.gradingScale' },
-  { path: 'objective.muscleTesting.tenderness.gradingScale' },
-  { path: 'objective.spasmGrading' },
-  { path: 'objective.rom.degrees' },
-  { path: 'objective.rom.strength' },
-  { path: 'plan.needleProtocol.electricalStimulation' },
-  { path: 'subjective.adlDifficulty.activities', isMulti: true },
-  { path: 'subjective.symptomChange', txOnly: true },
-  { path: 'subjective.reasonConnector', txOnly: true },
-  { path: 'subjective.reason', txOnly: true },
-  { path: 'subjective.painScale', txOnly: true },
+// 必填项完成度
+const requiredProgress = computed(() => {
+  let total = 0
+  let filled = 0
+  for (const fp of REQUIRED_FIELDS) {
+    total++
+    const v = fields[fp]
+    if (v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)) filled++
+  }
+  if (recentWorseValue.value && recentWorseUnit.value) filled++
+  total++
+  return { filled, total, pct: Math.round((filled / total) * 100) }
+})
+
+// 第二步：审核 R 项配置（分组：中医 / 体格检查 / 治疗 / TX专用）
+const STEP2_GROUPS = [
+  {
+    key: 'tcm', label: '中医辨证',
+    items: [
+      { path: 'assessment.tcmDiagnosis.localPattern' },
+      { path: 'assessment.tcmDiagnosis.systemicPattern' },
+      { path: 'objective.tonguePulse.tongue' },
+      { path: 'objective.tonguePulse.pulse' },
+    ],
+  },
+  {
+    key: 'physical', label: '体格检查',
+    items: [
+      { path: '__severity', readOnly: true },
+      { path: 'objective.muscleTesting.tightness.gradingScale' },
+      { path: 'objective.muscleTesting.tenderness.gradingScale' },
+      { path: 'objective.spasmGrading' },
+      { path: 'objective.rom.degrees' },
+      { path: 'objective.rom.strength' },
+      { path: 'subjective.adlDifficulty.activities', isMulti: true },
+    ],
+  },
+  {
+    key: 'treatment', label: '治疗',
+    items: [
+      { path: 'plan.needleProtocol.electricalStimulation' },
+    ],
+  },
+  {
+    key: 'tx', label: 'TX 专用',
+    items: [
+      { path: 'subjective.symptomChange', txOnly: true },
+      { path: 'subjective.reasonConnector', txOnly: true },
+      { path: 'subjective.reason', txOnly: true },
+      { path: 'subjective.painScale', txOnly: true },
+    ],
+  },
 ]
 
-const step2ReviewFields = computed(() => {
-  return STEP2_REVIEW_CONFIG.filter(item => !item.txOnly || noteType.value === 'TX')
-    .filter(item => item.path.startsWith('__') || item.path in whitelist)
-    .map(item => {
-      const path = item.path
-      const readOnly = !!item.readOnly
-      const isMulti = !!item.isMulti
-      let label, value, options
-      if (path === '__severity') {
-        label = 'Severity'
-        value = derivedSeverity.value
-        options = null
-      } else {
-        label = fieldLabel(path)
-        value = fields[path]
-        options = whitelist[path]
-      }
-      return { path, label, value, readOnly, isMulti, options }
-    })
+function resolveReviewItem(item) {
+  const path = item.path
+  const readOnly = !!item.readOnly
+  const isMulti = !!item.isMulti
+  if (path === '__severity') {
+    return { path, label: 'Severity', value: derivedSeverity.value, readOnly, isMulti, options: null }
+  }
+  return { path, label: fieldLabel(path), value: fields[path], readOnly, isMulti, options: whitelist[path] }
+}
+
+const step2Groups = computed(() => {
+  return STEP2_GROUPS
+    .map(group => ({
+      ...group,
+      resolvedItems: group.items
+        .filter(item => !item.txOnly || noteType.value === 'TX')
+        .filter(item => item.path.startsWith('__') || item.path in whitelist)
+        .map(resolveReviewItem),
+    }))
+    .filter(group => group.resolvedItems.length > 0)
 })
 
 // 第二步审核卡片：单字段编辑
@@ -429,6 +475,9 @@ function isLongField(path) {
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">1</span>
             填写必填项 <span class="text-red-500 text-[10px] font-normal">*</span>
+            <span class="ml-auto text-[10px] font-normal" :class="requiredProgress.pct === 100 ? 'text-green-600' : 'text-ink-400'">
+              {{ requiredProgress.filled }}/{{ requiredProgress.total }}
+            </span>
           </h2>
         <!-- 基础设置 -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-3">
@@ -449,7 +498,7 @@ function isLongField(path) {
               <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
                 <button v-for="opt in lateralityOptions" :key="opt.value"
                   @click="laterality = opt.value"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
                   :class="laterality === opt.value
                     ? 'bg-ink-800 text-paper-50 border-ink-800'
                     : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -489,7 +538,7 @@ function isLongField(path) {
               <label class="text-xs text-ink-500 mb-1 block">性别</label>
               <div class="flex gap-1 mt-0.5">
                 <button v-for="g in GENDER_OPTIONS" :key="g" @click="patientGender = g"
-                  class="flex-1 py-2 text-xs font-medium rounded-md border transition-all cursor-pointer"
+                  class="flex-1 py-2 text-xs font-medium rounded-md border transition-colors cursor-pointer"
                   :class="patientGender === g ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                   {{ g }}
                 </button>
@@ -502,7 +551,7 @@ function isLongField(path) {
             <div class="flex flex-wrap gap-1">
               <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
                 @click="toggleSecondaryPart(bp)"
-                class="px-2.5 py-1 text-[11px] rounded-md border transition-all cursor-pointer"
+                class="px-2.5 py-1 text-[11px] rounded-md border transition-colors cursor-pointer"
                 :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                 {{ bp }}
               </button>
@@ -512,7 +561,7 @@ function isLongField(path) {
               <span class="text-[11px] text-ink-400 w-16 flex-shrink-0">{{ bp }}</span>
               <button v-for="opt in LATERALITY_MAP[bp]" :key="opt.value"
                 @click="secondaryLaterality[bp] = opt.value"
-                class="px-2 py-0.5 text-[10px] font-medium rounded border transition-all cursor-pointer"
+                class="px-2 py-0.5 text-[10px] font-medium rounded border transition-colors cursor-pointer"
                 :class="secondaryLaterality[bp] === opt.value
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
                   : 'border-ink-200 text-ink-400 hover:border-ink-400'">
@@ -520,35 +569,57 @@ function isLongField(path) {
               </button>
             </div>
           </div>
-          <!-- 病史 (折叠面板) -->
+          <!-- 病史 (折叠面板, 分组) -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
-              <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.filter(h => h !== 'N/A').length || 'N/A' }})</span></label>
+              <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.length || '无' }})</span></label>
               <button @click="togglePanel('medicalHistory')" class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">
                 {{ expandedPanels['medicalHistory'] ? '收起' : '编辑' }}
               </button>
             </div>
             <!-- 已选标签 -->
             <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
+              <span v-if="medicalHistory.length === 0" class="text-[10px] text-ink-300 italic py-0.5">无病史</span>
               <span v-for="h in medicalHistory" :key="h"
                 class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
                 {{ h }}
-                <button @click="medicalHistory.splice(medicalHistory.indexOf(h), 1); if(medicalHistory.length===0) medicalHistory.push('N/A')"
+                <button @click="medicalHistory.splice(medicalHistory.indexOf(h), 1)"
                   class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
                   <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </span>
             </div>
-            <!-- 展开面板 -->
-            <div v-show="expandedPanels['medicalHistory']" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-40 overflow-y-auto">
-              <div class="flex flex-wrap gap-1">
-                <button v-for="h in MEDICAL_HISTORY_OPTIONS" :key="h"
-                  @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : (h === 'N/A' ? (medicalHistory.length = 0, medicalHistory.push('N/A')) : (medicalHistory = medicalHistory.filter(x => x !== 'N/A'), medicalHistory.push(h)))"
-                  class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150 cursor-pointer"
-                  :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'">
-                  {{ h }}
-                </button>
+            <!-- 展开面板 (分组) -->
+            <div v-show="expandedPanels['medicalHistory']" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
+              <div v-for="group in MEDICAL_HISTORY_GROUPS" :key="group.label">
+                <p class="text-[10px] text-ink-400 font-medium mb-1">{{ group.label }}</p>
+                <div class="flex flex-wrap gap-1">
+                  <button v-for="h in group.items" :key="h"
+                    @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : medicalHistory.push(h)"
+                    class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
+                    :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'">
+                    {{ h }}
+                  </button>
+                </div>
               </div>
+              <button v-if="medicalHistory.length > 0" @click="medicalHistory.splice(0)"
+                class="text-[10px] text-ink-400 hover:text-red-500 transition-colors cursor-pointer mt-1">
+                清空全部
+              </button>
+            </div>
+          </div>
+          <!-- 慢性程度 -->
+          <div class="space-y-1">
+            <label class="text-xs text-ink-500">慢性程度</label>
+            <div class="grid grid-cols-3 gap-1">
+              <button v-for="opt in whitelist['subjective.chronicityLevel']" :key="opt"
+                @click="fields['subjective.chronicityLevel'] = opt"
+                class="py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
+                :class="fields['subjective.chronicityLevel'] === opt
+                  ? 'bg-ink-800 text-paper-50 border-ink-800'
+                  : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                {{ opt }}
+              </button>
             </div>
           </div>
           <!-- Severity 显示 (从 Pain 推导) -->
@@ -569,15 +640,15 @@ function isLongField(path) {
           <!-- Pain Scale W/B/C -->
           <div class="flex items-center gap-1.5">
             <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛评分 <span class="text-red-500">*</span></label>
-            <span class="text-[10px] text-ink-400">W</span>
+            <span class="text-[10px] text-ink-400">最痛</span>
             <select v-model="fields['subjective.painScale.worst']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
-            <span class="text-[10px] text-ink-400">B</span>
+            <span class="text-[10px] text-ink-400">最轻</span>
             <select v-model="fields['subjective.painScale.best']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
-            <span class="text-[10px] text-ink-400">C</span>
+            <span class="text-[10px] text-ink-400">当前</span>
             <select v-model="fields['subjective.painScale.current']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
@@ -615,7 +686,7 @@ function isLongField(path) {
             <div class="grid grid-cols-4 gap-1">
               <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
                 @click="fields['subjective.painFrequency'] = opt"
-                class="py-1.5 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer text-center"
+                class="py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
                 :class="fields['subjective.painFrequency'] === opt
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
                   : 'border-ink-200 text-ink-500 hover:border-ink-400'"
@@ -624,19 +695,48 @@ function isLongField(path) {
               </button>
             </div>
           </div>
+          <!-- 治疗参数 (隐藏字段暴露) -->
+          <div class="border-t border-ink-100 pt-2 mt-1 space-y-2">
+            <p class="text-[10px] text-ink-400">治疗参数</p>
+            <div class="flex items-center gap-1.5">
+              <label class="text-xs text-ink-500 w-20 flex-shrink-0">总体状况</label>
+              <div class="flex gap-1 flex-1">
+                <button v-for="opt in whitelist['assessment.generalCondition']" :key="opt"
+                  @click="fields['assessment.generalCondition'] = opt"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
+                  :class="fields['assessment.generalCondition'] === opt
+                    ? 'bg-ink-800 text-paper-50 border-ink-800'
+                    : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  {{ opt }}
+                </button>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <label class="text-xs text-ink-500 w-20 flex-shrink-0">治疗频率</label>
+              <select v-model="fields['plan.shortTermGoal.treatmentFrequency']" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+                <option v-for="opt in whitelist['plan.shortTermGoal.treatmentFrequency']" :key="opt" :value="opt">{{ opt }}x/wk</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <label class="text-xs text-ink-500 w-20 flex-shrink-0">针刺时长</label>
+              <select v-model="fields['plan.needleProtocol.totalTime']" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+                <option v-for="opt in whitelist['plan.needleProtocol.totalTime']" :key="opt" :value="opt">{{ opt }}min</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- 主观必填 -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
           <h3 class="text-xs font-medium text-ink-600">主观必填 <span class="text-red-500">*</span></h3>
           <div v-for="fieldPath in STEP1_SUBJECTIVE_FIELDS" :key="fieldPath" class="space-y-1">
-            <!-- 伴随症状：平行按钮组 (多选) -->
-            <div v-if="fieldPath === 'subjective.associatedSymptoms'" class="space-y-1">
+            <!-- 伴随症状 / 疼痛类型：直接展示按钮组 (多选) -->
+            <div v-if="fieldPath === 'subjective.associatedSymptoms' || fieldPath === 'subjective.painTypes'" class="space-y-1">
               <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
-              <div class="flex gap-1.5">
+              <div class="flex flex-wrap gap-1.5">
                 <button v-for="opt in whitelist[fieldPath]" :key="opt"
                   @click="toggleOption(fieldPath, opt)"
-                  class="flex-1 py-1.5 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer text-center"
+                  class="px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
                   :class="fields[fieldPath].includes(opt)
                     ? 'bg-ink-800 text-paper-50 border-ink-800'
                     : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -661,26 +761,12 @@ function isLongField(path) {
               <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
                 <div class="flex flex-wrap gap-1">
                   <button v-for="opt in whitelist[fieldPath]" :key="opt" @click="toggleOption(fieldPath, opt)"
-                    class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150 cursor-pointer"
+                    class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
                     :class="fields[fieldPath].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
                     :title="opt">{{ shortLabel(opt) }}</button>
                 </div>
               </div>
             </template>
-            <!-- exacerbatingFactors: 仅 2 选项，按钮组 -->
-            <div v-else-if="fieldPath === 'subjective.exacerbatingFactors'" class="space-y-1">
-              <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
-              <div class="flex gap-1.5">
-                <button v-for="opt in whitelist[fieldPath]" :key="opt"
-                  @click="fields[fieldPath] = opt"
-                  class="flex-1 py-1.5 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer"
-                  :class="fields[fieldPath] === opt
-                    ? 'bg-ink-800 text-paper-50 border-ink-800'
-                    : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                  {{ opt }}
-                </button>
-              </div>
-            </div>
             <!-- painRadiation: 纵向布局，选项完整显示 -->
             <div v-else-if="fieldPath === 'subjective.painRadiation'" class="space-y-1">
               <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
@@ -706,8 +792,9 @@ function isLongField(path) {
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">2</span>
             审核 R 项 <span class="text-blue-400 text-[10px] font-normal">R 引擎推导，可点「改」修改</span>
           </h2>
-          <div class="bg-white rounded-xl border border-ink-200 p-4">
-            <div v-for="item in step2ReviewFields" :key="item.path"
+          <div v-for="group in step2Groups" :key="group.key" class="bg-white rounded-xl border border-ink-200 p-4">
+            <h4 class="text-[10px] font-medium text-ink-400 uppercase tracking-wide mb-2">{{ group.label }}</h4>
+            <div v-for="item in group.resolvedItems" :key="item.path"
               class="flex gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
               :class="[item.readOnly ? 'bg-paper-50' : '', isLongField(item.path) ? 'flex-wrap items-start' : 'items-center']">
               <span class="text-ink-500 w-20 flex-shrink-0">{{ item.label }}</span>
@@ -723,14 +810,12 @@ function isLongField(path) {
                       :class="fields[item.path].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ shortLabel(opt) }}</button>
                   </div>
                 </template>
-                <!-- 长文本字段：select 独占一行全宽 -->
                 <div v-else-if="isLongField(item.path)" class="w-full flex items-center gap-2 mt-1">
                   <select v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                     <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt }}</option>
                   </select>
                   <button @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
                 </div>
-                <!-- 短文本字段：inline select -->
                 <select v-else v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                   <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
@@ -749,8 +834,8 @@ function isLongField(path) {
                 <button @click="toggleDerivedEdit(item.path)" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">改</button>
               </template>
             </div>
-            <!-- 病史推荐证型 -->
-            <div v-if="recommendedPatterns.length > 0" class="border-t border-ink-100 pt-2 mt-2">
+            <!-- 病史推荐证型 (仅中医组显示) -->
+            <div v-if="group.key === 'tcm' && recommendedPatterns.length > 0" class="border-t border-ink-100 pt-2 mt-2">
               <p class="text-[10px] text-ink-400 mb-1">病史推荐整体证型:</p>
               <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[10px] text-ink-500">
                 <span class="font-mono text-ink-600">{{ rec.pattern }}</span>
@@ -766,19 +851,30 @@ function isLongField(path) {
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">3</span>
             生成 SOAP
           </h2>
-          <div class="flex items-center gap-2">
-            <input v-model="seedInput" type="text" placeholder="Seed"
-              aria-label="随机种子"
-              class="w-28 px-2 py-2.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
-            <button @click="doGenerate()" :disabled="isGenerating"
-              class="flex-1 py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-              <svg v-if="isGenerating" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-              {{ isGenerating ? '生成中...' : `生成 ${noteType === 'TX' ? `${txCount} 个 TX` : 'IE'}` }}
-            </button>
-          </div>
+          <!-- 生成错误提示 -->
+          <Transition name="panel">
+            <div v-if="generationError" class="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600" role="alert">
+              <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+              {{ generationError }}
+            </div>
+          </Transition>
+          <button @click="doGenerate()" :disabled="isGenerating"
+            class="w-full py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <svg v-if="isGenerating" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            {{ isGenerating ? '生成中...' : `生成 ${noteType === 'TX' ? `${txCount} 个 TX` : 'IE'}` }}
+          </button>
+          <!-- 高级选项 (折叠) -->
+          <details class="text-xs">
+            <summary class="text-ink-400 hover:text-ink-600 cursor-pointer py-1 select-none">高级选项</summary>
+            <div class="flex items-center gap-2 mt-1.5">
+              <input v-model="seedInput" type="text" placeholder="Seed (留空随机)"
+                aria-label="随机种子"
+                class="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+            </div>
+          </details>
         </div>
       </div>
 
@@ -848,7 +944,7 @@ function isLongField(path) {
               <div class="flex items-center gap-1.5 mb-3">
                 <button v-for="sec in ['S','O','A','P']" :key="sec"
                   @click="copySection(idx, sec)"
-                  class="px-2.5 py-1 text-[11px] font-mono font-medium border rounded-md transition-all duration-150 cursor-pointer"
+                  class="px-2.5 py-1 text-[11px] font-mono font-medium border rounded-md transition-colors duration-150 cursor-pointer"
                   :class="isCopied(idx, sec)
                     ? 'bg-green-50 border-green-300 text-green-600'
                     : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
@@ -856,7 +952,7 @@ function isLongField(path) {
                 </button>
                 <div class="w-px h-4 bg-ink-150 mx-1"></div>
                 <button @click="copyNote(idx)"
-                  class="px-2.5 py-1 text-[11px] border rounded-md transition-all duration-150 cursor-pointer"
+                  class="px-2.5 py-1 text-[11px] border rounded-md transition-colors duration-150 cursor-pointer"
                   :class="copiedIndex === idx
                     ? 'bg-green-50 border-green-300 text-green-600'
                     : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">

@@ -156,6 +156,9 @@ export function useWriterFields(whitelist: Record<string, string[]>) {
   // 默认覆盖
   fields['subjective.symptomDuration.unit'] = 'year(s)'
   fields['subjective.symptomScale'] = '70%-80%'
+  fields['subjective.chronicityLevel'] = 'Chronic'
+  fields['subjective.adlDifficulty.level'] = 'moderate'
+  fields['subjective.painFrequency'] = 'Constant (symptoms occur between 76% and 100% of the time)'
 
   return {
     fields,
