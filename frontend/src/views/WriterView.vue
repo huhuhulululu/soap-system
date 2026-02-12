@@ -25,7 +25,15 @@ const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
 const CPT_OPTIONS = [{ value: '97810', label: '97810' }, { value: 'full', label: 'Full Code' }]
 const GENDER_OPTIONS = ['Male', 'Female']
-const MEDICAL_HISTORY_OPTIONS = ['N/A', 'Pacemaker', 'Diabetes', 'Hypertension', 'Heart Disease', 'Metal Implant', 'Stroke', 'Cancer', 'Kidney Disease', 'Liver Disease', 'Thyroid Disorder', 'Arthritis', 'Osteoporosis']
+// 病史选项 — 从模板 ppnSelectCombo 完整提取
+const MEDICAL_HISTORY_OPTIONS = [
+  'N/A', 'Smoking', 'Alcohol', 'Diabetes', 'Hypertension', 'Heart Disease',
+  'Liver Disease', 'Pacemaker', 'Anemia', 'Lung Disease', 'Kidney Disease',
+  'Heart Murmur', 'Thyroid', 'Stroke', 'Asthma', 'Herniated Disk',
+  'tinnitus', 'Pinched Nerve', 'Osteoporosis', 'Fractures', 'Hysterectomy',
+  'Hyperlipidemia', 'stomach trouble', 'C-section', 'Parkinson',
+  'Cholesterol', 'Joint Replacement', 'Prostate'
+]
 
 // 各部位的侧别选项
 // 四肢关节: left / right / bilateral
@@ -219,6 +227,7 @@ const generationContext = computed(() => ({
   gender: patientGender.value,
   secondaryBodyParts: secondaryBodyParts.value,
   hasPacemaker: medicalHistory.value.includes('Pacemaker'),
+  hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
   medicalHistory: medicalHistory.value.filter(h => h !== 'N/A')
 }))
 
