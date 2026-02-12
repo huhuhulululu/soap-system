@@ -113,12 +113,6 @@ input[type="text"] {
   max-height: 300px;
 }
 
-/* Step connector line */
-.step-connector {
-  @apply absolute left-3 top-8 w-px bg-ink-200;
-  height: calc(100% - 2rem);
-}
-
 /* Inline validation toast */
 .validation-toast {
   @apply text-xs text-status-fail bg-status-fail/10 border border-status-fail/20

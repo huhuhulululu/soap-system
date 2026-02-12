@@ -385,10 +385,9 @@ function shortLabel(text, maxLen = 35) {
         </Transition>
 
         <!-- ① 第一步：填写必填项 -->
-        <div data-step1 class="relative space-y-3 mt-6">
-          <div class="step-connector" aria-hidden="true"></div>
+        <div data-step1 class="space-y-3 mt-6">
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
-            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center relative z-10">1</span>
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">1</span>
             填写必填项 <span class="text-red-500 text-[10px] font-normal">*</span>
           </h2>
         <!-- 基础设置 -->
@@ -606,10 +605,9 @@ function shortLabel(text, maxLen = 35) {
         <!-- 第一步结束 -->
 
         <!-- ② 第二步：审核 R 项 -->
-        <div class="relative space-y-3 mt-6">
-          <div class="step-connector" aria-hidden="true"></div>
+        <div class="space-y-3 mt-6">
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
-            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center relative z-10">2</span>
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">2</span>
             审核 R 项 <span class="text-blue-400 text-[10px] font-normal">R 引擎推导，可点「改」修改</span>
           </h2>
           <div class="bg-white rounded-xl border border-ink-200 p-4">
