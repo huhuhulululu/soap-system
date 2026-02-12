@@ -87,20 +87,20 @@ describe('adl-mappings.ts', () => {
   })
 
   describe('isAdlConsistentWithBodyPart', () => {
-    it('LBP + bending forward → consistent', () => {
-      const result = isAdlConsistentWithBodyPart('LBP', 'difficulty with bending forward')
+    it('LBP + Standing for long periods → consistent', () => {
+      const result = isAdlConsistentWithBodyPart('LBP', 'difficulty with Standing for long periods of time')
       expect(result.consistent).toBe(true)
     })
-    it('KNEE + walking → consistent', () => {
-      const result = isAdlConsistentWithBodyPart('KNEE', 'difficulty with walking and climbing stairs')
+    it('KNEE + Going up and down stairs → consistent', () => {
+      const result = isAdlConsistentWithBodyPart('KNEE', 'difficulty with Going up and down stairs')
       expect(result.consistent).toBe(true)
     })
-    it('SHOULDER + reaching overhead → consistent', () => {
-      const result = isAdlConsistentWithBodyPart('SHOULDER', 'difficulty with reaching overhead')
+    it('SHOULDER + holding the pot → consistent', () => {
+      const result = isAdlConsistentWithBodyPart('SHOULDER', 'difficulty with holding the pot for cooking')
       expect(result.consistent).toBe(true)
     })
-    it('NECK + turning head → consistent', () => {
-      const result = isAdlConsistentWithBodyPart('NECK', 'difficulty with turning head')
+    it('NECK + Tilting head → consistent', () => {
+      const result = isAdlConsistentWithBodyPart('NECK', 'difficulty with Tilting head to talking the phone')
       expect(result.consistent).toBe(true)
     })
     it('LBP + generic text without keywords → inconsistent', () => {
@@ -108,7 +108,7 @@ describe('adl-mappings.ts', () => {
       expect(result.consistent).toBe(false)
     })
     it('unknown bodyPart → consistent (no keywords)', () => {
-      const result = isAdlConsistentWithBodyPart('WRIST', 'anything')
+      const result = isAdlConsistentWithBodyPart('UNKNOWN_BODY', 'anything')
       expect(result.consistent).toBe(true)
     })
   })
