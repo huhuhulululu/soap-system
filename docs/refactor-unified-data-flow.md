@@ -67,17 +67,25 @@ types.ts 中存在冗余的双轨设计：
 
 | 常量 | Generator 值 | Checker 期望 | 影响 |
 |-----|-------------|-------------|------|
-| LBP 肌肉 | `Erector Spinae` | `iliocostalis`/`multifidus` | 36 CRITICAL |
-| ROM 公式 | 简单百分比 | `limitFactor` 分段 | 24 错误 |
-| LBP 针具 | `36#` | `[30, 34]` | 12 CRITICAL |
+| LBP 肌肉命名 | tx-sequence-engine 使用 `erector spinae`(总称) | Checker 期望 `iliocostalis`/`multifidus`(具体) | 36 CRITICAL |
+| ROM 公式 | 线性插值 `getLimitationFactor()` | `limitFactor` 分段常量 | 24 错误 |
+| ~~LBP 针具~~ | ~~`36#`~~ | ~~`[30, 34]`~~ | ~~已修复：当前 Generator LBP 仅含 34#/30#，与 Checker 一致~~ |
 | ADL 文本 | 通用文本 | 含部位关键词 | 12 错误 |
+
+> **⚠️ 复核注 (2026-02-12):** `soap-generator.ts:98` 的 LBP MUSCLE_MAP 已使用 `iliocostalis` 等具体肌束名，与 Checker 一致。
+> 肌肉命名不一致仅存在于 `tx-sequence-engine.ts:50`（使用 `erector spinae` 总称）。
+> LBP 针具问题在 clean-release 分支已修复，Generator LBP 模板 (line 534) 仅含 `34#` 和 `30#`。
 
 ---
 
 ## Phase 0: 准备（1 天）
 
 - [ ] 创建分支 `refactor/unified-data-flow`
+- [ ] **修复测试基础设施**：后端 Jest 配置 `roots` 引用不存在的 `tests/` 目录，需创建目录或移除该 root
 - [ ] 运行全部测试，记录基准结果（截图保存）
+  - 前端 Vitest (`cd frontend && npx vitest run`)：当前 882 个测试（861 passed, 20 failed, 1 skipped）
+  - 后端 Jest (`npm test`)：需先修复配置后运行
+  - **已知失败**：`engine-random.test.ts` 中 20 个测试因 symptomChange 逻辑问题失败
 - [ ] 收集 3-5 份真实 PDF 样本作为集成测试数据
 - [ ] 冻结功能开发（需业务方确认）
 - [ ] 确认回滚策略：每个 Phase 完成后打 tag
@@ -104,12 +112,12 @@ types.ts 中存在冗余的双轨设计：
 | `extractPainCurrent()` | note-checker.ts:24, bridge.ts:70, correction-generator.ts:16 | 处理 current/value/range 三种格式 |
 | `parseGoalPainTarget()` | note-checker.ts:32 | 从目标文本提取数值 |
 | `parseAdlSeverity()` | note-checker.ts:50, parser.ts:436, bridge.ts:55 | ADL 严重程度 |
-| `parseAdlActivities()` | bridge.ts:143 | ADL 活动列表 |
+| `parseAdlActivities()` | bridge.ts:142 | ADL 活动列表 |
 | `parseProgressStatus()` | note-checker.ts:87 | 进展状态 |
 | `extractProgressReasons()` | note-checker.ts:95 | 进展原因 |
 | `parseFrequencyLevel()` | note-checker.ts:59 | 频率等级 |
 | `compareSeverity()` | note-checker.ts:125 | 严重程度比较 |
-| `severityToRank()` | soap-constraints.ts:66 | 严重程度数值化 |
+| `severityRank()` | soap-constraints.ts:70 | 严重程度数值化（原名 `severityRank`，迁移后重命名为 `severityToRank`） |
 | `parseTendernessScale()` | soap-constraints.ts:56 | 压痛等级 |
 | `parseSpasmScale()` | soap-constraints.ts:61 | 痉挛等级 |
 | `parseStrengthScore()` | note-checker.ts:15 | 肌力评分 |
@@ -189,24 +197,42 @@ types.ts 中存在冗余的双轨设计：
 | 肌肉映射 | soap-generator.ts `MUSCLE_MAP` | note-checker.ts 关键词 | `BODY_PART_MUSCLES` |
 | ADL 映射 | soap-generator.ts `ADL_MAP` | note-checker.ts 关键词 | `BODY_PART_ADL` |
 | ROM 正常值 | soap-generator.ts 硬编码 | note-checker.ts 硬编码 | `BODY_PART_ROM_NORMAL` |
-| ROM 限制因子 | soap-generator.ts 百分比 | note-checker.ts limitFactor | `romLimitFactor()` |
+| ROM 限制因子 | soap-generator.ts 线性插值 `getLimitationFactor()` | note-checker.ts 分段常量 `limitFactor` | `romLimitFactor()` |
 | 针具号数 | soap-generator.ts 硬编码 | note-checker.ts validGauges | `BODY_PART_NEEDLE_GAUGES` |
 | ICD 侧性后缀 | generator.js 写死 | note-checker.ts 期望动态 | `ICD_LATERALITY_SUFFIX` |
+| 肌肉映射(权重) | weight-system.ts `bodyPartMuscles`:226 | — | `BODY_PART_MUSCLES` |
+| ADL映射(权重) | weight-system.ts `bodyPartAdl`:328 | — | `BODY_PART_ADL` |
+| 肌肉配置(HTML) | objective-generator.ts `MUSCLE_CONFIGS`:63 | — | `BODY_PART_MUSCLES` |
+| severityFromPain | tx-sequence-engine.ts:336 (本地副本) | — | `severity.ts` (已有，需删除重复) |
+
+> **⚠️ 复核注：** `objective-generator.ts` 的 KNEE 肌肉列表 (`Quadriceps, Vastus lateralis...`) 与
+> `soap-generator.ts` 的 KNEE 列表 (`Gluteus Maximus, Piriformis...`) **完全不同**，需在统一时决定以哪个为准。
 
 ### 2.2 更新 `soap-generator.ts`
 
 - 导入 `src/shared/body-part-constants`
 - 删除本地 `MUSCLE_MAP`、`ADL_MAP`
-- 使用共享 `romLimitFactor()` 替代本地百分比公式
+- 使用共享 `romLimitFactor()` 替代本地线性插值 `getLimitationFactor()`
 
 ### 2.3 更新 `tx-sequence-engine.ts`
 
 - 导入 `src/shared/body-part-constants`
 - 删除本地 `MUSCLE_MAP`、`ADL_MAP`
+- 删除本地 `severityFromPain()` (line 336-348)，改为 `import { severityFromPain } from '../shared/severity'`
 
 ### 2.4 更新 `note-checker.ts`
 
 - 导入共享常量用于验证
+
+### 2.5 更新 `weight-system.ts`
+
+- 删除本地 `bodyPartMuscles` (line 225-231)，改为从 `body-part-constants` 导入
+- 删除本地 `bodyPartAdl` (line 328-336)，改为从 `body-part-constants` 导入
+
+### 2.6 更新 `objective-generator.ts`
+
+- `MUSCLE_CONFIGS` (line 63-106) 的 `muscles` 字段改为从 `body-part-constants` 导入
+- 注意：`defaultTightness` / `defaultTenderness` / `defaultSpasm` 为 HTML 生成专用，保留在本地
 
 **回滚点**: `git tag v2.1-phase2`
 
@@ -290,7 +316,7 @@ failed? → 返回 { valid: false, errors, text }
 
 ### 4.3 回归测试
 
-- 运行原有 270 个测试，确保全部通过
+- 运行原有 882 个测试（Vitest 前端），确保通过数不低于基准 861
 - 对比基准结果，确认无退化
 - 验证 `adlImpairment`（deprecated）与 `adlDifficultyLevel` 在并行期输出一致
 
@@ -392,12 +418,16 @@ failed? → 返回 { valid: false, errors, text }
 | correction-generator.ts | `parsePainCurrent()` | `field-parsers.extractPainCurrent()` |
 | soap-constraints.ts | `parseTendernessScale()` | `field-parsers.parseTendernessScale()` |
 | soap-constraints.ts | `parseSpasmScale()` | `field-parsers.parseSpasmScale()` |
-| soap-constraints.ts | `severityRank()` | `field-parsers.severityToRank()` |
+| soap-constraints.ts | `severityRank()` (line 70) | `field-parsers.severityToRank()` |
 | soap-constraints.ts | `frequencyRank()` | `field-parsers.parseFrequencyLevel()` |
 | soap-generator.ts | `MUSCLE_MAP` | `body-part-constants.BODY_PART_MUSCLES` |
 | soap-generator.ts | `ADL_MAP` | `body-part-constants.BODY_PART_ADL` |
 | tx-sequence-engine.ts | `MUSCLE_MAP` | `body-part-constants.BODY_PART_MUSCLES` |
 | tx-sequence-engine.ts | `ADL_MAP` | `body-part-constants.BODY_PART_ADL` |
+| tx-sequence-engine.ts | `severityFromPain()` (line 336) | `import { severityFromPain } from '../shared/severity'` |
+| weight-system.ts | `bodyPartMuscles` (line 225) | `body-part-constants.BODY_PART_MUSCLES` |
+| weight-system.ts | `bodyPartAdl` (line 328) | `body-part-constants.BODY_PART_ADL` |
+| objective-generator.ts | `MUSCLE_CONFIGS.muscles` (line 63) | `body-part-constants.BODY_PART_MUSCLES` |
 
 ---
 
@@ -405,11 +435,12 @@ failed? → 返回 { valid: false, errors, text }
 
 ```
                     src/shared/
-                    ├── field-parsers.ts        ← 唯一的解析逻辑
-                    ├── body-part-constants.ts  ← 唯一的常量映射
-                    ├── severity.ts             ← 唯一的业务规则
-                    ├── tcm-mappings.ts
-                    └── adl-mappings.ts
+                    ├── field-parsers.ts        ← 🆕 新建：统一解析逻辑
+                    ├── body-part-constants.ts  ← 🆕 新建：统一常量映射
+                    ├── severity.ts             ← [已有] 业务规则 (severityFromPain, expectedTenderMinScaleByPain)
+                    ├── soap-constraints.ts     ← [已有] Writer 自检规则 (Phase 1.7 重构)
+                    ├── tcm-mappings.ts         ← [已有]
+                    └── adl-mappings.ts          ← [已有]
                          │
             ┌────────────┼────────────┐
             ▼            ▼            ▼
@@ -438,7 +469,7 @@ failed? → 返回 { valid: false, errors, text }
 - [ ] `soap-generator.ts` 中无本地 MUSCLE_MAP/ADL_MAP
 - [ ] `tx-sequence-engine.ts` 中无本地 MUSCLE_MAP/ADL_MAP
 - [ ] `types.ts` 中 `adlImpairment` 已标记 @deprecated（Phase 1-4）或已删除（Phase 5）
-- [ ] 所有 270 个测试通过
+- [ ] 所有 882 个测试通过（或不低于基准通过数 861）
 - [ ] OutputValidator 集成完成（无循环依赖）
 - [ ] 新增测试覆盖率 >= 80%
 - [ ] 每个 Phase 有独立 git tag 回滚点
@@ -467,11 +498,16 @@ failed? → 返回 { valid: false, errors, text }
 
 **三份 `parsePainCurrent` 实现对比：**
 
-| 位置 | 代码逻辑 | 差异 |
-|-----|---------|------|
-| note-checker.ts:24 | `ps?.current` → `ps?.value` → `ps?.range?.max` → `7` | ✅ 相同 |
-| bridge.ts:70 | `ps?.current` → `ps?.value` → `ps?.range?.max` → `7` | ✅ 相同 |
-| correction-generator.ts:15 | `'current' in ps` → `'range' in ps` → `'value' in ps` → `7` | ⚠️ 顺序不同 |
+| 位置 | 代码逻辑 | 类型检查方式 | 差异 |
+|-----|---------|------------|------|
+| note-checker.ts:24 | `ps?.current` → `ps?.value` → `ps?.range?.max` → `7` | optional chaining | ✅ 基准 |
+| bridge.ts:70 | `ps?.current` → `ps?.value` → `ps?.range?.max` → `7` | optional chaining | ✅ 相同 |
+| correction-generator.ts:16 | `'current' in ps` → `'range' in ps` → `'value' in ps` → `7` | `in` 操作符 | ⚠️ **顺序和检查方式均不同** |
+
+> **⚠️ 风险场景：** 当 `painScale = { value: 5, range: { max: 8 } }`（无 `current`）时：
+> - note-checker / bridge → 返回 **5**（走 `value` 分支）
+> - correction-generator → 返回 **8**（走 `range.max` 分支）
+> 统一时应以 note-checker 版本（`current → value → range.max`）为准。
 
 **三份 ADL severity 解析对比：**
 
@@ -599,7 +635,7 @@ src/generator/soap-generator.ts
 
 - [ ] **工期调整：** 12 天 → 14 天
 - [ ] **测试用例：** 35 个 → 50+ 个单元测试
-- [ ] **快照测试：** Phase 1/2/4 前后对比 270 个测试输出
+- [ ] **快照测试：** Phase 1/2/4 前后对比 882 个测试输出
 - [ ] **Fallback 监控：** Parser 中添加 `console.warn` 日志
 - [ ] **Baseline 导出：** Phase 0 导出当前 Generator 输出
 - [ ] **静态检查：** Phase 5 增加 `grep -r "adlImpairment"` 确认 0 结果
