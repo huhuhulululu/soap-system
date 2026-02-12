@@ -27,9 +27,9 @@ const {
 const insuranceType = ref('OPTUM')
 const bodyPart = ref('LBP')
 const laterality = ref('bilateral')
-const cptCode = ref('97810')
 const noteType = ref('IE')
 const txCount = ref(3)
+const ieTxCount = ref(11)
 const patientAge = ref(55)
 const patientGender = ref('Female')
 const recentWorseValue = ref('1')
@@ -40,7 +40,6 @@ const medicalHistory = ref([])
 
 const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
-const CPT_OPTIONS = [{ value: '97810', label: '97810' }, { value: 'full', label: 'Full Code' }]
 const GENDER_OPTIONS = ['Male', 'Female']
 // 病史选项 — 分组
 const MEDICAL_HISTORY_GROUPS = [
@@ -190,6 +189,7 @@ const soapGen = useSOAPGeneration({
   secondaryBodyParts,
   secondaryLaterality: computed(() => ({ ...secondaryLaterality })),
   medicalHistory,
+  ieTxCount,
   derivedSeverity,
   currentPain,
 })
@@ -299,15 +299,13 @@ const STEP2_GROUPS = [
       { path: 'objective.muscleTesting.tightness.gradingScale' },
       { path: 'objective.muscleTesting.tenderness.gradingScale' },
       { path: 'objective.spasmGrading' },
-      { path: 'objective.rom.degrees' },
-      { path: 'objective.rom.strength' },
       { path: 'subjective.adlDifficulty.activities', isMulti: true },
     ],
   },
   {
     key: 'treatment', label: '治疗',
     items: [
-      { path: 'plan.needleProtocol.electricalStimulation' },
+      { path: 'plan.needleProtocol.electricalStimulation', overrideByHistory: true },
     ],
   },
   {
@@ -507,12 +505,6 @@ function isLongField(path) {
               </div>
             </div>
             <div>
-              <label class="text-xs text-ink-500 mb-1 block">CPT Code</label>
-              <select v-model="cptCode" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-                <option v-for="c in CPT_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
-              </select>
-            </div>
-            <div>
               <label class="text-xs text-ink-500 mb-1 block">笔记类型</label>
               <select v-model="noteType" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option value="IE">IE (初诊)</option>
@@ -523,6 +515,10 @@ function isLongField(path) {
           <div v-if="noteType === 'TX'" class="flex items-center gap-2">
             <label class="text-xs text-ink-500">TX数量:</label>
             <input type="number" v-model.number="txCount" min="1" max="11" class="w-16 px-2 py-1 border border-ink-200 rounded text-sm text-center" />
+          </div>
+          <div v-if="noteType === 'IE'" class="flex items-center gap-2">
+            <label class="text-xs text-ink-500">IE后TX数量:</label>
+            <input type="number" v-model.number="ieTxCount" min="1" max="20" class="w-16 px-2 py-1 border border-ink-200 rounded text-sm text-center" />
           </div>
         </div>
 
@@ -693,35 +689,6 @@ function isLongField(path) {
                 :title="opt">
                 {{ painFreqShort(opt) }}
               </button>
-            </div>
-          </div>
-          <!-- 治疗参数 (隐藏字段暴露) -->
-          <div class="border-t border-ink-100 pt-2 mt-1 space-y-2">
-            <p class="text-[10px] text-ink-400">治疗参数</p>
-            <div class="flex items-center gap-1.5">
-              <label class="text-xs text-ink-500 w-20 flex-shrink-0">总体状况</label>
-              <div class="flex gap-1 flex-1">
-                <button v-for="opt in whitelist['assessment.generalCondition']" :key="opt"
-                  @click="fields['assessment.generalCondition'] = opt"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
-                  :class="fields['assessment.generalCondition'] === opt
-                    ? 'bg-ink-800 text-paper-50 border-ink-800'
-                    : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                  {{ opt }}
-                </button>
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <label class="text-xs text-ink-500 w-20 flex-shrink-0">治疗频率</label>
-              <select v-model="fields['plan.shortTermGoal.treatmentFrequency']" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-                <option v-for="opt in whitelist['plan.shortTermGoal.treatmentFrequency']" :key="opt" :value="opt">{{ opt }}x/wk</option>
-              </select>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <label class="text-xs text-ink-500 w-20 flex-shrink-0">针刺时长</label>
-              <select v-model="fields['plan.needleProtocol.totalTime']" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-                <option v-for="opt in whitelist['plan.needleProtocol.totalTime']" :key="opt" :value="opt">{{ opt }}min</option>
-              </select>
             </div>
           </div>
         </div>

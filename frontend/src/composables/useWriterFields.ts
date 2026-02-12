@@ -28,7 +28,7 @@ const REQUIRED_FIELDS = new Set([
   'subjective.painScale.worst', 'subjective.painScale.best', 'subjective.painScale.current',
   'subjective.symptomDuration.value', 'subjective.symptomDuration.unit',
   'subjective.painRadiation', 'subjective.painTypes', 'subjective.associatedSymptoms',
-  'subjective.causativeFactors', 'subjective.relievingFactors', 'subjective.exacerbatingFactors',
+  'subjective.causativeFactors', 'subjective.relievingFactors',
   'subjective.symptomScale', 'subjective.painFrequency',
 ])
 
@@ -61,7 +61,6 @@ const MULTI_SELECT_FIELDS = new Set([
   'subjective.painTypes',
   'subjective.associatedSymptoms',
   'subjective.causativeFactors',
-  'subjective.exacerbatingFactors',
   'subjective.relievingFactors',
   'subjective.adlDifficulty.activities',
 ])

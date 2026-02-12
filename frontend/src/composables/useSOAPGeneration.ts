@@ -18,7 +18,7 @@ export interface UseSOAPGenerationOptions {
   patientAge: Ref<number>
   patientGender: Ref<string>
   secondaryBodyParts: Ref<string[]>
-  secondaryLaterality: Ref<Record<string, string>>
+  secondaryLaterality: Ref<Record<string, string>> | ComputedRef<Record<string, string>>
   medicalHistory: Ref<string[]>
   ieTxCount?: Ref<number>
   derivedSeverity: ComputedRef<string>
@@ -82,7 +82,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     }),
     hasPacemaker: medicalHistory.value.includes('Pacemaker'),
     hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
-    medicalHistory: medicalHistory.value.filter((h: string) => h !== 'N/A'),
+    medicalHistory: medicalHistory.value,
   }))
 
   const generatedNotes = ref<Array<{ visitIndex?: number; text: string; type: string; state: unknown; _open: boolean }>>([])
