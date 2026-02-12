@@ -217,12 +217,45 @@ watch([medicalHistory, patientAge], () => {
   }
 })
 
-// 动态字段分组（过滤掉固定字段）
+// 合并渲染字段（从动态列表排除，在模板中单独渲染为合并行）
+const MERGED_FIELDS = new Set([
+  'subjective.painScale.worst', 'subjective.painScale.best', 'subjective.painScale.current',
+  'subjective.symptomDuration.value', 'subjective.symptomDuration.unit'
+])
+
+// 推导字段（从动态列表排除，在推导摘要区显示）
+const DERIVED_FIELDS = new Set([
+  'objective.muscleTesting.tightness.gradingScale',
+  'objective.muscleTesting.tenderness.gradingScale',
+  'objective.spasmGrading',
+  'objective.tonguePulse.tongue',
+  'objective.tonguePulse.pulse',
+  'plan.needleProtocol.electricalStimulation',
+])
+const derivedFieldList = Array.from(DERIVED_FIELDS)
+
+// 推导字段编辑状态
+const derivedEditing = ref('')
+function toggleDerivedEdit(fp) {
+  derivedEditing.value = derivedEditing.value === fp ? '' : fp
+}
+
+// 紧凑宽度字段
+const COMPACT_FIELDS = new Set([
+  'subjective.painScale', 'subjective.symptomScale',
+])
+
+// 按钮组字段（选项少且短）
+const BUTTON_GROUP_FIELDS = new Set([
+  'subjective.exacerbatingFactors', 'subjective.chronicityLevel',
+])
+
+// 动态字段分组（过滤掉固定+合并+推导字段）
 const dynamicFields = computed(() => ({
-  S: Object.keys(whitelist).filter(k => k.startsWith('subjective.') && !FIXED_FIELDS.has(k)),
-  O: Object.keys(whitelist).filter(k => k.startsWith('objective.') && !FIXED_FIELDS.has(k)),
+  S: Object.keys(whitelist).filter(k => k.startsWith('subjective.') && !FIXED_FIELDS.has(k) && !MERGED_FIELDS.has(k) && !DERIVED_FIELDS.has(k)),
+  O: Object.keys(whitelist).filter(k => k.startsWith('objective.') && !FIXED_FIELDS.has(k) && !DERIVED_FIELDS.has(k)),
   A: Object.keys(whitelist).filter(k => k.startsWith('assessment.') && !FIXED_FIELDS.has(k)),
-  P: Object.keys(whitelist).filter(k => k.startsWith('plan.') && !FIXED_FIELDS.has(k))
+  P: Object.keys(whitelist).filter(k => k.startsWith('plan.') && !FIXED_FIELDS.has(k) && !DERIVED_FIELDS.has(k))
 }))
 
 // 生成上下文
@@ -647,7 +680,7 @@ function getDiffLines(idx) {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs text-ink-500 mb-1 block">年龄</label>
-              <input type="number" v-model.number="patientAge" min="1" max="120" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm" />
+              <input type="number" v-model.number="patientAge" min="1" max="120" class="w-20 px-3 py-2 border border-ink-200 rounded-lg text-sm text-center" />
             </div>
             <div>
               <label class="text-xs text-ink-500 mb-1 block">性别</label>
@@ -672,16 +705,35 @@ function getDiffLines(idx) {
               </button>
             </div>
           </div>
-          <!-- 病史 -->
-          <div>
-            <label class="text-xs text-ink-500 mb-1 block">病史</label>
-            <div class="flex flex-wrap gap-1">
-              <button v-for="h in MEDICAL_HISTORY_OPTIONS" :key="h"
-                @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : (h === 'N/A' ? (medicalHistory.length = 0, medicalHistory.push('N/A')) : (medicalHistory = medicalHistory.filter(x => x !== 'N/A'), medicalHistory.push(h)))"
-                class="px-2.5 py-1 text-[11px] rounded-md border transition-all"
-                :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                {{ h }}
+          <!-- 病史 (折叠面板) -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.filter(h => h !== 'N/A').length || 'N/A' }})</span></label>
+              <button @click="togglePanel('medicalHistory')" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors px-1.5 py-0.5 rounded hover:bg-paper-100">
+                {{ expandedPanels['medicalHistory'] ? '收起' : '编辑' }}
               </button>
+            </div>
+            <!-- 已选标签 -->
+            <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
+              <span v-for="h in medicalHistory" :key="h"
+                class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
+                {{ h }}
+                <button @click="medicalHistory.splice(medicalHistory.indexOf(h), 1); if(medicalHistory.length===0) medicalHistory.push('N/A')"
+                  class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
+                  <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </span>
+            </div>
+            <!-- 展开面板 -->
+            <div v-show="expandedPanels['medicalHistory']" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-40 overflow-y-auto">
+              <div class="flex flex-wrap gap-1">
+                <button v-for="h in MEDICAL_HISTORY_OPTIONS" :key="h"
+                  @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : (h === 'N/A' ? (medicalHistory.length = 0, medicalHistory.push('N/A')) : (medicalHistory = medicalHistory.filter(x => x !== 'N/A'), medicalHistory.push(h)))"
+                  class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150"
+                  :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'">
+                  {{ h }}
+                </button>
+              </div>
             </div>
           </div>
           <!-- Severity 显示 (从 Pain 推导) -->
@@ -692,12 +744,43 @@ function getDiffLines(idx) {
           </div>
         </div>
 
-        <!-- 动态字段（仅显示用户可控字段） -->
+        <!-- ====== 合并行: Pain Scale 三合一 + Duration ====== -->
+        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
+          <h3 class="text-sm font-semibold text-ink-700">评估参数</h3>
+          <!-- Pain Scale W/B/C -->
+          <div class="flex items-center gap-1.5">
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛评分</label>
+            <span class="text-[10px] text-ink-400">W</span>
+            <select v-model="fields['subjective.painScale.worst']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+              <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <span class="text-[10px] text-ink-400">B</span>
+            <select v-model="fields['subjective.painScale.best']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+              <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <span class="text-[10px] text-ink-400">C</span>
+            <select v-model="fields['subjective.painScale.current']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+              <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+          <!-- Duration value + unit -->
+          <div class="flex items-center gap-1.5">
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">病程时长</label>
+            <select v-model="fields['subjective.symptomDuration.value']" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+              <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <select v-model="fields['subjective.symptomDuration.unit']" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
+              <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ====== 动态字段区（铺展字段） ====== -->
         <div v-for="(section, key) in { S: 'Subjective', O: 'Objective', A: 'Assessment', P: 'Plan' }" :key="key"
           class="bg-white rounded-xl border border-ink-200 p-4"
           v-show="dynamicFields[key].length > 0">
           <h3 class="text-sm font-semibold text-ink-700 mb-3">{{ section }} <span class="text-ink-400 font-normal">({{ dynamicFields[key].length }})</span></h3>
-          <div class="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+          <div class="space-y-2.5 max-h-[32rem] overflow-y-auto pr-1">
             <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath">
               <!-- 多选字段 -->
               <div v-if="MULTI_SELECT_FIELDS.has(fieldPath)" class="space-y-1.5">
@@ -710,7 +793,6 @@ function getDiffLines(idx) {
                     {{ expandedPanels[fieldPath] ? '收起' : '编辑' }}
                   </button>
                 </div>
-                <!-- 已选标签 -->
                 <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
                   <span v-for="opt in fields[fieldPath]" :key="opt"
                     class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
@@ -721,7 +803,6 @@ function getDiffLines(idx) {
                   </span>
                   <span v-if="fields[fieldPath].length === 0" class="text-[10px] text-ink-300 italic py-0.5">未选择</span>
                 </div>
-                <!-- 展开的选项面板 -->
                 <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-40 overflow-y-auto">
                   <div class="flex flex-wrap gap-1">
                     <button v-for="opt in whitelist[fieldPath]" :key="opt"
@@ -736,36 +817,79 @@ function getDiffLines(idx) {
                   </div>
                 </div>
               </div>
-              <!-- 单选字段 -->
-              <div v-else class="flex items-center gap-2">
-                <label class="text-xs text-ink-500 w-24 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
-                <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
-                  <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 40 ? opt.substring(0, 40) + '...' : opt }}</option>
+              <!-- 按钮组字段 -->
+              <div v-else-if="BUTTON_GROUP_FIELDS.has(fieldPath)" class="space-y-1">
+                <label class="text-xs text-ink-500" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <div class="flex gap-1 flex-wrap">
+                  <button v-for="opt in whitelist[fieldPath]" :key="opt"
+                    @click="fields[fieldPath] = opt"
+                    class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all"
+                    :class="fields[fieldPath] === opt ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                    {{ opt }}
+                  </button>
+                </div>
+              </div>
+              <!-- 紧凑下拉字段 -->
+              <div v-else-if="COMPACT_FIELDS.has(fieldPath)" class="flex items-center gap-2">
+                <label class="text-xs text-ink-500 w-20 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <select v-model="fields[fieldPath]" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+                  <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
-                <span v-if="getRecommendedOptions(fieldPath).length" class="text-xs text-green-600" title="有推荐">✓</span>
+              </div>
+              <!-- 普通单选字段 -->
+              <div v-else class="flex items-center gap-2">
+                <label class="text-xs text-ink-500 w-20 truncate flex-shrink-0" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
+                  <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
+                </select>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 病史推荐证型提示 -->
-        <div v-if="recommendedPatterns.length > 0" class="bg-paper-100 rounded-xl border border-ink-100 p-3 text-xs text-ink-500 space-y-1">
-          <p class="font-medium text-ink-600">病史推荐整体证型:</p>
-          <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="flex items-center gap-2">
-            <span class="font-mono text-ink-700">{{ rec.pattern }}</span>
-            <span class="text-ink-300">(+{{ rec.weight }})</span>
-            <span class="text-ink-400">{{ rec.reason }}</span>
+        <!-- ====== 推导摘要区 ====== -->
+        <div class="bg-paper-50 rounded-xl border border-ink-100 p-3 space-y-1.5">
+          <h3 class="text-xs font-medium text-ink-500 mb-2">引擎推导 <span class="text-ink-300 font-normal">(点击"改"可修改)</span></h3>
+          <!-- Severity -->
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-ink-400 w-14 flex-shrink-0">Severity</span>
+            <span class="font-medium text-ink-700">{{ derivedSeverity }}</span>
+            <span class="text-ink-300 text-[10px]">(Pain {{ currentPain }})</span>
+          </div>
+          <!-- General Condition -->
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-ink-400 w-14 flex-shrink-0">体质</span>
+            <span class="font-medium text-ink-700">{{ fields['assessment.generalCondition'] || 'fair' }}</span>
+          </div>
+          <!-- 推导字段列表 -->
+          <div v-for="fp in derivedFieldList" :key="fp" class="flex items-center gap-2 text-xs">
+            <span class="text-ink-400 w-14 flex-shrink-0">{{ fieldLabel(fp) }}</span>
+            <template v-if="derivedEditing !== fp">
+              <span class="font-medium text-ink-700 truncate max-w-[200px]" :title="fields[fp]">{{ shortLabel(String(fields[fp] || ''), 35) }}</span>
+              <button @click="toggleDerivedEdit(fp)" class="text-[10px] text-ink-300 hover:text-ink-600 transition-colors flex-shrink-0">改</button>
+            </template>
+            <template v-else>
+              <select v-model="fields[fp]" class="flex-1 px-1 py-0.5 border border-ink-300 rounded text-xs" @change="derivedEditing = ''">
+                <option v-for="opt in whitelist[fp]" :key="opt" :value="opt">{{ opt.length > 60 ? opt.substring(0, 60) + '...' : opt }}</option>
+              </select>
+              <button @click="derivedEditing = ''" class="text-[10px] text-ink-400">确定</button>
+            </template>
+          </div>
+          <!-- 病史推荐证型 -->
+          <div v-if="recommendedPatterns.length > 0" class="border-t border-ink-100 pt-1.5 mt-1.5">
+            <p class="text-[10px] text-ink-400 mb-1">病史推荐证型:</p>
+            <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[10px] text-ink-500">
+              <span class="font-mono text-ink-600">{{ rec.pattern }}</span>
+              <span class="text-ink-300 ml-1">(+{{ rec.weight }})</span>
+            </div>
           </div>
         </div>
 
-        <!-- Seed 输入 + 生成按钮 -->
-        <div class="space-y-2">
-          <div class="flex items-center gap-2">
-            <label class="text-xs text-ink-400 flex-shrink-0">Seed</label>
-            <input v-model="seedInput" type="text" placeholder="留空随机"
-              class="flex-1 px-2.5 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
-          </div>
-          <button @click="generate()" class="w-full py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
+        <!-- ====== Seed + 生成按钮 同行 ====== -->
+        <div class="flex items-center gap-2">
+          <input v-model="seedInput" type="text" placeholder="Seed"
+            class="w-28 px-2 py-2.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+          <button @click="generate()" class="flex-1 py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
             生成 {{ noteType === 'TX' ? `${txCount} 个 TX` : 'IE' }}
           </button>
         </div>
