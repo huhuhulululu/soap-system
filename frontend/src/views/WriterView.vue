@@ -369,6 +369,18 @@ function removeOption(fieldPath, opt) {
 function shortLabel(text, maxLen = 35) {
   return text.length > maxLen ? text.substring(0, maxLen) + '...' : text
 }
+
+// Step 2 长文本字段：值不截断，允许换行
+const LONG_VALUE_FIELDS = new Set([
+  'objective.tonguePulse.tongue',
+  'objective.muscleTesting.tenderness.gradingScale',
+  'objective.spasmGrading',
+  'subjective.adlDifficulty.activities',
+  'subjective.reason',
+])
+function isLongField(path) {
+  return LONG_VALUE_FIELDS.has(path)
+}
 </script>
 
 <template>
@@ -557,10 +569,10 @@ function shortLabel(text, maxLen = 35) {
               <option v-for="opt in whitelist['subjective.symptomScale']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
-          <!-- 疼痛频率 -->
-          <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛频率 <span class="text-red-500">*</span></label>
-            <select v-model="fields['subjective.painFrequency']" class="flex-1 px-1 py-1 border border-ink-200 rounded text-xs">
+          <!-- 疼痛频率：长文本纵向布局 -->
+          <div class="space-y-1">
+            <label class="text-xs text-ink-500">疼痛频率 <span class="text-red-500">*</span></label>
+            <select v-model="fields['subjective.painFrequency']" class="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-xs">
               <option v-for="opt in whitelist['subjective.painFrequency']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
@@ -593,10 +605,32 @@ function shortLabel(text, maxLen = 35) {
                 </div>
               </div>
             </template>
+            <!-- exacerbatingFactors: 仅 2 选项，按钮组 -->
+            <div v-else-if="fieldPath === 'subjective.exacerbatingFactors'" class="space-y-1">
+              <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
+              <div class="flex gap-1.5">
+                <button v-for="opt in whitelist[fieldPath]" :key="opt"
+                  @click="fields[fieldPath] = opt"
+                  class="flex-1 py-1.5 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer"
+                  :class="fields[fieldPath] === opt
+                    ? 'bg-ink-800 text-paper-50 border-ink-800'
+                    : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  {{ opt }}
+                </button>
+              </div>
+            </div>
+            <!-- painRadiation: 纵向布局，选项完整显示 -->
+            <div v-else-if="fieldPath === 'subjective.painRadiation'" class="space-y-1">
+              <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
+              <select v-model="fields[fieldPath]" class="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-xs">
+                <option v-for="opt in radiationOptions" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+            </div>
+            <!-- 其他单选字段 -->
             <div v-else class="flex items-center gap-2">
               <label class="text-xs text-ink-500 w-24 flex-shrink-0">{{ fieldLabel(fieldPath) }}</label>
               <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
-                <option v-for="opt in (fieldPath === 'subjective.painRadiation' ? radiationOptions : whitelist[fieldPath])" :key="opt" :value="opt">{{ opt.length > 45 ? opt.substring(0, 45) + '...' : opt }}</option>
+                <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 45 ? opt.substring(0, 45) + '...' : opt }}</option>
               </select>
             </div>
           </div>
@@ -612,8 +646,8 @@ function shortLabel(text, maxLen = 35) {
           </h2>
           <div class="bg-white rounded-xl border border-ink-200 p-4">
             <div v-for="item in step2ReviewFields" :key="item.path"
-              class="flex items-center gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
-              :class="item.readOnly ? 'bg-paper-50' : ''">
+              class="flex gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
+              :class="[item.readOnly ? 'bg-paper-50' : '', isLongField(item.path) ? 'flex-wrap items-start' : 'items-center']">
               <span class="text-ink-500 w-20 flex-shrink-0">{{ item.label }}</span>
               <template v-if="item.readOnly">
                 <span class="font-medium text-ink-600 flex-1">{{ item.value }}</span>
@@ -627,14 +661,28 @@ function shortLabel(text, maxLen = 35) {
                       :class="fields[item.path].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ shortLabel(opt) }}</button>
                   </div>
                 </template>
+                <!-- 长文本字段：select 独占一行全宽 -->
+                <div v-else-if="isLongField(item.path)" class="w-full flex items-center gap-2 mt-1">
+                  <select v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
+                    <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt }}</option>
+                  </select>
+                  <button @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
+                </div>
+                <!-- 短文本字段：inline select -->
                 <select v-else v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                   <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
-                <button @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
+                <button v-if="!isLongField(item.path)" @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
               </template>
               <template v-else>
-                <span class="font-medium text-ink-700 truncate flex-1" :title="Array.isArray(item.value) ? item.value.join(', ') : item.value">
-                  {{ item.isMulti ? (item.value && item.value.length ? shortLabel(item.value.join(', '), 30) : '未选择') : shortLabel(String(item.value || ''), 35) }}
+                <span class="font-medium text-ink-700 flex-1 min-w-0"
+                  :class="isLongField(item.path) ? 'whitespace-normal break-words' : 'truncate'"
+                  :title="Array.isArray(item.value) ? item.value.join(', ') : item.value">
+                  {{ item.isMulti
+                    ? (item.value && item.value.length
+                      ? (isLongField(item.path) ? item.value.join(', ') : shortLabel(item.value.join(', '), 30))
+                      : '未选择')
+                    : (isLongField(item.path) ? String(item.value || '') : shortLabel(String(item.value || ''), 35)) }}
                 </span>
                 <button @click="toggleDerivedEdit(item.path)" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">改</button>
               </template>
