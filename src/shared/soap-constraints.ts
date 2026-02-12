@@ -123,17 +123,7 @@ function checkSingleVisit(visit: VisitSnapshot, ctx: ContextSnapshot): Constrain
     })
   }
 
-  // S2: painTypes vs localPattern
-  if (ctx.painTypes.length > 0 && ctx.localPattern) {
-    const { consistent, expected } = isPainTypeConsistentWithPattern(ctx.localPattern, ctx.painTypes)
-    if (expected.length > 0 && !consistent) {
-      errors.push({
-        ruleId: 'S2', severity: 'MEDIUM', visitIndex: idx,
-        message: '疼痛类型与证型不匹配',
-        expected: expected.join('/'), actual: ctx.painTypes.join(', '),
-      })
-    }
-  }
+  // S2: moved to checkContext (context-level, runs once)
 
   // X1: pain→tightness→tenderness chain
   const tightLower = visit.tightnessGrading.toLowerCase()
@@ -260,14 +250,7 @@ function checkSequence(visits: VisitSnapshot[]): ConstraintError[] {
       })
     }
 
-    // V08: says improvement but pain increased
-    if (cur.symptomChange.toLowerCase().includes('improvement') && cur.painScaleCurrent > prev.painScaleCurrent) {
-      errors.push({
-        ruleId: 'V08', severity: 'MEDIUM', visitIndex: idx,
-        message: '标注 improvement 但 pain 回升',
-        expected: `pain <= ${prev.painScaleCurrent}`, actual: String(cur.painScaleCurrent),
-      })
-    }
+    // V08: removed — redundant with T02 (superset: pain + tenderness + tightness)
 
     // V09: acupoint overlap >= 0.4
     const prevArr = prev.needlePoints.map(p => p.toLowerCase())
@@ -344,6 +327,26 @@ function checkSequence(visits: VisitSnapshot[]): ConstraintError[] {
   return errors
 }
 
+// ============ Context-Level Checks (run once) ============
+
+function checkContext(ctx: ContextSnapshot): ConstraintError[] {
+  const errors: ConstraintError[] = []
+
+  // S2: painTypes vs localPattern (context-level, not per-visit)
+  if (ctx.painTypes.length > 0 && ctx.localPattern) {
+    const { consistent, expected } = isPainTypeConsistentWithPattern(ctx.localPattern, ctx.painTypes)
+    if (expected.length > 0 && !consistent) {
+      errors.push({
+        ruleId: 'S2', severity: 'MEDIUM', visitIndex: 0,
+        message: '疼痛类型与证型不匹配',
+        expected: expected.join('/'), actual: ctx.painTypes.join(', '),
+      })
+    }
+  }
+
+  return errors
+}
+
 // ============ Scoring ============
 
 export interface ValidationResult {
@@ -377,9 +380,10 @@ export function validateGeneratedSequence(
   visits: VisitSnapshot[],
   ctx: ContextSnapshot
 ): ValidationResult {
+  const ctxErrors = checkContext(ctx)
   const singleErrors = visits.flatMap(v => checkSingleVisit(v, ctx))
   const seqErrors = checkSequence(visits)
-  const allErrors = [...singleErrors, ...seqErrors]
+  const allErrors = [...ctxErrors, ...singleErrors, ...seqErrors]
   return { errors: allErrors, ...scoreErrors(allErrors) }
 }
 

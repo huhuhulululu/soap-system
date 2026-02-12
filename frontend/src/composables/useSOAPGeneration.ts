@@ -174,6 +174,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
         runValidation(states, ctx)
       }
     } catch (e) {
+      validationResult.value = null
       generationError.value = '生成失败: ' + (e as Error).message
       setTimeout(() => { generationError.value = '' }, 5000)
     }
