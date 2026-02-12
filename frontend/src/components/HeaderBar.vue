@@ -25,7 +25,7 @@
       <div class="flex items-center gap-4">
         <!-- Version Badge -->
         <span class="px-2.5 py-1 bg-paper-200 text-ink-500 text-xs font-mono rounded-md">
-          v1.0
+          v2.0
         </span>
 
         <!-- Help Link -->
