@@ -67,8 +67,8 @@ const IE_PAIN_SCALE: Record<string, Record<string, IEPainScale>> = {
 const TIGHTNESS_LEVELS = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
 const MAIN_BODY_PARTS: BodyPart[] = ['KNEE', 'SHOULDER', 'LBP', 'NECK']
 
-// ST Goal 进度位置
-const ST_PROGRESS = 0.4
+// ST Goal 进度位置 (0.55 使 Pain 8 → ST 4)
+const ST_PROGRESS = 0.55
 // LT Goal = 初始值 * 此比率 (0.25 使 Pain 8 → LT 2)
 const OPTIMAL_END_RATIO = 0.25
 
@@ -105,7 +105,7 @@ function calculatePainGoals(painCurrent: number, bp: BodyPart): { st: string; lt
 
   // ST Goal 格式: 降幅 2-3 级用范围格式
   const delta = painCurrent - stTarget
-  const painST = (delta >= 2 && delta <= 3 && stTarget >= 5)
+  const painST = (delta >= 2 && delta <= 4 && stTarget >= 4)
     ? `${stTarget}-${stTarget + 1}`
     : snapToGrid(stTarget)
 

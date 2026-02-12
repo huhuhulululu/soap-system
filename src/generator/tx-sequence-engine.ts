@@ -582,7 +582,7 @@ export function generateTXSequenceStates(
   const startPain = options.initialState?.pain ?? ieStartPain
   // 与 goals-calculator 对齐: easeOutQuad 康复曲线
   const stFallback = Math.ceil(
-    ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.4) * (1 - 0.4))
+    ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
   )
   const shortTermTarget = parsePainTarget(
     context.previousIE?.plan?.shortTermGoal?.painScaleTarget,

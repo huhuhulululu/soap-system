@@ -289,11 +289,11 @@ function selectWeeksDuration(ctx: GeneratorContext): string {
 function selectPainScaleTarget(ctx: GeneratorContext): string {
   const painScore = ctx.painScore || 7
   if (painScore >= 8) {
-    return '5-6'
-  } else if (painScore >= 6) {
     return '4-5'
-  } else if (painScore >= 4) {
+  } else if (painScore >= 6) {
     return '3-4'
+  } else if (painScore >= 4) {
+    return '3'
   }
   return '3'
 }
