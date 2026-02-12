@@ -1,32 +1,78 @@
-# SOAP 四代理训练总索引（Round 1-7）
+# SOAP 四代理训练总索引（优化版）
 
-## 1. 目标
+## 1. 训练目标
 
-本索引用于统一管理四代理训练体系：
+- 建立可持续的四角色协作链：规则掌握者 -> 编写者 -> 检查者 -> 审计员。
+- 保证三条核心红线始终不破：
+  - TX 单调性
+  - SOA 链一致性
+  - S/O/A/P 完整性
 
-- 角色：规则掌握者 / 编写者 / 检查者 / 审计员
-- 流程：规则冻结 -> 编写 -> 检查 -> 审计
-- 结果：可持续生产、检查、监督 SOAP note 产出
+## 2. 优化后的三阶段推进（替代“只按轮次顺推”）
 
-## 2. 执行顺序（建议）
+### Phase A：基础闭环（Round 1-2）
 
-1. 先读总手册：`docs/agent-training-frontend-writer.md`
-2. 初始化规则：`docs/rulebook-r1-template.md`
-3. 按轮次训练：Round 1 -> Round 7
-4. 每轮使用对应模板产出证据与结论
-5. 审计员按放行条件做 `pass/reject`
+- 目标：统一规则口径与证据格式，跑通单轮闭环。
+- 入口条件：规则模板和任务模板已创建。
+- 出口条件：
+  - R1/R1.1 规则版本可追溯
+  - 至少完成 3 轮 pass/reject 演练
+  - `npm test` + `BULK_SEED_COUNT=100` 连续通过
 
-## 3. 轮次导航
+### Phase B：并行与抗压（Round 3-5）
 
-- Round 1（基础分工与闭环）：`docs/training-tasks-round1.md`
-- Round 2（规则变更与失败复盘）：`docs/training-tasks-round2.md`
-- Round 3（并行任务与冲突仲裁）：`docs/training-tasks-round3.md`
-- Round 4（灰度发布与回滚演练）：`docs/training-tasks-round4.md`
-- Round 5（异常注入与红队审计）：`docs/training-tasks-round5.md`
-- Round 6（SOP 定版与毕业考核）：`docs/training-tasks-round6.md`
-- Round 7（长期运营与自动化审计）：`docs/training-tasks-round7.md`
+- 目标：并行任务、冲突仲裁、异常注入、红队审计可稳定执行。
+- 入口条件：Phase A 出口条件全部满足。
+- 出口条件：
+  - 并行 A/B/C 任务可交付
+  - 冲突仲裁单执行率 100%
+  - 漏检率 <= 5%，误报率 <= 10%
 
-## 4. 模板导航
+### Phase C：运营化（Round 6-7）
+
+- 目标：SOP 定版 + KPI 运营 + 自动化审计门禁。
+- 入口条件：Phase B 出口条件全部满足。
+- 出口条件：
+  - R2.0 定版
+  - 自动化审计流水线可阻断失败发布
+  - 季度复训机制已落地
+
+## 3. 关键路径（必须严格顺序）
+
+1. 规则冻结（Rule Master）
+2. 编写产出（Writer）
+3. 规则核验（Checker）
+4. 审计裁决（Auditor）
+5. 回归门禁（测试命令）
+
+任一步失败，禁止进入下一步。
+
+## 4. 并行优化策略（减少互相等待）
+
+- `Writer` 与 `Checker` 可并行迭代，但都不得越过规则版本边界。
+- `Auditor` 提前介入抽检，不等到末尾才发现流程缺陷。
+- 每角色 WIP 上限：同一时间最多 2 个任务，防止积压。
+
+## 5. 执行节奏（建议）
+
+- 每日：15 分钟站会，只报阻断项与风险。
+- 每周：一次回归健康检查（测试 + 指标）。
+- 每月：一次 KPI 复盘。
+- 每季度：一次 Round 6 级别复训与认证复核。
+
+## 6. 文档导航
+
+- 总手册：`docs/agent-training-frontend-writer.md`
+- 规则模板：`docs/rulebook-r1-template.md`
+- Round 1：`docs/training-tasks-round1.md`
+- Round 2：`docs/training-tasks-round2.md`
+- Round 3：`docs/training-tasks-round3.md`
+- Round 4：`docs/training-tasks-round4.md`
+- Round 5：`docs/training-tasks-round5.md`
+- Round 6：`docs/training-tasks-round6.md`
+- Round 7：`docs/training-tasks-round7.md`
+
+## 7. 模板导航
 
 - 规则变更单：`docs/rule-change-request-template.md`
 - 审计抽检清单：`docs/audit-sampling-checklist.md`
@@ -36,30 +82,24 @@
 - KPI 面板模板：`docs/ops-kpi-dashboard-template.md`
 - 自动化审计流水线：`docs/automated-audit-pipeline-template.md`
 
-## 5. 每轮最小交付物（强制）
-
-1. Rule Master：规则版本与变更说明
-2. Writer：改动说明与测试结果
-3. Checker：违规清单与证据
-4. Auditor：放行/驳回结论与阻断项
-
-## 6. 通用门禁命令
+## 8. 通用门禁命令
 
 ```bash
 cd frontend && npm test
 cd frontend && BULK_SEED_COUNT=100 npx vitest run engine-random
 ```
 
-## 7. 全局放行标准
+## 9. 全局阻断条件（任一触发即 reject）
 
-- critical 违规项全部关闭
-- 单调性/SOA/SOAP 完整性无破坏
-- 审计证据链完整且可追溯
-- 回归测试全绿
+- critical 规则违规未关闭
+- 单调性/SOA/SOAP 完整性被破坏
+- 证据链缺失或不可追溯
+- 回归未跑完或结果不通过
 
-## 8. 维护建议
+## 10. 本周落地清单（立即执行）
 
-- 每次规则升级必须同步更新索引中“轮次与模板引用”。
-- 每月做一次 KPI 回顾，每季度做一次 Round 6 级别复训。
-- 发现流程漂移时，以审计结论为准回退到上个稳定流程版本。
+1. 按 Phase A 启动，先完成 R1 规则冻结。
+2. 跑 Round 1 全流程并留档。
+3. 跑 Round 2（含规则变更单 + 失败复盘卡）。
+4. 连续 3 次回归全绿后，再进入 Phase B。
 
