@@ -5,7 +5,7 @@ import { TEMPLATE_ONLY_RULES } from '../../../src/parser/template-logic-rules.ts
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
 import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
-import { inferSystemicPatterns } from '../../../src/knowledge/medical-history-engine.ts'
+import { inferSystemicPatterns, inferLocalPatterns } from '../../../src/knowledge/medical-history-engine.ts'
 
 // 初始化 whitelist
 setWhitelist(whitelist)
@@ -147,20 +147,25 @@ const REQUIRED_FIELDS = new Set([
   'subjective.painRadiation', 'subjective.painTypes', 'subjective.associatedSymptoms',
   'subjective.causativeFactors', 'subjective.relievingFactors', 'subjective.exacerbatingFactors',
   'subjective.symptomScale', 'subjective.painFrequency',
-  'assessment.tcmDiagnosis.localPattern', 'assessment.tcmDiagnosis.systemicPattern',
 ])
-// R 标：引擎推导/规则计算字段
+// R 标：引擎推导/规则计算字段（含局部证型、整体证型）
 const RULE_FIELDS = new Set([
   'subjective.symptomChange', 'subjective.reasonConnector', 'subjective.reason',
   'subjective.painScale', 'subjective.adlDifficulty.activities',
   'objective.muscleTesting.tightness.gradingScale', 'objective.muscleTesting.tenderness.gradingScale',
   'objective.spasmGrading', 'objective.tonguePulse.tongue', 'objective.tonguePulse.pulse',
   'plan.needleProtocol.electricalStimulation', 'objective.rom.degrees', 'objective.rom.strength',
+  'assessment.tcmDiagnosis.localPattern', 'assessment.tcmDiagnosis.systemicPattern',
 ])
 function fieldTag(fp) {
   if (REQUIRED_FIELDS.has(fp)) return '*'
   if (RULE_FIELDS.has(fp)) return 'R'
   return ''
+}
+
+function onPatternFieldChange(fieldPath) {
+  if (fieldPath === 'assessment.tcmDiagnosis.localPattern') localPatternManuallySet.value = true
+  if (fieldPath === 'assessment.tcmDiagnosis.systemicPattern') systemicPatternManuallySet.value = true
 }
 
 // 多选字段
@@ -237,17 +242,41 @@ const recommendedPatterns = computed(() => {
   return inferSystemicPatterns(history, patientAge.value)
 })
 
-// 当病史变化时，如果有推荐且用户还没手动改过，自动设置最佳推荐
-watch([medicalHistory, patientAge], () => {
-  const recs = recommendedPatterns.value
+// 局部证型推导：疼痛类型、伴随症状、部位、慢性程度
+const recommendedLocalPatterns = computed(() => {
+  const rawPt = fields['subjective.painTypes']
+  const pt = Array.isArray(rawPt) ? rawPt : (String(rawPt || '').split(',').map(s => s.trim()).filter(Boolean))
+  const rawAs = fields['subjective.associatedSymptoms']
+  const as = Array.isArray(rawAs) ? rawAs : (String(rawAs || '').split(',').map(s => s.trim()).filter(Boolean))
+  const bp = bodyPart.value
+  const cl = fields['subjective.chronicityLevel'] || 'Chronic'
+  if (pt.length === 0 && as.length === 0) return []
+  return inferLocalPatterns(pt, as, bp, cl)
+})
+
+const localPatternManuallySet = ref(false)
+const systemicPatternManuallySet = ref(false)
+
+// 局部证型：推荐变化时自动填入，除非用户已手动改过；bodyPart 变化时重置手动标记
+watch(recommendedLocalPatterns, (recs) => {
+  if (localPatternManuallySet.value) return
   if (recs.length > 0) {
-    const currentVal = fields['assessment.tcmDiagnosis.systemicPattern']
-    const defaultVal = 'Kidney Yang Deficiency'
-    // 只在用户没有手动改过时自动设置
-    if (currentVal === defaultVal || !currentVal) {
-      fields['assessment.tcmDiagnosis.systemicPattern'] = recs[0].pattern
-    }
+    fields['assessment.tcmDiagnosis.localPattern'] = recs[0].pattern
   }
+}, { immediate: true })
+watch(bodyPart, () => {
+  localPatternManuallySet.value = false
+})
+
+// 整体证型：推荐变化时自动填入，除非用户已手动改过；病史变化时重置手动标记
+watch(recommendedPatterns, (recs) => {
+  if (systemicPatternManuallySet.value) return
+  if (recs.length > 0) {
+    fields['assessment.tcmDiagnosis.systemicPattern'] = recs[0].pattern
+  }
+}, { immediate: true })
+watch(medicalHistory, () => {
+  systemicPatternManuallySet.value = false
 })
 
 // 合并渲染字段（从动态列表排除，在模板中单独渲染为合并行）
@@ -924,7 +953,7 @@ function getDiffLines(idx) {
                   <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
                   <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
                 </label>
-                <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
+                <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs" @change="onPatternFieldChange(fieldPath)">
                   <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
               </div>

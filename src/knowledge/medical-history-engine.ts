@@ -96,6 +96,73 @@ const HISTORY_PATTERN_WEIGHTS: PatternWeight[] = [
   { condition: 'Prostate', pattern: 'Kidney Qi Deficiency', weight: 35, reason: '前列腺肾气虚' },
 ]
 
+// ==================== 局部证型推导权重 (疼痛/症状/部位/慢性度 → 局部证型) ====================
+
+interface LocalPatternWeight {
+  pattern: string
+  weight: number
+  reason: string
+}
+
+/** 疼痛类型 → 局部证型 */
+const PAIN_TYPE_PATTERN_WEIGHTS: Array<{ painType: string } & LocalPatternWeight> = [
+  { painType: 'Stabbing', pattern: 'Blood Stasis', weight: 50, reason: '刺痛=瘀血' },
+  { painType: 'Shooting', pattern: 'Blood Stasis', weight: 30, reason: '窜痛=瘀血' },
+  { painType: 'pricking', pattern: 'Blood Stasis', weight: 35, reason: '针刺痛=瘀血' },
+  { painType: 'Aching', pattern: 'Qi Stagnation', weight: 40, reason: '胀痛=气滞' },
+  { painType: 'Squeezing', pattern: 'Qi Stagnation', weight: 35, reason: '挤压痛=气滞' },
+  { painType: 'Dull', pattern: 'Qi & Blood Deficiency', weight: 30, reason: '隐痛=虚证' },
+  { painType: 'Dull', pattern: 'Blood Deficiency', weight: 25, reason: '隐痛=血虚' },
+  { painType: 'Burning', pattern: 'Damp-Heat', weight: 40, reason: '灼痛=湿热' },
+  { painType: 'Burning', pattern: 'LV/GB Damp-Heat', weight: 30, reason: '灼痛=肝胆湿热' },
+  { painType: 'Freezing', pattern: 'Cold-Damp + Wind-Cold', weight: 40, reason: '冷痛=寒湿' },
+  { painType: 'Freezing', pattern: 'Wind-Cold Invasion', weight: 35, reason: '冷痛=风寒' },
+  { painType: 'cold', pattern: 'Cold-Damp + Wind-Cold', weight: 40, reason: '冷痛=寒湿' },
+  { painType: 'cold', pattern: 'Wind-Cold Invasion', weight: 35, reason: '冷痛=风寒' },
+  { painType: 'weighty', pattern: 'Phlegm-Damp', weight: 35, reason: '重痛=痰湿' },
+  { painType: 'weighty', pattern: 'Cold-Damp + Wind-Cold', weight: 25, reason: '重感=寒湿' },
+  { painType: 'Tingling', pattern: 'Blood Deficiency', weight: 25, reason: '麻痛=血虚' },
+  { painType: 'pin & needles', pattern: 'Blood Deficiency', weight: 25, reason: '麻刺=血虚' },
+  { painType: 'Cramping', pattern: 'Liver Qi Stagnation', weight: 30, reason: '拘挛=肝气郁结' },
+]
+
+/** 伴随症状 → 局部证型 */
+const SYMPTOM_PATTERN_WEIGHTS: Array<{ symptom: string } & LocalPatternWeight> = [
+  { symptom: 'numbness', pattern: 'Blood Deficiency', weight: 25, reason: '麻木=血虚不荣' },
+  { symptom: 'numbness', pattern: 'Qi & Blood Deficiency', weight: 20, reason: '麻木=气血不足' },
+  { symptom: 'weakness', pattern: 'Qi & Blood Deficiency', weight: 25, reason: '无力=气血两虚' },
+  { symptom: 'stiffness', pattern: 'Cold-Damp + Wind-Cold', weight: 25, reason: '僵硬=寒湿凝滞' },
+  { symptom: 'stiffness', pattern: 'Wind-Cold Invasion', weight: 20, reason: '僵硬=风寒袭络' },
+  { symptom: 'heaviness', pattern: 'Phlegm-Damp', weight: 25, reason: '沉重=痰湿' },
+  { symptom: 'soreness', pattern: 'Qi Stagnation', weight: 15, reason: '酸痛=气滞(最中性)' },
+]
+
+/** 部位 → 局部证型 */
+const BODY_PART_PATTERN_WEIGHTS: Array<{ bodyPart: string } & LocalPatternWeight> = [
+  { bodyPart: 'LBP', pattern: 'Qi Stagnation', weight: 20, reason: '腰痛最常见气滞' },
+  { bodyPart: 'LBP', pattern: 'Blood Stasis', weight: 15, reason: '腰部久病入络' },
+  { bodyPart: 'NECK', pattern: 'Qi Stagnation', weight: 20, reason: '颈痛常见气滞' },
+  { bodyPart: 'NECK', pattern: 'Wind-Cold Invasion', weight: 15, reason: '颈为风之门户' },
+  { bodyPart: 'SHOULDER', pattern: 'Qi Stagnation', weight: 15, reason: '肩痛常见气滞' },
+  { bodyPart: 'SHOULDER', pattern: 'Blood Stasis', weight: 15, reason: '肩部血瘀' },
+  { bodyPart: 'SHOULDER', pattern: 'Wind-Cold Invasion', weight: 10, reason: '冻结肩' },
+  { bodyPart: 'KNEE', pattern: 'Damp-Heat', weight: 20, reason: '膝关节易受湿热' },
+  { bodyPart: 'KNEE', pattern: 'Cold-Damp + Wind-Cold', weight: 20, reason: '膝部寒湿' },
+  { bodyPart: 'KNEE', pattern: 'Phlegm-Damp', weight: 15, reason: '膝部痰湿' },
+  { bodyPart: 'ELBOW', pattern: 'Qi Stagnation', weight: 20, reason: '肘痛气滞' },
+  { bodyPart: 'ELBOW', pattern: 'Blood Stasis', weight: 15, reason: '肘部血瘀' },
+  { bodyPart: 'HIP', pattern: 'Qi Stagnation', weight: 15, reason: '髋痛气滞' },
+  { bodyPart: 'HIP', pattern: 'Cold-Damp + Wind-Cold', weight: 15, reason: '髋部深层寒湿' },
+]
+
+/** 慢性程度 → 局部证型 */
+const CHRONICITY_PATTERN_WEIGHTS: Array<{ chronicityLevel: string } & LocalPatternWeight> = [
+  { chronicityLevel: 'Chronic', pattern: 'Blood Stasis', weight: 15, reason: '久病必瘀' },
+  { chronicityLevel: 'Chronic', pattern: 'Qi & Blood Deficiency', weight: 10, reason: '久病耗伤气血' },
+  { chronicityLevel: 'Acute', pattern: 'Wind-Cold Invasion', weight: 10, reason: '新发多外邪' },
+  { chronicityLevel: 'Acute', pattern: 'Qi Stagnation', weight: 5, reason: '新发气机不畅' },
+]
+
 // ==================== 维度2: generalCondition 推断 ====================
 
 const SEVERE_CONDITIONS = ['Stroke', 'Parkinson', 'Kidney Disease', 'Heart Disease', 'Liver Disease']
@@ -230,6 +297,64 @@ export function inferConstraints(medicalHistory: string[]): {
 }
 
 // ==================== 综合推断函数 ====================
+
+/** 根据疼痛类型、伴随症状、部位、慢性程度推荐局部证型 (权重排序) */
+export function inferLocalPatterns(
+  painTypes: string[],
+  associatedSymptoms: string[],
+  bodyPart: string,
+  chronicityLevel?: 'Acute' | 'Sub Acute' | 'Chronic'
+): Array<{ pattern: string; weight: number; reason: string }> {
+  const weightMap = new Map<string, { weight: number; reasons: string[] }>()
+
+  for (const pt of painTypes) {
+    for (const rule of PAIN_TYPE_PATTERN_WEIGHTS) {
+      if (rule.painType === pt) {
+        const existing = weightMap.get(rule.pattern) || { weight: 0, reasons: [] }
+        existing.weight += rule.weight
+        existing.reasons.push(rule.reason)
+        weightMap.set(rule.pattern, existing)
+      }
+    }
+  }
+  for (const sym of associatedSymptoms) {
+    for (const rule of SYMPTOM_PATTERN_WEIGHTS) {
+      if (rule.symptom === sym) {
+        const existing = weightMap.get(rule.pattern) || { weight: 0, reasons: [] }
+        existing.weight += rule.weight
+        existing.reasons.push(rule.reason)
+        weightMap.set(rule.pattern, existing)
+      }
+    }
+  }
+  for (const rule of BODY_PART_PATTERN_WEIGHTS) {
+    if (rule.bodyPart === bodyPart) {
+      const existing = weightMap.get(rule.pattern) || { weight: 0, reasons: [] }
+      existing.weight += rule.weight
+      existing.reasons.push(rule.reason)
+      weightMap.set(rule.pattern, existing)
+    }
+  }
+  if (chronicityLevel) {
+    for (const rule of CHRONICITY_PATTERN_WEIGHTS) {
+      if (rule.chronicityLevel === chronicityLevel) {
+        const existing = weightMap.get(rule.pattern) || { weight: 0, reasons: [] }
+        existing.weight += rule.weight
+        existing.reasons.push(rule.reason)
+        weightMap.set(rule.pattern, existing)
+      }
+    }
+  }
+
+  return Array.from(weightMap.entries())
+    .map(([pattern, data]) => ({
+      pattern,
+      weight: data.weight,
+      reason: data.reasons.join('; ')
+    }))
+    .filter(item => item.weight > 0)
+    .sort((a, b) => b.weight - a.weight)
+}
 
 /** 根据病史推荐整体证型 (权重排序) */
 export function inferSystemicPatterns(

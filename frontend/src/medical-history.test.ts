@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import {
   inferSystemicPatterns,
+  inferLocalPatterns,
   inferCondition,
   inferProgressMultiplier,
   inferInitialAdjustments,
@@ -97,6 +98,46 @@ describe('维度1: 病史→证型推荐', () => {
     const old = inferSystemicPatterns(['Diabetes'], 70)
     // 老年应有更多虚证推荐
     expect(old.length).toBeGreaterThanOrEqual(young.length)
+  })
+})
+
+// ==================== 局部证型推导 inferLocalPatterns ====================
+describe('局部证型推导 inferLocalPatterns', () => {
+  it('Stabbing + LBP → Blood Stasis 权重最高', () => {
+    const recs = inferLocalPatterns(['Stabbing'], [], 'LBP', 'Chronic')
+    expect(recs.length).toBeGreaterThan(0)
+    expect(recs[0].pattern).toBe('Blood Stasis')
+  })
+
+  it('Aching + soreness + LBP → Qi Stagnation', () => {
+    const recs = inferLocalPatterns(['Aching'], ['soreness'], 'LBP', 'Chronic')
+    expect(recs.length).toBeGreaterThan(0)
+    expect(recs[0].pattern).toBe('Qi Stagnation')
+  })
+
+  it('Burning + heaviness + KNEE → Damp-Heat', () => {
+    const recs = inferLocalPatterns(['Burning'], ['heaviness'], 'KNEE', 'Chronic')
+    expect(recs.length).toBeGreaterThan(0)
+    expect(recs[0].pattern).toBe('Damp-Heat')
+  })
+
+  it('Freezing + stiffness + NECK → Wind-Cold 或 Cold-Damp', () => {
+    const recs = inferLocalPatterns(['Freezing'], ['stiffness'], 'NECK', 'Acute')
+    expect(recs.length).toBeGreaterThan(0)
+    const top = recs[0].pattern
+    expect(['Wind-Cold Invasion', 'Cold-Damp + Wind-Cold']).toContain(top)
+  })
+
+  it('无疼痛无症状时仍按部位+慢性度返回推荐', () => {
+    const recs = inferLocalPatterns([], [], 'LBP', 'Chronic')
+    expect(recs.length).toBeGreaterThan(0)
+    expect(recs.map(r => r.pattern)).toContain('Qi Stagnation')
+  })
+
+  it('仅部位有推荐 (LBP 默认倾向 Qi Stagnation)', () => {
+    const recs = inferLocalPatterns([], ['soreness'], 'LBP', 'Chronic')
+    expect(recs.length).toBeGreaterThan(0)
+    expect(recs[0].pattern).toBe('Qi Stagnation')
   })
 })
 
