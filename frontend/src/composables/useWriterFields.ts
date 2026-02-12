@@ -153,6 +153,10 @@ export function useWriterFields(whitelist: Record<string, string[]>) {
     }
   })
 
+  // 默认覆盖
+  fields['subjective.symptomDuration.unit'] = 'year(s)'
+  fields['subjective.symptomScale'] = '70%-80%'
+
   return {
     fields,
     FIXED_FIELDS,

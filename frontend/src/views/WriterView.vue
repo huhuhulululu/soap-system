@@ -35,6 +35,7 @@ const patientGender = ref('Female')
 const recentWorseValue = ref('1')
 const recentWorseUnit = ref('week(s)')
 const secondaryBodyParts = ref([])
+const secondaryLaterality = reactive({})
 const medicalHistory = ref(['N/A'])
 
 const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
@@ -370,6 +371,33 @@ function shortLabel(text, maxLen = 35) {
   return text.length > maxLen ? text.substring(0, maxLen) + '...' : text
 }
 
+// 病程时长/近期加重：截止到 "more than 10"
+const DURATION_VALUE_OPTIONS = computed(() => {
+  const all = whitelist['subjective.symptomDuration.value'] || []
+  const cutIdx = all.indexOf('more than 10')
+  return cutIdx >= 0 ? all.slice(0, cutIdx + 1) : all
+})
+
+// 疼痛频率按钮短标签
+function painFreqShort(full) {
+  const m = full.match(/^(\w+)/)
+  return m ? m[1] : full
+}
+
+// 次要部位：切换选中 + 管理侧别
+function toggleSecondaryPart(bp) {
+  const idx = secondaryBodyParts.value.indexOf(bp)
+  if (idx >= 0) {
+    secondaryBodyParts.value.splice(idx, 1)
+    delete secondaryLaterality[bp]
+  } else {
+    secondaryBodyParts.value.push(bp)
+    if (LATERALITY_MAP[bp]) {
+      secondaryLaterality[bp] = 'bilateral'
+    }
+  }
+}
+
 // Step 2 长文本字段：值不截断，允许换行
 const LONG_VALUE_FIELDS = new Set([
   'objective.tonguePulse.tongue',
@@ -473,10 +501,22 @@ function isLongField(path) {
             <label class="text-xs text-ink-500 mb-1 block">次要部位 <span class="text-ink-300">(可选)</span></label>
             <div class="flex flex-wrap gap-1">
               <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
-                @click="secondaryBodyParts.includes(bp) ? secondaryBodyParts.splice(secondaryBodyParts.indexOf(bp), 1) : secondaryBodyParts.push(bp)"
+                @click="toggleSecondaryPart(bp)"
                 class="px-2.5 py-1 text-[11px] rounded-md border transition-all cursor-pointer"
                 :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                 {{ bp }}
+              </button>
+            </div>
+            <!-- 已选次要部位的侧别选择 -->
+            <div v-for="bp in secondaryBodyParts.filter(b => LATERALITY_MAP[b])" :key="'lat-'+bp" class="flex items-center gap-1.5 mt-1.5">
+              <span class="text-[11px] text-ink-400 w-16 flex-shrink-0">{{ bp }}</span>
+              <button v-for="opt in LATERALITY_MAP[bp]" :key="opt.value"
+                @click="secondaryLaterality[bp] = opt.value"
+                class="px-2 py-0.5 text-[10px] font-medium rounded border transition-all cursor-pointer"
+                :class="secondaryLaterality[bp] === opt.value
+                  ? 'bg-ink-800 text-paper-50 border-ink-800'
+                  : 'border-ink-200 text-ink-400 hover:border-ink-400'">
+                {{ opt.label }}
               </button>
             </div>
           </div>
@@ -546,7 +586,7 @@ function isLongField(path) {
           <div class="flex items-center gap-1.5">
             <label class="text-xs text-ink-500 w-20 flex-shrink-0">病程时长 <span class="text-red-500">*</span></label>
             <select v-model="fields['subjective.symptomDuration.value']" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
+              <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="fields['subjective.symptomDuration.unit']" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
               <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
@@ -556,7 +596,7 @@ function isLongField(path) {
           <div class="flex items-center gap-1.5">
             <label class="text-xs text-ink-500 w-20 flex-shrink-0">近期加重 <span class="text-red-500">*</span></label>
             <select v-model="recentWorseValue" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
+              <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="recentWorseUnit" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
               <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
@@ -566,15 +606,23 @@ function isLongField(path) {
           <div class="flex items-center gap-1.5">
             <label class="text-xs text-ink-500 w-20 flex-shrink-0">症状量表 <span class="text-red-500">*</span></label>
             <select v-model="fields['subjective.symptomScale']" class="w-24 px-1 py-1 border border-ink-200 rounded text-xs">
-              <option v-for="opt in whitelist['subjective.symptomScale']" :key="opt" :value="opt">{{ opt }}</option>
+              <option v-for="opt in [...whitelist['subjective.symptomScale']].reverse()" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
-          <!-- 疼痛频率：长文本纵向布局 -->
+          <!-- 疼痛频率：四个平行按钮 -->
           <div class="space-y-1">
             <label class="text-xs text-ink-500">疼痛频率 <span class="text-red-500">*</span></label>
-            <select v-model="fields['subjective.painFrequency']" class="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-xs">
-              <option v-for="opt in whitelist['subjective.painFrequency']" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
+            <div class="grid grid-cols-4 gap-1">
+              <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
+                @click="fields['subjective.painFrequency'] = opt"
+                class="py-1.5 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer text-center"
+                :class="fields['subjective.painFrequency'] === opt
+                  ? 'bg-ink-800 text-paper-50 border-ink-800'
+                  : 'border-ink-200 text-ink-500 hover:border-ink-400'"
+                :title="opt">
+                {{ painFreqShort(opt) }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -582,7 +630,21 @@ function isLongField(path) {
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
           <h3 class="text-xs font-medium text-ink-600">主观必填 <span class="text-red-500">*</span></h3>
           <div v-for="fieldPath in STEP1_SUBJECTIVE_FIELDS" :key="fieldPath" class="space-y-1">
-            <template v-if="MULTI_SELECT_FIELDS.has(fieldPath)">
+            <!-- 伴随症状：平行按钮组 (多选) -->
+            <div v-if="fieldPath === 'subjective.associatedSymptoms'" class="space-y-1">
+              <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
+              <div class="flex gap-1.5">
+                <button v-for="opt in whitelist[fieldPath]" :key="opt"
+                  @click="toggleOption(fieldPath, opt)"
+                  class="flex-1 py-1.5 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer text-center"
+                  :class="fields[fieldPath].includes(opt)
+                    ? 'bg-ink-800 text-paper-50 border-ink-800'
+                    : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  {{ opt }}
+                </button>
+              </div>
+            </div>
+            <template v-else-if="MULTI_SELECT_FIELDS.has(fieldPath)">
               <div class="flex items-center justify-between">
                 <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
                 <button @click="togglePanel(fieldPath)" class="text-[11px] text-ink-400 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
