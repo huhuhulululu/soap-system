@@ -5,6 +5,13 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
+import {
+  validateGeneratedSequence,
+  visitStateToSnapshot,
+  contextToSnapshot,
+  type ValidationResult,
+  type VisitSnapshot,
+} from '../../../src/shared/soap-constraints.ts'
 
 export interface UseSOAPGenerationOptions {
   fields: Record<string, string | string[]>
@@ -91,6 +98,13 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
   const seedInput = ref('')
   const seedCopied = ref(false)
   const generationError = ref('')
+  const validationResult = ref<ValidationResult | null>(null)
+
+  function runValidation(states: Parameters<typeof visitStateToSnapshot>[0][], ctx: typeof generationContext.value) {
+    const snapshots: VisitSnapshot[] = states.map(s => visitStateToSnapshot(s))
+    const ctxSnap = contextToSnapshot(ctx as any)
+    validationResult.value = validateGeneratedSequence(snapshots, ctxSnap)
+  }
 
   function generate(useSeed?: number) {
     try {
@@ -141,6 +155,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
             _open: false,
           })),
         ]
+        runValidation(states, ctx)
       } else {
         const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
           txCount: txCount.value,
@@ -156,6 +171,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
           state,
           _open: false,
         }))
+        runValidation(states, ctx)
       }
     } catch (e) {
       generationError.value = '生成失败: ' + (e as Error).message
@@ -239,6 +255,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     generationContext,
     generatedNotes,
     generationError,
+    validationResult,
     copiedIndex,
     currentSeed,
     seedInput,

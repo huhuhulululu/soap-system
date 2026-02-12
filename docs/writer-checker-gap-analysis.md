@@ -293,10 +293,21 @@ const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng,
 - `correction-generator.ts` — PATTERN_TO_TONGUE_PULSE 从 8→21 种证型
 - `WriterView.vue` — 交叉校验使用共享模块, 消除内联映射
 
+### 5.5 Phase 4: 共享规则引擎 + Writer 自检 (已完成)
+**问题**: Writer 生成的笔记无法保证通过 Checker 校验，两套规则独立维护。
+
+**修复**:
+- 新建 `src/shared/soap-constraints.ts` — 从 note-checker 提取 20+ 条纯验证规则
+  - 单 visit 检查: TX01 (pain→severity), TX02 (pain→tenderness), T06 (symptomChange+reason), T07/X4 (pacemaker), S2 (painTypes), X1 (chain), X3 (tongue/pulse), P2 (acupoints)
+  - 跨 visit 序列检查: V01-V04 (单调性), V07-V09 (frequency/improvement/acupoints), T02/T03 (矛盾检测), T08/T09 (ADL/symptom 单调)
+  - 评分: CRITICAL→FAIL, HIGH×15 + MEDIUM×8 扣分, ≥80 PASS / ≥60 WARNING / <60 FAIL
+- `useSOAPGeneration.ts` — 生成后自动运行 validateGeneratedSequence, 暴露 validationResult
+- `WriterView.vue` — PASS/WARNING/FAIL 摘要条 + 可展开错误详情列表
+
 | 阶段 | 任务 | 预期效果 |
 |------|------|----------|
 | ~~**Phase 0**~~ | ~~Goals Calculator 对齐~~ | ~~✅ 已完成~~ |
 | ~~**Phase 1**~~ | ~~4.1 symptomChange painDelta 硬约束 + 4.2 ruleContext 修复 + reason 联动~~ | ~~✅ 已完成~~ |
 | ~~**Phase 2**~~ | ~~4.3 symptomScale vs pain 校验 + 4.4 painTypes/ADL 交叉校验~~ | ~~✅ 已完成~~ |
 | ~~**Phase 3**~~ | ~~4.6 + 4.7 + 4.8 统一映射~~ | ~~✅ 已完成~~ |
-| **Phase 4** | 4.5 + 4.9 共享规则引擎 | Writer 生成即通过 Checker |
+| ~~**Phase 4**~~ | ~~4.5 + 4.9 共享规则引擎~~ | ~~✅ 已完成~~ |
