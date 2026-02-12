@@ -1,0 +1,246 @@
+/**
+ * 编写页 SOAP 生成与复制 composable
+ * 从 WriterView 提取：generationContext、generate、generatedNotes、seed、复制函数
+ */
+import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
+import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
+
+export interface UseSOAPGenerationOptions {
+  fields: Record<string, string | string[]>
+  noteType: Ref<string>
+  txCount: Ref<number>
+  bodyPart: Ref<string>
+  laterality: Ref<string>
+  insuranceType: Ref<string>
+  recentWorseValue: Ref<string>
+  recentWorseUnit: Ref<string>
+  patientAge: Ref<number>
+  patientGender: Ref<string>
+  secondaryBodyParts: Ref<string[]>
+  medicalHistory: Ref<string[]>
+  derivedSeverity: ComputedRef<string>
+  currentPain: ComputedRef<number>
+}
+
+export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
+  const {
+    fields,
+    noteType,
+    txCount,
+    bodyPart,
+    laterality,
+    insuranceType,
+    recentWorseValue,
+    recentWorseUnit,
+    patientAge,
+    patientGender,
+    secondaryBodyParts,
+    medicalHistory,
+    derivedSeverity,
+    currentPain,
+  } = options
+
+  const generationContext = computed(() => ({
+    noteType: noteType.value,
+    insuranceType: insuranceType.value,
+    primaryBodyPart: bodyPart.value,
+    laterality: laterality.value,
+    localPattern: (fields['assessment.tcmDiagnosis.localPattern'] as string) || 'Qi Stagnation',
+    systemicPattern: (fields['assessment.tcmDiagnosis.systemicPattern'] as string) || 'Kidney Yang Deficiency',
+    chronicityLevel: (fields['subjective.chronicityLevel'] as string) || 'Chronic',
+    severityLevel: derivedSeverity.value,
+    painCurrent: currentPain.value,
+    associatedSymptom: ((fields['subjective.associatedSymptoms'] as string[])?.[0]) || 'soreness',
+    symptomDuration: {
+      value: (fields['subjective.symptomDuration.value'] as string) || '3',
+      unit: (fields['subjective.symptomDuration.unit'] as string) || 'month(s)',
+    },
+    painRadiation: (fields['subjective.painRadiation'] as string) || 'without radiation',
+    recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
+    painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
+    symptomScale: (fields['subjective.symptomScale'] as string) || '70%',
+    painFrequency:
+      (fields['subjective.painFrequency'] as string) ||
+      'Constant (symptoms occur between 76% and 100% of the time)',
+    causativeFactors: (fields['subjective.causativeFactors'] as string[]) || ['age related/degenerative changes'],
+    relievingFactors: (fields['subjective.relievingFactors'] as string[]) || [
+      'Changing positions',
+      'Resting',
+      'Massage',
+    ],
+    age: patientAge.value,
+    gender: patientGender.value,
+    secondaryBodyParts: secondaryBodyParts.value,
+    hasPacemaker: medicalHistory.value.includes('Pacemaker'),
+    hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
+    medicalHistory: medicalHistory.value.filter((h: string) => h !== 'N/A'),
+  }))
+
+  const generatedNotes = ref<Array<{ visitIndex?: number; text: string; type: string; state: unknown; _open: boolean }>>([])
+  const copiedIndex = ref(-1)
+  const currentSeed = ref<number | null>(null)
+  const seedInput = ref('')
+  const seedCopied = ref(false)
+
+  function generate(useSeed?: number) {
+    try {
+      const ctx = generationContext.value
+      const txCtx = { ...ctx, noteType: 'TX' }
+      const seed =
+        useSeed != null
+          ? useSeed
+          : seedInput.value
+            ? parseInt(seedInput.value, 10) || undefined
+            : undefined
+
+      const freqText = (fields['subjective.painFrequency'] as string) || ''
+      const freqLevel = freqText.includes('Constant')
+        ? 3
+        : freqText.includes('Frequent')
+          ? 2
+          : freqText.includes('Occasional')
+            ? 1
+            : freqText.includes('Intermittent')
+              ? 0
+              : 3
+
+      const initialState = {
+        pain: ctx.painCurrent,
+        associatedSymptom: ctx.associatedSymptom || 'soreness',
+        symptomScale: (fields['subjective.symptomScale'] as string) || '70%',
+        frequency: freqLevel,
+        painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
+      }
+
+      if (noteType.value === 'IE') {
+        const ieText = exportSOAPAsText(ctx, {})
+        const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
+          txCount: 11,
+          startVisitIndex: 1,
+          seed,
+          initialState,
+        })
+        currentSeed.value = actualSeed
+        generatedNotes.value = [
+          { visitIndex: 0, text: ieText, type: 'IE', state: null, _open: false },
+          ...states.map(state => ({
+            visitIndex: state.visitIndex,
+            text: exportSOAPAsText(txCtx, state),
+            type: 'TX',
+            state,
+            _open: false,
+          })),
+        ]
+      } else {
+        const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
+          txCount: txCount.value,
+          startVisitIndex: 1,
+          seed,
+          initialState,
+        })
+        currentSeed.value = actualSeed
+        generatedNotes.value = states.map(state => ({
+          visitIndex: state.visitIndex,
+          text: exportSOAPAsText(txCtx, state),
+          type: 'TX',
+          state,
+          _open: false,
+        }))
+      }
+    } catch (e) {
+      console.error('生成错误:', e)
+      alert('生成失败: ' + (e as Error).message)
+    }
+  }
+
+  function copySeed() {
+    if (currentSeed.value == null) return
+    navigator.clipboard.writeText(String(currentSeed.value))
+    seedCopied.value = true
+    setTimeout(() => (seedCopied.value = false), 1500)
+  }
+
+  function regenerate() {
+    if (currentSeed.value != null) {
+      generate(currentSeed.value)
+    }
+  }
+
+  function splitSOAP(text: string): { S: string; O: string; A: string; P: string } {
+    if (!text) return { S: '', O: '', A: '', P: '' }
+    const sections = { S: '', O: '', A: '', P: '' }
+    const markers = [
+      { key: 'S' as const, re: /^Subjective\n/m },
+      { key: 'O' as const, re: /^Objective\n/m },
+      { key: 'A' as const, re: /^Assessment\n/m },
+      { key: 'P' as const, re: /^Plan\n/m },
+    ]
+    const positions = markers
+      .map(m => {
+        const match = text.match(m.re)
+        return {
+          key: m.key,
+          start: match ? text.indexOf(match[0]) : -1,
+          headerLen: match ? match[0].length : 0,
+        }
+      })
+      .filter(p => p.start >= 0)
+      .sort((a, b) => a.start - b.start)
+
+    positions.forEach((pos, i) => {
+      const contentStart = pos.start + pos.headerLen
+      const contentEnd = i < positions.length - 1 ? positions[i + 1].start! : text.length
+      sections[pos.key] = text.slice(contentStart, contentEnd).replace(/\n{2,}$/, '').trim()
+    })
+    return sections
+  }
+
+  const copiedSection = ref<{ idx: number; section: string } | null>(null)
+
+  function copySection(idx: number, sectionKey: string) {
+    const note = generatedNotes.value[idx]
+    if (!note) return
+    const parts = splitSOAP(note.text)
+    navigator.clipboard.writeText((parts as Record<string, string>)[sectionKey] || '')
+    copiedSection.value = { idx, section: sectionKey }
+    setTimeout(() => (copiedSection.value = null), 1500)
+  }
+
+  function isCopied(idx: number, sectionKey: string) {
+    return copiedSection.value?.idx === idx && copiedSection.value?.section === sectionKey
+  }
+
+  function copyNote(idx: number) {
+    navigator.clipboard.writeText(generatedNotes.value[idx]?.text || '')
+    copiedIndex.value = idx
+    setTimeout(() => (copiedIndex.value = -1), 1500)
+  }
+
+  function copyAll() {
+    const all = generatedNotes.value
+      .map(n => `=== ${n.type}${n.visitIndex ?? ''} ===\n${n.text}`)
+      .join('\n\n')
+    navigator.clipboard.writeText(all)
+    copiedIndex.value = -999
+    setTimeout(() => (copiedIndex.value = -1), 1500)
+  }
+
+  return {
+    generationContext,
+    generatedNotes,
+    copiedIndex,
+    currentSeed,
+    seedInput,
+    seedCopied,
+    copiedSection,
+    generate,
+    copySeed,
+    regenerate,
+    splitSOAP,
+    copySection,
+    isCopied,
+    copyNote,
+    copyAll,
+  }
+}

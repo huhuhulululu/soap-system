@@ -1,14 +1,27 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import whitelist from '../data/whitelist.json'
-import { TEMPLATE_ONLY_RULES } from '../../../src/parser/template-logic-rules.ts'
-import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
-import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
 import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
 import { inferSystemicPatterns, inferLocalPatterns } from '../../../src/knowledge/medical-history-engine.ts'
+import { useWriterFields } from '../composables/useWriterFields'
+import { useSOAPGeneration } from '../composables/useSOAPGeneration'
+import { useDiffHighlight } from '../composables/useDiffHighlight'
 
-// 初始化 whitelist
 setWhitelist(whitelist)
+
+const {
+  fields,
+  FIXED_FIELDS,
+  TX_ONLY_FIELDS,
+  REQUIRED_FIELDS,
+  RULE_FIELDS,
+  MERGED_FIELDS,
+  DERIVED_FIELDS,
+  MULTI_SELECT_FIELDS,
+  fieldTag,
+  fieldLabel,
+  getRecommendedOptions,
+} = useWriterFields(whitelist)
 
 // 选择器
 const insuranceType = ref('OPTUM')
@@ -79,141 +92,9 @@ watch(bodyPart, (bp) => {
   }
 })
 
-// 固定字段（不显示，由引擎自动处理）
-const FIXED_FIELDS = new Set([
-  'subjective.chronicityLevel',
-  'subjective.adlDifficulty.level',  // severity 由 pain 推导
-  'assessment.generalCondition',     // 由病史引擎推断
-  'assessment.treatmentPrinciples.focusOn',
-  'objective.muscleTesting.muscles',
-  'plan.evaluationType',
-  'plan.shortTermGoal.treatmentFrequency',
-  'plan.needleProtocol.totalTime',
-  'plan.needleProtocol.points',
-  // 已移出 FIXED_FIELDS:
-  // 'assessment.tcmDiagnosis.localPattern'  → 用户可选
-  // 'assessment.tcmDiagnosis.systemicPattern' → 引擎推荐 + 用户可调
-  // 'subjective.painTypes'               → 用户多选
-  // 'objective.tonguePulse.tongue'        → 证型默认 + 用户可调
-  // 'objective.tonguePulse.pulse'         → 证型默认 + 用户可调
-  // 'plan.needleProtocol.electricalStimulation' → 用户可控
-])
-
-// TX 专属字段（IE 模式下隐藏）
-const TX_ONLY_FIELDS = new Set([
-  'subjective.symptomChange',
-  'subjective.reasonConnector',
-  'subjective.reason',
-  'subjective.painScale',        // TX 的 Pain Scale: X /10（IE 用 W/B/C 三合一）
-])
-
-// 字段中文名称映射
-const FIELD_LABELS = {
-  'subjective.symptomScale': '症状量表',
-  'subjective.symptomDuration.value': '病程时长',
-  'subjective.symptomDuration.unit': '时长单位',
-  'subjective.adlDifficulty.level': 'ADL难度',
-  'subjective.adlDifficulty.activities': 'ADL活动',
-  'subjective.painScale.worst': '最痛评分',
-  'subjective.painScale.best': '最轻评分',
-  'subjective.painScale.current': '当前评分',
-  'subjective.painFrequency': '疼痛频率',
-  'subjective.painRadiation': '放射痛',
-  'subjective.associatedSymptoms': '伴随症状',
-  'subjective.causativeFactors': '病因',
-  'subjective.exacerbatingFactors': '加重因素',
-  'subjective.relievingFactors': '缓解因素',
-  'subjective.symptomChange': '症状变化',
-  'subjective.reasonConnector': '连接词',
-  'subjective.reason': '原因',
-  'subjective.painScale': '疼痛评分',
-  'assessment.tcmDiagnosis.localPattern': '局部证型',
-  'assessment.tcmDiagnosis.systemicPattern': '整体证型',
-  'subjective.painTypes': '疼痛类型',
-  'objective.tonguePulse.tongue': '舌象',
-  'objective.tonguePulse.pulse': '脉象',
-  'plan.needleProtocol.electricalStimulation': '电刺激',
-  'objective.muscleTesting.tightness.gradingScale': '紧张度',
-  'objective.muscleTesting.tenderness.gradingScale': '压痛度',
-  'objective.spasmGrading': '痉挛度',
-  'objective.rom.degrees': 'ROM角度',
-  'objective.rom.strength': '肌力',
-}
-
-// * 标：用户必填字段
-const REQUIRED_FIELDS = new Set([
-  'subjective.painScale.worst', 'subjective.painScale.best', 'subjective.painScale.current',
-  'subjective.symptomDuration.value', 'subjective.symptomDuration.unit',
-  'subjective.painRadiation', 'subjective.painTypes', 'subjective.associatedSymptoms',
-  'subjective.causativeFactors', 'subjective.relievingFactors', 'subjective.exacerbatingFactors',
-  'subjective.symptomScale', 'subjective.painFrequency',
-])
-// R 标：引擎推导/规则计算字段（含局部证型、整体证型）
-const RULE_FIELDS = new Set([
-  'subjective.symptomChange', 'subjective.reasonConnector', 'subjective.reason',
-  'subjective.painScale', 'subjective.adlDifficulty.activities',
-  'objective.muscleTesting.tightness.gradingScale', 'objective.muscleTesting.tenderness.gradingScale',
-  'objective.spasmGrading', 'objective.tonguePulse.tongue', 'objective.tonguePulse.pulse',
-  'plan.needleProtocol.electricalStimulation', 'objective.rom.degrees', 'objective.rom.strength',
-  'assessment.tcmDiagnosis.localPattern', 'assessment.tcmDiagnosis.systemicPattern',
-])
-function fieldTag(fp) {
-  if (REQUIRED_FIELDS.has(fp)) return '*'
-  if (RULE_FIELDS.has(fp)) return 'R'
-  return ''
-}
-
 function onPatternFieldChange(fieldPath) {
   if (fieldPath === 'assessment.tcmDiagnosis.localPattern') localPatternManuallySet.value = true
   if (fieldPath === 'assessment.tcmDiagnosis.systemicPattern') systemicPatternManuallySet.value = true
-}
-
-// 多选字段
-const MULTI_SELECT_FIELDS = new Set([
-  'subjective.painTypes',
-  'subjective.associatedSymptoms',
-  'subjective.causativeFactors',
-  'subjective.exacerbatingFactors',
-  'subjective.relievingFactors',
-  'subjective.adlDifficulty.activities'
-])
-
-// 动态字段值
-const fields = reactive({})
-
-// 初始化字段默认值
-Object.keys(whitelist).forEach(key => {
-  const opts = whitelist[key]
-  if (MULTI_SELECT_FIELDS.has(key)) {
-    fields[key] = opts.length > 0 ? [opts[0]] : []
-  } else {
-    fields[key] = Array.isArray(opts) && opts.length > 0 ? opts[0] : ''
-  }
-})
-
-// 根据规则计算推荐选项
-function getRecommendedOptions(fieldPath) {
-  const recommendations = []
-  for (const rule of TEMPLATE_ONLY_RULES) {
-    const conditionsMet = rule.conditions.every(cond => {
-      const val = getNestedValue(fields, cond.field)
-      if (cond.operator === 'equals') return val === cond.value
-      if (cond.operator === 'gte') return Number(val) >= Number(cond.value)
-      if (cond.operator === 'lte') return Number(val) <= Number(cond.value)
-      return false
-    })
-    if (!conditionsMet) continue
-    for (const effect of rule.effects) {
-      if (effect.targetField === fieldPath) {
-        recommendations.push(...effect.options.map(o => ({ option: o, weight: effect.weightChange, reason: effect.reason })))
-      }
-    }
-  }
-  return recommendations.sort((a, b) => b.weight - a.weight)
-}
-
-function getNestedValue(obj, path) {
-  return path.split('.').reduce((o, k) => o?.[k], obj)
 }
 
 // Severity 从 Pain 自动推导（与 tx-sequence-engine 的 severityFromPain 一致）
@@ -234,6 +115,43 @@ function parsePainValue(raw) {
 // 当前 pain 数值和推导的 severity
 const currentPain = computed(() => parsePainValue(fields['subjective.painScale.current']))
 const derivedSeverity = computed(() => severityFromPain(currentPain.value))
+
+const soapGen = useSOAPGeneration({
+  fields,
+  noteType,
+  txCount,
+  bodyPart,
+  laterality,
+  insuranceType,
+  recentWorseValue,
+  recentWorseUnit,
+  patientAge,
+  patientGender,
+  secondaryBodyParts,
+  medicalHistory,
+  derivedSeverity,
+  currentPain,
+})
+const {
+  generationContext,
+  generatedNotes,
+  copiedIndex,
+  currentSeed,
+  seedInput,
+  seedCopied,
+  copiedSection,
+  generate,
+  copySeed,
+  regenerate,
+  splitSOAP,
+  copySection,
+  isCopied,
+  copyNote,
+  copyAll,
+} = soapGen
+
+const diffHighlight = useDiffHighlight(generatedNotes)
+const { getNoteSummary, getDiffLines } = diffHighlight
 
 // 病史推荐的整体证型
 const recommendedPatterns = computed(() => {
@@ -279,308 +197,85 @@ watch(medicalHistory, () => {
   systemicPatternManuallySet.value = false
 })
 
-// 合并渲染字段（从动态列表排除，在模板中单独渲染为合并行）
-const MERGED_FIELDS = new Set([
-  'subjective.painScale.worst', 'subjective.painScale.best', 'subjective.painScale.current',
-  'subjective.symptomDuration.value', 'subjective.symptomDuration.unit',
-  'subjective.symptomScale',
-  'subjective.painFrequency',
-])
+// 第一步：主观必填 6 个 fieldPath
+const STEP1_SUBJECTIVE_FIELDS = [
+  'subjective.painRadiation',
+  'subjective.painTypes',
+  'subjective.associatedSymptoms',
+  'subjective.causativeFactors',
+  'subjective.relievingFactors',
+  'subjective.exacerbatingFactors',
+]
 
-// 推导字段（从动态列表排除，在推导摘要区显示）
-const DERIVED_FIELDS = new Set([
-  'objective.muscleTesting.tightness.gradingScale',
-  'objective.muscleTesting.tenderness.gradingScale',
-  'objective.spasmGrading',
-  'objective.tonguePulse.tongue',
-  'objective.tonguePulse.pulse',
-  'plan.needleProtocol.electricalStimulation',
-])
-const derivedFieldList = Array.from(DERIVED_FIELDS)
+// 第二步：审核 R 项配置（顺序固定，txOnly 仅 TX 显示）
+const STEP2_REVIEW_CONFIG = [
+  { path: '__severity', readOnly: true },
+  { path: 'assessment.tcmDiagnosis.localPattern' },
+  { path: 'assessment.tcmDiagnosis.systemicPattern' },
+  { path: 'objective.tonguePulse.tongue' },
+  { path: 'objective.tonguePulse.pulse' },
+  { path: 'objective.muscleTesting.tightness.gradingScale' },
+  { path: 'objective.muscleTesting.tenderness.gradingScale' },
+  { path: 'objective.spasmGrading' },
+  { path: 'objective.rom.degrees' },
+  { path: 'objective.rom.strength' },
+  { path: 'plan.needleProtocol.electricalStimulation' },
+  { path: 'subjective.adlDifficulty.activities', isMulti: true },
+  { path: 'subjective.symptomChange', txOnly: true },
+  { path: 'subjective.reasonConnector', txOnly: true },
+  { path: 'subjective.reason', txOnly: true },
+  { path: 'subjective.painScale', txOnly: true },
+]
 
-// 推导字段编辑状态
+const step2ReviewFields = computed(() => {
+  return STEP2_REVIEW_CONFIG.filter(item => !item.txOnly || noteType.value === 'TX')
+    .filter(item => item.path.startsWith('__') || item.path in whitelist)
+    .map(item => {
+      const path = item.path
+      const readOnly = !!item.readOnly
+      const isMulti = !!item.isMulti
+      let label, value, options
+      if (path === '__severity') {
+        label = 'Severity'
+        value = derivedSeverity.value
+        options = null
+      } else {
+        label = fieldLabel(path)
+        value = fields[path]
+        options = whitelist[path]
+      }
+      return { path, label, value, readOnly, isMulti, options }
+    })
+})
+
+// 第二步审核卡片：单字段编辑
 const derivedEditing = ref('')
 function toggleDerivedEdit(fp) {
   derivedEditing.value = derivedEditing.value === fp ? '' : fp
 }
 
-// 紧凑宽度字段
-const COMPACT_FIELDS = new Set([
-  'subjective.painScale', 'subjective.symptomScale',
-])
-
-// 按钮组字段（选项少且短）
-const BUTTON_GROUP_FIELDS = new Set([
-  'subjective.exacerbatingFactors', 'subjective.chronicityLevel',
-])
-
-// 动态字段分组（过滤掉固定+合并+推导字段；IE 下排除 TX 专属字段）
-const dynamicFields = computed(() => ({
-  S: Object.keys(whitelist).filter(k =>
-    k.startsWith('subjective.') &&
-    !FIXED_FIELDS.has(k) &&
-    !MERGED_FIELDS.has(k) &&
-    !DERIVED_FIELDS.has(k) &&
-    !(noteType.value === 'IE' && TX_ONLY_FIELDS.has(k))
-  ),
-  O: Object.keys(whitelist).filter(k => k.startsWith('objective.') && !FIXED_FIELDS.has(k) && !DERIVED_FIELDS.has(k)),
-  A: Object.keys(whitelist).filter(k => k.startsWith('assessment.') && !FIXED_FIELDS.has(k)),
-  P: Object.keys(whitelist).filter(k => k.startsWith('plan.') && !FIXED_FIELDS.has(k) && !DERIVED_FIELDS.has(k))
-}))
-
-// 生成上下文
-const generationContext = computed(() => ({
-  noteType: noteType.value,
-  insuranceType: insuranceType.value,
-  primaryBodyPart: bodyPart.value,
-  laterality: laterality.value,
-  localPattern: fields['assessment.tcmDiagnosis.localPattern'] || 'Qi Stagnation',
-  systemicPattern: fields['assessment.tcmDiagnosis.systemicPattern'] || 'Kidney Yang Deficiency',
-  chronicityLevel: fields['subjective.chronicityLevel'] || 'Chronic',
-  severityLevel: derivedSeverity.value,          // 从 pain 推导
-  painCurrent: currentPain.value,                 // 用户实际 pain 值
-  associatedSymptom: (fields['subjective.associatedSymptoms'] || [])[0] || 'soreness',
-  symptomDuration: {
-    value: fields['subjective.symptomDuration.value'] || '3',
-    unit: fields['subjective.symptomDuration.unit'] || 'month(s)'
-  },
-  painRadiation: fields['subjective.painRadiation'] || 'without radiation',
-  recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
-  painTypes: fields['subjective.painTypes'] || ['Dull', 'Aching'],
-  symptomScale: fields['subjective.symptomScale'] || '70%',
-  painFrequency: fields['subjective.painFrequency'] || 'Constant (symptoms occur between 76% and 100% of the time)',
-  causativeFactors: fields['subjective.causativeFactors'] || ['age related/degenerative changes'],
-  relievingFactors: fields['subjective.relievingFactors'] || ['Changing positions', 'Resting', 'Massage'],
-  // Phase 3 新增
-  age: patientAge.value,
-  gender: patientGender.value,
-  secondaryBodyParts: secondaryBodyParts.value,
-  hasPacemaker: medicalHistory.value.includes('Pacemaker'),
-  hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
-  medicalHistory: medicalHistory.value.filter(h => h !== 'N/A')
-}))
-
-// 生成结果
-const generatedNotes = ref([])
-const copiedIndex = ref(-1)
-const currentSeed = ref(null)       // 当前生成使用的 seed
-const seedInput = ref('')           // 用户输入的 seed (复现用)
-const seedCopied = ref(false)
-
-function generate(useSeed) {
-  try {
-    const ctx = generationContext.value
-    const txCtx = { ...ctx, noteType: 'TX' }
-    const seed = useSeed != null ? useSeed
-      : seedInput.value ? parseInt(seedInput.value, 10) || undefined
-      : undefined
-
-    // 用户输入作为 initialState 基线
-    // frequency 映射: painFrequency 文本 → 0-3 等级
-    const freqText = fields['subjective.painFrequency'] || ''
-    const freqLevel = freqText.includes('Constant') ? 3
-      : freqText.includes('Frequent') ? 2
-      : freqText.includes('Occasional') ? 1
-      : freqText.includes('Intermittent') ? 0
-      : 3
-
-    const initialState = {
-      pain: ctx.painCurrent,
-      associatedSymptom: ctx.associatedSymptom || 'soreness',
-      symptomScale: fields['subjective.symptomScale'] || '70%',
-      frequency: freqLevel,
-      painTypes: fields['subjective.painTypes'] || ['Dull', 'Aching']
+// 生成前校验必填项
+function validateRequiredBeforeGenerate() {
+  const empty = []
+  for (const fp of REQUIRED_FIELDS) {
+    const v = fields[fp]
+    if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) {
+      empty.push(fp)
     }
-
-    if (noteType.value === 'IE') {
-      const ieText = exportSOAPAsText(ctx, {})
-      const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
-        txCount: 11,
-        startVisitIndex: 1,
-        seed,
-        initialState
-      })
-      currentSeed.value = actualSeed
-      generatedNotes.value = [
-        { visitIndex: 0, text: ieText, type: 'IE', state: null, _open: false },
-        ...states.map(state => ({
-          visitIndex: state.visitIndex,
-          text: exportSOAPAsText(txCtx, state),
-          type: 'TX',
-          state,
-          _open: false
-        }))
-      ]
-    } else {
-      const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
-        txCount: txCount.value,
-        startVisitIndex: 1,
-        seed,
-        initialState
-      })
-      currentSeed.value = actualSeed
-      generatedNotes.value = states.map(state => ({
-        visitIndex: state.visitIndex,
-        text: exportSOAPAsText(txCtx, state),
-        type: 'TX',
-        state,
-        _open: false
-      }))
-    }
-  } catch (e) {
-    console.error('生成错误:', e)
-    alert('生成失败: ' + e.message)
   }
+  if (recentWorseValue.value === '' || recentWorseUnit.value === '') empty.push('recentWorse')
+  return empty
 }
 
-function copySeed() {
-  if (currentSeed.value == null) return
-  navigator.clipboard.writeText(String(currentSeed.value))
-  seedCopied.value = true
-  setTimeout(() => seedCopied.value = false, 1500)
-}
-
-function regenerate() {
-  // 用相同 seed 重新生成（复现）
-  if (currentSeed.value != null) {
-    generate(currentSeed.value)
+function doGenerate() {
+  const missing = validateRequiredBeforeGenerate()
+  if (missing.length > 0) {
+    const el = document.querySelector('[data-step1]')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    alert('请先完成必填项：' + (missing.length > 3 ? `${missing.length} 项` : missing.slice(0, 3).join(', ')))
+    return
   }
-}
-
-// 将完整文本按 S/O/A/P 切分
-function splitSOAP(text) {
-  if (!text) return { S: '', O: '', A: '', P: '' }
-  const sections = { S: '', O: '', A: '', P: '' }
-  // 匹配段标题行
-  const markers = [
-    { key: 'S', re: /^Subjective\n/m },
-    { key: 'O', re: /^Objective\n/m },
-    { key: 'A', re: /^Assessment\n/m },
-    { key: 'P', re: /^Plan\n/m }
-  ]
-  // 找到各段在文本中的起始位置
-  const positions = markers.map(m => {
-    const match = text.match(m.re)
-    return { key: m.key, start: match ? text.indexOf(match[0]) : -1, headerLen: match ? match[0].length : 0 }
-  }).filter(p => p.start >= 0).sort((a, b) => a.start - b.start)
-
-  positions.forEach((pos, i) => {
-    const contentStart = pos.start + pos.headerLen
-    const contentEnd = i < positions.length - 1 ? positions[i + 1].start : text.length
-    sections[pos.key] = text.slice(contentStart, contentEnd).replace(/\n{2,}$/, '').trim()
-  })
-  return sections
-}
-
-// 复制状态追踪: { idx: number, section: string } | null
-const copiedSection = ref(null)
-
-function copySection(idx, sectionKey) {
-  const note = generatedNotes.value[idx]
-  if (!note) return
-  const parts = splitSOAP(note.text)
-  navigator.clipboard.writeText(parts[sectionKey] || '')
-  copiedSection.value = { idx, section: sectionKey }
-  setTimeout(() => copiedSection.value = null, 1500)
-}
-
-function isCopied(idx, sectionKey) {
-  return copiedSection.value?.idx === idx && copiedSection.value?.section === sectionKey
-}
-
-function copyNote(idx) {
-  navigator.clipboard.writeText(generatedNotes.value[idx]?.text || '')
-  copiedIndex.value = idx
-  setTimeout(() => copiedIndex.value = -1, 1500)
-}
-
-function copyAll() {
-  const all = generatedNotes.value.map(n => `=== ${n.type}${n.visitIndex || ''} ===\n${n.text}`).join('\n\n')
-  navigator.clipboard.writeText(all)
-  copiedIndex.value = -999
-  setTimeout(() => copiedIndex.value = -1, 1500)
-}
-
-// 简化 frequency 文本: "Constant (symptoms occur...)" → "Constant"
-function shortFreq(f) {
-  if (!f) return ''
-  return f.split('(')[0].trim()
-}
-
-// 简化 spasm: "(+3)=>1 but..." → "+3"
-function shortSpasm(s) {
-  if (!s) return ''
-  const m = s.match(/\(([^)]+)\)/)
-  return m ? m[1] : s
-}
-
-// 简化 tightness: 取首字母大写
-function shortTight(t) {
-  if (!t) return ''
-  const map = { 'severe': 'Sev', 'moderate to severe': 'M-S', 'moderate': 'Mod', 'mild to moderate': 'Mi-M', 'mild': 'Mild' }
-  return map[t.toLowerCase()] || t
-}
-
-// 简化 tenderness: "(+3) = Patient complains..." → "+3"
-function shortTender(t) {
-  if (!t) return ''
-  const m = t.match(/\(([^)]+)\)/)
-  return m ? m[1] : t
-}
-
-// 提取评估变化摘要 (用于折叠栏展示)
-function getNoteSummary(note, idx) {
-  if (!note.state || note.type === 'IE') return null
-  const s = note.state
-  const prevNote = idx > 0 ? generatedNotes.value[idx - 1] : null
-  const prevState = prevNote?.state
-  const prevPain = prevState ? prevState.painScaleLabel : '8'
-  const prevSymptom = prevState?.symptomScale || '70%'
-  const prevFreq = prevState ? shortFreq(prevState.painFrequency) : 'Constant'
-  const prevTight = prevState ? shortTight(prevState.tightnessGrading) : ''
-  const prevTender = prevState ? shortTender(prevState.tendernessGrading) : ''
-  const prevSpasm = prevState ? shortSpasm(prevState.spasmGrading) : ''
-
-  // 数值变化项
-  const values = []
-  values.push({ label: 'Pain', from: prevPain, to: s.painScaleLabel })
-  if (s.symptomScale) {
-    values.push({ label: 'Sx', from: prevSymptom, to: s.symptomScale })
-  }
-  const curFreq = shortFreq(s.painFrequency)
-  if (curFreq && curFreq !== prevFreq) {
-    values.push({ label: 'Freq', from: prevFreq, to: curFreq })
-  }
-  const curTight = shortTight(s.tightnessGrading)
-  if (curTight && prevTight && curTight !== prevTight) {
-    values.push({ label: 'Tight', from: prevTight, to: curTight })
-  }
-  const curTender = shortTender(s.tendernessGrading)
-  if (curTender && prevTender && curTender !== prevTender) {
-    values.push({ label: 'Tender', from: prevTender, to: curTender })
-  }
-  const curSpasm = shortSpasm(s.spasmGrading)
-  if (curSpasm && prevSpasm && curSpasm !== prevSpasm) {
-    values.push({ label: 'Spasm', from: prevSpasm, to: curSpasm })
-  }
-
-  // 趋势项 (来自 soaChain)
-  const trends = []
-  const chain = s.soaChain
-  if (chain?.objective?.romTrend && chain.objective.romTrend !== 'stable') {
-    trends.push({ label: 'ROM', trend: chain.objective.romTrend })
-  }
-  if (chain?.objective?.strengthTrend && chain.objective.strengthTrend !== 'stable') {
-    trends.push({ label: 'ST', trend: chain.objective.strengthTrend })
-  }
-  if (chain?.subjective?.frequencyChange === 'improved') {
-    trends.push({ label: 'Freq', trend: 'improved' })
-  }
-  if (chain?.subjective?.adlChange === 'improved') {
-    trends.push({ label: 'ADL', trend: 'improved' })
-  }
-
-  return { values, trends }
+  generate()
 }
 
 // 多选面板展开状态
@@ -609,99 +304,22 @@ function removeOption(fieldPath, opt) {
 function shortLabel(text, maxLen = 35) {
   return text.length > maxLen ? text.substring(0, maxLen) + '...' : text
 }
-
-function fieldLabel(path) {
-  return FIELD_LABELS[path] || path.split('.').pop().replace(/([A-Z])/g, ' $1').trim()
-}
-
-// 行内 word diff: 对比同位置的两行，返回 segments 数组
-// 每个 segment: { text, hl: boolean }
-function diffLineWords(curLine, prevLine) {
-  if (!prevLine || prevLine.trim() === '') {
-    // 无前一行可对比 → 不高亮
-    return [{ text: curLine, hl: false }]
-  }
-  if (curLine.trim() === prevLine.trim()) {
-    return [{ text: curLine, hl: false }]
-  }
-  // 按 word 边界拆分，保留空格和标点
-  const splitTokens = (s) => s.match(/[\w%.+\-/()]+|[^\w%.+\-/()]+/g) || [s]
-  const curTokens = splitTokens(curLine)
-  const prevTokens = splitTokens(prevLine)
-  const prevSet = new Set(prevTokens.map(t => t.trim().toLowerCase()).filter(Boolean))
-
-  // 简单策略：逐 token 对比位置，相同位置 token 不同则高亮
-  // 但位置对齐在插入/删除时会偏移，所以用混合策略：
-  // 1. 先按位置对齐
-  // 2. 位置不同的 token，如果它在 prevSet 中也不存在 → 高亮
-  const segments = []
-  let lastHl = false
-  let buf = ''
-
-  for (let i = 0; i < curTokens.length; i++) {
-    const t = curTokens[i]
-    const pt = i < prevTokens.length ? prevTokens[i] : null
-    const tClean = t.trim().toLowerCase()
-    // 空白/标点 token 不独立高亮
-    if (!tClean || /^[,.:;!?\s]+$/.test(tClean)) {
-      buf += t
-      continue
-    }
-    // 判断: 位置相同且内容相同 → 不高亮
-    // 位置不同但在 prev 整体中存在 → 不高亮 (只是位置移动)
-    // 位置不同且 prev 中不存在 → 高亮 (真正新内容)
-    const samePos = pt && pt.trim().toLowerCase() === tClean
-    const existsInPrev = prevSet.has(tClean)
-    const hl = !samePos && !existsInPrev
-
-    if (hl !== lastHl && buf) {
-      segments.push({ text: buf, hl: lastHl })
-      buf = ''
-    }
-    lastHl = hl
-    buf += t
-  }
-  if (buf) segments.push({ text: buf, hl: lastHl })
-  return segments
-}
-
-// 逐行 diff: 返回每行的 segments
-function getDiffLines(idx) {
-  const note = generatedNotes.value[idx]
-  if (!note) return []
-  const lines = note.text.split('\n')
-  const sectionHeaders = new Set(['Subjective', 'Objective', 'Assessment', 'Plan', 'Follow up visit', ''])
-
-  // IE 或第一个笔记: 无对比
-  if (note.type === 'IE' || idx === 0) {
-    return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
-  }
-  const prevNote = generatedNotes.value[idx - 1]
-  if (!prevNote) {
-    return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
-  }
-  const prevLines = prevNote.text.split('\n')
-
-  return lines.map((line, li) => {
-    const trimmed = line.trim()
-    if (sectionHeaders.has(trimmed)) {
-      return { segments: [{ text: line, hl: false }] }
-    }
-    // 找对应的前一行 (同位置)
-    const prevLine = li < prevLines.length ? prevLines[li] : ''
-    return { segments: diffLineWords(line, prevLine) }
-  })
-}
 </script>
 
 <template>
   <div class="max-w-7xl mx-auto px-6 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- 左栏: 选择器 + 动态字段 -->
+      <!-- 左栏: 三步 填写 → 审核 → 生成 -->
       <div class="lg:col-span-5 space-y-4">
+        <!-- ① 第一步：填写必填项 -->
+        <div data-step1 class="space-y-3 mt-6">
+          <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">1</span>
+            填写必填项 <span class="text-red-500 text-[10px] font-normal">*</span>
+          </h2>
         <!-- 基础设置 -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-3">
-          <h2 class="text-sm font-semibold text-ink-700">基础设置</h2>
+          <h3 class="text-xs font-medium text-ink-600">基础设置</h3>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs text-ink-500 mb-1 block">保险类型</label>
@@ -748,7 +366,7 @@ function getDiffLines(idx) {
 
         <!-- 患者信息 -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-3">
-          <h2 class="text-sm font-semibold text-ink-700">患者信息</h2>
+          <h3 class="text-xs font-medium text-ink-600">患者信息</h3>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs text-ink-500 mb-1 block">年龄</label>
@@ -816,9 +434,9 @@ function getDiffLines(idx) {
           </div>
         </div>
 
-        <!-- ====== 合并行: Pain Scale 三合一 + Duration ====== -->
+        <!-- 评估参数 -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
-          <h3 class="text-sm font-semibold text-ink-700">评估参数</h3>
+          <h3 class="text-xs font-medium text-ink-600">评估参数</h3>
           <p class="text-[10px] text-ink-400">
             <span class="text-red-500">*</span> 用户必填
             <span class="text-blue-400 ml-2">R</span> 引擎推导（可改）
@@ -875,137 +493,103 @@ function getDiffLines(idx) {
           </div>
         </div>
 
-        <!-- ====== 动态字段区（铺展字段） ====== -->
-        <div v-for="(section, key) in { S: 'Subjective', O: 'Objective', A: 'Assessment', P: 'Plan' }" :key="key"
-          class="bg-white rounded-xl border border-ink-200 p-4"
-          v-show="dynamicFields[key].length > 0">
-          <h3 class="text-sm font-semibold text-ink-700 mb-3">{{ section }} <span class="text-ink-400 font-normal">({{ dynamicFields[key].length }})</span></h3>
-          <div class="space-y-2.5 max-h-[32rem] overflow-y-auto pr-1">
-            <div v-for="fieldPath in dynamicFields[key]" :key="fieldPath">
-              <!-- 多选字段 -->
-              <div v-if="MULTI_SELECT_FIELDS.has(fieldPath)" class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <label class="text-xs text-ink-500 font-medium" :title="fieldPath">
-                    {{ fieldLabel(fieldPath) }}
-                    <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
-                    <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
-                    <span class="text-ink-300 font-normal ml-1">({{ fields[fieldPath].length }})</span>
-                  </label>
-                  <button @click="togglePanel(fieldPath)" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors px-1.5 py-0.5 rounded hover:bg-paper-100">
-                    {{ expandedPanels[fieldPath] ? '收起' : '编辑' }}
+        <!-- 主观必填 -->
+        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
+          <h3 class="text-xs font-medium text-ink-600">主观必填 <span class="text-red-500">*</span></h3>
+          <div v-for="fieldPath in STEP1_SUBJECTIVE_FIELDS" :key="fieldPath" class="space-y-1">
+            <template v-if="MULTI_SELECT_FIELDS.has(fieldPath)">
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
+                <button @click="togglePanel(fieldPath)" class="text-[10px] text-ink-400 hover:text-ink-600 px-1.5 py-0.5 rounded hover:bg-paper-100">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
+              </div>
+              <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
+                <span v-for="opt in fields[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
+                  {{ shortLabel(opt, 28) }}
+                  <button @click="removeOption(fieldPath, opt)" class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
+                    <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
-                </div>
-                <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
-                  <span v-for="opt in fields[fieldPath]" :key="opt"
-                    class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
-                    {{ shortLabel(opt, 30) }}
-                    <button @click="removeOption(fieldPath, opt)" class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
-                      <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                  </span>
-                  <span v-if="fields[fieldPath].length === 0" class="text-[10px] text-ink-300 italic py-0.5">未选择</span>
-                </div>
-                <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-40 overflow-y-auto">
-                  <div class="flex flex-wrap gap-1">
-                    <button v-for="opt in whitelist[fieldPath]" :key="opt"
-                      @click="toggleOption(fieldPath, opt)"
-                      class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150"
-                      :class="fields[fieldPath].includes(opt)
-                        ? 'bg-ink-800 text-paper-50 border-ink-800'
-                        : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
-                      :title="opt">
-                      {{ shortLabel(opt) }}
-                    </button>
-                  </div>
+                </span>
+                <span v-if="fields[fieldPath].length === 0" class="text-[10px] text-ink-300 italic py-0.5">未选择</span>
+              </div>
+              <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
+                <div class="flex flex-wrap gap-1">
+                  <button v-for="opt in whitelist[fieldPath]" :key="opt" @click="toggleOption(fieldPath, opt)"
+                    class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150"
+                    :class="fields[fieldPath].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
+                    :title="opt">{{ shortLabel(opt) }}</button>
                 </div>
               </div>
-              <!-- 按钮组字段 -->
-              <div v-else-if="BUTTON_GROUP_FIELDS.has(fieldPath)" class="space-y-1">
-                <label class="text-xs text-ink-500" :title="fieldPath">
-                  {{ fieldLabel(fieldPath) }}
-                  <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
-                  <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
-                </label>
-                <div class="flex gap-1 flex-wrap">
-                  <button v-for="opt in whitelist[fieldPath]" :key="opt"
-                    @click="fields[fieldPath] = opt"
-                    class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all"
-                    :class="fields[fieldPath] === opt ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                    {{ opt }}
-                  </button>
-                </div>
-              </div>
-              <!-- 紧凑下拉字段 -->
-              <div v-else-if="COMPACT_FIELDS.has(fieldPath)" class="flex items-center gap-2">
-                <label class="text-xs text-ink-500 w-20 truncate" :title="fieldPath">
-                  {{ fieldLabel(fieldPath) }}
-                  <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
-                  <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
-                </label>
-                <select v-model="fields[fieldPath]" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-                  <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt }}</option>
-                </select>
-              </div>
-              <!-- 普通单选字段 -->
-              <div v-else class="flex items-center gap-2">
-                <label class="text-xs text-ink-500 w-20 truncate flex-shrink-0" :title="fieldPath">
-                  {{ fieldLabel(fieldPath) }}
-                  <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
-                  <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
-                </label>
-                <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs" @change="onPatternFieldChange(fieldPath)">
-                  <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ====== 推导摘要区 ====== -->
-        <div class="bg-paper-50 rounded-xl border border-ink-100 p-3 space-y-1.5">
-          <h3 class="text-xs font-medium text-ink-500 mb-2">引擎推导 <span class="text-blue-400">R</span> <span class="text-ink-300 font-normal">(点击"改"可修改)</span></h3>
-          <!-- Severity -->
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-ink-400 w-14 flex-shrink-0">Severity</span>
-            <span class="font-medium text-ink-700">{{ derivedSeverity }}</span>
-            <span class="text-ink-300 text-[10px]">(Pain {{ currentPain }})</span>
-          </div>
-          <!-- General Condition -->
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-ink-400 w-14 flex-shrink-0">体质</span>
-            <span class="font-medium text-ink-700">{{ fields['assessment.generalCondition'] || 'fair' }}</span>
-          </div>
-          <!-- 推导字段列表 -->
-          <div v-for="fp in derivedFieldList" :key="fp" class="flex items-center gap-2 text-xs">
-            <span class="text-ink-400 w-14 flex-shrink-0">{{ fieldLabel(fp) }}</span>
-            <template v-if="derivedEditing !== fp">
-              <span class="font-medium text-ink-700 truncate max-w-[200px]" :title="fields[fp]">{{ shortLabel(String(fields[fp] || ''), 35) }}</span>
-              <button @click="toggleDerivedEdit(fp)" class="text-[10px] text-ink-300 hover:text-ink-600 transition-colors flex-shrink-0">改</button>
             </template>
-            <template v-else>
-              <select v-model="fields[fp]" class="flex-1 px-1 py-0.5 border border-ink-300 rounded text-xs" @change="derivedEditing = ''">
-                <option v-for="opt in whitelist[fp]" :key="opt" :value="opt">{{ opt.length > 60 ? opt.substring(0, 60) + '...' : opt }}</option>
+            <div v-else class="flex items-center gap-2">
+              <label class="text-xs text-ink-500 w-24 flex-shrink-0">{{ fieldLabel(fieldPath) }}</label>
+              <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
+                <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 45 ? opt.substring(0, 45) + '...' : opt }}</option>
               </select>
-              <button @click="derivedEditing = ''" class="text-[10px] text-ink-400">确定</button>
-            </template>
+            </div>
           </div>
-          <!-- 病史推荐证型 -->
-          <div v-if="recommendedPatterns.length > 0" class="border-t border-ink-100 pt-1.5 mt-1.5">
-            <p class="text-[10px] text-ink-400 mb-1">病史推荐证型:</p>
-            <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[10px] text-ink-500">
-              <span class="font-mono text-ink-600">{{ rec.pattern }}</span>
-              <span class="text-ink-300 ml-1">(+{{ rec.weight }})</span>
+        </div>
+        </div>
+        <!-- 第一步结束 -->
+
+        <!-- ② 第二步：审核 R 项 -->
+        <div class="space-y-3 mt-6">
+          <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">2</span>
+            审核 R 项 <span class="text-blue-400 text-[10px] font-normal">R 引擎推导，可点「改」修改</span>
+          </h2>
+          <div class="bg-white rounded-xl border border-ink-200 p-4">
+            <div v-for="item in step2ReviewFields" :key="item.path"
+              class="flex items-center gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
+              :class="item.readOnly ? 'bg-paper-50' : ''">
+              <span class="text-ink-500 w-20 flex-shrink-0">{{ item.label }}</span>
+              <template v-if="item.readOnly">
+                <span class="font-medium text-ink-600 flex-1">{{ item.value }}</span>
+              </template>
+              <template v-else-if="derivedEditing === item.path">
+                <template v-if="item.isMulti">
+                  <div class="flex-1 flex flex-wrap gap-1">
+                    <button v-for="opt in item.options" :key="opt"
+                      @click="fields[item.path].includes(opt) ? removeOption(item.path, opt) : toggleOption(item.path, opt)"
+                      class="text-[11px] px-2 py-1 rounded-md border"
+                      :class="fields[item.path].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ shortLabel(opt) }}</button>
+                  </div>
+                </template>
+                <select v-else v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
+                  <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
+                </select>
+                <button @click="derivedEditing = ''" class="text-[10px] text-ink-400 flex-shrink-0">确定</button>
+              </template>
+              <template v-else>
+                <span class="font-medium text-ink-700 truncate flex-1" :title="Array.isArray(item.value) ? item.value.join(', ') : item.value">
+                  {{ item.isMulti ? (item.value && item.value.length ? shortLabel(item.value.join(', '), 30) : '未选择') : shortLabel(String(item.value || ''), 35) }}
+                </span>
+                <button @click="toggleDerivedEdit(item.path)" class="text-[10px] text-ink-400 hover:text-ink-600 flex-shrink-0">改</button>
+              </template>
+            </div>
+            <!-- 病史推荐证型 -->
+            <div v-if="recommendedPatterns.length > 0" class="border-t border-ink-100 pt-2 mt-2">
+              <p class="text-[10px] text-ink-400 mb-1">病史推荐整体证型:</p>
+              <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[10px] text-ink-500">
+                <span class="font-mono text-ink-600">{{ rec.pattern }}</span>
+                <span class="text-ink-300 ml-1">(+{{ rec.weight }})</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- ====== Seed + 生成按钮 同行 ====== -->
-        <div class="flex items-center gap-2">
-          <input v-model="seedInput" type="text" placeholder="Seed"
-            class="w-28 px-2 py-2.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
-          <button @click="generate()" class="flex-1 py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
-            生成 {{ noteType === 'TX' ? `${txCount} 个 TX` : 'IE' }}
-          </button>
+        <!-- ③ 第三步：生成 SOAP -->
+        <div class="space-y-2 mt-6">
+          <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">3</span>
+            生成 SOAP
+          </h2>
+          <div class="flex items-center gap-2">
+            <input v-model="seedInput" type="text" placeholder="Seed"
+              class="w-28 px-2 py-2.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+            <button @click="doGenerate()" class="flex-1 py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
+              生成 {{ noteType === 'TX' ? `${txCount} 个 TX` : 'IE' }}
+            </button>
+          </div>
         </div>
       </div>
 
