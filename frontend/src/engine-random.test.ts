@@ -346,3 +346,144 @@ describe('Seed 跨输入可复现', () => {
     })
   }
 })
+
+// ========== Bulk 批量随机测试 ==========
+// 运行: BULK_SEED_COUNT=100 npx vitest run engine-random
+// 默认不跑（BULK_SEED_COUNT 未设置时整个 describe 跳过）
+
+type BulkFailure = {
+  seed: number
+  check: string
+  visitIndex?: number
+  expected?: unknown
+  actual?: unknown
+}
+
+const BULK_N = process.env.BULK_SEED_COUNT ? parseInt(process.env.BULK_SEED_COUNT, 10) : 0
+
+describe.skipIf(BULK_N <= 0)(`Bulk 批量随机 (${BULK_N} seeds)`, () => {
+  it('所有 seed: 输入一致性 + 纵向单调 + SOA 链 + 文本完整性', { timeout: 120_000 }, () => {
+    const failures: BulkFailure[] = []
+    // 偏移公式，与现有 20 组 (i*7919+42) 不重叠
+    const bulkSeeds = Array.from({ length: BULK_N }, (_, i) => (i + 20) * 6271 + 1337)
+
+    for (const testSeed of bulkSeeds) {
+      const { context, initialState, seed } = generateRandomInput(testSeed)
+      const { states } = generateTXSequenceStates(context, {
+        txCount: 11, startVisitIndex: 1, seed, initialState
+      })
+      const ieCtx = { ...context, noteType: 'IE' as const }
+      const ieText = exportSOAPAsText(ieCtx)
+      const txTexts = states.map(s => exportSOAPAsText(context, s))
+
+      const fail = (check: string, expected?: unknown, actual?: unknown, visitIndex?: number) =>
+        failures.push({ seed: testSeed, check, visitIndex, expected, actual })
+
+      // ===== 校验一: SOAP 与输入值的一致性 (9 条) =====
+      if (!ieText.includes(`Current: ${initialState.pain}`))
+        fail('IE Pain Current', initialState.pain)
+      if (!ieText.includes(`${context.symptomDuration!.value} ${context.symptomDuration!.unit}`))
+        fail('IE Duration', `${context.symptomDuration!.value} ${context.symptomDuration!.unit}`)
+      if (!ieText.includes(context.painRadiation!))
+        fail('IE Radiation', context.painRadiation)
+      for (const cf of context.causativeFactors!) {
+        if (!ieText.includes(cf)) fail('IE Causative', cf)
+      }
+      for (const rf of context.relievingFactors!) {
+        if (!ieText.includes(rf)) fail('IE Relieving', rf)
+      }
+      if (states[0].associatedSymptom !== initialState.associatedSymptom)
+        fail('TX1 associatedSymptom', initialState.associatedSymptom, states[0].associatedSymptom)
+      if (JSON.stringify(states[0].painTypes) !== JSON.stringify(initialState.painTypes))
+        fail('TX1 painTypes', initialState.painTypes, states[0].painTypes)
+      if (states[0].painScaleCurrent > initialState.pain)
+        fail('TX1 pain≤input', initialState.pain, states[0].painScaleCurrent)
+      if (extractSymptomPct(states[0].symptomScale) > extractSymptomPct(initialState.symptomScale))
+        fail('TX1 scale≤input', initialState.symptomScale, states[0].symptomScale)
+
+      // ===== 校验二: 纵向单调性 (8 条) =====
+      for (let i = 1; i < states.length; i++) {
+        const prev = states[i - 1], cur = states[i]
+        if (cur.painScaleCurrent > prev.painScaleCurrent)
+          fail('Pain 单调', prev.painScaleCurrent, cur.painScaleCurrent, i)
+        if (SEVERITY_ORDER.indexOf(cur.severityLevel) > SEVERITY_ORDER.indexOf(prev.severityLevel))
+          fail('Severity 单调', prev.severityLevel, cur.severityLevel, i)
+        if (symptomRank(cur.associatedSymptom) > symptomRank(prev.associatedSymptom))
+          fail('Symptom 单调', prev.associatedSymptom, cur.associatedSymptom, i)
+        if (extractSpasmLevel(cur.spasmGrading) > extractSpasmLevel(prev.spasmGrading))
+          fail('Spasm 单调', prev.spasmGrading, cur.spasmGrading, i)
+        if (extractFrequencyLevel(cur.painFrequency) > extractFrequencyLevel(prev.painFrequency))
+          fail('Frequency 单调', prev.painFrequency, cur.painFrequency, i)
+        if (extractSymptomPct(cur.symptomScale) > extractSymptomPct(prev.symptomScale))
+          fail('Scale 单调', prev.symptomScale, cur.symptomScale, i)
+        if (cur.progress < prev.progress)
+          fail('Progress 单调', prev.progress, cur.progress, i)
+      }
+      for (const s of states) {
+        const baseSevIdx = SEVERITY_ORDER.indexOf(severityFromPain(s.painScaleCurrent))
+        const actualSevIdx = SEVERITY_ORDER.indexOf(s.severityLevel)
+        if (actualSevIdx > baseSevIdx)
+          fail('Severity≤Pain', severityFromPain(s.painScaleCurrent), s.severityLevel)
+      }
+
+      // ===== 校验三: SOA 链关联性 (5 条) =====
+      for (const s of states) {
+        if (s.progress > 0.7 && !s.symptomChange.toLowerCase().includes('improvement'))
+          fail('后期 symptomChange', 'improvement', s.symptomChange)
+        if (!s.soaChain.assessment.present.toLowerCase().includes('improvement'))
+          fail('A.present', 'improvement', s.soaChain.assessment.present)
+        const o = s.soaChain.objective
+        const anyObjImprove = o.romTrend !== 'stable' || o.strengthTrend !== 'stable' ||
+          o.tightnessTrend !== 'stable' || o.tendernessTrend !== 'stable'
+        if (anyObjImprove && s.soaChain.assessment.physicalChange === 'remained the same')
+          fail('A.physChange vs O', 'not remained', s.soaChain.assessment.physicalChange)
+        if (s.soaChain.subjective.frequencyChange === 'improved' &&
+            s.soaChain.assessment.whatChanged !== 'pain frequency')
+          fail('Frequency chain', 'pain frequency', s.soaChain.assessment.whatChanged)
+      }
+
+      // ===== 文本完整性 (4 条) =====
+      for (const kw of ['Subjective', 'Objective', 'Assessment', 'Plan']) {
+        if (!ieText.includes(kw)) fail(`IE 缺 ${kw}`)
+      }
+      for (let ti = 0; ti < txTexts.length; ti++) {
+        const tx = txTexts[ti]
+        for (const kw of ['Subjective', 'Objective', 'Assessment', 'Plan']) {
+          if (!tx.includes(kw)) fail(`TX${ti + 1} 缺 ${kw}`, undefined, undefined, ti)
+        }
+        if (tx.length <= 200)
+          fail(`TX${ti + 1} 过短`, '>200字符', tx.length, ti)
+        if (!tx.toLowerCase().includes('inspection'))
+          fail(`TX${ti + 1} 缺 inspection`, undefined, undefined, ti)
+        if (!tx.toLowerCase().includes('tongue'))
+          fail(`TX${ti + 1} 缺 tongue`, undefined, undefined, ti)
+        if (!tx.toLowerCase().includes('pulse'))
+          fail(`TX${ti + 1} 缺 pulse`, undefined, undefined, ti)
+      }
+    }
+
+    // ===== 汇总报告 =====
+    if (failures.length > 0) {
+      // 按 check 分组计数
+      const summary: Record<string, number> = {}
+      for (const f of failures) summary[f.check] = (summary[f.check] || 0) + 1
+      console.log('\n========== Bulk 异常汇总 ==========')
+      console.table(summary)
+
+      // 按 seed 去重统计
+      const failedSeeds = new Set(failures.map(f => f.seed))
+      console.log(`异常 seed 数: ${failedSeeds.size} / ${BULK_N}`)
+
+      // 前 30 条明细
+      console.log('\n前 30 条失败明细:')
+      for (const f of failures.slice(0, 30)) {
+        const loc = f.visitIndex !== undefined ? ` TX${f.visitIndex + 1}` : ''
+        console.log(`  seed=${f.seed}${loc} [${f.check}] expected=${JSON.stringify(f.expected)} actual=${JSON.stringify(f.actual)}`)
+      }
+    } else {
+      console.log(`\n✓ Bulk ${BULK_N} seeds × 22 规则 — 全部通过`)
+    }
+
+    expect(failures.length).toBe(0)
+  })
+})
