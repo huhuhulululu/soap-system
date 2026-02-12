@@ -724,6 +724,10 @@ export function generateSubjective(context: GenerationContext): string {
   const radiation = context.painRadiation ?? 'without radiation'
   const painWorst = Math.min(10, painCurrent + 1)
   const painBest = Math.max(1, painCurrent - 2)
+  // 病史文本
+  const medHistoryText = (context.medicalHistory && context.medicalHistory.length > 0)
+    ? context.medicalHistory.join(', ')
+    : 'N/A'
   // 病因和缓解因素: 优先用户选择，回退到部位推导
   const causatives = context.causativeFactors && context.causativeFactors.length > 0
     ? context.causativeFactors
@@ -800,7 +804,7 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
     subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
     subjective += `Walking aid :none\n\n`
-    subjective += `Medical history/Contraindication or Precision: N/A`
+    subjective += `Medical history/Contraindication or Precision: ${medHistoryText}`
   } else if (bp === 'NECK') {
     // ===== NECK 模板句式 =====
     // 开头与 KNEE/LBP 类似: "Patient c/o Chronic pain in [location] which is [types] [radiation]."
@@ -834,7 +838,7 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
     subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
     subjective += `Walking aid :none\n\n`
-    subjective += `Medical history/Contraindication or Precision: N/A`
+    subjective += `Medical history/Contraindication or Precision: ${medHistoryText}`
   } else {
     // ===== KNEE / LBP / 其他部位模板句式 =====
     // "Patient c/o [Chronic] pain [in bilateral] Knee area which is [Dull, Aching] [without radiation]."
@@ -858,7 +862,7 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
     subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
     subjective += `Walking aid :none\n\n`
-    subjective += `Medical history/Contraindication or Precision: N/A`
+    subjective += `Medical history/Contraindication or Precision: ${medHistoryText}`
   }
 
   return subjective
@@ -1936,7 +1940,7 @@ export function generateNeedleProtocol(context: GenerationContext, visitState?: 
     'MIDDLE_BACK': ['BL15', 'BL17', 'BL18', 'BL20', 'DU9', 'DU10', 'HUATUO JIA JI', 'A SHI POINTS']
   }
 
-  const eStim = context.hasPacemaker ? 'without' : 'with'
+  const eStim = context.hasPacemaker ? 'without' : (context.hasMetalImplant ? 'with caution' : 'with')
 
   // Step 1 开头文本:
   // IE: "Preparation" (Greeting/Review/Exam 已在 Plan 步骤 1-4 中)
@@ -2288,6 +2292,14 @@ export function generateSOAPNote(context: GenerationContext): SOAPNote {
  */
 export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisitState): string {
   assertTemplateSupported(context)
+
+  // 病史特殊约束注意事项
+  const medCautions: string[] = []
+  if (context.hasPacemaker) medCautions.push('Pacemaker - no electrical stimulation')
+  if (context.hasMetalImplant) medCautions.push('Metal implant - use electrical stimulation with caution')
+  if (context.medicalHistory?.includes('Osteoporosis')) medCautions.push('Osteoporosis - caution with needle depth')
+  const cautionText = medCautions.length > 0 ? `\n\nPrecautions: ${medCautions.join('; ')}` : ''
+
   if (context.noteType === 'TX') {
     // TX (Daily Note / Treatment Note)
     const subjective = generateSubjectiveTX(context, visitState)
@@ -2300,7 +2312,7 @@ export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisi
     output += `Objective\n${objective}\n\n`
     output += `Assessment\n${assessment}\n\n`
     output += `Plan\n${planTx}\n\n`
-    output += needleProtocol
+    output += needleProtocol + cautionText
 
     return output
   }
@@ -2316,7 +2328,7 @@ export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisi
   output += `Objective\n${objective}\n\n`
   output += `Assessment\n${assessment}\n\n`
   output += `Plan\n${plan}\n\n`
-  output += needleProtocol
+  output += needleProtocol + cautionText
 
   return output
 }

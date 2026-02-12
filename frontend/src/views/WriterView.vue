@@ -5,6 +5,7 @@ import { TEMPLATE_ONLY_RULES } from '../../../src/parser/template-logic-rules.ts
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
 import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
+import { inferSystemicPatterns } from '../../../src/knowledge/medical-history-engine.ts'
 
 // 初始化 whitelist
 setWhitelist(whitelist)
@@ -80,16 +81,16 @@ watch(bodyPart, (bp) => {
 const FIXED_FIELDS = new Set([
   'subjective.chronicityLevel',
   'subjective.adlDifficulty.level',  // severity 由 pain 推导
-  'assessment.tcmDiagnosis.localPattern',
-  'assessment.tcmDiagnosis.systemicPattern',
-  'assessment.generalCondition',
+  'assessment.generalCondition',     // 由病史引擎推断
   'assessment.treatmentPrinciples.focusOn',
   'objective.muscleTesting.muscles',
   'plan.evaluationType',
   'plan.shortTermGoal.treatmentFrequency',
   'plan.needleProtocol.totalTime',
   'plan.needleProtocol.points',
-  // 以下字段移出 FIXED_FIELDS，让用户可控:
+  // 已移出 FIXED_FIELDS:
+  // 'assessment.tcmDiagnosis.localPattern'  → 用户可选
+  // 'assessment.tcmDiagnosis.systemicPattern' → 引擎推荐 + 用户可调
   // 'subjective.painTypes'               → 用户多选
   // 'objective.tonguePulse.tongue'        → 证型默认 + 用户可调
   // 'objective.tonguePulse.pulse'         → 证型默认 + 用户可调
@@ -116,6 +117,8 @@ const FIELD_LABELS = {
   'subjective.reasonConnector': '连接词',
   'subjective.reason': '原因',
   'subjective.painScale': '疼痛评分',
+  'assessment.tcmDiagnosis.localPattern': '局部证型',
+  'assessment.tcmDiagnosis.systemicPattern': '整体证型',
   'subjective.painTypes': '疼痛类型',
   'objective.tonguePulse.tongue': '舌象',
   'objective.tonguePulse.pulse': '脉象',
@@ -194,12 +197,32 @@ function parsePainValue(raw) {
 const currentPain = computed(() => parsePainValue(fields['subjective.painScale.current']))
 const derivedSeverity = computed(() => severityFromPain(currentPain.value))
 
+// 病史推荐的整体证型
+const recommendedPatterns = computed(() => {
+  const history = medicalHistory.value.filter(h => h !== 'N/A')
+  if (history.length === 0) return []
+  return inferSystemicPatterns(history, patientAge.value)
+})
+
+// 当病史变化时，如果有推荐且用户还没手动改过，自动设置最佳推荐
+watch([medicalHistory, patientAge], () => {
+  const recs = recommendedPatterns.value
+  if (recs.length > 0) {
+    const currentVal = fields['assessment.tcmDiagnosis.systemicPattern']
+    const defaultVal = 'Kidney Yang Deficiency'
+    // 只在用户没有手动改过时自动设置
+    if (currentVal === defaultVal || !currentVal) {
+      fields['assessment.tcmDiagnosis.systemicPattern'] = recs[0].pattern
+    }
+  }
+})
+
 // 动态字段分组（过滤掉固定字段）
 const dynamicFields = computed(() => ({
   S: Object.keys(whitelist).filter(k => k.startsWith('subjective.') && !FIXED_FIELDS.has(k)),
   O: Object.keys(whitelist).filter(k => k.startsWith('objective.') && !FIXED_FIELDS.has(k)),
-  A: [], // A部分由引擎自动推导
-  P: []  // P部分由证型决定
+  A: Object.keys(whitelist).filter(k => k.startsWith('assessment.') && !FIXED_FIELDS.has(k)),
+  P: Object.keys(whitelist).filter(k => k.startsWith('plan.') && !FIXED_FIELDS.has(k))
 }))
 
 // 生成上下文
@@ -669,7 +692,7 @@ function getDiffLines(idx) {
         </div>
 
         <!-- 动态字段（仅显示用户可控字段） -->
-        <div v-for="(section, key) in { S: 'Subjective', O: 'Objective' }" :key="key"
+        <div v-for="(section, key) in { S: 'Subjective', O: 'Objective', A: 'Assessment', P: 'Plan' }" :key="key"
           class="bg-white rounded-xl border border-ink-200 p-4"
           v-show="dynamicFields[key].length > 0">
           <h3 class="text-sm font-semibold text-ink-700 mb-3">{{ section }} <span class="text-ink-400 font-normal">({{ dynamicFields[key].length }})</span></h3>
@@ -724,9 +747,14 @@ function getDiffLines(idx) {
           </div>
         </div>
 
-        <!-- A/P 说明 -->
-        <div class="bg-paper-100 rounded-xl border border-ink-100 p-3 text-xs text-ink-500">
-          <p>💡 Assessment 和 Plan 由引擎根据 S/O 自动推导生成</p>
+        <!-- 病史推荐证型提示 -->
+        <div v-if="recommendedPatterns.length > 0" class="bg-paper-100 rounded-xl border border-ink-100 p-3 text-xs text-ink-500 space-y-1">
+          <p class="font-medium text-ink-600">病史推荐整体证型:</p>
+          <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="flex items-center gap-2">
+            <span class="font-mono text-ink-700">{{ rec.pattern }}</span>
+            <span class="text-ink-300">(+{{ rec.weight }})</span>
+            <span class="text-ink-400">{{ rec.reason }}</span>
+          </div>
         </div>
 
         <!-- Seed 输入 + 生成按钮 -->

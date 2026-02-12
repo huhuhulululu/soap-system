@@ -1,6 +1,7 @@
 import type { GenerationContext, SeverityLevel } from '../types'
 import { getWeightedOptions, type RuleContext } from '../parser/rule-engine'
 import { getTemplateOptionsForField } from '../parser/template-rule-whitelist'
+import { inferCondition, inferProgressMultiplier, inferInitialAdjustments } from '../knowledge/medical-history-engine'
 
 /**
  * Body part specific muscle mapping for objective findings
@@ -590,19 +591,24 @@ export function generateTXSequenceStates(
   // 续写时: 如果起点已接近短期目标，切换到长期目标
   const targetPain = (startPain - shortTermTarget) < 1.5 ? longTermTarget : shortTermTarget
 
+  // 病史推断: progress 系数 + 初始值修正
+  const medHistory = context.medicalHistory || []
+  const progressMultiplier = inferProgressMultiplier(medHistory, context.age)
+  const medAdjustments = inferInitialAdjustments(medHistory, context.primaryBodyPart)
+
   let prevPain = startPain
   let prevPainScaleLabel = snapPainToGrid(startPain).label
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0
   let prevAdl = 3.5
   let prevFrequency = options.initialState?.frequency ?? 3
-  // Tightness/Tenderness/Spasm 初始值: 从 pain 推导 (severe→4, mod-sev→3.5, mod→3, mi-mod→2, mild→1)
+  // Tightness/Tenderness/Spasm 初始值: 从 pain 推导 + 病史修正
   const initSeverity = severityFromPain(startPain)
   const severityToInit: Record<string, number> = { 'severe': 4, 'moderate to severe': 3.5, 'moderate': 3, 'mild to moderate': 2, 'mild': 1 }
   const initObjLevel = severityToInit[initSeverity] ?? 3
   let prevTightness = options.initialState?.tightness ?? Math.round(initObjLevel)
   let prevTenderness = options.initialState?.tenderness ?? Math.round(initObjLevel)
-  let prevSpasm = options.initialState?.spasm ?? Math.round(initObjLevel)
-  let prevRomDeficit = 0.42
+  let prevSpasm = Math.min(4, (options.initialState?.spasm ?? Math.round(initObjLevel)) + medAdjustments.spasmBump)
+  let prevRomDeficit = Math.min(0.7, 0.42 + medAdjustments.romDeficitBump)
   let prevStrengthDeficit = 0.35
   // 纵向单调约束追踪变量
   let prevSeverity: SeverityLevel = severityFromPain(options.initialState?.pain ?? 8)
@@ -619,32 +625,12 @@ export function generateTXSequenceStates(
     return 2
   }
 
-  // === generalCondition: 基于患者基础体质的固定属性 ===
-  // 由年龄、基础病、整体证型决定，不随治疗进度变化
+  // === generalCondition: 基于病史+年龄+证型的固定属性 ===
   const fixedGeneralCondition: string = (() => {
-    // 1) 优先从 initialState 继承（续写场景）
     if (options.initialState?.generalCondition) return options.initialState.generalCondition
-    // 2) 如果用户显式指定了 baselineCondition，直接使用
     if (context.baselineCondition) return context.baselineCondition
-
-    // 3) 根据整体证型 + 慢性程度自动推断
-    const sp = (context.systemicPattern || '').toLowerCase()
-    const isDeficiency = sp.includes('deficiency') || sp.includes('虚')
-    const isYangDeficiency = sp.includes('yang deficiency') || sp.includes('阳虚')
-    const isMultiDeficiency = (sp.includes('qi') && sp.includes('blood')) ||
-                               sp.includes('essence') || sp.includes('yin deficiency fire')
-    const isChronic = context.chronicityLevel === 'Chronic'
-
-    // 严重虚证(肾阳虚/气血两虚/精虚) + 慢性 → poor (老年/体弱)
-    if (isChronic && (isYangDeficiency || isMultiDeficiency)) return 'poor'
-    // 一般虚证 + 慢性 → fair
-    if (isChronic && isDeficiency) return 'fair'
-    // 慢性但无虚证 → fair
-    if (isChronic) return 'fair'
-    // 亚急性 + 虚证 → fair
-    if (context.chronicityLevel === 'Sub Acute' && isDeficiency) return 'fair'
-    // 其他 → good
-    return 'good'
+    // 使用病史推断引擎
+    return inferCondition(context.medicalHistory || [], context.age, context.systemicPattern)
   })()
 
   // === tonguePulse: 从 IE 继承或使用默认值 ===
@@ -672,7 +658,7 @@ export function generateTXSequenceStates(
     const acc = Math.sqrt(progressLinear)
     const progressBase = 3 * acc * acc - 2 * acc * acc * acc
     const progressNoise = (rng() - 0.5) * 0.08
-    const rawProgress = clamp(progressBase + progressNoise, 0.05, 0.98)
+    const rawProgress = clamp((progressBase * progressMultiplier) + progressNoise, 0.05, 0.98)
     const progress = Math.max(prevProgress, rawProgress)
     prevProgress = progress
 
