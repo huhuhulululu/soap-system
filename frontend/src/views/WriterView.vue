@@ -315,16 +315,33 @@ function validateRequiredBeforeGenerate() {
   return empty
 }
 
-function doGenerate() {
+async function doGenerate() {
   const missing = validateRequiredBeforeGenerate()
   if (missing.length > 0) {
     const el = document.querySelector('[data-step1]')
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    alert('请先完成必填项：' + (missing.length > 3 ? `${missing.length} 项` : missing.slice(0, 3).join(', ')))
+    showValidation(`请先完成必填项（${missing.length} 项未填）`)
     return
   }
-  generate()
+  isGenerating.value = true
+  try {
+    await generate()
+  } finally {
+    isGenerating.value = false
+  }
 }
+
+// 内联校验提示
+const validationMsg = ref('')
+let validationTimer = null
+function showValidation(msg) {
+  validationMsg.value = msg
+  clearTimeout(validationTimer)
+  validationTimer = setTimeout(() => { validationMsg.value = '' }, 4000)
+}
+
+// 生成中状态
+const isGenerating = ref(false)
 
 // 多选面板展开状态
 const expandedPanels = reactive({})
@@ -359,10 +376,19 @@ function shortLabel(text, maxLen = 35) {
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- 左栏: 三步 填写 → 审核 → 生成 -->
       <div class="lg:col-span-5 space-y-4">
+        <!-- 内联校验提示 -->
+        <Transition name="panel">
+          <div v-if="validationMsg" class="validation-toast flex items-center gap-2" role="alert">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+            {{ validationMsg }}
+          </div>
+        </Transition>
+
         <!-- ① 第一步：填写必填项 -->
-        <div data-step1 class="space-y-3 mt-6">
+        <div data-step1 class="relative space-y-3 mt-6">
+          <div class="step-connector" aria-hidden="true"></div>
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
-            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">1</span>
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center relative z-10">1</span>
             填写必填项 <span class="text-red-500 text-[10px] font-normal">*</span>
           </h2>
         <!-- 基础设置 -->
@@ -384,7 +410,7 @@ function shortLabel(text, maxLen = 35) {
               <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
                 <button v-for="opt in lateralityOptions" :key="opt.value"
                   @click="laterality = opt.value"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-all duration-150"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-all duration-150 cursor-pointer"
                   :class="laterality === opt.value
                     ? 'bg-ink-800 text-paper-50 border-ink-800'
                     : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -424,7 +450,7 @@ function shortLabel(text, maxLen = 35) {
               <label class="text-xs text-ink-500 mb-1 block">性别</label>
               <div class="flex gap-1 mt-0.5">
                 <button v-for="g in GENDER_OPTIONS" :key="g" @click="patientGender = g"
-                  class="flex-1 py-2 text-xs font-medium rounded-md border transition-all"
+                  class="flex-1 py-2 text-xs font-medium rounded-md border transition-all cursor-pointer"
                   :class="patientGender === g ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                   {{ g }}
                 </button>
@@ -437,7 +463,7 @@ function shortLabel(text, maxLen = 35) {
             <div class="flex flex-wrap gap-1">
               <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
                 @click="secondaryBodyParts.includes(bp) ? secondaryBodyParts.splice(secondaryBodyParts.indexOf(bp), 1) : secondaryBodyParts.push(bp)"
-                class="px-2.5 py-1 text-[11px] rounded-md border transition-all"
+                class="px-2.5 py-1 text-[11px] rounded-md border transition-all cursor-pointer"
                 :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                 {{ bp }}
               </button>
@@ -447,7 +473,7 @@ function shortLabel(text, maxLen = 35) {
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.filter(h => h !== 'N/A').length || 'N/A' }})</span></label>
-              <button @click="togglePanel('medicalHistory')" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors px-1.5 py-0.5 rounded hover:bg-paper-100">
+              <button @click="togglePanel('medicalHistory')" class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">
                 {{ expandedPanels['medicalHistory'] ? '收起' : '编辑' }}
               </button>
             </div>
@@ -467,7 +493,7 @@ function shortLabel(text, maxLen = 35) {
               <div class="flex flex-wrap gap-1">
                 <button v-for="h in MEDICAL_HISTORY_OPTIONS" :key="h"
                   @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : (h === 'N/A' ? (medicalHistory.length = 0, medicalHistory.push('N/A')) : (medicalHistory = medicalHistory.filter(x => x !== 'N/A'), medicalHistory.push(h)))"
-                  class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150"
+                  class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150 cursor-pointer"
                   :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'">
                   {{ h }}
                 </button>
@@ -548,7 +574,7 @@ function shortLabel(text, maxLen = 35) {
             <template v-if="MULTI_SELECT_FIELDS.has(fieldPath)">
               <div class="flex items-center justify-between">
                 <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
-                <button @click="togglePanel(fieldPath)" class="text-[10px] text-ink-400 hover:text-ink-600 px-1.5 py-0.5 rounded hover:bg-paper-100">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
+                <button @click="togglePanel(fieldPath)" class="text-[11px] text-ink-400 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
               </div>
               <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
                 <span v-for="opt in fields[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
@@ -562,7 +588,7 @@ function shortLabel(text, maxLen = 35) {
               <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
                 <div class="flex flex-wrap gap-1">
                   <button v-for="opt in whitelist[fieldPath]" :key="opt" @click="toggleOption(fieldPath, opt)"
-                    class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150"
+                    class="text-[11px] px-2 py-1 rounded-md border transition-all duration-150 cursor-pointer"
                     :class="fields[fieldPath].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
                     :title="opt">{{ shortLabel(opt) }}</button>
                 </div>
@@ -580,9 +606,10 @@ function shortLabel(text, maxLen = 35) {
         <!-- 第一步结束 -->
 
         <!-- ② 第二步：审核 R 项 -->
-        <div class="space-y-3 mt-6">
+        <div class="relative space-y-3 mt-6">
+          <div class="step-connector" aria-hidden="true"></div>
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
-            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">2</span>
+            <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center relative z-10">2</span>
             审核 R 项 <span class="text-blue-400 text-[10px] font-normal">R 引擎推导，可点「改」修改</span>
           </h2>
           <div class="bg-white rounded-xl border border-ink-200 p-4">
@@ -598,20 +625,20 @@ function shortLabel(text, maxLen = 35) {
                   <div class="flex-1 flex flex-wrap gap-1">
                     <button v-for="opt in item.options" :key="opt"
                       @click="fields[item.path].includes(opt) ? removeOption(item.path, opt) : toggleOption(item.path, opt)"
-                      class="text-[11px] px-2 py-1 rounded-md border"
+                      class="text-[11px] px-2 py-1 rounded-md border cursor-pointer"
                       :class="fields[item.path].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ shortLabel(opt) }}</button>
                   </div>
                 </template>
                 <select v-else v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                   <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
-                <button @click="derivedEditing = ''" class="text-[10px] text-ink-400 flex-shrink-0">确定</button>
+                <button @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
               </template>
               <template v-else>
                 <span class="font-medium text-ink-700 truncate flex-1" :title="Array.isArray(item.value) ? item.value.join(', ') : item.value">
                   {{ item.isMulti ? (item.value && item.value.length ? shortLabel(item.value.join(', '), 30) : '未选择') : shortLabel(String(item.value || ''), 35) }}
                 </span>
-                <button @click="toggleDerivedEdit(item.path)" class="text-[10px] text-ink-400 hover:text-ink-600 flex-shrink-0">改</button>
+                <button @click="toggleDerivedEdit(item.path)" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">改</button>
               </template>
             </div>
             <!-- 病史推荐证型 -->
@@ -633,9 +660,15 @@ function shortLabel(text, maxLen = 35) {
           </h2>
           <div class="flex items-center gap-2">
             <input v-model="seedInput" type="text" placeholder="Seed"
+              aria-label="随机种子"
               class="w-28 px-2 py-2.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
-            <button @click="doGenerate()" class="flex-1 py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors">
-              生成 {{ noteType === 'TX' ? `${txCount} 个 TX` : 'IE' }}
+            <button @click="doGenerate()" :disabled="isGenerating"
+              class="flex-1 py-2.5 bg-ink-800 text-paper-50 rounded-lg text-sm font-medium hover:bg-ink-700 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <svg v-if="isGenerating" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              {{ isGenerating ? '生成中...' : `生成 ${noteType === 'TX' ? `${txCount} 个 TX` : 'IE'}` }}
             </button>
           </div>
         </div>
@@ -643,8 +676,12 @@ function shortLabel(text, maxLen = 35) {
 
       <!-- 右栏: 结果 -->
       <div class="lg:col-span-7 space-y-3">
-        <div v-if="generatedNotes.length === 0" class="bg-white rounded-xl border border-ink-200 p-8 text-center text-ink-400 text-sm">
-          选择参数并点击生成
+        <div v-if="generatedNotes.length === 0" class="bg-white rounded-xl border border-ink-200 p-12 text-center">
+          <svg class="w-12 h-12 mx-auto text-ink-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+          </svg>
+          <p class="text-sm text-ink-400">选择参数并点击生成</p>
+          <p class="text-[11px] text-ink-300 mt-1">完成左侧三步后即可生成 SOAP 笔记</p>
         </div>
         <div v-else>
           <div class="flex items-center justify-between mb-3">
@@ -662,13 +699,13 @@ function shortLabel(text, maxLen = 35) {
                 </button>
               </div>
             </div>
-            <button @click="copyAll" class="px-3 py-1.5 text-xs border border-ink-200 rounded-lg hover:bg-paper-100">
+            <button @click="copyAll" class="px-3 py-1.5 text-xs border border-ink-200 rounded-lg hover:bg-paper-100 cursor-pointer transition-colors">
               {{ copiedIndex === -999 ? '✓ 已复制' : '复制全部' }}
             </button>
           </div>
           <div v-for="(note, idx) in generatedNotes" :key="idx" class="bg-white rounded-xl border border-ink-200 mb-3">
             <!-- 折叠栏头部 -->
-            <div class="px-4 py-2 border-b border-ink-100 cursor-pointer" @click="note._open = !note._open">
+            <div class="px-4 py-2 border-b border-ink-100 cursor-pointer select-none" @click="note._open = !note._open">
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0 flex-1">
                   <span class="text-xs font-mono bg-ink-100 text-ink-600 px-2 py-0.5 rounded flex-shrink-0">{{ note.type }}{{ note.visitIndex || '' }}</span>
@@ -703,7 +740,7 @@ function shortLabel(text, maxLen = 35) {
               <div class="flex items-center gap-1.5 mb-3">
                 <button v-for="sec in ['S','O','A','P']" :key="sec"
                   @click="copySection(idx, sec)"
-                  class="px-2.5 py-1 text-[11px] font-mono font-medium border rounded-md transition-all duration-150"
+                  class="px-2.5 py-1 text-[11px] font-mono font-medium border rounded-md transition-all duration-150 cursor-pointer"
                   :class="isCopied(idx, sec)
                     ? 'bg-green-50 border-green-300 text-green-600'
                     : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
@@ -711,7 +748,7 @@ function shortLabel(text, maxLen = 35) {
                 </button>
                 <div class="w-px h-4 bg-ink-150 mx-1"></div>
                 <button @click="copyNote(idx)"
-                  class="px-2.5 py-1 text-[11px] border rounded-md transition-all duration-150"
+                  class="px-2.5 py-1 text-[11px] border rounded-md transition-all duration-150 cursor-pointer"
                   :class="copiedIndex === idx
                     ? 'bg-green-50 border-green-300 text-green-600'
                     : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
