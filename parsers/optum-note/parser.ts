@@ -645,7 +645,7 @@ export function parseTendernessMuscles(block: string): TendernessTest | null {
 
 export function parseSpasmMuscles(block: string): SpasmTest | null {
   // 支持 "Muscles s pasm" 格式 (有空格)
-  const sectionPattern = /Muscles?\s*s?\s*pasm\s+noted\s+along:?\s*(.+?):?\s*(?:\n\s*)?Frequency\s*Grading\s*Scale:\s*\(\+(\d)\)\s*=?>?\s*(.+?)(?=\n|[A-Z][a-z]+ (?:Knee|Shoulder|elbow|Elbow|Muscles)|Muscles Strength|$)/is
+  const sectionPattern = /Muscles?\s*s?\s*pasm\s+noted\s+along:?\s*(.+?):?\s*(?:\n\s*)?Frequency\s*Grading\s*Scale:\s*\(\+?(\d)\)\s*=?>?\s*(.+?)(?=\n|[A-Z][a-z]+ (?:Knee|Shoulder|elbow|Elbow|Muscles)|Muscles Strength|$)/is
   const match = block.match(sectionPattern)
   if (!match) {
     return { muscles: [], frequencyScale: 2, scaleDescription: 'moderate' }
