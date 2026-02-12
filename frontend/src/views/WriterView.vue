@@ -19,6 +19,8 @@ const noteType = ref('IE')
 const txCount = ref(3)
 const patientAge = ref(55)
 const patientGender = ref('Female')
+const recentWorseValue = ref('1')
+const recentWorseUnit = ref('week(s)')
 const secondaryBodyParts = ref([])
 const medicalHistory = ref(['N/A'])
 
@@ -275,6 +277,7 @@ const generationContext = computed(() => ({
     unit: fields['subjective.symptomDuration.unit'] || 'month(s)'
   },
   painRadiation: fields['subjective.painRadiation'] || 'without radiation',
+  recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
   painTypes: fields['subjective.painTypes'] || ['Dull', 'Aching'],
   symptomScale: fields['subjective.symptomScale'] || '70%',
   causativeFactors: fields['subjective.causativeFactors'] || ['age related/degenerative changes'],
@@ -770,6 +773,16 @@ function getDiffLines(idx) {
               <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="fields['subjective.symptomDuration.unit']" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
+              <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+          <!-- 近期加重时长 -->
+          <div class="flex items-center gap-1.5">
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">近期加重</label>
+            <select v-model="recentWorseValue" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
+              <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <select v-model="recentWorseUnit" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
               <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>

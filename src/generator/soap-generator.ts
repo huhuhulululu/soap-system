@@ -724,6 +724,9 @@ export function generateSubjective(context: GenerationContext): string {
   const radiation = context.painRadiation ?? 'without radiation'
   const painWorst = Math.min(10, painCurrent + 1)
   const painBest = Math.max(1, painCurrent - 2)
+  // 近期加重时长
+  const recentWorseValue = context.recentWorse?.value ?? '1'
+  const recentWorseUnit = context.recentWorse?.unit ?? 'week(s)'
   // 病史文本
   const medHistoryText = (context.medicalHistory && context.medicalHistory.length > 0)
     ? context.medicalHistory.join(', ')
@@ -785,7 +788,7 @@ export function generateSubjective(context: GenerationContext): string {
 
     subjective += `Patient c/o ${context.chronicityLevel} ${selectedPainTypes.join(', ')} pain in ${laterality}`
     subjective += `-${bodyPartAreaName} (${radiation}) `
-    subjective += `for ${durationValue} ${durationUnit} got worse in recent 1-2 month(s) `
+    subjective += `for ${durationValue} ${durationUnit} got worse in recent ${recentWorseValue} ${recentWorseUnit} `
     subjective += `associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) `
     subjective += `${causativeConnector} ${causatives.join(', ')}.\n`
 
@@ -813,7 +816,7 @@ export function generateSubjective(context: GenerationContext): string {
     // 开头与 KNEE/LBP 类似: "Patient c/o Chronic pain in [location] which is [types] [radiation]."
     // 但 ADL 用 SHOULDER 风格: "difficulty of" + 两组
     subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} ${radiation} . `
-    subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent 1 week(s). `
+    subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent ${recentWorseValue} ${recentWorseUnit}. `
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(', ')}.\n`
 
     const allAdl = selectBestOptions(weightedAdl, 4)
@@ -846,7 +849,7 @@ export function generateSubjective(context: GenerationContext): string {
     // ===== KNEE / LBP / 其他部位模板句式 =====
     // "Patient c/o [Chronic] pain [in bilateral] Knee area which is [Dull, Aching] [without radiation]."
     subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(', ')} ${radiation}. `
-    subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent 1 week(s). `
+    subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent ${recentWorseValue} ${recentWorseUnit}. `
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(', ')} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(', ')}.\n\n`
 
     const selectedAdl = selectBestOptions(weightedAdl, 3)

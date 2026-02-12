@@ -292,6 +292,8 @@ export interface GenerationContext {
   symptomDuration?: { value: string; unit: string }
   /** 用户输入的放射痛描述 */
   painRadiation?: string
+  /** 近期加重时长 { value: '1', unit: 'week(s)' } */
+  recentWorse?: { value: string; unit: string }
   /** 用户选择的病因 */
   causativeFactors?: string[]
   /** 用户选择的缓解因素 */
