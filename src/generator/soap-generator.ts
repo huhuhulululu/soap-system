@@ -727,6 +727,7 @@ export function generateSubjective(context: GenerationContext): string {
   // 近期加重时长
   const recentWorseValue = context.recentWorse?.value ?? '1'
   const recentWorseUnit = context.recentWorse?.unit ?? 'week(s)'
+  const painFrequency = context.painFrequency ?? 'Constant (symptoms occur between 76% and 100% of the time)'
   // 病史文本
   const medHistoryText = (context.medicalHistory && context.medicalHistory.length > 0)
     ? context.medicalHistory.join(', ')
@@ -808,7 +809,7 @@ export function generateSubjective(context: GenerationContext): string {
     }
 
     subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
-    subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
+    subjective += `Pain Frequency: ${painFrequency}\n`
     subjective += `Walking aid :none\n\n`
     subjective += `Medical history/Contraindication or Precision: ${medHistoryText}`
   } else if (bp === 'NECK') {
@@ -842,7 +843,7 @@ export function generateSubjective(context: GenerationContext): string {
     }
 
     subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
-    subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
+    subjective += `Pain Frequency: ${painFrequency}\n`
     subjective += `Walking aid :none\n\n`
     subjective += `Medical history/Contraindication or Precision: ${medHistoryText}`
   } else {
@@ -866,7 +867,7 @@ export function generateSubjective(context: GenerationContext): string {
     }
 
     subjective += `Pain Scale: Worst: ${painWorst} ; Best: ${painBest} ; Current: ${painCurrent}\n`
-    subjective += `Pain Frequency: Constant (symptoms occur between 76% and 100% of the time)\n`
+    subjective += `Pain Frequency: ${painFrequency}\n`
     subjective += `Walking aid :none\n\n`
     subjective += `Medical history/Contraindication or Precision: ${medHistoryText}`
   }

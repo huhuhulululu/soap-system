@@ -99,6 +99,14 @@ const FIXED_FIELDS = new Set([
   // 'plan.needleProtocol.electricalStimulation' → 用户可控
 ])
 
+// TX 专属字段（IE 模式下隐藏）
+const TX_ONLY_FIELDS = new Set([
+  'subjective.symptomChange',
+  'subjective.reasonConnector',
+  'subjective.reason',
+  'subjective.painScale',        // TX 的 Pain Scale: X /10（IE 用 W/B/C 三合一）
+])
+
 // 字段中文名称映射
 const FIELD_LABELS = {
   'subjective.symptomScale': '症状量表',
@@ -130,6 +138,29 @@ const FIELD_LABELS = {
   'objective.spasmGrading': '痉挛度',
   'objective.rom.degrees': 'ROM角度',
   'objective.rom.strength': '肌力',
+}
+
+// * 标：用户必填字段
+const REQUIRED_FIELDS = new Set([
+  'subjective.painScale.worst', 'subjective.painScale.best', 'subjective.painScale.current',
+  'subjective.symptomDuration.value', 'subjective.symptomDuration.unit',
+  'subjective.painRadiation', 'subjective.painTypes', 'subjective.associatedSymptoms',
+  'subjective.causativeFactors', 'subjective.relievingFactors', 'subjective.exacerbatingFactors',
+  'subjective.symptomScale', 'subjective.painFrequency',
+  'assessment.tcmDiagnosis.localPattern', 'assessment.tcmDiagnosis.systemicPattern',
+])
+// R 标：引擎推导/规则计算字段
+const RULE_FIELDS = new Set([
+  'subjective.symptomChange', 'subjective.reasonConnector', 'subjective.reason',
+  'subjective.painScale', 'subjective.adlDifficulty.activities',
+  'objective.muscleTesting.tightness.gradingScale', 'objective.muscleTesting.tenderness.gradingScale',
+  'objective.spasmGrading', 'objective.tonguePulse.tongue', 'objective.tonguePulse.pulse',
+  'plan.needleProtocol.electricalStimulation', 'objective.rom.degrees', 'objective.rom.strength',
+])
+function fieldTag(fp) {
+  if (REQUIRED_FIELDS.has(fp)) return '*'
+  if (RULE_FIELDS.has(fp)) return 'R'
+  return ''
 }
 
 // 多选字段
@@ -222,7 +253,9 @@ watch([medicalHistory, patientAge], () => {
 // 合并渲染字段（从动态列表排除，在模板中单独渲染为合并行）
 const MERGED_FIELDS = new Set([
   'subjective.painScale.worst', 'subjective.painScale.best', 'subjective.painScale.current',
-  'subjective.symptomDuration.value', 'subjective.symptomDuration.unit'
+  'subjective.symptomDuration.value', 'subjective.symptomDuration.unit',
+  'subjective.symptomScale',
+  'subjective.painFrequency',
 ])
 
 // 推导字段（从动态列表排除，在推导摘要区显示）
@@ -252,9 +285,15 @@ const BUTTON_GROUP_FIELDS = new Set([
   'subjective.exacerbatingFactors', 'subjective.chronicityLevel',
 ])
 
-// 动态字段分组（过滤掉固定+合并+推导字段）
+// 动态字段分组（过滤掉固定+合并+推导字段；IE 下排除 TX 专属字段）
 const dynamicFields = computed(() => ({
-  S: Object.keys(whitelist).filter(k => k.startsWith('subjective.') && !FIXED_FIELDS.has(k) && !MERGED_FIELDS.has(k) && !DERIVED_FIELDS.has(k)),
+  S: Object.keys(whitelist).filter(k =>
+    k.startsWith('subjective.') &&
+    !FIXED_FIELDS.has(k) &&
+    !MERGED_FIELDS.has(k) &&
+    !DERIVED_FIELDS.has(k) &&
+    !(noteType.value === 'IE' && TX_ONLY_FIELDS.has(k))
+  ),
   O: Object.keys(whitelist).filter(k => k.startsWith('objective.') && !FIXED_FIELDS.has(k) && !DERIVED_FIELDS.has(k)),
   A: Object.keys(whitelist).filter(k => k.startsWith('assessment.') && !FIXED_FIELDS.has(k)),
   P: Object.keys(whitelist).filter(k => k.startsWith('plan.') && !FIXED_FIELDS.has(k) && !DERIVED_FIELDS.has(k))
@@ -280,6 +319,7 @@ const generationContext = computed(() => ({
   recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
   painTypes: fields['subjective.painTypes'] || ['Dull', 'Aching'],
   symptomScale: fields['subjective.symptomScale'] || '70%',
+  painFrequency: fields['subjective.painFrequency'] || 'Constant (symptoms occur between 76% and 100% of the time)',
   causativeFactors: fields['subjective.causativeFactors'] || ['age related/degenerative changes'],
   relievingFactors: fields['subjective.relievingFactors'] || ['Changing positions', 'Resting', 'Massage'],
   // Phase 3 新增
@@ -750,9 +790,13 @@ function getDiffLines(idx) {
         <!-- ====== 合并行: Pain Scale 三合一 + Duration ====== -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
           <h3 class="text-sm font-semibold text-ink-700">评估参数</h3>
+          <p class="text-[10px] text-ink-400">
+            <span class="text-red-500">*</span> 用户必填
+            <span class="text-blue-400 ml-2">R</span> 引擎推导（可改）
+          </p>
           <!-- Pain Scale W/B/C -->
           <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛评分</label>
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛评分 <span class="text-red-500">*</span></label>
             <span class="text-[10px] text-ink-400">W</span>
             <select v-model="fields['subjective.painScale.worst']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
@@ -768,7 +812,7 @@ function getDiffLines(idx) {
           </div>
           <!-- Duration value + unit -->
           <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">病程时长</label>
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">病程时长 <span class="text-red-500">*</span></label>
             <select v-model="fields['subjective.symptomDuration.value']" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
@@ -778,12 +822,26 @@ function getDiffLines(idx) {
           </div>
           <!-- 近期加重时长 -->
           <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">近期加重</label>
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">近期加重 <span class="text-red-500">*</span></label>
             <select v-model="recentWorseValue" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.symptomDuration.value']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="recentWorseUnit" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
               <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+          <!-- 症状量表 -->
+          <div class="flex items-center gap-1.5">
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">症状量表 <span class="text-red-500">*</span></label>
+            <select v-model="fields['subjective.symptomScale']" class="w-24 px-1 py-1 border border-ink-200 rounded text-xs">
+              <option v-for="opt in whitelist['subjective.symptomScale']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+          <!-- 疼痛频率 -->
+          <div class="flex items-center gap-1.5">
+            <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛频率 <span class="text-red-500">*</span></label>
+            <select v-model="fields['subjective.painFrequency']" class="flex-1 px-1 py-1 border border-ink-200 rounded text-xs">
+              <option v-for="opt in whitelist['subjective.painFrequency']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
         </div>
@@ -800,6 +858,8 @@ function getDiffLines(idx) {
                 <div class="flex items-center justify-between">
                   <label class="text-xs text-ink-500 font-medium" :title="fieldPath">
                     {{ fieldLabel(fieldPath) }}
+                    <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
+                    <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
                     <span class="text-ink-300 font-normal ml-1">({{ fields[fieldPath].length }})</span>
                   </label>
                   <button @click="togglePanel(fieldPath)" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors px-1.5 py-0.5 rounded hover:bg-paper-100">
@@ -832,7 +892,11 @@ function getDiffLines(idx) {
               </div>
               <!-- 按钮组字段 -->
               <div v-else-if="BUTTON_GROUP_FIELDS.has(fieldPath)" class="space-y-1">
-                <label class="text-xs text-ink-500" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <label class="text-xs text-ink-500" :title="fieldPath">
+                  {{ fieldLabel(fieldPath) }}
+                  <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
+                  <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
+                </label>
                 <div class="flex gap-1 flex-wrap">
                   <button v-for="opt in whitelist[fieldPath]" :key="opt"
                     @click="fields[fieldPath] = opt"
@@ -844,14 +908,22 @@ function getDiffLines(idx) {
               </div>
               <!-- 紧凑下拉字段 -->
               <div v-else-if="COMPACT_FIELDS.has(fieldPath)" class="flex items-center gap-2">
-                <label class="text-xs text-ink-500 w-20 truncate" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <label class="text-xs text-ink-500 w-20 truncate" :title="fieldPath">
+                  {{ fieldLabel(fieldPath) }}
+                  <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
+                  <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
+                </label>
                 <select v-model="fields[fieldPath]" class="w-20 px-1 py-1 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
               <!-- 普通单选字段 -->
               <div v-else class="flex items-center gap-2">
-                <label class="text-xs text-ink-500 w-20 truncate flex-shrink-0" :title="fieldPath">{{ fieldLabel(fieldPath) }}</label>
+                <label class="text-xs text-ink-500 w-20 truncate flex-shrink-0" :title="fieldPath">
+                  {{ fieldLabel(fieldPath) }}
+                  <span v-if="fieldTag(fieldPath) === '*'" class="text-red-500 text-[10px] ml-0.5">*</span>
+                  <span v-else-if="fieldTag(fieldPath) === 'R'" class="text-blue-400 text-[10px] ml-0.5">R</span>
+                </label>
                 <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
                   <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
@@ -862,7 +934,7 @@ function getDiffLines(idx) {
 
         <!-- ====== 推导摘要区 ====== -->
         <div class="bg-paper-50 rounded-xl border border-ink-100 p-3 space-y-1.5">
-          <h3 class="text-xs font-medium text-ink-500 mb-2">引擎推导 <span class="text-ink-300 font-normal">(点击"改"可修改)</span></h3>
+          <h3 class="text-xs font-medium text-ink-500 mb-2">引擎推导 <span class="text-blue-400">R</span> <span class="text-ink-300 font-normal">(点击"改"可修改)</span></h3>
           <!-- Severity -->
           <div class="flex items-center gap-2 text-xs">
             <span class="text-ink-400 w-14 flex-shrink-0">Severity</span>

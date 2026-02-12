@@ -288,6 +288,8 @@ export interface GenerationContext {
   painTypes?: string[]
   /** 用户选择的症状量表百分比 (如 "70%") */
   symptomScale?: string
+  /** 用户选择的疼痛频率 (IE/TX 共用，如 "Constant (symptoms occur between 76% and 100% of the time)") */
+  painFrequency?: string
   /** 用户输入的症状持续时间 { value: '3', unit: 'month(s)' } */
   symptomDuration?: { value: string; unit: string }
   /** 用户输入的放射痛描述 */
