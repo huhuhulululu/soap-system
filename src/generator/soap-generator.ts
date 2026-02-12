@@ -1674,6 +1674,7 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
   const bodyPartAreaName = BODY_PART_AREA_NAMES[context.primaryBodyPart] || bodyPartName
   const laterality = LATERALITY_NAMES[context.laterality]
   const bp = context.primaryBodyPart
+  const radiation = context.painRadiation ?? 'without radiation'
 
   const weightContext: WeightContext = {
     bodyPart: bp,
@@ -1741,7 +1742,7 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
   } else {
     subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain on ${bodyPartAreaName} `
   }
-  subjective += `without radiation, associated with muscles ${selectedAssociatedSymptom} (scale as ${symptomScale}), `
+  subjective += `${radiation}, associated with muscles ${selectedAssociatedSymptom} (scale as ${symptomScale}), `
 
   // TX ADL 格式:
   // KNEE: "difficulty [ADL]" (无 "of", 两组)

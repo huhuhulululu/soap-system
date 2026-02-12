@@ -51,6 +51,47 @@ const MEDICAL_HISTORY_OPTIONS = [
   'Cholesterol', 'Joint Replacement', 'Prostate'
 ]
 
+// 各部位的放射痛选项 (按医学合理性过滤)
+const RADIATION_MAP = {
+  'LBP': [
+    'without radiation',
+    'With radiation to R leg',
+    'With radiation to L leg',
+    'with radiation to BLLE',
+    'with radiation to toes',
+  ],
+  'NECK': [
+    'without radiation',
+    'with radiation to R arm',
+    'with radiation to L arm',
+    'with dizziness',
+    'with headache',
+    'with migraine',
+  ],
+  'SHOULDER': [
+    'without radiation',
+    'with radiation to R arm',
+    'with radiation to L arm',
+  ],
+  'KNEE': [
+    'without radiation',
+    'With radiation to R leg',
+    'With radiation to L leg',
+    'with local swollen',
+  ],
+  'ELBOW': [
+    'without radiation',
+    'with radiation to R arm',
+    'with radiation to L arm',
+  ],
+  'HIP': [
+    'without radiation',
+    'With radiation to R leg',
+    'With radiation to L leg',
+    'with radiation to BLLE',
+  ],
+}
+
 // 各部位的侧别选项
 // 四肢关节: left / right / bilateral
 // 脊柱中线: 无侧别选项 (固定 bilateral/unspecified)
@@ -83,12 +124,19 @@ const LATERALITY_MAP = {
 // 当前部位是否有侧别选项
 const lateralityOptions = computed(() => LATERALITY_MAP[bodyPart.value] || null)
 
-// 部位切换时重置侧别
+// 当前部位的放射痛选项 (fallback 到 whitelist 全集)
+const radiationOptions = computed(() => RADIATION_MAP[bodyPart.value] || whitelist['subjective.painRadiation'])
+
+// 部位切换时重置侧别 + 放射痛
 watch(bodyPart, (bp) => {
   if (LATERALITY_MAP[bp]) {
     laterality.value = 'bilateral'  // 有侧别的部位默认 bilateral
   } else {
     laterality.value = 'bilateral'  // 脊柱部位固定 bilateral
+  }
+  const opts = RADIATION_MAP[bp]
+  if (opts && !opts.includes(fields['subjective.painRadiation'])) {
+    fields['subjective.painRadiation'] = opts[0]
   }
 })
 
@@ -523,7 +571,7 @@ function shortLabel(text, maxLen = 35) {
             <div v-else class="flex items-center gap-2">
               <label class="text-xs text-ink-500 w-24 flex-shrink-0">{{ fieldLabel(fieldPath) }}</label>
               <select v-model="fields[fieldPath]" class="flex-1 px-2 py-1 border border-ink-200 rounded text-xs">
-                <option v-for="opt in whitelist[fieldPath]" :key="opt" :value="opt">{{ opt.length > 45 ? opt.substring(0, 45) + '...' : opt }}</option>
+                <option v-for="opt in (fieldPath === 'subjective.painRadiation' ? radiationOptions : whitelist[fieldPath])" :key="opt" :value="opt">{{ opt.length > 45 ? opt.substring(0, 45) + '...' : opt }}</option>
               </select>
             </div>
           </div>
