@@ -815,6 +815,7 @@ export function generateTXSequenceStates(
 
     const ruleContext = buildRuleContext(context, painScaleCurrent, severityLevel)
 
+    // --- Phase 1: 选 symptomChange (用初始 ruleContext) ---
     let symptomChange = pickSingle(
       'subjective.symptomChange',
       ruleContext,
@@ -822,18 +823,38 @@ export function generateTXSequenceStates(
       rng,
       'improvement of symptom(s)'
     )
-    // 后期 (progress > 0.7) 强制使用改善表述
-    if (progress > 0.7 && !symptomChange.includes('improvement of symptom')) {
+
+    // --- T02/T03 硬约束守卫: symptomChange 必须与 painDelta 一致 ---
+    if (painDelta <= 0) {
+      // pain 未降: 不能说 improvement
+      if (symptomChange.includes('improvement')) {
+        symptomChange = 'similar symptom(s) as last visit'
+      }
+    } else if (painDelta >= 0.5) {
+      // pain 明显下降: 不能说 exacerbate
+      if (symptomChange.includes('exacerbate')) {
+        symptomChange = 'improvement of symptom(s)'
+      }
+    }
+
+    // 后期强制改善 — 仅在 painDelta > 0 时生效
+    if (progress > 0.7 && painDelta > 0 && !symptomChange.includes('improvement of symptom')) {
       symptomChange = 'improvement of symptom(s)'
+    }
+
+    // --- Phase 2: 用实际 symptomChange 重建 ruleContext，选 reason ---
+    const reasonRuleContext = {
+      ...ruleContext,
+      subjective: { ...ruleContext.subjective, symptomChange }
     }
     const reasonConnector = pickSingle(
       'subjective.reasonConnector',
-      ruleContext,
+      reasonRuleContext,
       progress,
       rng,
       'because of'
     )
-    const reason = pickSingle('subjective.reason', ruleContext, progress, rng, 'energy level improved')
+    const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng, 'energy level improved')
     // Associated Symptom: 继承用户输入(initialState)，后期逐步减轻
     // 等级: soreness(1) < stiffness(2) < heaviness(3) < weakness/numbness(4)
     const rankToSymptom: Record<number, string> = { 1: 'soreness', 2: 'stiffness', 3: 'heaviness' }

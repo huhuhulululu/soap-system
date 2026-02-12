@@ -50,7 +50,7 @@ PDF 上传 → parser.ts (normalizePdfText → splitVisitRecords → parseVisitR
 | **T06** | MEDIUM | 进展状态 + 原因逻辑矛盾 | symptomChange 和 reason 都由 pickSingle 独立选择 | **中** — 可能出现 improvement + negative reason |
 | **T08** | HIGH | ADL severity 单调性 | severity 由 severityFromPain 推导，pain 单调 → severity 单调，**已保证** | 低 |
 | **T09** | MEDIUM | 伴随症状级别单调性 | tx-sequence-engine 有 associatedSymptomRank 约束，**已保证** | 低 |
-| **T01** | HIGH | 方向词 + 名词极性矛盾 | deriveAssessmentFromSOA 生成 Assessment 文本，逻辑正确但无后置校验 | **中** — 模板拼接可能引入矛盾 |
+| **T01** | HIGH | 方向词 + 名词极性矛盾 | deriveAssessmentFromSOA 只产生 reduced/slightly reduced/remained the same，**结构性不可能** | ✅ 无风险 |
 | **T04** | HIGH | ROM 描述矛盾 | Assessment 中 romTrend 由 objective 推导，逻辑正确 | 低 |
 | **T05** | HIGH | 肌力描述矛盾 | Assessment 中 strengthTrend 由 objective 推导，逻辑正确 | 低 |
 | **S2** | MEDIUM | painTypes vs localPattern | Writer 由用户选择 painTypes，无自动校验 | **中** — 用户可能选错 |
@@ -61,15 +61,17 @@ PDF 上传 → parser.ts (normalizePdfText → splitVisitRecords → parseVisitR
 | **DX01-04** | CRITICAL | ICD/CPT 编码校验 | Writer 不生成编码，**不适用** | — |
 | **CPT01-03** | CRITICAL | CPT 编码校验 | Writer 不生成编码，**不适用** | — |
 
-### 2.2 高风险差异汇总
+### 2.2 高风险差异汇总 (深度审计后修正)
 
 | # | 风险 | 描述 | 影响 |
 |---|------|------|------|
-| 1 | **CRITICAL** | symptomChange 概率选择可能违反 T02/T03 | improvement + pain 未降 / exacerbate + pain 已降 |
-| 2 | **HIGH** | symptomChange + reason 独立选择可能违反 T06 | improvement + "skipped treatments" |
-| 3 | **HIGH** | 用户选择的 symptomScale 无 vs pain 校验 (S7) | pain=8 但 symptomScale=20% |
-| 4 | **MEDIUM** | 用户选择的 painTypes 无 vs localPattern 校验 (S2) | Blood Stasis + "Dull" |
-| 5 | **MEDIUM** | 用户选择的 ADL activities 无 vs bodyPart 校验 (S3) | KNEE + "combing hair" |
+| 1 | **CRITICAL** | symptomChange 概率选择无 painDelta 守卫 (T02/T03) | improvement + pain 未降 / exacerbate + pain 已降 |
+| 2 | **CRITICAL** | ruleContext 硬编码 symptomChange，4 条 reason 联动规则从未正确触发 | improvement + "skipped treatments" 等矛盾组合 |
+| 3 | **HIGH** | progress > 0.7 强制 "improvement"，即使 pain 持平 | 后期 TX 可能 S-A 矛盾 |
+| 4 | **HIGH** | symptomScale vs pain 完全无校验 (S7 实际检查 muscleWeaknessScale) | pain=8 但 symptomScale=20% |
+| 5 | **MEDIUM** | 用户选择的 painTypes 无 vs localPattern 校验 (S2) | Blood Stasis + "Dull" |
+| 6 | **MEDIUM** | 用户选择的 ADL activities 无 vs bodyPart 校验 (S3) | KNEE + "combing hair" |
+| ~~7~~ | ~~MEDIUM~~ | ~~T01 方向词+名词极性矛盾~~ | ~~**已排除**: deriveAssessmentFromSOA 只产生 reduced/slightly reduced/remained the same，结构性不可能~~ |
 
 ---
 
@@ -137,44 +139,68 @@ Writer 的 ADL_MAP 更完整（6 部位），但用户可以手动选择任意�
 ### P0 — 必须修复（CRITICAL 风险）
 
 #### 4.1 symptomChange 硬约束守卫
-**问题**: tx-sequence-engine 中 symptomChange 由 `pickSingle` 概率选择，可能选到与 painDelta 矛盾的值。
+**问题**: tx-sequence-engine 中 symptomChange 由 `pickSingle` 概率选择（line 818），无 painDelta 守卫。且 progress > 0.7 时强制 "improvement"（line 826），即使 pain 持平。
 
-**方案**: 在 pickSingle 之后添加硬约束守卫：
+**方案**: 在 pickSingle 之后、强制覆盖之前添加硬约束：
 ```typescript
-// tx-sequence-engine.ts generateTXSequenceStates 循环内
+// tx-sequence-engine.ts generateTXSequenceStates 循环内 (line ~828)
 let symptomChange = pickSingle('subjective.symptomChange', ruleContext, progress, rng, 'improvement of symptom(s)')
 
-// 硬约束: T02/T03 守卫
-if (painDelta <= 0 && symptomChange.includes('improvement')) {
-  symptomChange = 'similar symptom(s) as last visit'
+// 硬约束: T02/T03 守卫 (painDelta = prevPain - painScaleCurrent)
+if (painDelta <= 0) {
+  // pain 未降: 不能说 improvement
+  if (symptomChange.includes('improvement')) {
+    symptomChange = 'similar symptom(s) as last visit'
+  }
+} else if (painDelta >= 0.5) {
+  // pain 明显下降: 不能说 exacerbate
+  if (symptomChange.includes('exacerbate')) {
+    symptomChange = 'improvement of symptom(s)'
+  }
 }
-if (painDelta > 0.5 && symptomChange.includes('exacerbate')) {
-  symptomChange = 'similar symptom(s) as last visit'
+
+// 后期强制改善 — 仅在 painDelta > 0 时生效
+if (progress > 0.7 && painDelta > 0 && !symptomChange.includes('improvement of symptom')) {
+  symptomChange = 'improvement of symptom(s)'
 }
 ```
 
-#### 4.2 symptomChange + reason 联动守卫
-**问题**: symptomChange 和 reason 独立选择，可能出现 "improvement" + "skipped treatments"。
+#### 4.2 ruleContext 修复 + reason 联动
+**问题**: ruleContext 在 symptomChange 选择之前构建（line 816），硬编码 `symptomChange: 'improvement of symptom(s)'`。导致 template-logic-rules.ts 中 4 条 reason 联动规则（tpl_tx_change_improved_reason / relapse / exacerbate / similar）从未基于实际 symptomChange 触发。
 
-**方案**: reason 选择时根据 symptomChange 过滤：
+**方案**: 分两步选择 — 先选 symptomChange，再用实际值重建 ruleContext 选 reason：
 ```typescript
-// 如果 symptomChange 是 improvement，排除负向原因
-// 如果 symptomChange 是 exacerbate，排除正向原因
+// 1. 选 symptomChange (用初始 ruleContext)
+let symptomChange = pickSingle('subjective.symptomChange', ruleContext, progress, rng, '...')
+// 2. 应用硬约束守卫 (4.1)
+// 3. 用实际 symptomChange 重建 ruleContext
+const reasonRuleContext = { ...ruleContext, subjective: { ...ruleContext.subjective, symptomChange } }
+// 4. 选 reason (联动规则现在能正确触发)
+const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng, '...')
 ```
 
 ### P1 — 建议修复（HIGH 风险）
 
-#### 4.3 用户输入前置校验
-**问题**: 用户选择的 symptomScale、painTypes、ADL activities 无交叉校验。
+#### 4.3 symptomScale vs pain 前置校验
+**问题**: Checker S7 实际检查 muscleWeaknessScale（非 symptomScale）。但 symptomScale vs pain 完全无校验规则，用户可以设置 pain=8 + symptomScale=20%（临床不合理）。
+
+**方案**: 在 WriterView Step 1 添加 symptomScale 自动推荐 + 警告：
+```typescript
+// 建议规则 (新增 S8):
+// pain >= 8 → symptomScale >= 70%
+// pain >= 6 → symptomScale >= 50%
+// pain >= 4 → symptomScale >= 30%
+```
+实现方式：在 useWriterFields 中添加 `validateCrossFields()` 函数，当用户选择不一致时显示黄色警告。
+
+#### 4.4 用户输入交叉校验
+**问题**: painTypes、ADL activities 无交叉校验。
 
 **方案**: 在 WriterView Step 1 完成时添加校验提示：
-- symptomScale vs painScale.current (S7 规则)
 - painTypes vs localPattern (S2 规则)
 - ADL activities vs bodyPart (S3 规则)
 
-实现方式：在 useWriterFields 中添加 `validateCrossFields()` 函数，返回警告列表。
-
-#### 4.4 Writer 内置 Checker 自检
+#### 4.5 Writer 内置 Checker 自检
 **问题**: Writer 生成的笔记无法保证通过 Checker 校验。
 
 **方案**: 生成后自动运行 Checker 核心规则子集（不含 PDF 解析和编码校验），在 UI 显示通过/警告状态。
@@ -231,6 +257,19 @@ if (painDelta > 0.5 && symptomChange.includes('exacerbate')) {
 | 4 | 2 | 1 |
 | 3 | 1 | 1 |
 
+### 5.2 Phase 1: symptomChange painDelta 硬约束 + ruleContext 修复 (已完成)
+**问题 1 (T02/T03)**: symptomChange 由 `pickSingle` 概率选择，无 painDelta 守卫。可能出现 "improvement" + pain 未降，或 "exacerbate" + pain 已降。
+
+**问题 2**: ruleContext 在 symptomChange 选择之前构建，硬编码 `symptomChange: 'improvement of symptom(s)'`。导致 4 条 reason 联动规则从未基于实际 symptomChange 触发。
+
+**问题 3**: `progress > 0.7` 强制 "improvement"，即使 pain 持平。
+
+**修复** (`tx-sequence-engine.ts` line 816-857):
+- 添加 painDelta 硬约束守卫: `painDelta <= 0` → 禁止 improvement, `painDelta >= 0.5` → 禁止 exacerbate
+- 后期强制改善增加 `painDelta > 0` 前置条件
+- 分两阶段选择: 先选 symptomChange → 应用守卫 → 用实际值重建 `reasonRuleContext` → 选 reason/reasonConnector
+- 4 条联动规则 (improved/relapse/exacerbate/similar) 现在能正确触发
+
 ---
 
 ## 6. 实施优先级
@@ -238,7 +277,7 @@ if (painDelta > 0.5 && symptomChange.includes('exacerbate')) {
 | 阶段 | 任务 | 预期效果 |
 |------|------|----------|
 | ~~**Phase 0**~~ | ~~Goals Calculator 对齐~~ | ~~✅ 已完成~~ |
-| **Phase 1** | 4.1 + 4.2 symptomChange 硬约束 | 消除 CRITICAL 矛盾风险 |
-| **Phase 2** | 4.3 用户输入交叉校验 | 减少用户输入错误 |
-| **Phase 3** | 4.5 + 4.6 + 4.7 统一映射 | 消除数据源分歧 |
-| **Phase 4** | 4.4 + 4.8 共享规则引擎 | Writer 生成即通过 Checker |
+| ~~**Phase 1**~~ | ~~4.1 symptomChange painDelta 硬约束 + 4.2 ruleContext 修复 + reason 联动~~ | ~~✅ 已完成~~ |
+| **Phase 2** | 4.3 symptomScale vs pain 校验 + 4.4 painTypes/ADL 交叉校验 | 减少用户输入错误 |
+| **Phase 3** | 4.6 + 4.7 + 4.8 统一映射 | 消除数据源分歧 |
+| **Phase 4** | 4.5 + 4.9 共享规则引擎 | Writer 生成即通过 Checker |
