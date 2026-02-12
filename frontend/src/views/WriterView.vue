@@ -6,6 +6,8 @@ import { inferSystemicPatterns, inferLocalPatterns } from '../../../src/knowledg
 import { useWriterFields } from '../composables/useWriterFields'
 import { useSOAPGeneration } from '../composables/useSOAPGeneration'
 import { useDiffHighlight } from '../composables/useDiffHighlight'
+import { isPainTypeConsistentWithPattern } from '../../../src/shared/tcm-mappings'
+import { isAdlConsistentWithBodyPart } from '../../../src/shared/adl-mappings'
 
 setWhitelist(whitelist)
 
@@ -347,22 +349,7 @@ function toggleDerivedEdit(fp) {
   derivedEditing.value = derivedEditing.value === fp ? '' : fp
 }
 
-// === Phase 2: 交叉校验 (非阻塞警告) ===
-const PAIN_TYPE_MAP = {
-  'Blood Stasis': ['Pricking', 'Shooting'],
-  'Cold-Damp': ['Freezing', 'Aching'],
-  'Wind-Cold': ['Freezing', 'Aching'],
-  'Qi Stagnation': ['Dull', 'Aching'],
-  'Qi & Blood Deficiency': ['Dull', 'Weighty'],
-}
-const ADL_KEYWORDS = {
-  KNEE: ['stair', 'walk', 'stand', 'bend', 'sit', 'cook', 'knee'],
-  SHOULDER: ['cook', 'household', 'computer', 'driving', 'laundry', 'reach', 'comb', 'coat', 'arm', 'hand'],
-  NECK: ['TV', 'phone', 'head', 'driving', 'gargling', 'reading', 'neck', 'looking'],
-  LBP: ['stand', 'walk', 'bend', 'chair', 'bed', 'stair', 'lift', 'sit', 'back'],
-  ELBOW: ['grip', 'lift', 'doorknob', 'jar', 'typing', 'writing', 'tool', 'hand'],
-  HIP: ['walk', 'stair', 'chair', 'shoe', 'car', 'squat', 'stand', 'leg'],
-}
+// === Phase 2: 交叉校验 (非阻塞警告, 使用共享映射) ===
 
 const crossFieldWarnings = computed(() => {
   const warnings = []
@@ -382,31 +369,23 @@ const crossFieldWarnings = computed(() => {
     }
   }
 
-  // S2: painTypes vs localPattern
+  // S2: painTypes vs localPattern (共享映射)
   const localPattern = fields['assessment.tcmDiagnosis.localPattern']
   const painTypes = fields['subjective.painTypes']
   if (localPattern && Array.isArray(painTypes) && painTypes.length > 0) {
-    const entry = Object.entries(PAIN_TYPE_MAP).find(([key]) => String(localPattern).includes(key))
-    if (entry) {
-      const expected = entry[1]
-      const hasOverlap = painTypes.some(p => expected.some(e => p.toLowerCase().includes(e.toLowerCase())))
-      if (!hasOverlap) {
-        warnings.push({ id: 'S2', text: `疼痛类型 [${painTypes.join(', ')}] 与证型 ${entry[0]} 不匹配 — 建议含 ${expected.join('/')}` })
-      }
+    const { consistent, expected } = isPainTypeConsistentWithPattern(String(localPattern), painTypes)
+    if (expected.length > 0 && !consistent) {
+      warnings.push({ id: 'S2', text: `疼痛类型 [${painTypes.join(', ')}] 与证型不匹配 — 建议含 ${expected.join('/')}` })
     }
   }
 
-  // S3: ADL activities vs bodyPart
+  // S3: ADL activities vs bodyPart (共享映射)
   const adlActivities = fields['subjective.adlDifficulty.activities']
   const bp = bodyPart.value?.toUpperCase()
   if (Array.isArray(adlActivities) && adlActivities.length > 0 && bp) {
-    const keywords = ADL_KEYWORDS[bp] || []
-    if (keywords.length > 0) {
-      const joined = adlActivities.join(' ').toLowerCase()
-      const hasMatch = keywords.some(k => joined.includes(k.toLowerCase()))
-      if (!hasMatch) {
-        warnings.push({ id: 'S3', text: `ADL 活动与 ${bp} 部位不匹配 — 建议含 ${keywords.slice(0, 4).join('/')} 相关活动` })
-      }
+    const { consistent, keywords } = isAdlConsistentWithBodyPart(bp, adlActivities.join(' '))
+    if (keywords.length > 0 && !consistent) {
+      warnings.push({ id: 'S3', text: `ADL 活动与 ${bp} 部位不匹配 — 建议含 ${keywords.slice(0, 4).join('/')} 相关活动` })
     }
   }
 

@@ -283,10 +283,20 @@ const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng,
 
 ## 6. 实施优先级
 
+### 5.4 Phase 3: 统一映射模块 (已完成)
+**问题**: TCM 舌脉映射 3 处不统一 (tcm-patterns 21种, note-checker 3种, correction-generator 8种)。ADL 关键词 3 处不统一 (tx-engine 6部位, note-checker 4部位, WriterView 6部位)。painTypes→证型映射 2 处不统一。
+
+**修复**:
+- 新建 `src/shared/tcm-mappings.ts` — 统一舌脉校验 (覆盖全部 21 种证型) + 疼痛类型映射 (13 种证型)
+- 新建 `src/shared/adl-mappings.ts` — 统一 ADL 关键词 (6 部位, 从完整活动列表自动派生)
+- `note-checker.ts` — isTonePatternConsistent 从 3→21 种证型, S2/S3 规则使用共享模块
+- `correction-generator.ts` — PATTERN_TO_TONGUE_PULSE 从 8→21 种证型
+- `WriterView.vue` — 交叉校验使用共享模块, 消除内联映射
+
 | 阶段 | 任务 | 预期效果 |
 |------|------|----------|
 | ~~**Phase 0**~~ | ~~Goals Calculator 对齐~~ | ~~✅ 已完成~~ |
 | ~~**Phase 1**~~ | ~~4.1 symptomChange painDelta 硬约束 + 4.2 ruleContext 修复 + reason 联动~~ | ~~✅ 已完成~~ |
 | ~~**Phase 2**~~ | ~~4.3 symptomScale vs pain 校验 + 4.4 painTypes/ADL 交叉校验~~ | ~~✅ 已完成~~ |
-| **Phase 3** | 4.6 + 4.7 + 4.8 统一映射 | 消除数据源分歧 |
+| ~~**Phase 3**~~ | ~~4.6 + 4.7 + 4.8 统一映射~~ | ~~✅ 已完成~~ |
 | **Phase 4** | 4.5 + 4.9 共享规则引擎 | Writer 生成即通过 Checker |

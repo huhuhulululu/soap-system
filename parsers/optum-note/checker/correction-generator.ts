@@ -9,6 +9,7 @@ import { bridgeToContext, bridgeVisitToSOAPNote } from './bridge'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator'
 import type { GenerationContext } from '../../../src/types'
 import { severityFromPain, expectedTenderMinScaleByPain } from '../../../src/shared/severity'
+import { getPatternTonguePulse } from '../../../src/shared/tcm-mappings'
 
 // ============ 辅助函数 ============
 
@@ -24,18 +25,6 @@ function parsePainCurrent(v: VisitRecord): number {
 
 import { calculateDynamicGoals } from '../../../src/generator/goals-calculator'
 import type { BodyPart } from '../../../src/types'
-
-// TCM 证型→舌脉映射
-const PATTERN_TO_TONGUE_PULSE: Record<string, { tongue: string; pulse: string }> = {
-  'Qi Stagnation': { tongue: 'pale, thin white coat', pulse: 'string-taut' },
-  'Blood Stasis': { tongue: 'purple, dark spots', pulse: 'choppy' },
-  'Qi & Blood Deficiency': { tongue: 'pale, thin coat', pulse: 'thready, weak' },
-  'Kidney Yang Deficiency': { tongue: 'pale, swollen, teeth marks', pulse: 'deep, slow' },
-  'Kidney Qi Deficiency': { tongue: 'pale', pulse: 'deep, weak' },
-  'Liver Qi Stagnation': { tongue: 'red edges', pulse: 'wiry' },
-  'Wind-Cold': { tongue: 'thin white coat', pulse: 'tight' },
-  'Cold-Damp': { tongue: 'white greasy coat', pulse: 'slippery, slow' },
-}
 
 // 默认穴位 by bodyPart
 const DEFAULT_ACUPOINTS: Record<string, string[]> = {
@@ -80,7 +69,7 @@ function computeFixes(visit: VisitRecord, prevVisit: VisitRecord | undefined, er
       case 'IE04': {
         // 舌脉→证型一致：根据证型选择匹配的舌脉
         const pattern = visit.assessment.localPattern || visit.assessment.tcmDiagnosis?.pattern || 'Qi Stagnation'
-        const tp = PATTERN_TO_TONGUE_PULSE[pattern] || PATTERN_TO_TONGUE_PULSE['Qi Stagnation']
+        const tp = getPatternTonguePulse(pattern) || getPatternTonguePulse('Qi Stagnation')!
         fixes.push({
           field: 'tonguePulse',
           original: error.actual,

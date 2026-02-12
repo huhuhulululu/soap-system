@@ -8,6 +8,8 @@ import type {
   ScoreBreakdown
 } from './types'
 import { generateCorrections } from './correction-generator'
+import { isTonguePatternConsistent, isPainTypeConsistentWithPattern } from '../../../src/shared/tcm-mappings'
+import { isAdlConsistentWithBodyPart } from '../../../src/shared/adl-mappings'
 import { severityFromPain, expectedTenderMinScaleByPain } from '../../../src/shared/severity'
 
 function scoreByStrength(str: string): number {
@@ -42,14 +44,7 @@ function avgRomSeverityRank(visit: VisitRecord): number {
 }
 
 function isTonePatternConsistent(localPattern: string | undefined, tongue: string, pulse: string): boolean {
-  const lp = (localPattern || '').toLowerCase()
-  const t = (tongue || '').toLowerCase()
-  const p = (pulse || '').toLowerCase()
-  if (!lp) return true
-  if (lp.includes('qi stagnation')) return t.includes('thin white coat') && (p.includes('string-taut') || p.includes('wiry'))
-  if (lp.includes('blood stasis')) return t.includes('purple') && p.includes('deep')
-  if (lp.includes('phlegm-damp')) return (t.includes('sticky') || t.includes('white')) && (p.includes('rolling') || p.includes('slippery'))
-  return true
+  return isTonguePatternConsistent(localPattern, tongue, pulse)
 }
 
 function parseAdlSeverity(adlText: string): string {
@@ -1047,45 +1042,25 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
 
     // S2: painTypes vs localPattern
     if (v.subjective.painTypes.length > 0 && v.assessment.localPattern) {
-      const painMap: Record<string, string[]> = {
-        'Blood Stasis': ['pricking', 'Shooting'],
-        'Cold-Damp': ['Freezing', 'Aching'],
-        'Wind-Cold': ['Freezing', 'Aching'],
-        'Qi Stagnation': ['Dull', 'Aching'],
-        'Qi & Blood Deficiency': ['Dull', 'weighty']
-      }
-      const pattern = v.assessment.localPattern
-      const expectedPains = Object.entries(painMap).find(([key]) => pattern.includes(key))?.[1] || []
-      if (expectedPains.length > 0) {
-        const hasOverlap = v.subjective.painTypes.some(p => expectedPains.includes(p))
-        if (!hasOverlap) {
-          errors.push(err({
-            ruleId: 'S2', severity: 'MEDIUM', visitDate: date, visitIndex: i,
-            section: 'S', field: 'painTypes', ruleName: 'painTypes vs localPattern',
-            message: 'Pain types do not match local pattern', expected: expectedPains.join('/'), actual: v.subjective.painTypes.join(',')
-          }))
-        }
+      const { consistent, expected } = isPainTypeConsistentWithPattern(v.assessment.localPattern, v.subjective.painTypes)
+      if (expected.length > 0 && !consistent) {
+        errors.push(err({
+          ruleId: 'S2', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+          section: 'S', field: 'painTypes', ruleName: 'painTypes vs localPattern',
+          message: 'Pain types do not match local pattern', expected: expected.join('/'), actual: v.subjective.painTypes.join(',')
+        }))
       }
     }
 
     // S3: ADL activities vs bodyPart
     if (v.subjective.adlImpairment && v.subjective.bodyPartNormalized) {
-      const adlKeywords: Record<string, string[]> = {
-        KNEE: ['stair', 'walk', 'stand', 'bend', 'sit', 'cook'],
-        SHOULDER: ['cook', 'household', 'computer', 'driving', 'laundry', 'reach', 'comb', 'coat'],
-        NECK: ['TV', 'phone', 'head', 'driving', 'gargling'],
-        LBP: ['stand', 'walk', 'bend', 'chair', 'bed', 'stair', 'lift']
-      }
-      const keywords = adlKeywords[v.subjective.bodyPartNormalized.toUpperCase()] || []
-      if (keywords.length > 0) {
-        const hasKeyword = keywords.some(k => v.subjective.adlImpairment.toLowerCase().includes(k.toLowerCase()))
-        if (!hasKeyword) {
-          errors.push(err({
-            ruleId: 'S3', severity: 'MEDIUM', visitDate: date, visitIndex: i,
-            section: 'S', field: 'adlImpairment', ruleName: 'ADL activities vs bodyPart',
-            message: 'ADL description missing relevant activities', expected: keywords.join('/'), actual: 'no match'
-          }))
-        }
+      const { consistent, keywords } = isAdlConsistentWithBodyPart(v.subjective.bodyPartNormalized, v.subjective.adlImpairment)
+      if (keywords.length > 0 && !consistent) {
+        errors.push(err({
+          ruleId: 'S3', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+          section: 'S', field: 'adlImpairment', ruleName: 'ADL activities vs bodyPart',
+          message: 'ADL description missing relevant activities', expected: keywords.slice(0, 6).join('/'), actual: 'no match'
+        }))
       }
     }
 
