@@ -8,6 +8,7 @@ import { useSOAPGeneration } from '../composables/useSOAPGeneration'
 import { useDiffHighlight } from '../composables/useDiffHighlight'
 import { isPainTypeConsistentWithPattern } from '../../../src/shared/tcm-mappings'
 import { isAdlConsistentWithBodyPart } from '../../../src/shared/adl-mappings'
+import { BODY_PART_ADL } from '../../../src/shared/body-part-constants'
 
 setWhitelist(whitelist)
 
@@ -140,7 +141,7 @@ const lateralityOptions = computed(() => LATERALITY_MAP[bodyPart.value] || null)
 // 当前部位的放射痛选项 (fallback 到 whitelist 全集)
 const radiationOptions = computed(() => RADIATION_MAP[bodyPart.value] || whitelist['subjective.painRadiation'])
 
-// 部位切换时重置侧别 + 放射痛
+// 部位切换时重置侧别 + 放射痛 + ADL 活动
 watch(bodyPart, (bp) => {
   if (LATERALITY_MAP[bp]) {
     laterality.value = 'bilateral'  // 有侧别的部位默认 bilateral
@@ -151,7 +152,12 @@ watch(bodyPart, (bp) => {
   if (opts && !opts.includes(fields['subjective.painRadiation'])) {
     fields['subjective.painRadiation'] = opts[0]
   }
-})
+  // 重置 ADL 活动为当前部位的第一项（从 BODY_PART_ADL 共享常量）
+  const bpAdl = BODY_PART_ADL[bp]
+  if (bpAdl && bpAdl.length > 0) {
+    fields['subjective.adlDifficulty.activities'] = [bpAdl[0]]
+  }
+}, { immediate: true })
 
 function onPatternFieldChange(fieldPath) {
   if (fieldPath === 'assessment.tcmDiagnosis.localPattern') localPatternManuallySet.value = true
