@@ -90,11 +90,11 @@ export function calculateIEPainScale(severity: SeverityLevel, bp: BodyPart): IEP
 function calculatePainGoals(painCurrent: number, bp: BodyPart): { st: string; lt: string } {
   // 边界: 已经很好
   if (painCurrent <= 3) {
-    return { st: String(painCurrent), lt: String(painCurrent) }
+    return { st: '1', lt: '1' }
   }
-  // 边界: 轻度
+  // 轻中度: 积极目标
   if (painCurrent <= 6) {
-    return { st: String(painCurrent), lt: String(Math.max(2, painCurrent - 2)) }
+    return { st: '2', lt: '1' }
   }
 
   // 正常: 重症 (Pain >= 7)

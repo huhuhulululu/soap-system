@@ -580,17 +580,24 @@ export function generateTXSequenceStates(
 
   const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8
   const startPain = options.initialState?.pain ?? ieStartPain
-  // 与 goals-calculator 对齐: easeOutQuad 康复曲线
-  const stFallback = Math.ceil(
-    ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
-  )
+  // 与 goals-calculator 对齐: pain<=3 最优, pain<=6 积极目标, pain>=7 康复曲线
+  const stFallback = ieStartPain <= 3
+    ? 1
+    : ieStartPain <= 6
+      ? 2
+      : Math.ceil(
+          ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
+        )
+  const ltFallback = ieStartPain <= 6
+    ? 1
+    : Math.ceil(Math.max(2, ieStartPain * 0.25))
   const shortTermTarget = parsePainTarget(
     context.previousIE?.plan?.shortTermGoal?.painScaleTarget,
     stFallback
   )
   const longTermTarget = parsePainTarget(
     context.previousIE?.plan?.longTermGoal?.painScaleTarget,
-    Math.max(2, ieStartPain - 4)
+    ltFallback
   )
   // 续写时: 如果起点已接近短期目标，切换到长期目标
   const targetPain = (startPain - shortTermTarget) < 1.5 ? longTermTarget : shortTermTarget
