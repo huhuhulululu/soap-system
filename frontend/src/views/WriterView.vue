@@ -347,6 +347,72 @@ function toggleDerivedEdit(fp) {
   derivedEditing.value = derivedEditing.value === fp ? '' : fp
 }
 
+// === Phase 2: 交叉校验 (非阻塞警告) ===
+const PAIN_TYPE_MAP = {
+  'Blood Stasis': ['Pricking', 'Shooting'],
+  'Cold-Damp': ['Freezing', 'Aching'],
+  'Wind-Cold': ['Freezing', 'Aching'],
+  'Qi Stagnation': ['Dull', 'Aching'],
+  'Qi & Blood Deficiency': ['Dull', 'Weighty'],
+}
+const ADL_KEYWORDS = {
+  KNEE: ['stair', 'walk', 'stand', 'bend', 'sit', 'cook', 'knee'],
+  SHOULDER: ['cook', 'household', 'computer', 'driving', 'laundry', 'reach', 'comb', 'coat', 'arm', 'hand'],
+  NECK: ['TV', 'phone', 'head', 'driving', 'gargling', 'reading', 'neck', 'looking'],
+  LBP: ['stand', 'walk', 'bend', 'chair', 'bed', 'stair', 'lift', 'sit', 'back'],
+  ELBOW: ['grip', 'lift', 'doorknob', 'jar', 'typing', 'writing', 'tool', 'hand'],
+  HIP: ['walk', 'stair', 'chair', 'shoe', 'car', 'squat', 'stand', 'leg'],
+}
+
+const crossFieldWarnings = computed(() => {
+  const warnings = []
+  const pain = currentPain.value
+
+  // S8: symptomScale vs pain
+  const scaleRaw = fields['subjective.symptomScale']
+  if (scaleRaw) {
+    const m = String(scaleRaw).match(/(\d+)/)
+    const scalePct = m ? parseInt(m[1], 10) : 0
+    if (pain >= 8 && scalePct < 70) {
+      warnings.push({ id: 'S8', text: `症状量表 ${scaleRaw} 偏低 — pain ${pain} 建议 ≥70%` })
+    } else if (pain >= 6 && scalePct < 50) {
+      warnings.push({ id: 'S8', text: `症状量表 ${scaleRaw} 偏低 — pain ${pain} 建议 ≥50%` })
+    } else if (pain >= 4 && scalePct < 30) {
+      warnings.push({ id: 'S8', text: `症状量表 ${scaleRaw} 偏低 — pain ${pain} 建议 ≥30%` })
+    }
+  }
+
+  // S2: painTypes vs localPattern
+  const localPattern = fields['assessment.tcmDiagnosis.localPattern']
+  const painTypes = fields['subjective.painTypes']
+  if (localPattern && Array.isArray(painTypes) && painTypes.length > 0) {
+    const entry = Object.entries(PAIN_TYPE_MAP).find(([key]) => String(localPattern).includes(key))
+    if (entry) {
+      const expected = entry[1]
+      const hasOverlap = painTypes.some(p => expected.some(e => p.toLowerCase().includes(e.toLowerCase())))
+      if (!hasOverlap) {
+        warnings.push({ id: 'S2', text: `疼痛类型 [${painTypes.join(', ')}] 与证型 ${entry[0]} 不匹配 — 建议含 ${expected.join('/')}` })
+      }
+    }
+  }
+
+  // S3: ADL activities vs bodyPart
+  const adlActivities = fields['subjective.adlDifficulty.activities']
+  const bp = bodyPart.value?.toUpperCase()
+  if (Array.isArray(adlActivities) && adlActivities.length > 0 && bp) {
+    const keywords = ADL_KEYWORDS[bp] || []
+    if (keywords.length > 0) {
+      const joined = adlActivities.join(' ').toLowerCase()
+      const hasMatch = keywords.some(k => joined.includes(k.toLowerCase()))
+      if (!hasMatch) {
+        warnings.push({ id: 'S3', text: `ADL 活动与 ${bp} 部位不匹配 — 建议含 ${keywords.slice(0, 4).join('/')} 相关活动` })
+      }
+    }
+  }
+
+  return warnings
+})
+
 // 生成前校验必填项
 function validateRequiredBeforeGenerate() {
   const empty = []
@@ -818,6 +884,16 @@ function isLongField(path) {
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">3</span>
             生成 SOAP
           </h2>
+          <!-- 交叉校验警告 (非阻塞) -->
+          <template v-if="crossFieldWarnings.length > 0">
+            <div v-for="w in crossFieldWarnings" :key="w.id"
+              class="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700" role="status">
+              <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+              </svg>
+              <span><strong>{{ w.id }}</strong> {{ w.text }}</span>
+            </div>
+          </template>
           <!-- 生成错误提示 -->
           <Transition name="panel">
             <div v-if="generationError" class="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600" role="alert">

@@ -270,6 +270,15 @@ const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng,
 - 分两阶段选择: 先选 symptomChange → 应用守卫 → 用实际值重建 `reasonRuleContext` → 选 reason/reasonConnector
 - 4 条联动规则 (improved/relapse/exacerbate/similar) 现在能正确触发
 
+### 5.3 Phase 2: 交叉校验警告 (已完成)
+**问题**: 用户可以选择与 pain/证型/部位不一致的 symptomScale、painTypes、ADL 活动，无任何提示。
+
+**修复** (`WriterView.vue`):
+- S8: symptomScale vs pain — pain≥8 需 ≥70%, pain≥6 需 ≥50%, pain≥4 需 ≥30%
+- S2: painTypes vs localPattern — 5 种证型的疼痛类型映射校验
+- S3: ADL activities vs bodyPart — 6 部位的关键词匹配校验
+- 非阻塞黄色警告，显示在生成按钮上方
+
 ---
 
 ## 6. 实施优先级
@@ -278,6 +287,6 @@ const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng,
 |------|------|----------|
 | ~~**Phase 0**~~ | ~~Goals Calculator 对齐~~ | ~~✅ 已完成~~ |
 | ~~**Phase 1**~~ | ~~4.1 symptomChange painDelta 硬约束 + 4.2 ruleContext 修复 + reason 联动~~ | ~~✅ 已完成~~ |
-| **Phase 2** | 4.3 symptomScale vs pain 校验 + 4.4 painTypes/ADL 交叉校验 | 减少用户输入错误 |
+| ~~**Phase 2**~~ | ~~4.3 symptomScale vs pain 校验 + 4.4 painTypes/ADL 交叉校验~~ | ~~✅ 已完成~~ |
 | **Phase 3** | 4.6 + 4.7 + 4.8 统一映射 | 消除数据源分歧 |
 | **Phase 4** | 4.5 + 4.9 共享规则引擎 | Writer 生成即通过 Checker |
