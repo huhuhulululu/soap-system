@@ -644,8 +644,23 @@ export function generateTXSequenceStates(
     return inferCondition(context.medicalHistory || [], context.age, context.systemicPattern)
   })()
 
-  // === tonguePulse: 从 IE 继承或使用默认值 ===
+  // === tonguePulse: 从 IE 继承或从 localPattern 推导（与 IE 生成器使用相同的 TONE_MAP 值） ===
   // 舌脉是患者体质的固定属性，TX 访问应与 IE 保持一致
+  const PATTERN_TONGUE_DEFAULTS: Record<string, { tongue: string; pulse: string }> = {
+    'Qi Stagnation': { tongue: 'thin white coat', pulse: 'string-taut' },
+    'Liver Qi Stagnation': { tongue: 'thin white coat', pulse: 'string-taut' },
+    'Blood Stasis': { tongue: 'purple', pulse: 'deep' },
+    'Qi Stagnation, Blood Stasis': { tongue: 'purple, thin white coat', pulse: 'string-taut' },
+    'Blood Deficiency': { tongue: 'pale, thin dry coat', pulse: 'hesitant' },
+    'Qi & Blood Deficiency': { tongue: 'pale, thin white coat', pulse: 'thready' },
+    'Wind-Cold Invasion': { tongue: 'thin white coat', pulse: 'superficial, tense' },
+    'Cold-Damp + Wind-Cold': { tongue: 'thick, white coat', pulse: 'deep' },
+    'LV/GB Damp-Heat': { tongue: 'yellow, sticky (red), thick coat', pulse: 'rolling rapid (forceful)' },
+    'Phlegm-Damp': { tongue: 'big tongue with white sticky coat', pulse: 'string-taut' },
+    'Phlegm-Heat': { tongue: 'yellow, sticky (red), thick coat', pulse: 'rolling rapid (forceful)' },
+    'Damp-Heat': { tongue: 'yellow, sticky (red), thick coat', pulse: 'rolling rapid (forceful)' },
+    'Kidney Yang Deficiency': { tongue: 'pale, tooth marked', pulse: 'deep' },
+  }
   const fixedTonguePulse: { tongue: string; pulse: string } = (() => {
     const ieTonguePulse = context.previousIE?.objective?.tonguePulse
     if (ieTonguePulse?.tongue && ieTonguePulse?.pulse) {
@@ -654,6 +669,9 @@ export function generateTXSequenceStates(
         pulse: ieTonguePulse.pulse
       }
     }
+    // fallback: 从 localPattern 推导，与 IE TONE_MAP 保持一致
+    const patternDefault = PATTERN_TONGUE_DEFAULTS[context.localPattern || '']
+    if (patternDefault) return patternDefault
     return {
       tongue: 'Pink with thin white coating',
       pulse: 'Even and moderate'
@@ -754,7 +772,12 @@ export function generateTXSequenceStates(
     const tightnessGate = progress > 0.40 && rng() > 0.40
     const nextTightness = Math.max(1, prevTightness - (tightnessGate ? 1 : 0))
     const tendernessGate = progress > 0.45 && rng() > 0.45
-    const nextTenderness = Math.max(1, prevTenderness - (tendernessGate ? 1 : 0))
+    // tenderness floor: 不应低于 pain 对应的最小值 (对齐 Checker TX02)
+    // 使用 snapPainToGrid 的 label 第一个数字——与 Parser 提取的 pain 值一致
+    const snappedForGrade = snapPainToGrid(painScaleCurrent)
+    const painInt = parseInt(snappedForGrade.label, 10)
+    const tenderFloor = painInt >= 7 ? 3 : painInt >= 5 ? 2 : 1
+    const nextTenderness = Math.max(tenderFloor, prevTenderness - (tendernessGate ? 1 : 0))
     const tightnessTrend: 'reduced' | 'slightly reduced' | 'stable' =
       nextTightness < prevTightness ? (prevTightness - nextTightness >= 1 ? 'reduced' : 'slightly reduced') : 'stable'
     const tendernessTrend: 'reduced' | 'slightly reduced' | 'stable' =
@@ -897,10 +920,10 @@ export function generateTXSequenceStates(
     // Low pain (0-4) -> mild / mild to moderate / moderate
     const TIGHTNESS_ORDER = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
     let targetTightnessGrade: string
-    if (painScaleCurrent >= 8) {
+    if (painInt >= 8) {
       // High pain: moderate to severe or severe
       targetTightnessGrade = rng() > 0.4 ? 'Severe' : 'Moderate to severe'
-    } else if (painScaleCurrent >= 5) {
+    } else if (painInt >= 5) {
       // Moderate pain: moderate or moderate to severe, with progress influence
       if (progress >= 0.75) {
         targetTightnessGrade = 'Moderate'
@@ -949,15 +972,18 @@ export function generateTXSequenceStates(
     const tenderOptions = context.primaryBodyPart === 'KNEE' ? KNEE_TENDERNESS_OPTIONS : SHOULDER_TENDERNESS_OPTIONS
 
     // S->O chain validation: tenderness grade correlates with BOTH pain level AND progress
+    // Use rounded pain to match the integer written to text (Parser reads rounded value)
+    // Use painInt from snap (same as what Parser reads from text output)
+    const painForGrade = painInt
     // High pain (8-10) -> +3 or +4 tenderness
     // Moderate pain (5-7) -> +2 or +3 tenderness
     // Low pain (0-4) -> +1 or +2 tenderness
     // Progress then modifies within the pain-appropriate range
     let targetTenderGrade: string
-    if (painScaleCurrent >= 8) {
+    if (painForGrade >= 8) {
       // High pain: always +3 or +4
       targetTenderGrade = rng() > 0.4 ? '+4' : '+3'
-    } else if (painScaleCurrent >= 5) {
+    } else if (painForGrade >= 5) {
       // Moderate pain: +2 or +3, with progress influence
       if (progress >= 0.75) {
         targetTenderGrade = '+2'
@@ -981,13 +1007,29 @@ export function generateTXSequenceStates(
       || tenderOptions['+2']?.text
       || '(+2) = Patient states that the area is moderately tender'
 
+    // Grade floor: 对齐 Checker TX02 的 expectedTenderMinScaleByPain
+    // pain>=7 → 至少 +3, pain>=5 → 至少 +2, else → +1
+    const gradeFloor = painForGrade >= 7 ? '+3' : painForGrade >= 5 ? '+2' : '+1'
+    const floorOrder = tenderOptions[gradeFloor]?.order ?? 1
+    const curGradeOrder = tenderOptions[targetTenderGrade]?.order ?? 2
+    if (curGradeOrder < floorOrder) {
+      targetTenderGrade = gradeFloor
+      tendernessGrading = tenderOptions[gradeFloor]?.text || tendernessGrading
+    }
+
     // 纵向约束: tenderness 不允许比上一次更差 (数字不能变大)
     if (prevTendernessGrade !== '') {
       const prevOrder = tenderOptions[prevTendernessGrade]?.order ?? 3
       const curOrder = tenderOptions[targetTenderGrade]?.order ?? 2
       if (curOrder > prevOrder) {
-        targetTenderGrade = prevTendernessGrade
-        tendernessGrading = tenderOptions[prevTendernessGrade]?.text || tendernessGrading
+        // 但也不能低于 floor
+        if (prevOrder >= floorOrder) {
+          targetTenderGrade = prevTendernessGrade
+          tendernessGrading = tenderOptions[prevTendernessGrade]?.text || tendernessGrading
+        } else {
+          targetTenderGrade = gradeFloor
+          tendernessGrading = tenderOptions[gradeFloor]?.text || tendernessGrading
+        }
       }
     }
     prevTendernessGrade = targetTenderGrade

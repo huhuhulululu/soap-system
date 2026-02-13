@@ -157,8 +157,13 @@ export function parseOptumNote(text: string): ParseResult {
       return { success: false, errors, warnings }
     }
 
-    // PDF 中的顺序是时间倒序（最新在前），反转为时间正序（IE 初诊在前）
-    const chronologicalVisits = enrichVisitsWithInheritance(visits.reverse())
+    // 智能排序: 检测 visits 是否已经是时间正序 (IE 在前 = Writer 输出)
+    // 还是时间倒序 (IE 在后 = PDF 提取)
+    const firstIsIE = visits[0]?.subjective.visitType === 'INITIAL EVALUATION'
+    const lastIsIE = visits[visits.length - 1]?.subjective.visitType === 'INITIAL EVALUATION'
+    // 只有当 IE 在最后(PDF 倒序)且首个不是 IE 时才反转
+    const orderedVisits = (!firstIsIE && lastIsIE) ? visits.reverse() : visits
+    const chronologicalVisits = enrichVisitsWithInheritance(orderedVisits)
 
     return {
       success: true,
