@@ -492,6 +492,12 @@ const TONE_MAP: Record<string, { tongueDefault: string; tongueOptions: string[];
     pulseDefault: 'superficial, tense',
     pulseOptions: ['superficial, tense']
   },
+  'Wind-Cold-Damp Bi': {
+    tongueDefault: 'thin white coat',
+    tongueOptions: ['thin white coat', 'white coat'],
+    pulseDefault: 'string-taut',
+    pulseOptions: ['string-taut', 'superficial, tense', 'wiry']
+  },
   'Cold-Damp + Wind-Cold': {
     tongueDefault: 'thick, white coat',
     tongueOptions: ['white coat', 'slippery coat'],
@@ -1183,7 +1189,7 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
 
   // 舌脉信息 (来自 tone/ 模板, 始终在 Objective 最底部)
   // 格式: tongue\n[舌象]\npulse\n[脉象]
-  const toneData = TONE_MAP[context.localPattern]
+  const toneData = TONE_MAP[context.localPattern] || TONE_MAP[context.systemicPattern || '']
   if (toneData) {
     const tongue = visitState?.tonguePulse?.tongue ?? toneData.tongueDefault
     const pulse = visitState?.tonguePulse?.pulse ?? toneData.pulseDefault

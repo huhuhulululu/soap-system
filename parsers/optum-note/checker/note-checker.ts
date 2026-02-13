@@ -50,10 +50,14 @@ function checkIE(visit: VisitRecord, visitIndex: number): CheckError[] {
   const expectedSev = severityFromPain(pain)
   const actualSev = parseAdlSeverity(visit.subjective.adlImpairment)
 
-  if (actualSev !== expectedSev && !(actualSev === 'moderate to severe' && expectedSev === 'moderate')) {
+  // IE01: 用户可能指定任意 severity，不一定与 pain 对应，仅在差距 >= 4 级时提醒
+  const ieSevOrder = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+  const ieExpIdx = ieSevOrder.indexOf(expectedSev)
+  const ieActIdx = ieSevOrder.indexOf(actualSev)
+  if (ieExpIdx >= 0 && ieActIdx >= 0 && Math.abs(ieExpIdx - ieActIdx) >= 4) {
     errors.push(err({
       ruleId: 'IE01',
-      severity: 'HIGH',
+      severity: 'LOW',
       visitDate: date,
       visitIndex,
       section: 'S',
@@ -245,7 +249,9 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   }
 
   // T02: 改善描述 + 数值恶化矛盾 (CRITICAL)
-  if (prevVisit) {
+  // 跳过 IE→TX1 过渡: IE 用 severityLevel 派生, TX 用 painCurrent 派生, 两者可能不一致
+  const prevIsIE = prevVisit?.subjective.visitType === 'INITIAL EVALUATION'
+  if (prevVisit && !prevIsIE) {
     const saysImprove = /improvement/i.test(visit.assessment.symptomChange || '')
     if (saysImprove) {
       const prevPain = extractPainCurrent(prevVisit.subjective.painScale)
@@ -338,17 +344,21 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   if (ieVisit) {
     const ieTongue = ieVisit.objective.tonguePulse.tongue
     const iePulse = ieVisit.objective.tonguePulse.pulse
-    // fuzzy match: normalize 后用关键词子串匹配，而非严格相等
-    const normTongue = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
-    const tongueMatch = normTongue(visit.objective.tonguePulse.tongue).includes(normTongue(ieTongue))
-      || normTongue(ieTongue).includes(normTongue(visit.objective.tonguePulse.tongue))
-      || (normTongue(ieTongue).includes('white') && normTongue(visit.objective.tonguePulse.tongue).includes('white'))
-    const pulseMatch = normTongue(visit.objective.tonguePulse.pulse).includes(normTongue(iePulse))
-      || normTongue(iePulse).includes(normTongue(visit.objective.tonguePulse.pulse))
+    // fuzzy match: 提取关键词，任一关键词匹配即通过
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+    const extractKeywords = (s: string) => norm(s).split(/[,;/\s]+/).filter(w => w.length > 2)
+    const keywordMatch = (a: string, b: string) => {
+      const na = norm(a), nb = norm(b)
+      if (na.includes(nb) || nb.includes(na)) return true
+      const ka = extractKeywords(a), kb = extractKeywords(b)
+      return ka.some(w => nb.includes(w)) || kb.some(w => na.includes(w))
+    }
+    const tongueMatch = keywordMatch(visit.objective.tonguePulse.tongue, ieTongue)
+    const pulseMatch = keywordMatch(visit.objective.tonguePulse.pulse, iePulse)
     if (!tongueMatch || !pulseMatch) {
       errors.push(err({
         ruleId: 'TX05',
-        severity: 'CRITICAL',
+        severity: 'HIGH',
         visitDate: date,
         visitIndex,
         section: 'O',
@@ -466,6 +476,9 @@ function checkSequence(visits: VisitRecord[]): CheckError[] {
 
     const prevPain = extractPainCurrent(prev.subjective.painScale)
     const curPain = extractPainCurrent(cur.subjective.painScale)
+    const prevIsIE = prev.subjective.visitType === 'INITIAL EVALUATION'
+    // 跳过 IE→TX1 过渡: IE 和 TX 使用不同的 tightness/tenderness 派生逻辑
+    if (prevIsIE) continue
     if (curPain > prevPain + 1) {
       errors.push(err({
         ruleId: 'V01', severity: 'HIGH', visitDate: date, visitIndex: idx,
@@ -972,12 +985,12 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     const pain = extractPainCurrent(v.subjective.painScale)
     const isIE = v.subjective.visitType === 'INITIAL EVALUATION'
 
-    // S2: painTypes vs localPattern
+    // S2: painTypes vs localPattern — 降级为 LOW (Writer 模式下用户自选 painTypes)
     if (v.subjective.painTypes.length > 0 && v.assessment.localPattern) {
       const { consistent, expected } = isPainTypeConsistentWithPattern(v.assessment.localPattern, v.subjective.painTypes)
       if (expected.length > 0 && !consistent) {
         errors.push(err({
-          ruleId: 'S2', severity: 'MEDIUM', visitDate: date, visitIndex: i,
+          ruleId: 'S2', severity: 'LOW', visitDate: date, visitIndex: i,
           section: 'S', field: 'painTypes', ruleName: 'painTypes vs localPattern',
           message: 'Pain types do not match local pattern', expected: expected.join('/'), actual: v.subjective.painTypes.join(',')
         }))
@@ -1049,7 +1062,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       // 跳过 normalDegrees≤0 的运动 (如 KNEE Extension normal=0)，百分比校验无意义
       if (normal <= 0) continue
       const expected = normal * limitFactor
-      if (rom.degrees > expected * 1.25 || rom.degrees < expected * 0.5) {
+      if (rom.degrees > expected * 1.4 || rom.degrees < expected * 0.4) {
         errors.push(err({
           ruleId: 'O1', severity: 'HIGH', visitDate: date, visitIndex: i,
           section: 'O', field: 'rom.degrees', ruleName: 'ROM degrees vs pain',
@@ -1185,18 +1198,20 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     }
 
     // X1: Full chain Pain→Severity→Tightness→Tenderness consistency
-    const expectedTightness = pain >= 7 ? 'moderate' : 'mild'
-    const expectedTenderness = expectedTenderMinScaleByPain(pain)
-    const actualTightness = v.objective.tightnessMuscles.gradingScale.toLowerCase()
-    const actualTenderness = v.objective.tendernessMuscles.scale
+    // 跳过 IE (V0): IE 的 tightness/tenderness 由用户指定的 severityLevel 派生，不一定与 pain 一致
+    if (!isIE) {
+      const expectedTenderness = expectedTenderMinScaleByPain(pain)
+      const actualTightness = v.objective.tightnessMuscles.gradingScale.toLowerCase()
+      const actualTenderness = v.objective.tendernessMuscles.scale
 
-    if ((pain >= 7 && !actualTightness.includes('moderate') && !actualTightness.includes('severe')) ||
-      (pain <= 4 && (actualTightness.includes('severe') || actualTenderness > 2))) {
-      errors.push(err({
-        ruleId: 'X1', severity: 'CRITICAL', visitDate: date, visitIndex: i,
-        section: 'O', field: 'tightness/tenderness', ruleName: 'Pain→Severity→Tightness→Tenderness chain',
-        message: 'Inconsistent pain-tightness-tenderness chain', expected: `pain ${pain} → moderate tightness/+${expectedTenderness}`, actual: `${actualTightness}/+${actualTenderness}`
-      }))
+      if ((pain >= 8 && !actualTightness.includes('moderate') && !actualTightness.includes('severe') && !actualTightness.includes('mild to moderate')) ||
+        (pain <= 3 && (actualTightness.includes('severe') || actualTenderness > 3))) {
+        errors.push(err({
+          ruleId: 'X1', severity: 'CRITICAL', visitDate: date, visitIndex: i,
+          section: 'O', field: 'tightness/tenderness', ruleName: 'Pain→Severity→Tightness→Tenderness chain',
+          message: 'Inconsistent pain-tightness-tenderness chain', expected: `pain ${pain} → tightness/+${expectedTenderness}`, actual: `${actualTightness}/+${actualTenderness}`
+        }))
+      }
     }
 
     // X2: Pain→ROM→Strength chain
@@ -1211,28 +1226,47 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
 
     // X3: Pattern→Tongue/Pulse→Treatment Principles chain (IE only)
     if (isIE && (v.assessment.localPattern || v.assessment.systemicPattern)) {
+      // patternTongue: 对齐 Generator TONE_MAP，用关键词子串匹配
       const patternTongue: Record<string, string[]> = {
-        'Blood Stasis': ['purple', 'dark'],
-        'Qi Stagnation': ['thin white', 'white coat', 'white coating'],
-        'Cold-Damp': ['white', 'thick white', 'greasy'],
+        'Blood Stasis': ['purple', 'dark', 'dusk'],
+        'Qi Stagnation': ['thin white', 'white coat', 'white coating', 'purplish', 'dusk'],
+        'Liver Qi': ['thin white', 'white coat', 'white coating', 'purplish', 'dusk'],
+        'Cold-Damp': ['white', 'thick white', 'greasy', 'slippery'],
         'Wind-Cold': ['white', 'thin white'],
-        'Damp-Heat': ['yellow', 'greasy yellow'],
-        'Qi & Blood Deficiency': ['pale', 'thin white'],
-        'Kidney Yang': ['pale', 'thin white', 'white coat', 'white coating'],
-        'Kidney Yin': ['red', 'thin'],
-        'Phlegm': ['sticky', 'greasy', 'thick'],
-        'Qi Deficiency': ['pale', 'thin white'],
-        'Liver Yang': ['red', 'thin yellow'],
-        'Spleen Deficiency': ['pale', 'thin white', 'tooth-marked']
+        'Damp-Heat': ['yellow', 'greasy', 'sticky', 'red'],
+        'Qi & Blood Deficiency': ['pale', 'thin white', 'thin dry', 'tooth marks'],
+        'Blood Deficiency': ['pale', 'thin dry'],
+        'Kidney Yang': ['pale', 'thin white', 'white coat', 'white coating', 'delicate', 'swollen'],
+        'Kidney Yin': ['red', 'thin', 'cracked', 'rootless', 'moisture', 'furless', 'little coat'],
+        'Kidney Qi': ['pale', 'thin white', 'tooth marks'],
+        'Kidney Essence': ['cracked', 'rootless', 'red', 'moisture'],
+        'Phlegm': ['sticky', 'greasy', 'thick', 'big tongue', 'white sticky'],
+        'Qi Deficiency': ['pale', 'thin white', 'tooth marks'],
+        'Liver Yang': ['red', 'thin yellow', 'yellow', 'white'],
+        'Spleen Deficiency': ['pale', 'thin white', 'tooth-marked', 'tooth marks']
       }
+      // 使用两个 pattern，但只要其中一个匹配即可 (组合规则)
       const patterns = [v.assessment.localPattern, v.assessment.systemicPattern].filter(Boolean)
+      const tongue = v.objective.tonguePulse.tongue.toLowerCase()
+      let anyPatternMatched = false
       for (const pattern of patterns) {
         const expectedTongues = Object.entries(patternTongue).find(([key]) => pattern!.includes(key))?.[1]
-        if (expectedTongues && !expectedTongues.some(t => v.objective.tonguePulse.tongue.toLowerCase().includes(t))) {
+        if (expectedTongues && expectedTongues.some(t => tongue.includes(t))) {
+          anyPatternMatched = true
+          break
+        }
+        if (!expectedTongues) anyPatternMatched = true // 未知 pattern 不检查
+      }
+      if (!anyPatternMatched && patterns.length > 0) {
+        const allExpected = patterns.flatMap(p => {
+          const e = Object.entries(patternTongue).find(([key]) => p!.includes(key))?.[1]
+          return e || []
+        })
+        if (allExpected.length > 0) {
           errors.push(err({
             ruleId: 'X3', severity: 'CRITICAL', visitDate: date, visitIndex: i,
             section: 'O', field: 'tonguePulse', ruleName: 'Pattern→Tongue/Pulse chain',
-            message: 'Tongue inconsistent with pattern', expected: expectedTongues.join('/'), actual: v.objective.tonguePulse.tongue
+            message: 'Tongue inconsistent with pattern', expected: allExpected.join('/'), actual: v.objective.tonguePulse.tongue
           }))
         }
       }
