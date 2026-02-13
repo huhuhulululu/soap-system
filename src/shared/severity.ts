@@ -24,7 +24,6 @@ export function severityFromPain(pain: number): SeverityLevel {
  * @returns Minimum tenderness scale (+1 to +4)
  */
 export function expectedTenderMinScaleByPain(pain: number): number {
-  if (pain >= 9) return 4
   if (pain >= 7) return 3
   if (pain >= 5) return 2
   return 1

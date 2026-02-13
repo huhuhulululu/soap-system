@@ -407,8 +407,8 @@ function deriveAssessmentFromSOA(input: {
   const physicalChange = !hasAnyObjectiveImprove
     ? 'remained the same'
     : strongPhysicalImprove
-    ? 'reduced'
-    : 'slightly reduced'
+      ? 'reduced'
+      : 'slightly reduced'
 
   // 修复: 当所有客观趋势都是 stable 时, 不能用 "last visit" 作为 findingType
   // 因为 "slightly reduced last visit" 语法不通, 需要回退到具体体征名
@@ -586,8 +586,8 @@ export function generateTXSequenceStates(
     : ieStartPain <= 6
       ? 2
       : Math.ceil(
-          ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
-        )
+        ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
+      )
   const ltFallback = ieStartPain <= 6
     ? 1
     : Math.ceil(Math.max(2, ieStartPain * 0.25))
@@ -661,6 +661,8 @@ export function generateTXSequenceStates(
   })()
 
   const visits: TXVisitState[] = []
+  // V09: 穴位纵向继承 — 首次选定后 100% 复用，保证 Jaccard=1.0
+  let fixedNeedlePoints: string[] = options.initialState?.acupoints || []
 
   for (let i = startIdx; i <= txCount; i++) {
     // progress 基于总疗程进度，而不是当前批次
@@ -741,8 +743,8 @@ export function generateTXSequenceStates(
     // Frequency 改善: 基于 progress 分段确定目标，与 pain 下降联动
     // Constant(3) → Frequent(2) → Occasional(1) → Intermittent(0)
     const frequencyTarget = progress >= 0.80 ? 1 :    // 后期至少 Occasional
-                            progress >= 0.55 ? 2 :    // 中后期至少 Frequent
-                            progress >= 0.30 ? 3 : 3  // 早期保持 Constant
+      progress >= 0.55 ? 2 :    // 中后期至少 Frequent
+        progress >= 0.30 ? 3 : 3  // 早期保持 Constant
     const nextFrequency = Math.min(prevFrequency, Math.max(frequencyTarget, prevFrequency - (rng() > 0.6 ? 1 : 0)))
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
@@ -990,7 +992,11 @@ export function generateTXSequenceStates(
     }
     prevTendernessGrade = targetTenderGrade
 
-    const needlePoints = pickMultiple('plan.needleProtocol.points', 6, ruleContext, progress, rng)
+    // V09: 穴位纵向继承 — 首次选穴后所有 TX 复用
+    if (fixedNeedlePoints.length === 0) {
+      fixedNeedlePoints = pickMultiple('plan.needleProtocol.points', 6, ruleContext, progress, rng)
+    }
+    const needlePoints = fixedNeedlePoints
 
     const SPASM_TEXTS = [
       '(0)=No spasm',

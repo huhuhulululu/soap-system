@@ -185,7 +185,18 @@ function checkTX(visit: VisitRecord, ieVisit: VisitRecord | undefined, prevVisit
   const expectedSev = severityFromPain(pain)
   const actualSev = parseAdlSeverity(visit.subjective.adlImpairment)
 
-  if (actualSev !== expectedSev && !(actualSev === 'moderate to severe' && expectedSev === 'moderate')) {
+  // ADL 降档容差: 当 ADL 较上次改善时，允许 severity 低一档
+  const sevOrder = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+  const expectedIdx = sevOrder.indexOf(expectedSev)
+  const actualIdx = sevOrder.indexOf(actualSev)
+  const adlImproved = prevVisit
+    ? compareSeverity(actualSev, parseAdlSeverity(prevVisit.subjective.adlImpairment)) < 0
+    : false
+  const withinOneLevelDown = expectedIdx >= 0 && actualIdx >= 0 && expectedIdx - actualIdx === 1
+
+  if (actualSev !== expectedSev
+    && !(actualSev === 'moderate to severe' && expectedSev === 'moderate')
+    && !(adlImproved && withinOneLevelDown)) {
     errors.push(err({
       ruleId: 'TX01',
       severity: 'MEDIUM',
@@ -977,27 +988,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
       }
     }
 
-    // S6: Associated symptom monotonic across visits
-    if (i > 0) {
-      const extractSymptom = (cc: string) => {
-        const match = cc.match(/muscles (weakness|soreness|heaviness|numbness|stiffness)/)
-        return match ? match[1] : null
-      }
-      const ranks = { numbness: 4, weakness: 4, heaviness: 3, stiffness: 2, soreness: 1 }
-      const curSymptom = extractSymptom(v.subjective.chiefComplaint)
-      const prevSymptom = extractSymptom(visits[i - 1].subjective.chiefComplaint)
-      if (curSymptom && prevSymptom) {
-        const curRank = ranks[curSymptom as keyof typeof ranks] || 0
-        const prevRank = ranks[prevSymptom as keyof typeof ranks] || 0
-        if (curRank > prevRank) {
-          errors.push(err({
-            ruleId: 'S6', severity: 'MEDIUM', visitDate: date, visitIndex: i,
-            section: 'S', field: 'chiefComplaint', ruleName: 'Associated symptom monotonic',
-            message: 'Associated symptom severity increased', expected: `<= ${prevSymptom}`, actual: curSymptom
-          }))
-        }
-      }
-    }
+    // S6: 已删除 — 与 T09 (checkSequence) 重复，保留 T09 避免双重扣分
 
     // S7: muscleWeaknessScale vs pain
     if (v.subjective.muscleWeaknessScale) {
@@ -1030,6 +1021,8 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
     for (const rom of v.objective.rom.items) {
       const movement = rom.movement.toLowerCase()
       const normal = normals[movement] || (movement.includes('abduction') ? 180 : 90)
+      // 跳过 normalDegrees≤0 的运动 (如 KNEE Extension normal=0)，百分比校验无意义
+      if (normal <= 0) continue
       const expected = normal * limitFactor
       if (rom.degrees > expected * 1.25 || rom.degrees < expected * 0.5) {
         errors.push(err({
@@ -1167,7 +1160,7 @@ function checkGeneratorRules(visits: VisitRecord[], insuranceType: string, treat
 
     // X1: Full chain Pain→Severity→Tightness→Tenderness consistency
     const expectedTightness = pain >= 7 ? 'moderate' : 'mild'
-    const expectedTenderness = pain >= 7 ? 2 : pain <= 4 ? 2 : 1
+    const expectedTenderness = expectedTenderMinScaleByPain(pain)
     const actualTightness = v.objective.tightnessMuscles.gradingScale.toLowerCase()
     const actualTenderness = v.objective.tendernessMuscles.scale
 

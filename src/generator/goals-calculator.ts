@@ -5,15 +5,15 @@
 import type { SeverityLevel, BodyPart } from '../types'
 
 export interface DynamicGoals {
-  pain:        { st: string; lt: string }
+  pain: { st: string; lt: string }
   symptomType: string  // 'soreness', 'weakness', 'stiffness', 'heaviness', 'numbness'
-  symptomPct:  { st: string; lt: string }  // 症状百分比 (原 soreness)
-  tightness:   { st: string; lt: string }
-  tenderness:  { st: number; lt: number }
-  spasm:       { st: number; lt: number }
-  strength:    { st: string; lt: string }
-  rom:         { st: string; lt: string }
-  adl:         { st: string; lt: string }
+  symptomPct: { st: string; lt: string }  // 症状百分比 (原 soreness)
+  tightness: { st: string; lt: string }
+  tenderness: { st: number; lt: number }
+  spasm: { st: number; lt: number }
+  strength: { st: string; lt: string }
+  rom: { st: string; lt: string }
+  adl: { st: string; lt: string }
 }
 
 export interface IEPainScale {
@@ -47,18 +47,18 @@ function snapToGrid(value: number): string {
 
 const IE_PAIN_SCALE: Record<string, Record<string, IEPainScale>> = {
   SHOULDER: {
-    'severe':             { worst: '9',  best: '7', current: '9-8' },
-    'moderate to severe': { worst: '7',  best: '6', current: '7-6' },
-    'moderate':           { worst: '7',  best: '5', current: '6-5' },
-    'mild to moderate':   { worst: '6',  best: '4', current: '5-4' },
-    'mild':               { worst: '4',  best: '3', current: '4-3' },
+    'severe': { worst: '9', best: '7', current: '9-8' },
+    'moderate to severe': { worst: '7', best: '6', current: '7-6' },
+    'moderate': { worst: '7', best: '5', current: '6-5' },
+    'mild to moderate': { worst: '6', best: '4', current: '5-4' },
+    'mild': { worst: '4', best: '3', current: '4-3' },
   },
   DEFAULT: {
-    'severe':             { worst: '10', best: '7', current: '10-9' },
-    'moderate to severe': { worst: '8',  best: '6', current: '8' },
-    'moderate':           { worst: '7',  best: '5', current: '7-6' },
-    'mild to moderate':   { worst: '6',  best: '4', current: '5-4' },
-    'mild':               { worst: '4',  best: '3', current: '4-3' },
+    'severe': { worst: '10', best: '7', current: '10-9' },
+    'moderate to severe': { worst: '8', best: '6', current: '8' },
+    'moderate': { worst: '7', best: '5', current: '7-6' },
+    'mild to moderate': { worst: '6', best: '4', current: '5-4' },
+    'mild': { worst: '4', best: '3', current: '4-3' },
   }
 }
 
@@ -171,11 +171,11 @@ function calculateStrengthGoals(current: string = '3+/5'): { st: string; lt: str
 function calculateSymptomPctGoals(severity: SeverityLevel): { st: string; lt: string } {
   // 症状百分比与 Pain/Severity 正相关
   const map: Record<string, { st: string; lt: string }> = {
-    'severe':             { st: '(60%-70%)', lt: '(30%-40%)' },
+    'severe': { st: '(60%-70%)', lt: '(30%-40%)' },
     'moderate to severe': { st: '(50%-60%)', lt: '(20%-30%)' },
-    'moderate':           { st: '(40%-50%)', lt: '(20%-30%)' },
-    'mild to moderate':   { st: '(30%-40%)', lt: '(10%-20%)' },
-    'mild':               { st: '(20%-30%)', lt: '(10%-20%)' },
+    'moderate': { st: '(40%-50%)', lt: '(20%-30%)' },
+    'mild to moderate': { st: '(30%-40%)', lt: '(10%-20%)' },
+    'mild': { st: '(20%-30%)', lt: '(10%-20%)' },
   }
   return map[severity] || { st: '(50%-60%)', lt: '(20%-30%)' }
 }
@@ -185,11 +185,11 @@ function calculateROMGoals(severity: SeverityLevel): { st: string; lt: string } 
   // mod-sev: 60% → ST 80% → LT 92%
   // moderate: 70% → ST 85% → LT 95%
   const map: Record<string, { st: string; lt: string }> = {
-    'severe':             { st: '50%', lt: '70%' },
+    'severe': { st: '50%', lt: '70%' },
     'moderate to severe': { st: '60%', lt: '80%' },
-    'moderate':           { st: '50%', lt: '60%' },
-    'mild to moderate':   { st: '50%', lt: '60%' },
-    'mild':               { st: '50%', lt: '60%' },
+    'moderate': { st: '50%', lt: '60%' },
+    'mild to moderate': { st: '50%', lt: '60%' },
+    'mild': { st: '50%', lt: '60%' },
   }
   return map[severity] || { st: '60%', lt: '80%' }
 }
@@ -214,14 +214,19 @@ export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, sym
   const painCurrent = painOverride ?? parsePainFromSeverity(severity)
 
   return {
-    pain:        calculatePainGoals(painCurrent, bp),
+    pain: calculatePainGoals(painCurrent, bp),
     symptomType: symptomType,
-    symptomPct:  calculateSymptomPctGoals(severity),
-    tightness:   calculateTightnessGoals(severity),
-    tenderness:  calculateTendernessGoals(severity, bp),
-    spasm:       calculateSpasmGoals(3),
-    strength:    calculateStrengthGoals('3+/5'),
-    rom:         calculateROMGoals(severity),
-    adl:         calculateADLGoals(severity),
+    symptomPct: calculateSymptomPctGoals(severity),
+    tightness: calculateTightnessGoals(severity),
+    tenderness: calculateTendernessGoals(severity, bp),
+    spasm: calculateSpasmGoals(3), // IE 默认 spasm=+3，正确
+    // 从 severity 推导初始 strength，避免硬编码
+    strength: calculateStrengthGoals(
+      severity === 'severe' || severity === 'moderate to severe' ? '4-/5'
+        : severity === 'moderate' ? '4/5'
+          : '4+/5'
+    ),
+    rom: calculateROMGoals(severity),
+    adl: calculateADLGoals(severity),
   }
 }

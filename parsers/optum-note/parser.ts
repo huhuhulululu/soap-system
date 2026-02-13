@@ -366,8 +366,8 @@ export function parseSubjective(block: string): Subjective | null {
   // Radiation
   const radiation = !/without radiation/i.test(chiefComplaint)
 
-  // Muscle weakness scale - also handle "soreness", "heaviness", "numbness"
-  const weaknessPattern = /(?:muscles?\s+(?:weakness|soreness|heaviness|numbness))\s*\(?\s*scale\s+as\s+(\d+%(?:-\d+%)?)\)?/i
+  // Muscle weakness scale - handle single or comma-separated symptoms (e.g. "soreness, stiffness")
+  const weaknessPattern = /muscles?\s+[\w\s,]+\(\s*scale\s+as\s+(\d+%(?:-\d+%)?)\)/i
   const weaknessMatch = block.match(weaknessPattern)
   const muscleWeaknessScale = weaknessMatch?.[1] || ''
 
