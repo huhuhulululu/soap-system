@@ -16,12 +16,17 @@ docker compose up -d --build
 
 前端将监听 80 端口。
 
+## 服务器信息
+
+- **IP**: `150.136.150.184`
+- **SSH**: `ssh ubuntu@150.136.150.184`
+
 ## 日常更新（代码 push 后）
 
 SSH 登录服务器后执行：
 
 ```bash
-cd /path/to/soap-system   # 换成你服务器上的项目路径
+cd /home/ubuntu/soap-system
 git pull origin clean-release
 docker compose up -d --build
 ```
