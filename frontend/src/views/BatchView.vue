@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -238,6 +238,7 @@ async function confirmBatch() {
     }
     batchData.value = { ...batchData.value, confirmed: true }
     step.value = 'confirmed'
+    checkCookies()
   } catch (err) {
     error.value = err.message || 'Network error'
   } finally {
@@ -302,6 +303,7 @@ async function copyAllSOAP() {
 
 // ── Reset ────────────────────────────────────────
 function resetAll() {
+  stopPolling()
   step.value = 'upload'
   batchId.value = ''
   batchData.value = null
@@ -312,6 +314,9 @@ function resetAll() {
   error.value = ''
   copiedKey.value = ''
   copiedAll.value = false
+  automationStatus.value = 'idle'
+  automationLogs.value = []
+  startingAutomation.value = false
 }
 
 // ── Note Type Badge ──────────────────────────────
@@ -319,6 +324,125 @@ function noteTypeBadgeClass(type) {
   if (type === 'IE') return 'bg-blue-100 text-blue-700 border-blue-200'
   return 'bg-amber-100 text-amber-700 border-amber-200'
 }
+
+// ── Automation ──────────────────────────────────
+const cookiesInfo = ref({ exists: false, updatedAt: null })
+const cookieFileInput = ref(null)
+const uploadingCookies = ref(false)
+const automationStatus = ref('idle') // idle | running | done | failed
+const automationLogs = ref([])
+const automationPolling = ref(null)
+const startingAutomation = ref(false)
+
+async function checkCookies() {
+  try {
+    const res = await fetch(`${API_BASE}/automate/cookies`)
+    const json = await res.json()
+    if (json.success) {
+      cookiesInfo.value = json.data
+    }
+  } catch { /* ignore */ }
+}
+
+function openCookieFilePicker() {
+  cookieFileInput.value?.click()
+}
+
+async function handleCookieFileSelect(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  e.target.value = ''
+
+  uploadingCookies.value = true
+  error.value = ''
+
+  try {
+    const text = await file.text()
+    const json = JSON.parse(text)
+
+    const res = await fetch(`${API_BASE}/automate/cookies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(json),
+    })
+    const result = await res.json()
+    if (!result.success) {
+      error.value = result.error || 'Failed to upload cookies'
+      return
+    }
+    cookiesInfo.value = { exists: true, updatedAt: result.data.updatedAt }
+  } catch (err) {
+    error.value = err.message || 'Invalid JSON file'
+  } finally {
+    uploadingCookies.value = false
+  }
+}
+
+async function startAutomation() {
+  startingAutomation.value = true
+  error.value = ''
+
+  try {
+    const res = await fetch(`${API_BASE}/automate/${batchId.value}`, {
+      method: 'POST',
+    })
+    const json = await res.json()
+    if (!json.success) {
+      error.value = json.error || 'Failed to start automation'
+      return
+    }
+    automationStatus.value = json.data.status
+    automationLogs.value = [...json.data.logs]
+    startPolling()
+  } catch (err) {
+    error.value = err.message || 'Network error'
+  } finally {
+    startingAutomation.value = false
+  }
+}
+
+async function stopAutomation() {
+  try {
+    await fetch(`${API_BASE}/automate/${batchId.value}/stop`, { method: 'POST' })
+  } catch { /* ignore */ }
+}
+
+function startPolling() {
+  stopPolling()
+  automationPolling.value = setInterval(pollStatus, 2000)
+}
+
+function stopPolling() {
+  if (automationPolling.value) {
+    clearInterval(automationPolling.value)
+    automationPolling.value = null
+  }
+}
+
+async function pollStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/automate/${batchId.value}`)
+    const json = await res.json()
+    if (!json.success) return
+
+    automationStatus.value = json.data.status
+    automationLogs.value = [...json.data.logs]
+
+    if (json.data.status === 'done' || json.data.status === 'failed') {
+      stopPolling()
+    }
+  } catch { /* ignore */ }
+}
+
+function formatCookiesDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleString()
+}
+
+onUnmounted(() => {
+  stopPolling()
+})
 </script>
 
 <template>
@@ -655,20 +779,25 @@ function noteTypeBadgeClass(type) {
       </div>
     </div>
 
-    <!-- ════════════ STEP 3: Confirmed ════════════ -->
-    <div v-else-if="step === 'confirmed'" class="max-w-lg mx-auto text-center py-16">
-      <div class="w-20 h-20 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-6">
-        <svg class="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-      <h2 class="font-display text-2xl font-bold text-ink-800 mb-2">Batch Confirmed</h2>
-      <p class="text-ink-500 mb-2">
-        {{ uploadSummary?.totalPatients }} patients, {{ uploadSummary?.totalVisits }} visits
-      </p>
-      <p class="text-sm text-ink-400 mb-8">Batch ID: {{ batchId }}</p>
+    <!-- ════════════ STEP 3: Confirmed + Automation ════════════ -->
+    <div v-else-if="step === 'confirmed'" class="max-w-3xl mx-auto py-8">
 
-      <div class="flex justify-center gap-3">
+      <!-- Confirmed Header -->
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 class="font-display text-2xl font-bold text-ink-800 mb-1">Batch Confirmed</h2>
+        <p class="text-ink-500">
+          {{ uploadSummary?.totalPatients }} patients, {{ uploadSummary?.totalVisits }} visits
+        </p>
+        <p class="text-xs text-ink-400 mt-1">Batch ID: {{ batchId }}</p>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex justify-center gap-3 mb-8">
         <button @click="copyAllSOAP" class="btn-secondary text-sm flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -676,9 +805,140 @@ function noteTypeBadgeClass(type) {
           </svg>
           {{ copiedAll ? 'Copied!' : 'Copy All SOAP' }}
         </button>
-        <button @click="resetAll" class="btn-primary text-sm">
+        <button @click="resetAll" class="btn-secondary text-sm">
           New Batch
         </button>
+      </div>
+
+      <!-- ═══ MDLand Automation Panel ═══ -->
+      <div class="card p-6">
+        <h3 class="font-display text-lg font-bold text-ink-800 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-ink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          Push to MDLand
+        </h3>
+
+        <!-- Step 1: Cookie Upload -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-medium text-ink-700">1. MDLand Session Cookies</p>
+            <span
+              v-if="cookiesInfo.exists"
+              class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full"
+            >
+              Uploaded {{ formatCookiesDate(cookiesInfo.updatedAt) }}
+            </span>
+            <span v-else class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              Not uploaded
+            </span>
+          </div>
+          <p class="text-xs text-ink-400 mb-3">
+            Run <code class="bg-ink-50 px-1 rounded">extract-cookies.ts</code> locally, then upload the JSON file.
+          </p>
+          <button
+            @click="openCookieFilePicker"
+            :disabled="uploadingCookies"
+            class="btn-secondary text-sm flex items-center gap-2"
+            :class="{ 'opacity-60': uploadingCookies }"
+          >
+            <svg v-if="uploadingCookies" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            {{ uploadingCookies ? 'Uploading...' : cookiesInfo.exists ? 'Re-upload Cookies' : 'Upload Cookies JSON' }}
+          </button>
+          <input
+            ref="cookieFileInput"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="handleCookieFileSelect"
+          />
+        </div>
+
+        <!-- Divider -->
+        <hr class="border-ink-100 mb-6" />
+
+        <!-- Step 2: Start Automation -->
+        <div class="mb-6">
+          <p class="text-sm font-medium text-ink-700 mb-2">2. Run Automation</p>
+          <p class="text-xs text-ink-400 mb-3">
+            Headless Chromium will fill SOAP, ICD/CPT, and generate billing in MDLand.
+          </p>
+
+          <!-- Start / Stop buttons -->
+          <div class="flex gap-3">
+            <button
+              v-if="automationStatus !== 'running'"
+              @click="startAutomation"
+              :disabled="!cookiesInfo.exists || startingAutomation"
+              class="btn-primary text-sm flex items-center gap-2"
+              :class="{ 'opacity-60 cursor-not-allowed': !cookiesInfo.exists || startingAutomation }"
+            >
+              <svg v-if="startingAutomation" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {{ startingAutomation ? 'Starting...' : automationStatus === 'done' || automationStatus === 'failed' ? 'Restart' : 'Start Automation' }}
+            </button>
+
+            <button
+              v-if="automationStatus === 'running'"
+              @click="stopAutomation"
+              class="btn-secondary text-sm flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+              </svg>
+              Stop
+            </button>
+          </div>
+
+          <p v-if="!cookiesInfo.exists" class="text-xs text-amber-500 mt-2">
+            Upload cookies first before starting automation.
+          </p>
+        </div>
+
+        <!-- Status Badge -->
+        <div v-if="automationStatus !== 'idle'" class="mb-4">
+          <div class="flex items-center gap-2">
+            <span
+              class="text-xs font-semibold px-2.5 py-1 rounded-full"
+              :class="{
+                'bg-blue-100 text-blue-700': automationStatus === 'running',
+                'bg-green-100 text-green-700': automationStatus === 'done',
+                'bg-red-100 text-red-700': automationStatus === 'failed',
+              }"
+            >
+              <span v-if="automationStatus === 'running'" class="inline-block w-2 h-2 bg-blue-500 rounded-full mr-1.5 animate-pulse"></span>
+              {{ automationStatus === 'running' ? 'Running' : automationStatus === 'done' ? 'Completed' : 'Failed' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Logs -->
+        <div v-if="automationLogs.length > 0" class="bg-ink-900 rounded-lg p-4 max-h-80 overflow-y-auto">
+          <p class="text-xs text-ink-400 mb-2 font-semibold uppercase tracking-wider">Logs</p>
+          <div class="space-y-0.5">
+            <p
+              v-for="(log, i) in automationLogs"
+              :key="i"
+              class="text-xs font-mono leading-relaxed"
+              :class="log.includes('[stderr]') || log.includes('Failed') || log.includes('error') ? 'text-red-400' : log.includes('Completed') || log.includes('saved') || log.includes('Success') ? 'text-green-400' : 'text-ink-300'"
+            >{{ log }}</p>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -7,6 +7,7 @@
 import express from 'express'
 import cors from 'cors'
 import { createBatchRouter } from './routes/batch'
+import { createAutomateRouter } from './routes/automate'
 
 export function createApp(): express.Application {
   const app = express()
@@ -16,6 +17,9 @@ export function createApp(): express.Application {
 
   // 批量处理路由
   app.use('/api/batch', createBatchRouter())
+
+  // 自动化路由 (cookies upload, trigger, status)
+  app.use('/api/automate', createAutomateRouter())
 
   // 健康检查
   app.get('/api/health', (_req, res) => {
