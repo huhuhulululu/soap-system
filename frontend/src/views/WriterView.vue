@@ -62,7 +62,7 @@ const BODY_PARTS = [
   'HIP', 'KNEE', 'ANKLE', 'FOOT',
   'THIGH', 'CALF', 'ARM', 'FOREARM',
 ]
-const SUPPORTED_IE_PARTS = new Set(['ELBOW', 'HIP', 'KNEE', 'LBP', 'MID_LOW_BACK', 'NECK', 'SHOULDER'])
+const SUPPORTED_IE_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MID_LOW_BACK', 'NECK', 'SHOULDER'])
 const SUPPORTED_TX_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MID_LOW_BACK', 'MIDDLE_BACK', 'NECK', 'SHOULDER'])
 const GENDER_OPTIONS = ['Male', 'Female']
 
@@ -73,6 +73,13 @@ const BODY_PART_DISPLAY = {
 function bodyPartLabel(bp) {
   return BODY_PART_DISPLAY[bp] || bp
 }
+
+// 非 body-part 的通用 ICD-10 码（不影响部位/侧别推导）
+const EXTRA_ICD_CODES = [
+  { icd10: 'G89.29', desc: 'Other chronic pain', bodyPart: null, laterality: null },
+  { icd10: 'S39.012A', desc: 'Strain of muscle of lower back, initial encounter', bodyPart: 'LBP', laterality: 'bilateral' },
+  { icd10: 'M62.830', desc: 'Muscle spasm of back', bodyPart: 'LBP', laterality: 'bilateral' },
+]
 
 // ICD-10 选项池 + 搜索过滤
 const filteredIcdOptions = computed(() => {
@@ -89,6 +96,9 @@ const filteredIcdOptions = computed(() => {
       pool.push({ icd10: info.code, desc: info.desc, bodyPart: bp, laterality: 'bilateral' })
     }
   }
+  for (const extra of EXTRA_ICD_CODES) {
+    pool.push({ ...extra })
+  }
   const available = pool.filter(item => !alreadySelected.has(item.icd10))
   if (!icdSearch.value.trim()) return available
   const q = icdSearch.value.toLowerCase()
@@ -96,10 +106,10 @@ const filteredIcdOptions = computed(() => {
 })
 
 function syncBodyPartFromIcds() {
-  if (selectedIcds.value.length === 0) return
-  const first = selectedIcds.value[0]
-  bodyPart.value = first.bodyPart
-  const sides = new Set(selectedIcds.value.map(s => s.laterality))
+  const withPart = selectedIcds.value.filter(s => s.bodyPart)
+  if (withPart.length === 0) return
+  bodyPart.value = withPart[0].bodyPart
+  const sides = new Set(withPart.map(s => s.laterality))
   if (sides.has('right') && sides.has('left')) {
     laterality.value = 'bilateral'
   } else if (sides.has('right')) {
@@ -689,13 +699,20 @@ function isLongField(path) {
               </select>
             </div>
             <div>
-              <label class="text-xs text-ink-500 mb-1 flex items-center gap-2">
-                部位
-                <button @click="selectionMode = selectionMode === 'bodypart' ? 'icd10' : 'bodypart'"
-                  class="text-[10px] px-1.5 py-0.5 rounded border border-ink-200 text-ink-400 hover:text-ink-600 cursor-pointer">
-                  {{ selectionMode === 'bodypart' ? '→ ICD-10' : '→ 直选' }}
+              <label class="text-xs text-ink-500 mb-1 block">部位</label>
+              <!-- 模式切换 -->
+              <div class="flex gap-1 mb-1.5">
+                <button @click="selectionMode = 'bodypart'"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  :class="selectionMode === 'bodypart' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  直选
                 </button>
-              </label>
+                <button @click="selectionMode = 'icd10'"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  :class="selectionMode === 'icd10' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                  ICD-10
+                </button>
+              </div>
               <!-- 直选模式 -->
               <select v-if="selectionMode === 'bodypart'" v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option v-for="p in availableBodyParts" :key="p" :value="p">{{ bodyPartLabel(p) }}</option>
@@ -706,7 +723,7 @@ function isLongField(path) {
                 <div v-if="selectedIcds.length" class="flex flex-wrap gap-1 mb-1.5">
                   <span v-for="(item, idx) in selectedIcds" :key="item.icd10"
                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
-                    :class="idx === 0 ? 'bg-ink-800 text-paper-50' : 'bg-ink-100 text-ink-600'">
+                    :class="item.bodyPart ? 'bg-ink-800 text-paper-50' : 'bg-ink-100 text-ink-600'">
                     {{ item.icd10 }}
                     <button @click="removeIcdCode(idx)" class="hover:text-red-400 cursor-pointer">&times;</button>
                   </span>
