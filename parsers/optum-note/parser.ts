@@ -122,6 +122,51 @@ function normalizePdfText(text: string): string {
   return r
 }
 
+/**
+ * Strip repeated page-break headers from PDF text.
+ * These are lines like: "NAME (DOB: MM/DD/YYYY ID: XXXXXXXXXX) Date of Service: MM/DD/YYYY Printed on: ..."
+ * They appear on every page of the PDF and pollute the content.
+ * Must run AFTER parseHeader (which needs the first occurrence).
+ */
+function stripPageBreakHeaders(text: string): string {
+  // Match: NAME (DOB: ... ID: ...) Date of Service: ... Printed on: ... [Printed on: ...]
+  // The pattern may appear with or without trailing "Printed on" duplicates
+  const headerLine = /[A-Z]+,\s*[A-Z\s]+\(DOB:\s*\d{2}\/\d{2}\/\d{4}\s*ID:\s*\d{10}\)\s*Date of Service:\s*\d{2}\/\d{2}\/\d{4}\s*(?:Printed on:\s*\d{2}\/\d{2}\/\d{4}\s*)+/g
+
+  // Also match standalone "Printed on YYYY/MM/DD" lines (footer artifacts)
+  const printedOnLine = /\n?\s*Printed on\s+\d{4}\/\d{2}\/\d{2}\s*/g
+
+  // Also match standalone "Patient: NAME" footer lines
+  const patientFooter = /\n?\s*Patient:\s*[A-Z]+,\s*[A-Z\s]+(?=\n|$)/g
+
+  let result = text
+
+  // Find all header occurrences; keep the FIRST, remove the rest
+  const matches: { index: number; length: number }[] = []
+  let m
+  while ((m = headerLine.exec(result)) !== null) {
+    matches.push({ index: m.index, length: m[0].length })
+  }
+
+  // Remove from last to first to preserve indices (skip first occurrence)
+  for (let i = matches.length - 1; i >= 1; i--) {
+    const { index, length } = matches[i]
+    result = result.slice(0, index) + '\n' + result.slice(index + length)
+  }
+
+  // Clean orphaned date lines left behind after header removal
+  // e.g. "06/11/2025" on its own line that was part of the page header
+  result = result.replace(/\n\d{2}\/\d{2}\/\d{4}\s*\n/g, '\n')
+
+  // Remove "Printed on YYYY/MM/DD" footer lines
+  result = result.replace(printedOnLine, '')
+
+  // Remove "Patient: NAME" footer lines
+  result = result.replace(patientFooter, '')
+
+  return result
+}
+
 // ============ Main Parser ============
 export function parseOptumNote(text: string): ParseResult {
   const errors: ParseError[] = []
@@ -136,7 +181,10 @@ export function parseOptumNote(text: string): ParseResult {
       return { success: false, errors, warnings }
     }
 
-    const visitBlocks = splitVisitRecords(cleaned)
+    // Strip repeated page-break headers (after header parsing, before visit splitting)
+    const stripped = stripPageBreakHeaders(cleaned)
+
+    const visitBlocks = splitVisitRecords(stripped)
     if (visitBlocks.length === 0) {
       errors.push({ field: 'visits', message: 'No visit records found' })
       return { success: false, errors, warnings }
@@ -971,14 +1019,18 @@ export function parseNeedleSpecs(text: string): NeedleSpec[] {
 // ============ Diagnosis Code Parser ============
 export function parseDiagnosisCodes(block: string): DiagnosisCode[] {
   const codes: DiagnosisCode[] = []
-  // Handle both "Diagnosis Code: (1) desc (M25.561)" and "Diagnosis Code : (1) desc (M25.561)"
-  const pattern = /Diagnosis Code\s*:\s*\(?\d+\)?\s*(.+?)\(([A-Z]\d+\.?\d*)\)/gi
 
+  // Extract the diagnosis codes section first
+  const sectionMatch = block.match(/Diagnosis Code\s*:[\s\S]+?(?=\nProcedure Code|\n\n|$)/i)
+  const section = sectionMatch?.[0] || ''
+
+  // Match each numbered entry: (N) description(ICD10)
+  const entryPattern = /\((\d+)\)\s*(.+?)\(([A-Z]\d+\.?\d*)\)/gi
   let match
-  while ((match = pattern.exec(block)) !== null) {
+  while ((match = entryPattern.exec(section)) !== null) {
     codes.push({
-      description: match[1].trim(),
-      icd10: match[2],
+      description: match[2].trim(),
+      icd10: match[3],
     })
   }
 
@@ -995,7 +1047,7 @@ export function parseProcedureCodes(block: string): ProcedureCode[] {
   while ((match = pattern.exec(block)) !== null) {
     codes.push({
       description: match[1].trim(),
-      cpt: match[2],
+      cpt: normalizeCpt(match[2]),
     })
   }
 
@@ -1005,14 +1057,24 @@ export function parseProcedureCodes(block: string): ProcedureCode[] {
 
   let multiMatch: RegExpExecArray | null
   while ((multiMatch = multiPattern.exec(multiSection)) !== null) {
-    const exists = codes.some((c) => c.cpt === multiMatch![3])
+    const cpt = normalizeCpt(multiMatch[3])
+    const exists = codes.some((c) => c.cpt === cpt)
     if (!exists) {
       codes.push({
         description: multiMatch[2].trim(),
-        cpt: multiMatch[3],
+        cpt,
       })
     }
   }
 
   return codes
+}
+
+/** Normalize CPT code: split concatenated modifier (e.g. "9920325" → "99203") */
+function normalizeCpt(raw: string): string {
+  // Standard CPT codes are 5 digits. If 6-7 digits, the extra digits are a modifier (e.g. 25, 59)
+  if (/^\d{6,7}$/.test(raw)) {
+    return raw.slice(0, 5)
+  }
+  return raw
 }

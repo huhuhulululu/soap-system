@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useFilesStore } from '../stores/files'
 import FileUploader from '../components/FileUploader.vue'
@@ -35,6 +35,14 @@ const progress = computed(() => {
   if (files.value.length === 0) return 0
   return ((files.value.length - pendingFiles.value.length) / files.value.length) * 100
 })
+
+const previewFile = ref(null)
+function handlePreview(file) {
+  previewFile.value = file
+}
+function closePreview() {
+  previewFile.value = null
+}
 </script>
 
 <template>
@@ -109,6 +117,7 @@ const progress = computed(() => {
             :selected-id="selectedFile?.id"
             @select="selectFile"
             @remove="removeFile"
+            @preview="handlePreview"
             @add-more="() => {}"
             class="animate-slide-up stagger-2"
           />
@@ -130,5 +139,39 @@ const progress = computed(() => {
         </div>
       </div>
     </ErrorBoundary>
+
+    <!-- Raw Text Preview Modal -->
+    <div
+      v-if="previewFile"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      @click="closePreview"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col"
+        @click.stop
+      >
+        <div class="flex items-center justify-between px-5 py-3 border-b border-ink-100">
+          <h2 class="text-sm font-semibold text-ink-800 truncate">{{ previewFile.name }}</h2>
+          <button @click="closePreview" class="text-ink-400 hover:text-ink-600 p-1">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5">
+          <div class="text-xs text-ink-700 font-mono whitespace-pre-wrap leading-relaxed">
+            <template v-for="(text, i) in (previewFile.report?.visitTexts || [])" :key="i">
+              <div class="mb-4 p-3 bg-paper-50 border border-ink-100 rounded">
+                <p class="text-[10px] text-ink-400 mb-2 font-sans">Visit {{ i + 1 }}</p>
+                {{ text }}
+              </div>
+            </template>
+            <p v-if="!(previewFile.report?.visitTexts?.length)" class="text-ink-400 text-sm font-sans">
+              无原文数据
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
