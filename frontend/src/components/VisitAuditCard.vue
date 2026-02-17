@@ -14,12 +14,9 @@ const isExpanded = ref(false)
 const { diffLineWords } = useDiffHighlight(ref([]))
 
 const visitLabel = computed(() => `Visit ${props.visitIndex + 1}`)
-const visitDate = computed(() => {
-  // Try assessment.date first, then extract from raw text block
-  if (props.visit?.assessment?.date) return props.visit.assessment.date
-  const dateMatch = props.visitText.match(/(\d{2}\/\d{2}\/\d{4})/)
-  return dateMatch?.[1] || ''
-})
+const visitDate = computed(() =>
+  props.visit?.assessment?.date || ''
+)
 const bodyPart = computed(() =>
   props.visit?.subjective?.bodyPartNormalized || props.visit?.subjective?.bodyPart || ''
 )
@@ -222,14 +219,14 @@ const errorCount = computed(() => props.errors.length)
       </div>
 
       <!-- Right: ICD + CPT Badges -->
-      <div class="flex items-center gap-1.5 shrink-0 ml-3">
+      <div class="flex flex-wrap items-center gap-1 shrink-0 ml-3">
         <span
-          v-for="icd in icdCodes.slice(0, 3)"
+          v-for="icd in icdCodes"
           :key="icd"
           class="px-1.5 py-0.5 text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200 rounded"
         >{{ icd }}</span>
         <span
-          v-for="cpt in cptCodes.slice(0, 2)"
+          v-for="cpt in cptCodes"
           :key="cpt"
           class="px-1.5 py-0.5 text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 rounded"
         >{{ cpt }}</span>
