@@ -97,9 +97,7 @@ export const useFilesStore = defineStore('files', () => {
         // Collect successful results for history
         processedResults.push({
           fileName: file.name,
-          patient: report.patient,
-          summary: report.summary,
-          processedAt: new Date().toISOString()
+          report
         })
       } catch (err) {
         console.error('[AChecker] validateFile failed:', err)
@@ -122,16 +120,26 @@ export const useFilesStore = defineStore('files', () => {
         const history = useHistory()
 
         processedResults.forEach(result => {
-          history.saveResult(result.fileName, {
-            patient: result.patient,
-            summary: result.summary,
-            processedAt: result.processedAt
-          })
+          history.saveResult(result.fileName, result.report)
         })
       } catch (err) {
         console.error('[AChecker] Failed to save history:', err)
       }
     }
+  }
+
+  function loadFromHistory(fileName, report) {
+    const id = 'history_' + Date.now().toString(36)
+    const entry = {
+      id,
+      name: fileName,
+      file: null,
+      status: 'done',
+      report,
+      error: null
+    }
+    files.value = [entry]
+    selectedFileId.value = id
   }
 
   return {
@@ -152,6 +160,7 @@ export const useFilesStore = defineStore('files', () => {
     selectFile,
     removeFile,
     clearAll,
-    processAllFiles
+    processAllFiles,
+    loadFromHistory
   }
 })

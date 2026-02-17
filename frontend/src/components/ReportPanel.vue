@@ -21,6 +21,7 @@ const errorCount = computed(() => summary.value?.errorCount || { critical: 0, hi
 const scoring = computed(() => summary.value?.scoring || { totalScore: 0, grade: 'FAIL' })
 const hasCritical = computed(() => errorCount.value.critical > 0)
 const expandedErrors = ref(new Set())
+const errorsExpanded = ref(false)
 const activeTab = ref('corrections')
 
 // Audit visits: all visits from parsed document with their texts and errors
@@ -192,18 +193,33 @@ const correctionsByVisit = computed(() => {
 
     <!-- Errors Section -->
     <div class="px-6 py-4 errors-section">
-      <h3 class="text-sm font-medium text-ink-700 mb-3">
-        错误详情
-        <span v-if="report.errors.length > 0" class="text-ink-400 font-normal">
-          ({{ report.errors.length }})
-        </span>
-      </h3>
+      <!-- Collapsible Error Details -->
+      <button
+        @click="errorsExpanded = !errorsExpanded"
+        class="w-full flex items-center justify-between py-2 group"
+      >
+        <h3 class="text-sm font-medium text-ink-700 flex items-center gap-2">
+          错误详情
+          <span v-if="report.errors.length > 0" class="text-ink-400 font-normal">
+            ({{ report.errors.length }})
+          </span>
+        </h3>
+        <svg
+          class="w-4 h-4 text-ink-400 transition-transform duration-200 group-hover:text-ink-600"
+          :class="errorsExpanded ? 'rotate-180' : ''"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
 
-      <!-- Visit Error Groups -->
-      <VisitErrorGroup
-        :errors="report.errors"
-        :timeline="report.timeline"
-      />
+      <div v-show="errorsExpanded" class="mt-2">
+        <!-- Visit Error Groups -->
+        <VisitErrorGroup
+          :errors="report.errors"
+          :timeline="report.timeline"
+        />
+      </div>
 
       <!-- Correction / Audit Tabs -->
       <div class="mt-6 space-y-4">

@@ -1,11 +1,14 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useHistory } from '../composables/useHistory'
+import { useFilesStore } from '../stores/files'
 
+const router = useRouter()
+const filesStore = useFilesStore()
 const { getHistory, clearAll } = useHistory()
 
 const historyRecords = ref([])
-const selectedRecord = ref(null)
 
 const loadHistory = () => {
   historyRecords.value = getHistory()
@@ -15,7 +18,6 @@ const clearAllHistory = () => {
   if (confirm('确定要清空所有历史记录吗？')) {
     clearAll()
     historyRecords.value = []
-    selectedRecord.value = null
   }
 }
 
@@ -52,7 +54,9 @@ const getStatusBadge = (status) => {
 }
 
 const viewDetail = (record) => {
-  selectedRecord.value = record
+  if (!record.report) return
+  filesStore.loadFromHistory(record.fileName, record.report)
+  router.push({ name: 'checker' })
 }
 
 const hasRecords = computed(() => historyRecords.value.length > 0)
@@ -161,56 +165,6 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-    <!-- Detail Modal (Placeholder) -->
-    <div
-      v-if="selectedRecord"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      @click="selectedRecord = null"
-    >
-      <div
-        class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6"
-        @click.stop
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-ink-800">{{ selectedRecord.fileName }}</h2>
-          <button
-            @click="selectedRecord = null"
-            class="text-ink-400 hover:text-ink-600"
-          >
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div class="space-y-3 text-sm">
-          <div class="flex justify-between">
-            <span class="text-ink-500">验证时间：</span>
-            <span class="text-ink-800">{{ formatDate(selectedRecord.date) }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-ink-500">分数：</span>
-            <span class="font-semibold" :class="{
-              'text-green-600': selectedRecord.score >= 80,
-              'text-yellow-600': selectedRecord.score >= 60 && selectedRecord.score < 80,
-              'text-red-600': selectedRecord.score < 60
-            }">{{ selectedRecord.score || 0 }}%</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-ink-500">状态：</span>
-            <span
-              class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
-              :class="getStatusBadge(selectedRecord.status).class"
-            >
-              {{ getStatusBadge(selectedRecord.status).text }}
-            </span>
-          </div>
-        </div>
-        <div class="mt-6 pt-4 border-t border-ink-200 text-center text-sm text-ink-500">
-          完整报告功能即将上线
-        </div>
       </div>
     </div>
   </div>
