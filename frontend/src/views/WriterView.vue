@@ -48,6 +48,8 @@ const BODY_PARTS = [
   'HIP', 'KNEE', 'ANKLE', 'FOOT',
   'THIGH', 'CALF', 'ARM', 'FOREARM',
 ]
+const SUPPORTED_IE_PARTS = new Set(['ELBOW', 'HIP', 'KNEE', 'LBP', 'NECK', 'SHOULDER'])
+const SUPPORTED_TX_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MIDDLE_BACK', 'NECK', 'SHOULDER'])
 const GENDER_OPTIONS = ['Male', 'Female']
 // 病史选项 — 分组
 const MEDICAL_HISTORY_GROUPS = [
@@ -181,6 +183,19 @@ const LATERALITY_MAP = {
   'UPPER_BACK': null,
   'MIDDLE_BACK': null,
 }
+
+// Primary body part options filtered by note type (IE vs TX have different template support)
+const availableBodyParts = computed(() => {
+  const supported = noteType.value === 'TX' ? SUPPORTED_TX_PARTS : SUPPORTED_IE_PARTS
+  return BODY_PARTS.filter(bp => supported.has(bp))
+})
+
+// Reset bodyPart when switching noteType if current selection is unsupported
+watch(noteType, () => {
+  if (!availableBodyParts.value.includes(bodyPart.value)) {
+    bodyPart.value = 'LBP'
+  }
+})
 
 // 当前部位是否有侧别选项
 const lateralityOptions = computed(() => LATERALITY_MAP[bodyPart.value] || null)
@@ -590,7 +605,7 @@ function isLongField(path) {
             <div>
               <label class="text-xs text-ink-500 mb-1 block">部位</label>
               <select v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-                <option v-for="p in BODY_PARTS" :key="p" :value="p">{{ p }}</option>
+                <option v-for="p in availableBodyParts" :key="p" :value="p">{{ p }}</option>
               </select>
               <!-- 侧别选择 (仅四肢关节部位显示) -->
               <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
