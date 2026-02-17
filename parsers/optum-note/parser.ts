@@ -154,10 +154,6 @@ function stripPageBreakHeaders(text: string): string {
     result = result.slice(0, index) + '\n' + result.slice(index + length)
   }
 
-  // Clean orphaned date lines left behind after header removal
-  // e.g. "06/11/2025" on its own line that was part of the page header
-  result = result.replace(/\n\d{2}\/\d{2}\/\d{4}\s*\n/g, '\n')
-
   // Remove "Printed on YYYY/MM/DD" footer lines
   result = result.replace(printedOnLine, '')
 

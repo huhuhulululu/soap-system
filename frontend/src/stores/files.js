@@ -120,7 +120,9 @@ export const useFilesStore = defineStore('files', () => {
         const history = useHistory()
 
         processedResults.forEach(result => {
-          history.saveResult(result.fileName, result.report)
+          // Strip heavy fields to avoid localStorage quota overflow
+          const { document: _doc, visitTexts: _vt, raw: _raw, ...lightweight } = result.report
+          history.saveResult(result.fileName, lightweight)
         })
       } catch (err) {
         console.error('[AChecker] Failed to save history:', err)
