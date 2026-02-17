@@ -154,7 +154,7 @@ export function buildInitialStateFromExtracted(extracted: ExtractedTXState) {
 }
 
 // ICD/CPT 推断
-const ICD_MAP: Record<BodyPart, { code: string, desc: string, hasLaterality: boolean }> = {
+export const ICD_MAP: Record<BodyPart, { code: string, desc: string, hasLaterality: boolean }> = {
   LBP: { code: 'M54.5', desc: 'Low back pain', hasLaterality: false },
   NECK: { code: 'M54.2', desc: 'Cervicalgia', hasLaterality: false },
   UPPER_BACK: { code: 'M54.6', desc: 'Pain in thoracic spine', hasLaterality: false },

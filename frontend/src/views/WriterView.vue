@@ -9,6 +9,7 @@ import { useDiffHighlight } from '../composables/useDiffHighlight'
 import { isPainTypeConsistentWithPattern } from '../../../src/shared/tcm-mappings'
 import { isAdlConsistentWithBodyPart } from '../../../src/shared/adl-mappings'
 import { BODY_PART_ADL } from '../../../src/shared/body-part-constants'
+import { ICD_MAP } from '../../../src/parser/tx-extractor.ts'
 
 setWhitelist(whitelist)
 
@@ -41,6 +42,12 @@ const secondaryBodyParts = ref([])
 const secondaryLaterality = reactive({})
 const medicalHistory = ref([])
 
+// ICD-10 选择模式
+const selectionMode = ref('bodypart')  // 'bodypart' | 'icd10'
+const icdSearch = ref('')
+const icdDropdownOpen = ref(false)
+const selectedIcds = ref([])           // [{ icd10, desc, bodyPart, laterality }] max 4
+
 const INSURANCE_OPTIONS = [
   { value: 'OPTUM', label: 'Optum' },
   { value: 'HF', label: 'HealthFirst' },
@@ -65,6 +72,56 @@ const BODY_PART_DISPLAY = {
 }
 function bodyPartLabel(bp) {
   return BODY_PART_DISPLAY[bp] || bp
+}
+
+// ICD-10 选项池 + 搜索过滤
+const filteredIcdOptions = computed(() => {
+  const supported = noteType.value === 'TX' ? SUPPORTED_TX_PARTS : SUPPORTED_IE_PARTS
+  const alreadySelected = new Set(selectedIcds.value.map(s => s.icd10))
+  const pool = []
+  for (const [bp, info] of Object.entries(ICD_MAP)) {
+    if (!supported.has(bp)) continue
+    if (info.hasLaterality) {
+      pool.push({ icd10: info.code + '1', desc: info.desc + ', right', bodyPart: bp, laterality: 'right' })
+      pool.push({ icd10: info.code + '2', desc: info.desc + ', left', bodyPart: bp, laterality: 'left' })
+      pool.push({ icd10: info.code + '9', desc: info.desc + ', unspecified', bodyPart: bp, laterality: 'bilateral' })
+    } else {
+      pool.push({ icd10: info.code, desc: info.desc, bodyPart: bp, laterality: 'bilateral' })
+    }
+  }
+  const available = pool.filter(item => !alreadySelected.has(item.icd10))
+  if (!icdSearch.value.trim()) return available
+  const q = icdSearch.value.toLowerCase()
+  return available.filter(item => item.icd10.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q))
+})
+
+function syncBodyPartFromIcds() {
+  if (selectedIcds.value.length === 0) return
+  const first = selectedIcds.value[0]
+  bodyPart.value = first.bodyPart
+  const sides = new Set(selectedIcds.value.map(s => s.laterality))
+  if (sides.has('right') && sides.has('left')) {
+    laterality.value = 'bilateral'
+  } else if (sides.has('right')) {
+    laterality.value = 'right'
+  } else if (sides.has('left')) {
+    laterality.value = 'left'
+  } else {
+    laterality.value = 'bilateral'
+  }
+}
+
+function selectIcdCode(item) {
+  if (selectedIcds.value.length >= 4) return
+  selectedIcds.value = [...selectedIcds.value, item]
+  icdSearch.value = ''
+  icdDropdownOpen.value = false
+  syncBodyPartFromIcds()
+}
+
+function removeIcdCode(index) {
+  selectedIcds.value = selectedIcds.value.filter((_, i) => i !== index)
+  syncBodyPartFromIcds()
 }
 
 // 病史选项 — 分组
@@ -244,6 +301,11 @@ watch(bodyPart, (bp) => {
     fields['subjective.adlDifficulty.activities'] = [bpAdl[0]]
   }
 }, { immediate: true })
+
+// 切换模式时清空 ICD 选择
+watch(selectionMode, (mode) => {
+  if (mode === 'bodypart') { icdSearch.value = ''; selectedIcds.value = [] }
+})
 
 function onPatternFieldChange(fieldPath) {
   if (fieldPath === 'assessment.tcmDiagnosis.localPattern') localPatternManuallySet.value = true
@@ -627,10 +689,44 @@ function isLongField(path) {
               </select>
             </div>
             <div>
-              <label class="text-xs text-ink-500 mb-1 block">部位</label>
-              <select v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
+              <label class="text-xs text-ink-500 mb-1 flex items-center gap-2">
+                部位
+                <button @click="selectionMode = selectionMode === 'bodypart' ? 'icd10' : 'bodypart'"
+                  class="text-[10px] px-1.5 py-0.5 rounded border border-ink-200 text-ink-400 hover:text-ink-600 cursor-pointer">
+                  {{ selectionMode === 'bodypart' ? '→ ICD-10' : '→ 直选' }}
+                </button>
+              </label>
+              <!-- 直选模式 -->
+              <select v-if="selectionMode === 'bodypart'" v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option v-for="p in availableBodyParts" :key="p" :value="p">{{ bodyPartLabel(p) }}</option>
               </select>
+              <!-- ICD-10 多选模式 -->
+              <div v-else>
+                <!-- 已选标签 -->
+                <div v-if="selectedIcds.length" class="flex flex-wrap gap-1 mb-1.5">
+                  <span v-for="(item, idx) in selectedIcds" :key="item.icd10"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
+                    :class="idx === 0 ? 'bg-ink-800 text-paper-50' : 'bg-ink-100 text-ink-600'">
+                    {{ item.icd10 }}
+                    <button @click="removeIcdCode(idx)" class="hover:text-red-400 cursor-pointer">&times;</button>
+                  </span>
+                </div>
+                <!-- 搜索输入 -->
+                <div v-if="selectedIcds.length < 4" class="relative">
+                  <input v-model="icdSearch" @focus="icdDropdownOpen = true" @blur="icdDropdownOpen = false"
+                    placeholder="输入 ICD-10 编码或描述..."
+                    class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm" />
+                  <div v-if="icdDropdownOpen && filteredIcdOptions.length"
+                    class="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-ink-200 rounded-lg shadow-lg">
+                    <button v-for="item in filteredIcdOptions" :key="item.icd10"
+                      @mousedown.prevent="selectIcdCode(item)"
+                      class="w-full px-3 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between cursor-pointer">
+                      <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
+                      <span class="text-ink-500 truncate ml-2">{{ item.desc }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
               <!-- 侧别选择 (仅四肢关节部位显示) -->
               <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
                 <button v-for="opt in lateralityOptions" :key="opt.value"
