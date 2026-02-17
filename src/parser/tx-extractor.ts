@@ -193,7 +193,7 @@ export function inferProcedureCodes(insuranceType: string, treatmentTime: number
     return [{ cpt: '97810', description: 'Acupuncture w/o estim, initial 15 min', units: 1, electricalStimulation: false }]
   }
   
-  // WC full code: 97813×1 + 97814×2 + 97811×1
+  // WC (Wellcare) full code: 97813×1 + 97814×2 + 97811×1
   if (insuranceType === 'WC') {
     return [
       { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
@@ -202,7 +202,7 @@ export function inferProcedureCodes(insuranceType: string, treatmentTime: number
     ]
   }
   
-  // VC full code: 97813×1 + 97814×1 + 97811×2
+  // VC (Village Care Max) full code: 97813×1 + 97814×1 + 97811×2
   if (insuranceType === 'VC') {
     return [
       { cpt: '97813', description: 'Acupuncture w/ estim, initial 15 min', units: 1, electricalStimulation: true },
