@@ -6,6 +6,7 @@ const props = defineProps({
   visitIndex: { type: Number, required: true },
   visitText: { type: String, default: '' },
   prevVisitText: { type: String, default: '' },
+  prevVisitType: { type: String, default: '' },
   visit: { type: Object, default: () => ({}) },
   errors: { type: Array, default: () => [] }
 })
@@ -117,8 +118,9 @@ const diffLines = computed(() => {
 
   const lines = props.visitText.split('\n')
 
-  // No previous visit or IE visit → no diff
-  if (!props.prevVisitText || visitType.value === 'IE') {
+  // No previous visit, IE visit, or previous visit is IE (different format) → no diff
+  const prevIsIE = props.prevVisitType === 'INITIAL EVALUATION'
+  if (!props.prevVisitText || visitType.value === 'IE' || prevIsIE) {
     return lines.map(line => ({
       segments: [{ text: line, hl: false }],
       hasError: lineHasError(line)

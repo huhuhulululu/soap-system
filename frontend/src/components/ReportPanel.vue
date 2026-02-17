@@ -36,6 +36,7 @@ const auditVisits = computed(() => {
     visit,
     visitText: visitTexts[idx] || '',
     prevVisitText: idx > 0 ? (visitTexts[idx - 1] || '') : '',
+    prevVisitType: idx > 0 ? (visits[idx - 1]?.subjective?.visitType || '') : '',
     errors: errors.filter(e => (e.location?.visitIndex ?? e.visitIndex) === idx)
   }))
 })
@@ -278,6 +279,7 @@ const correctionsByVisit = computed(() => {
             :visit-index="av.visitIndex"
             :visit-text="av.visitText"
             :prev-visit-text="av.prevVisitText"
+            :prev-visit-type="av.prevVisitType"
             :visit="av.visit"
             :errors="av.errors"
           />
