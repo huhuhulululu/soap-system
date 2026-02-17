@@ -25,7 +25,8 @@
     "roots": [
       "<rootDir>/src",
       "<rootDir>/parsers",
-      "<rootDir>/tests"
+      "<rootDir>/tests",
+      "<rootDir>/server"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.ts",
@@ -42,8 +43,10 @@
     "collectCoverageFrom": [
       "src/**/*.ts",
       "parsers/**/*.ts",
+      "server/**/*.ts",
       "!src/**/__tests__/**",
       "!parsers/**/__tests__/**",
+      "!server/**/__tests__/**",
       "!**/*.test.ts",
       "!**/*.spec.ts"
     ],
@@ -58,6 +61,13 @@
     "testTimeout": 30000
   },
   "dependencies": {
-    "tsx": "^4.21.0"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "tsx": "^4.21.0",
+    "xlsx": "^0.18.5"
   }
 }

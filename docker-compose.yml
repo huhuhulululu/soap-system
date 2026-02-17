@@ -5,4 +5,22 @@ services:
       dockerfile: frontend/Dockerfile
     ports:
       - "9090:80"
+    depends_on:
+      - backend
     restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - batch-data:/app/data
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  batch-data:

@@ -266,7 +266,7 @@ export interface TXVisitState {
   soaChain: {
     subjective: {
       painChange: 'improved'
-      adlChange: 'improved'
+      adlChange: 'improved' | 'stable'
       frequencyChange: 'improved' | 'stable'
     }
     objective: {
