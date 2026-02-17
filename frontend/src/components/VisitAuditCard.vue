@@ -14,8 +14,15 @@ const isExpanded = ref(false)
 const { diffLineWords } = useDiffHighlight(ref([]))
 
 const visitLabel = computed(() => `Visit ${props.visitIndex + 1}`)
-const visitDate = computed(() => props.visit?.assessment?.date || '')
-const bodyPart = computed(() => props.visit?.subjective?.bodyPart || '')
+const visitDate = computed(() => {
+  // Try assessment.date first, then extract from raw text block
+  if (props.visit?.assessment?.date) return props.visit.assessment.date
+  const dateMatch = props.visitText.match(/(\d{2}\/\d{2}\/\d{4})/)
+  return dateMatch?.[1] || ''
+})
+const bodyPart = computed(() =>
+  props.visit?.subjective?.bodyPartNormalized || props.visit?.subjective?.bodyPart || ''
+)
 const visitType = computed(() =>
   props.visit?.subjective?.visitType === 'INITIAL EVALUATION' ? 'IE' : 'TX'
 )

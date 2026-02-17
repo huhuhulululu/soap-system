@@ -1,7 +1,6 @@
 import { extractPdfText } from './pdf-extractor'
 import { parseOptumNote } from '../../../parsers/optum-note/parser.ts'
 import { checkDocument } from '../../../parsers/optum-note/checker/note-checker.ts'
-import { generateVisitTexts } from '../../../parsers/optum-note/checker/correction-generator.ts'
 
 function toUiTrend(direction) {
   if (direction === '↓') return 'improving'
@@ -105,7 +104,7 @@ async function validateFile(file, options = {}) {
   }
 
   const report = checkDocument({ document: parsed.document, insuranceType: options.insuranceType, treatmentTime: options.treatmentTime })
-  const visitTexts = generateVisitTexts(parsed.document)
+  const visitTexts = parsed.document.rawVisitBlocks || []
   return normalizeReport(report, visitTexts, parsed.document)
 }
 

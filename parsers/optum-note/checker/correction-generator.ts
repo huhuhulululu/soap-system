@@ -341,14 +341,6 @@ function addCorrectionMarkers(soapText: string, fixes: FieldFix[]): string {
   return annotatedText
 }
 
-// ============ Visit 原文生成（审计用） ============
-
-export function generateVisitTexts(document: OptumNoteDocument): string[] {
-  return document.visits.map((visit, idx) =>
-    generateCorrectedSOAP(document, visit, idx, [])
-  )
-}
-
 // ============ 主导出函数 ============
 
 export function generateCorrections(document: OptumNoteDocument, errors: CheckError[]): CorrectionItem[] {

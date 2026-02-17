@@ -186,6 +186,7 @@ export interface VisitRecord {
 export interface OptumNoteDocument {
   header: DocumentHeader
   visits: VisitRecord[]
+  rawVisitBlocks?: string[]
 }
 
 // ============ Parser Result ============

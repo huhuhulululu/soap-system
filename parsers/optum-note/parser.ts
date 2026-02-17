@@ -143,10 +143,12 @@ export function parseOptumNote(text: string): ParseResult {
     }
 
     const visits: VisitRecord[] = []
+    const rawBlocks: string[] = []
     for (let i = 0; i < visitBlocks.length; i++) {
       const visitResult = parseVisitRecord(visitBlocks[i], i)
       if (visitResult.record) {
         visits.push(visitResult.record)
+        rawBlocks.push(visitBlocks[i])
       }
       errors.push(...visitResult.errors)
       warnings.push(...visitResult.warnings)
@@ -162,12 +164,16 @@ export function parseOptumNote(text: string): ParseResult {
     const firstIsIE = visits[0]?.subjective.visitType === 'INITIAL EVALUATION'
     const lastIsIE = visits[visits.length - 1]?.subjective.visitType === 'INITIAL EVALUATION'
     // 只有当 IE 在最后(PDF 倒序)且首个不是 IE 时才反转
-    const orderedVisits = (!firstIsIE && lastIsIE) ? visits.reverse() : visits
-    const chronologicalVisits = enrichVisitsWithInheritance(orderedVisits)
+    const shouldReverse = !firstIsIE && lastIsIE
+    if (shouldReverse) {
+      visits.reverse()
+      rawBlocks.reverse()
+    }
+    const chronologicalVisits = enrichVisitsWithInheritance(visits)
 
     return {
       success: true,
-      document: { header, visits: chronologicalVisits },
+      document: { header, visits: chronologicalVisits, rawVisitBlocks: rawBlocks },
       errors,
       warnings,
     }
