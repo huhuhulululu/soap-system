@@ -37,6 +37,12 @@ export default defineConfig({
       allow: [
         fileURLToPath(new URL('..', import.meta.url))
       ]
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      }
     }
   },
   resolve: {

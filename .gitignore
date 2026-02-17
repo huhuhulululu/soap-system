@@ -27,6 +27,7 @@ coverage/
 # Data (cookies, screenshots, batch files)
 data/mdland-storage-state.json
 data/screenshots/
+.batch-data/
 
 # Playwright
 .playwright-mcp/
