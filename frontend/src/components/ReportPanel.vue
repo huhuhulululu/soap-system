@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import CriticalBanner from './CriticalBanner.vue'
 import VisitErrorGroup from './VisitErrorGroup.vue'
 import VisitCorrectionCard from './VisitCorrectionCard.vue'
+import VisitAuditCard from './VisitAuditCard.vue'
 import { exportReportAsCSV, copyAllCorrections } from '../services/exporter'
 import { exportAllAsCSV } from '../services/batch-exporter'
 
@@ -20,6 +21,23 @@ const errorCount = computed(() => summary.value?.errorCount || { critical: 0, hi
 const scoring = computed(() => summary.value?.scoring || { totalScore: 0, grade: 'FAIL' })
 const hasCritical = computed(() => errorCount.value.critical > 0)
 const expandedErrors = ref(new Set())
+const activeTab = ref('corrections')
+
+// Audit visits: all visits from parsed document with their texts and errors
+const auditVisits = computed(() => {
+  if (!report.value?.document?.visits) return []
+  const visits = report.value.document.visits
+  const visitTexts = report.value.visitTexts || []
+  const errors = report.value.errors || []
+
+  return visits.map((visit, idx) => ({
+    visitIndex: idx,
+    visit,
+    visitText: visitTexts[idx] || '',
+    prevVisitText: idx > 0 ? (visitTexts[idx - 1] || '') : '',
+    errors: errors.filter(e => (e.location?.visitIndex ?? e.visitIndex) === idx)
+  }))
+})
 
 function getGradeClass(grade) {
   switch (grade) {
@@ -187,21 +205,68 @@ const correctionsByVisit = computed(() => {
         :timeline="report.timeline"
       />
 
-      <!-- Correction Cards - Grouped by Visit with Collapsible Cards -->
-      <div v-if="correctionsByVisit.length > 0" class="mt-6 space-y-4">
-        <h4 class="text-sm font-medium text-ink-700 flex items-center gap-2">
-          <svg class="w-4 h-4 text-status-pass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          建议修正 ({{ correctionsByVisit.length }} 个 Visit)
-        </h4>
-        <VisitCorrectionCard
-          v-for="visit in correctionsByVisit"
-          :key="`visit-${visit.visitIndex}`"
-          :visit-index="visit.visitIndex"
-          :visit-date="visit.visitDate"
-          :corrections="visit.corrections"
-        />
+      <!-- Correction / Audit Tabs -->
+      <div class="mt-6 space-y-4">
+        <div class="flex items-center gap-2">
+          <button
+            @click="activeTab = 'corrections'"
+            :class="[
+              'px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
+              activeTab === 'corrections'
+                ? 'bg-ink-700 text-white'
+                : 'bg-paper-200 text-ink-600 hover:bg-paper-300'
+            ]"
+          >修正</button>
+          <button
+            @click="activeTab = 'audit'"
+            :class="[
+              'px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
+              activeTab === 'audit'
+                ? 'bg-ink-700 text-white'
+                : 'bg-paper-200 text-ink-600 hover:bg-paper-300'
+            ]"
+          >查阅</button>
+        </div>
+
+        <!-- Tab: Corrections -->
+        <template v-if="activeTab === 'corrections'">
+          <template v-if="correctionsByVisit.length > 0">
+            <h4 class="text-sm font-medium text-ink-700 flex items-center gap-2">
+              <svg class="w-4 h-4 text-status-pass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              建议修正 ({{ correctionsByVisit.length }} 个 Visit)
+            </h4>
+            <VisitCorrectionCard
+              v-for="visit in correctionsByVisit"
+              :key="`corr-${visit.visitIndex}`"
+              :visit-index="visit.visitIndex"
+              :visit-date="visit.visitDate"
+              :corrections="visit.corrections"
+            />
+          </template>
+          <p v-else class="text-sm text-ink-400">无修正建议</p>
+        </template>
+
+        <!-- Tab: Audit -->
+        <template v-if="activeTab === 'audit'">
+          <h4 class="text-sm font-medium text-ink-700 flex items-center gap-2">
+            <svg class="w-4 h-4 text-ink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            原始 SOAP 查阅 ({{ auditVisits.length }} 个 Visit)
+          </h4>
+          <VisitAuditCard
+            v-for="av in auditVisits"
+            :key="`audit-${av.visitIndex}`"
+            :visit-index="av.visitIndex"
+            :visit-text="av.visitText"
+            :prev-visit-text="av.prevVisitText"
+            :visit="av.visit"
+            :errors="av.errors"
+          />
+          <p v-if="auditVisits.length === 0" class="text-sm text-ink-400">无 visit 数据</p>
+        </template>
       </div>
     </div>
 

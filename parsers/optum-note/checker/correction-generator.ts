@@ -222,11 +222,17 @@ function generateCorrectedSOAP(
   visitIndex: number,
   fixes: FieldFix[]
 ): string {
-  // 1. 从 document 构建 context
+  // 1. 从 document 构建 context（基于 IE 基线）
   const ieIndex = document.visits.findIndex(v => v.subjective.visitType === 'INITIAL EVALUATION')
   // 如果没有 IE，用当前 visit 的 index
   const contextIndex = ieIndex >= 0 ? ieIndex : visitIndex
   const context = bridgeToContext(document, contextIndex)
+
+  // 对 TX visit，覆盖 severity 为当前 visit 的实际值
+  if (visitIndex !== contextIndex) {
+    const pain = extractPainCurrent(visit.subjective.painScale)
+    context.severityLevel = severityFromPain(pain)
+  }
 
   // 2. 应用修正
   const correctedContext = applyFixesToContext(context, visit, fixes)
@@ -333,6 +339,14 @@ function addCorrectionMarkers(soapText: string, fixes: FieldFix[]): string {
   }
 
   return annotatedText
+}
+
+// ============ Visit 原文生成（审计用） ============
+
+export function generateVisitTexts(document: OptumNoteDocument): string[] {
+  return document.visits.map((visit, idx) =>
+    generateCorrectedSOAP(document, visit, idx, [])
+  )
 }
 
 // ============ 主导出函数 ============

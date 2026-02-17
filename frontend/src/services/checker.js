@@ -1,6 +1,7 @@
 import { extractPdfText } from './pdf-extractor'
 import { parseOptumNote } from '../../../parsers/optum-note/parser.ts'
 import { checkDocument } from '../../../parsers/optum-note/checker/note-checker.ts'
+import { generateVisitTexts } from '../../../parsers/optum-note/checker/correction-generator.ts'
 
 function toUiTrend(direction) {
   if (direction === '↓') return 'improving'
@@ -56,7 +57,7 @@ function formatErrors(errors = []) {
   }))
 }
 
-function normalizeReport(report) {
+function normalizeReport(report, visitTexts = [], document = null) {
   const formattedTimeline = formatTimeline(report.timeline)
 
   return {
@@ -82,6 +83,8 @@ function normalizeReport(report) {
     trends: formattedTimeline.trends,
     errors: formatErrors(report.errors),
     corrections: report.corrections || [],
+    visitTexts,
+    document,
     raw: report
   }
 }
@@ -102,7 +105,8 @@ async function validateFile(file, options = {}) {
   }
 
   const report = checkDocument({ document: parsed.document, insuranceType: options.insuranceType, treatmentTime: options.treatmentTime })
-  return normalizeReport(report)
+  const visitTexts = generateVisitTexts(parsed.document)
+  return normalizeReport(report, visitTexts, parsed.document)
 }
 
 async function validateFiles(files) {
