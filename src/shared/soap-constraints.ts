@@ -69,9 +69,16 @@ function checkSingleVisit(visit: VisitSnapshot, ctx: ContextSnapshot): Constrain
   const errors: ConstraintError[] = []
   const { visitIndex: idx, painScaleCurrent: pain } = visit
 
-  // TX01: pain→severity mapping
+  // TX01: pain→severity mapping (tolerance: allow severity up to 2 levels BELOW expected)
   const expectedSev = severityFromPain(pain)
-  if (visit.severityLevel !== expectedSev) {
+  const sevOrder = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+  const expectedIdx = sevOrder.indexOf(expectedSev)
+  const actualIdx = sevOrder.indexOf(visit.severityLevel)
+  const withinTwoLevelsDown = expectedIdx >= 0 && actualIdx >= 0
+    && expectedIdx - actualIdx <= 2 && expectedIdx - actualIdx >= 0
+  if (visit.severityLevel !== expectedSev
+    && !(visit.severityLevel === 'moderate to severe' && expectedSev === 'moderate')
+    && !withinTwoLevelsDown) {
     errors.push({
       ruleId: 'TX01', severity: 'MEDIUM', visitIndex: idx,
       message: `Pain=${pain} 与 severity 不一致`,

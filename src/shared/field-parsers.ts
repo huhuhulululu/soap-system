@@ -116,6 +116,7 @@ export function parseTendernessScale(grading: string): number {
  * 合并自 soap-constraints.ts:61
  */
 export function parseSpasmScale(grading: string): number {
+    if (/\(0\)/.test(grading)) return 0
     const m = grading.match(/\+(\d)/)
     return m ? parseInt(m[1], 10) : 2
 }
