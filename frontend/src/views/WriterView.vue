@@ -44,8 +44,8 @@ const medicalHistory = ref([])
 const INSURANCE_OPTIONS = [
   { value: 'OPTUM', label: 'Optum' },
   { value: 'HF', label: 'HealthFirst' },
-  { value: 'WC', label: "Workers' Comp" },
-  { value: 'VC', label: 'Veterans Care' },
+  { value: 'WC', label: 'WellCare' },
+  { value: 'VC', label: 'VillageCare Max' },
   { value: 'ELDERPLAN', label: 'ElderPlan' },
   { value: 'NONE', label: 'None / Self-pay' },
 ]

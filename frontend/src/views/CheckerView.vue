@@ -71,8 +71,8 @@ function closePreview() {
               <select v-model="insuranceType" class="flex-1 text-sm border border-ink-200 rounded-lg px-3 py-1.5 bg-white text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-400">
                 <option value="OPTUM">Optum</option>
                 <option value="HF">HealthFirst</option>
-                <option value="WC">Workers' Comp</option>
-                <option value="VC">Veterans Care</option>
+                <option value="WC">WellCare</option>
+                <option value="VC">VillageCare Max</option>
                 <option value="ELDERPLAN">ElderPlan</option>
                 <option value="NONE">None / Self-pay</option>
               </select>
