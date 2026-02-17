@@ -188,9 +188,28 @@ export function parseOptumNote(text: string): ParseResult {
 
     const visits: VisitRecord[] = []
     const rawBlocks: string[] = []
+    let searchFrom = 0
     for (let i = 0; i < visitBlocks.length; i++) {
       const visitResult = parseVisitRecord(visitBlocks[i], i)
+
+      // Find this block's position in the full text to recover the date before "Subjective:"
+      // (lost during split because lookahead splits right at "Subjective:")
+      const blockStart = stripped.indexOf(visitBlocks[i], searchFrom)
+      if (blockStart >= 0) searchFrom = blockStart + visitBlocks[i].length
+
       if (visitResult.record) {
+        // Layer 2: recover date from text before "Subjective:" (cut off by split)
+        if (!visitResult.record.assessment.date && blockStart > 0) {
+          const before = stripped.substring(Math.max(0, blockStart - 50), blockStart)
+          const dm = before.match(/(\d{2}\/\d{2}\/\d{4})\s*$/)
+          if (dm) {
+            visitResult.record.assessment.date = dm[1]
+          }
+        }
+        // Layer 3: fallback to document-level date of service
+        if (!visitResult.record.assessment.date) {
+          visitResult.record.assessment.date = header.dateOfService || ''
+        }
         visits.push(visitResult.record)
         rawBlocks.push(visitBlocks[i])
       }
@@ -795,8 +814,8 @@ export function parseAssessment(block: string): Assessment | null {
   // Must have Assessment keyword (with or without colon)
   if (!/Assessment\s*:?[\s\n]/i.test(block)) return null
 
-  // Date pattern: standalone date near Assessment or at block start
-  const datePattern = /(\d{2}\/\d{2}\/\d{4})\s*\n?\s*(?:Assessment:|Tongue)/i
+  // Date pattern: standalone date near any SOAP section header (page-break artifacts)
+  const datePattern = /(\d{2}\/\d{2}\/\d{4})\s*\n?\s*(?:Assessment:|Tongue|Objective:|Plan:)/i
   const dateMatch = block.match(datePattern)
   // Also try date at very start of block
   const blockDateMatch = block.match(/^(\d{2}\/\d{2}\/\d{4})/)
