@@ -62,6 +62,8 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     chronicityLevel: (fields['subjective.chronicityLevel'] as string) || 'Chronic',
     severityLevel: derivedSeverity.value,
     painCurrent: currentPain.value,
+    painWorst: parseInt(((fields['subjective.painScale.worst'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
+    painBest: parseInt(((fields['subjective.painScale.best'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
     associatedSymptoms: (fields['subjective.associatedSymptoms'] as string[]) || ['soreness'],
     associatedSymptom: ((fields['subjective.associatedSymptoms'] as string[])?.[0]) || 'soreness',
     symptomDuration: {

@@ -69,13 +69,14 @@ describe('Phase 1: 数据贯通', () => {
       const ctx = makeContext({
         noteType: 'IE',
         painCurrent: 6,
+        painWorst: 9,
+        painBest: 3,
         symptomDuration: { value: '5', unit: 'year(s)' },
         painRadiation: 'with radiation to R arm'
       })
       const text = exportSOAPAsText(ctx)
-      // Pain Scale 行应包含基于 painCurrent=6 推导的值
-      expect(text).toContain('Worst: 7')  // 6+1
-      expect(text).toContain('Best: 4')   // 6-2
+      expect(text).toContain('Worst: 9')
+      expect(text).toContain('Best: 3')
       expect(text).toContain('Current: 6')
     })
 

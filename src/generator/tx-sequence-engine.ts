@@ -890,6 +890,48 @@ export function generateTXSequenceStates(
       'because of'
     )
     const reason = pickSingle('subjective.reason', reasonRuleContext, progress, rng, 'energy level improved')
+
+    // --- reason↔symptomChange 一致性硬约束 ---
+    const isImprovement = symptomChange.includes('improvement') && !symptomChange.includes('came back')
+    const isExacerbate = symptomChange.includes('exacerbate')
+    const isSimilar = symptomChange.includes('similar')
+    const isCameBack = symptomChange.includes('came back')
+
+    const POSITIVE_REASONS = new Set([
+      'can move joint more freely and with less pain',
+      'physical activity no longer causes distress',
+      'reduced level of pain',
+      'reduced joint stiffness and swelling',
+      'less difficulty performing daily activities',
+      'energy level improved',
+      'sleep quality improved',
+      'more energy level throughout the day',
+    ])
+    const NEGATIVE_REASONS = new Set([
+      'did not have good rest', 'intense work',
+      'excessive time using cell phone', 'excessive time using computer',
+      'bad posture', 'carrying/lifting heavy object(s)',
+      'lack of exercise', 'exposure to cold air',
+      'skipped treatments', 'stopped treatment for a while',
+      'discontinuous treatment', 'weak constitution',
+    ])
+
+    let finalReason = reason
+    let finalConnector = reasonConnector
+    if (isImprovement) {
+      if (!POSITIVE_REASONS.has(finalReason)) finalReason = 'energy level improved'
+      finalConnector = 'because of'
+    } else if (isExacerbate) {
+      if (!NEGATIVE_REASONS.has(finalReason)) finalReason = 'did not have good rest'
+      if (finalConnector !== 'due to' && finalConnector !== 'because of') finalConnector = 'due to'
+    } else if (isSimilar) {
+      if (POSITIVE_REASONS.has(finalReason)) finalReason = 'maintain regular treatments'
+      if (finalConnector !== 'and' && finalConnector !== 'may related of') finalConnector = 'and'
+    } else if (isCameBack) {
+      if (POSITIVE_REASONS.has(finalReason)) finalReason = 'continuous treatment'
+      finalConnector = 'due to'
+    }
+
     // Associated Symptom: 继承用户输入(initialState)，后期逐步减轻
     // 等级: soreness(1) < stiffness(2) < heaviness(3) < weakness/numbness(4)
     const rankToSymptom: Record<number, string> = { 1: 'soreness', 2: 'stiffness', 3: 'heaviness' }
@@ -1089,8 +1131,8 @@ export function generateTXSequenceStates(
       painScaleLabel,
       severityLevel,
       symptomChange,
-      reasonConnector,
-      reason,
+      reasonConnector: finalConnector,
+      reason: finalReason,
       associatedSymptom,
       painFrequency: chainFrequency,
       generalCondition,

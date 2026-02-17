@@ -607,8 +607,8 @@ export function generateSubjective(context: GenerationContext): string {
   const durationValue = context.symptomDuration?.value ?? '3'
   const durationUnit = context.symptomDuration?.unit ?? 'month(s)'
   const radiation = context.painRadiation ?? 'without radiation'
-  const painWorst = Math.min(10, painCurrent + 1)
-  const painBest = Math.max(1, painCurrent - 2)
+  const painWorst = context.painWorst ?? Math.min(10, painCurrent + 1)
+  const painBest = context.painBest ?? Math.max(1, painCurrent - 2)
   // 近期加重时长
   const recentWorseValue = context.recentWorse?.value ?? '1'
   const recentWorseUnit = context.recentWorse?.unit ?? 'week(s)'

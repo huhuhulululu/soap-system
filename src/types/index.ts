@@ -284,6 +284,10 @@ export interface GenerationContext {
   associatedSymptom?: 'soreness' | 'weakness' | 'stiffness' | 'heaviness' | 'numbness'
   /** 用户实际输入的当前疼痛值 (数字, 0-10) */
   painCurrent?: number
+  /** 用户输入的最痛评分 (数字, 0-10) */
+  painWorst?: number
+  /** 用户输入的最轻评分 (数字, 0-10) */
+  painBest?: number
   /** 用户选择的疼痛类型 */
   painTypes?: string[]
   /** 用户选择的症状量表百分比 (如 "70%") */
