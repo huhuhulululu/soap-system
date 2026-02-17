@@ -85,6 +85,24 @@ export const MUSCLE_MAP: Record<string, string[]> = {
     'adductor magnus',
     'pectineus',
     'gracilis'
+  ],
+  MID_LOW_BACK: [
+    'erector spinae',
+    'quadratus lumborum',
+    'psoas',
+    'iliacus',
+    'multifidus',
+    'transversus abdominis',
+    'internal oblique',
+    'external oblique',
+    'rectus abdominis',
+    'gluteus maximus',
+    'gluteus medius',
+    'piriformis',
+    'rhomboids',
+    'middle trapezius',
+    'latissimus dorsi',
+    'serratus posterior'
   ]
 }
 
@@ -163,6 +181,19 @@ export const ADL_MAP: Record<string, string[]> = {
     'squatting',
     'running',
     'standing on one leg'
+  ],
+  MID_LOW_BACK: [
+    'bending forward',
+    'lifting objects',
+    'sitting for prolonged periods',
+    'standing for prolonged periods',
+    'walking',
+    'getting out of bed',
+    'putting on shoes',
+    'driving',
+    'performing household chores',
+    'carrying objects',
+    'twisting motions'
   ]
 }
 

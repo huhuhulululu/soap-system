@@ -9,7 +9,7 @@ export type NoteType = 'IE' | 'TX' | 'RE' | 'NEW_IE'
 export type InsuranceType = 'NONE' | 'HF' | 'OPTUM' | 'WC' | 'VC' | 'ELDERPLAN'
 
 export type BodyPart =
-  | 'LBP' | 'NECK' | 'UPPER_BACK' | 'MIDDLE_BACK'
+  | 'LBP' | 'NECK' | 'UPPER_BACK' | 'MIDDLE_BACK' | 'MID_LOW_BACK'
   | 'SHOULDER' | 'ELBOW' | 'WRIST' | 'HAND'
   | 'HIP' | 'KNEE' | 'ANKLE' | 'FOOT'
   | 'THIGH' | 'CALF' | 'ARM' | 'FOREARM'

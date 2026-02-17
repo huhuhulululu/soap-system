@@ -680,6 +680,7 @@ const ICD_BODY_MAP: Record<string, string[]> = {
   ELBOW: ['M25.52', 'M77.0', 'M77.1'],
   NECK: ['M54.2', 'M54.6', 'M47.81', 'M50'],
   LBP: ['M54.5', 'M54.4', 'M54.3', 'M47.8', 'M51'],
+  MID_LOW_BACK: ['M54.5', 'M54.4', 'M54.3', 'M47.8', 'M51', 'M54.6'],
   UPPER_BACK: ['M54.6', 'M54.2'],
   HIP: ['M25.55', 'M16'],
 }

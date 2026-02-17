@@ -50,14 +50,23 @@ const INSURANCE_OPTIONS = [
   { value: 'NONE', label: 'None / Self-pay' },
 ]
 const BODY_PARTS = [
-  'LBP', 'NECK', 'UPPER_BACK', 'MIDDLE_BACK',
+  'LBP', 'NECK', 'UPPER_BACK', 'MIDDLE_BACK', 'MID_LOW_BACK',
   'SHOULDER', 'ELBOW', 'WRIST', 'HAND',
   'HIP', 'KNEE', 'ANKLE', 'FOOT',
   'THIGH', 'CALF', 'ARM', 'FOREARM',
 ]
-const SUPPORTED_IE_PARTS = new Set(['ELBOW', 'HIP', 'KNEE', 'LBP', 'NECK', 'SHOULDER'])
-const SUPPORTED_TX_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MIDDLE_BACK', 'NECK', 'SHOULDER'])
+const SUPPORTED_IE_PARTS = new Set(['ELBOW', 'HIP', 'KNEE', 'LBP', 'MID_LOW_BACK', 'NECK', 'SHOULDER'])
+const SUPPORTED_TX_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MID_LOW_BACK', 'MIDDLE_BACK', 'NECK', 'SHOULDER'])
 const GENDER_OPTIONS = ['Male', 'Female']
+
+// 部位显示名映射 (用于 UI 下拉框)
+const BODY_PART_DISPLAY = {
+  'MID_LOW_BACK': 'M&L (Mid+Low Back)',
+}
+function bodyPartLabel(bp) {
+  return BODY_PART_DISPLAY[bp] || bp
+}
+
 // 病史选项 — 分组
 const MEDICAL_HISTORY_GROUPS = [
   {
@@ -82,6 +91,13 @@ const ALL_MEDICAL_HISTORY_OPTIONS = MEDICAL_HISTORY_GROUPS.flatMap(g => g.items)
 // 各部位的放射痛选项 (按医学合理性过滤)
 const RADIATION_MAP = {
   'LBP': [
+    'without radiation',
+    'With radiation to R leg',
+    'With radiation to L leg',
+    'with radiation to BLLE',
+    'with radiation to toes',
+  ],
+  'MID_LOW_BACK': [
     'without radiation',
     'With radiation to R leg',
     'With radiation to L leg',
@@ -189,6 +205,7 @@ const LATERALITY_MAP = {
   'NECK': null,
   'UPPER_BACK': null,
   'MIDDLE_BACK': null,
+  'MID_LOW_BACK': null,
 }
 
 // Primary body part options filtered by note type (IE vs TX have different template support)
@@ -612,7 +629,7 @@ function isLongField(path) {
             <div>
               <label class="text-xs text-ink-500 mb-1 block">部位</label>
               <select v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-                <option v-for="p in availableBodyParts" :key="p" :value="p">{{ p }}</option>
+                <option v-for="p in availableBodyParts" :key="p" :value="p">{{ bodyPartLabel(p) }}</option>
               </select>
               <!-- 侧别选择 (仅四肢关节部位显示) -->
               <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
@@ -671,7 +688,7 @@ function isLongField(path) {
                 @click="toggleSecondaryPart(bp)"
                 class="px-2.5 py-1 text-[11px] rounded-md border transition-colors cursor-pointer"
                 :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                {{ bp }}
+                {{ bodyPartLabel(bp) }}
               </button>
             </div>
             <!-- 已选次要部位的侧别选择 -->

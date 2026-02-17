@@ -44,6 +44,7 @@ export const BODY_PART_NAMES: Record<BodyPart, string> = {
   'NECK': 'neck',
   'UPPER_BACK': 'upper back',
   'MIDDLE_BACK': 'middle back',
+  'MID_LOW_BACK': 'middle and lower back',
   'SHOULDER': 'shoulder',
   'ELBOW': 'elbow',
   'WRIST': 'wrist',
@@ -63,6 +64,7 @@ const SUPPORTED_IE_BODY_PARTS = new Set<BodyPart>([
   'HIP',
   'KNEE',
   'LBP',
+  'MID_LOW_BACK',
   'NECK',
   'SHOULDER'
 ])
@@ -71,6 +73,7 @@ const SUPPORTED_TX_BODY_PARTS = new Set<BodyPart>([
   'ELBOW',
   'KNEE',
   'LBP',
+  'MID_LOW_BACK',
   'MIDDLE_BACK',
   'NECK',
   'SHOULDER'
@@ -219,6 +222,15 @@ export const ADL_MUSCLE_MAP: Record<string, Record<string, string[]>> = {
     'Opening doors': ['Supinator', 'Pronator teres'],
     'Typing': ['Pronator teres', 'Brachioradialis'],
     'Writing': ['Pronator teres', 'Triceps']
+  },
+  'MID_LOW_BACK': {
+    'Standing for long periods of time': ['Iliopsoas Muscle', 'Quadratus Lumborum'],
+    'Walking for long periods of time': ['Gluteal Muscles', 'Iliopsoas Muscle'],
+    'Bending over to wear/tie a shoe': ['longissimus', 'The Multifidus muscles'],
+    'Rising from a chair': ['Gluteal Muscles', 'Quadratus Lumborum', 'Iliopsoas Muscle'],
+    'Getting out of bed': ['The Multifidus muscles', 'iliocostalis'],
+    'Going up and down stairs': ['Gluteal Muscles', 'Iliopsoas Muscle'],
+    'Lifting objects': ['spinalis', 'longissimus', 'The Multifidus muscles']
   }
 }
 
@@ -231,7 +243,8 @@ export const MUSCLE_SEVERITY_ORDER: Record<string, string[]> = {
   'SHOULDER': ['supraspinatus', 'upper trapezius', 'middle deltoid', 'deltoid ant fibres', 'bicep long head', 'rhomboids', 'levator scapula', 'greater tuberosity', 'lesser tuberosity', 'AC joint', 'triceps short head'],
   'KNEE': ['Rectus Femoris', 'Hamstrings muscle group', 'Gluteus Maximus', 'Gastronemius muscle', 'Gluteus medius / minimus', 'Iliotibial Band ITB', 'Tibialis Post/ Anterior'],
   'HIP': ['Iliopsoas', 'Gluteus Maximus', 'Gluteus Medius', 'Piriformis', 'Adductors', 'TFL'],
-  'ELBOW': ['Biceps', 'Brachioradialis', 'Pronator teres', 'Supinator', 'Triceps']
+  'ELBOW': ['Biceps', 'Brachioradialis', 'Pronator teres', 'Supinator', 'Triceps'],
+  'MID_LOW_BACK': ['Gluteal Muscles', 'Iliopsoas Muscle', 'The Multifidus muscles', 'longissimus', 'Quadratus Lumborum', 'spinalis', 'iliocostalis', 'Erector Spinae', 'Latissimus Dorsi', 'Serratus Posterior', 'Rhomboids', 'Middle Trapezius']
 }
 
 /**
@@ -246,7 +259,8 @@ const EXACERBATING_FACTORS_MAP: Record<string, string[]> = {
   'ELBOW': ['Gripping objects', 'Twisting motions', 'Lifting', 'Typing', 'Repetitive forearm movements'],
   'WRIST': ['Typing', 'Gripping', 'Twisting motions', 'Lifting', 'Writing for long periods'],
   'ANKLE': ['Walking on uneven surfaces', 'Running', 'Prolonged standing', 'Going up/down stairs'],
-  'UPPER_BACK': ['Prolonged sitting', 'Poor posture', 'Carrying heavy bags', 'Deep breathing']
+  'UPPER_BACK': ['Prolonged sitting', 'Poor posture', 'Carrying heavy bags', 'Deep breathing'],
+  'MID_LOW_BACK': ['Standing after sitting for long time', 'Prolong walking', 'Bending forward', 'Lifting heavy objects', 'Prolonged sitting', 'Twisting motions']
 }
 
 // ROM_MAP 和 ROMMovement 类型已迁移至 src/shared/body-part-constants.ts
@@ -318,7 +332,8 @@ const BODY_PART_AREA_NAMES: Record<string, string> = {
   'HIP': 'hip',
   'ELBOW': 'elbow',
   'WRIST': 'wrist',
-  'ANKLE': 'ankle'
+  'ANKLE': 'ankle',
+  'MID_LOW_BACK': 'middle and lower back'
 }
 
 /**
@@ -373,6 +388,7 @@ const TENDERNESS_TEXT_MAP: Record<string, string> = {
   'SHOULDER': 'Tenderness muscles noted along',
   'KNEE': 'Tenderness muscle noted along',
   'LBP': 'Tenderness muscle noted along',
+  'MID_LOW_BACK': 'Tenderness muscle noted along',
   'DEFAULT': 'Tenderness muscles noted along'
 }
 
@@ -411,6 +427,7 @@ const NEEDLE_SIZE_MAP: Record<string, string> = {
   'SHOULDER': 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
   'KNEE': 'Select Needle Size : 34#x1" ,30# x1.5",30# x2"',
   'LBP': 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+  'MID_LOW_BACK': 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
   'NECK': 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
   'DEFAULT': 'Select Needle Size: 34#x1", 30# x1.5", 30# x2", 30#x3"'
 }
@@ -423,6 +440,7 @@ const TREATMENT_VERB_MAP: Record<string, string> = {
   'KNEE': 'focus',
   'NECK': 'pay attention',
   'LBP': 'promote',
+  'MID_LOW_BACK': 'promote',
   'DEFAULT': 'promote'
 }
 
@@ -1036,7 +1054,7 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
 
   // ==================== ROM评估 (v9.0 引擎) ====================
   const romData = ROM_MAP[bp]
-  const isSpine = bp === 'NECK' || bp === 'LBP' || bp === 'MIDDLE_BACK' || bp === 'UPPER_BACK'
+  const isSpine = bp === 'NECK' || bp === 'LBP' || bp === 'MIDDLE_BACK' || bp === 'UPPER_BACK' || bp === 'MID_LOW_BACK'
   const romType = isSpine ? 'Spine ROM' : 'Joint ROM'
 
   // v9.0: 用 pain level 驱动 (整数), 而非 severity 字符串
@@ -1167,6 +1185,7 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     // LBP / NECK / 其他部位
     const romLabel = bp === 'NECK' ? 'Cervical' :
       bp === 'LBP' ? 'Lumbar' :
+        bp === 'MID_LOW_BACK' ? 'Thoracolumbar' :
         `${laterality ? laterality.charAt(0).toUpperCase() + laterality.slice(1) + ' ' : ''}${bodyPartName.charAt(0).toUpperCase() + bodyPartName.slice(1)}`
     const romSuffix = bp === 'NECK' ? ' Assessment:' : ''
     objective += `${romLabel} Muscles Strength and ${romType}${romSuffix}\n`
@@ -1266,8 +1285,8 @@ export function generateAssessment(context: GenerationContext): string {
     assessment += `Acupuncture Eval was done today on ${laterality} ${bodyPartName} area.`
   } else if (bp === 'SHOULDER') {
     assessment += `Acupuncture Eval was done today ${lateralityUpper} -${bodyPartAreaName}`
-  } else if (bp === 'LBP') {
-    // LBP 用 "along" — 沿脊柱走向
+  } else if (bp === 'LBP' || bp === 'MID_LOW_BACK') {
+    // LBP/MID_LOW_BACK 用 "along" — 沿脊柱走向
     assessment += `Acupuncture Eval was done today along ${laterality} ${bodyPartName}.`
   } else if (bp === 'NECK') {
     // NECK 用 "on B/L Cervical" (双侧缩写)
@@ -1294,7 +1313,7 @@ export function generatePlanIE(context: GenerationContext): string {
   // 动态计算 Goals (使用 context 中的 associatedSymptom 和实际 pain)
   const symptomType = context.associatedSymptom || 'soreness'
   const goals = calculateDynamicGoals(severity, bp, symptomType, context.painCurrent)
-  const isMainBP = bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK'
+  const isMainBP = bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK' || bp === 'MID_LOW_BACK'
 
   let plan = `Initial Evaluation - Personal one on one contact with the patient (total 20-30 mins)\n`
   plan += `1. Greeting patient.\n`
@@ -1622,7 +1641,7 @@ export function generateSubjectiveTX(context: GenerationContext, visitState?: TX
       laterality === 'left' ? 'in left side' :
         laterality === 'right' ? 'in right side' : 'in'
     subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain ${neckDirection} ${bodyPartAreaName} area `
-  } else if (bp === 'LBP') {
+  } else if (bp === 'LBP' || bp === 'MID_LOW_BACK') {
     subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain on ${bodyPartAreaName} area `
   } else {
     subjective += `Patient still c/o ${selectedPainTypes.join(', ')} pain on ${bodyPartAreaName} `
@@ -1818,6 +1837,7 @@ export function generateNeedleProtocol(context: GenerationContext, visitState?: 
   // 其他部位穴位映射 (来自各模板 ppnSelectCombo)
   const frontPoints: Record<string, string[]> = {
     'LBP': ['REN6', 'GB34', 'ST36', 'ST40', 'REN4', 'SI3'],
+    'MID_LOW_BACK': ['REN6', 'GB34', 'ST36', 'ST40', 'REN4', 'SI3'],
     'NECK': ['LI4', 'GB39', 'SI3', 'LU7'],
     'SHOULDER': ['JIAN QIAN', 'PC2', 'LU3', 'LU4', 'LU5', 'LI4', 'LI11', 'ST3', 'GB34', 'SI3', 'ST38'],
     'HIP': ['GB34', 'ST36', 'SP6', 'LV3'],
@@ -1826,6 +1846,7 @@ export function generateNeedleProtocol(context: GenerationContext, visitState?: 
 
   const backPoints: Record<string, string[]> = {
     'LBP': ['BL23', 'BL25', 'BL53', 'DU4', 'BL22', 'YAO JIA JI', 'A SHI POINTS'],
+    'MID_LOW_BACK': ['BL23', 'BL25', 'BL53', 'DU4', 'BL15', 'BL17', 'BL18', 'HUATUO JIA JI', 'A SHI POINTS'],
     'NECK': ['GB20', 'GB21', 'BL10', 'BL11', 'A SHI POINTS'],
     'SHOULDER': ['GB21', 'BL10', 'BL11', 'BL17', 'LI15', 'LI16', 'SI9', 'SI10', 'SI11', 'SI12', 'SI14', 'SI15', 'SJ10', 'A SHI POINTS'],
     'HIP': ['GB29', 'GB30', 'BL54', 'A SHI POINTS'],
@@ -1928,15 +1949,15 @@ export function generateNeedleProtocol(context: GenerationContext, visitState?: 
     return protocol
   }
 
-  // ===== LBP 专用协议 (非双侧, 特定穴位) =====
-  if (bp === 'LBP' && isFullCode) {
-    const LBP_FRONT_1 = ['REN6', 'GB34', 'ST36']
-    const LBP_FRONT_2 = ['ST40', 'REN4', 'SI3']
-    const LBP_BACK_1 = ['BL25', 'BL53', 'DU4']
-    const LBP_BACK_2 = ['BL22', 'YAO JIA JI', 'A SHI POINTS']
+  // ===== LBP / MID_LOW_BACK 专用协议 (非双侧, 特定穴位) =====
+  if ((bp === 'LBP' || bp === 'MID_LOW_BACK') && isFullCode) {
+    const LBP_FRONT_1 = frontPoints[bp]?.slice(0, 3) || ['REN6', 'GB34', 'ST36']
+    const LBP_FRONT_2 = frontPoints[bp]?.slice(3, 6) || ['ST40', 'REN4', 'SI3']
+    const LBP_BACK_1 = backPoints[bp]?.slice(0, 4) || ['BL25', 'BL53', 'DU4']
+    const LBP_BACK_2 = backPoints[bp]?.slice(4) || ['BL22', 'YAO JIA JI', 'A SHI POINTS']
 
     // LBP 模板默认位置是 "mid and lower back" (下拉选项: lower back | mid and lower back)
-    const lbpLocation = 'mid and lower back'
+    const lbpLocation = bp === 'MID_LOW_BACK' ? bodyPartName : 'mid and lower back'
     let protocol = `${needleSizes}\n`
     protocol += `Daily acupuncture treatment for ${lbpLocation} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`
 

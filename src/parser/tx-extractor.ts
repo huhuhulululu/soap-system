@@ -159,6 +159,7 @@ const ICD_MAP: Record<BodyPart, { code: string, desc: string, hasLaterality: boo
   NECK: { code: 'M54.2', desc: 'Cervicalgia', hasLaterality: false },
   UPPER_BACK: { code: 'M54.6', desc: 'Pain in thoracic spine', hasLaterality: false },
   MIDDLE_BACK: { code: 'M54.6', desc: 'Pain in thoracic spine', hasLaterality: false },
+  MID_LOW_BACK: { code: 'M54.5', desc: 'Pain in thoracolumbar spine', hasLaterality: false },
   SHOULDER: { code: 'M25.51', desc: 'Pain in shoulder', hasLaterality: true },
   ELBOW: { code: 'M25.52', desc: 'Pain in elbow', hasLaterality: true },
   WRIST: { code: 'M25.53', desc: 'Pain in wrist', hasLaterality: true },
@@ -166,7 +167,11 @@ const ICD_MAP: Record<BodyPart, { code: string, desc: string, hasLaterality: boo
   HIP: { code: 'M25.55', desc: 'Pain in hip', hasLaterality: true },
   KNEE: { code: 'M25.56', desc: 'Pain in knee', hasLaterality: true },
   ANKLE: { code: 'M25.57', desc: 'Pain in ankle and joints of foot', hasLaterality: true },
-  FOOT: { code: 'M79.67', desc: 'Pain in foot and toes', hasLaterality: true }
+  FOOT: { code: 'M79.67', desc: 'Pain in foot and toes', hasLaterality: true },
+  THIGH: { code: 'M79.65', desc: 'Pain in thigh', hasLaterality: true },
+  CALF: { code: 'M79.66', desc: 'Pain in lower leg', hasLaterality: true },
+  ARM: { code: 'M79.62', desc: 'Pain in upper arm', hasLaterality: true },
+  FOREARM: { code: 'M79.63', desc: 'Pain in forearm', hasLaterality: true }
 }
 
 const LATERALITY_SUFFIX: Record<Laterality, string> = {

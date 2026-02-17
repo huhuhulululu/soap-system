@@ -32,6 +32,7 @@ export const BODY_PART_MUSCLES: Record<string, string[]> = {
     ANKLE: ['Gastrocnemius', 'Soleus', 'Tibialis anterior', 'Peroneus longus/brevis'],
     UPPER_BACK: ['Rhomboids', 'Middle Trapezius', 'Erector spinae (thoracic)', 'Latissimus dorsi'],
     MIDDLE_BACK: ['Rhomboids', 'Middle Trapezius', 'Erector Spinae', 'Latissimus Dorsi', 'Serratus Posterior', 'Multifidus'],
+    MID_LOW_BACK: ['iliocostalis', 'spinalis', 'longissimus', 'Iliopsoas Muscle', 'Quadratus Lumborum', 'Gluteal Muscles', 'The Multifidus muscles', 'Rhomboids', 'Middle Trapezius', 'Erector Spinae', 'Latissimus Dorsi', 'Serratus Posterior'],
 }
 
 // ============ ADL 映射 ============
@@ -53,6 +54,7 @@ export const BODY_PART_ADL: Record<string, string[]> = {
     ANKLE: ['Walking', 'Running', 'Going up/down stairs', 'Driving', 'Standing on tiptoes'],
     UPPER_BACK: ['Sitting for long periods', 'Reaching overhead', 'Carrying bags', 'Deep breathing'],
     MIDDLE_BACK: ['Sitting for long periods', 'Twisting motions', 'Bending forward', 'Lifting objects', 'Deep breathing', 'Reaching overhead'],
+    MID_LOW_BACK: ['Standing for long periods of time', 'Walking for long periods of time', 'Bending over to wear/tie a shoe', 'Rising from a chair', 'Getting out of bed', 'Going up and down stairs', 'Lifting objects', 'Sitting for long periods', 'Twisting motions', 'Bending forward'],
 }
 
 // ============ ROM 正常值映射 ============
@@ -131,6 +133,14 @@ export const BODY_PART_ROM: Record<string, ROMMovement[]> = {
         { movement: 'Rotation to Right', normalDegrees: 45, difficulty: 'MEDIUM' },
         { movement: 'Rotation to Left', normalDegrees: 45, difficulty: 'MEDIUM' },
     ],
+    MID_LOW_BACK: [
+        { movement: 'Flexion', normalDegrees: 90, difficulty: 'MEDIUM' },
+        { movement: 'Extension', normalDegrees: 30, difficulty: 'HARD' },
+        { movement: 'Rotation to Right', normalDegrees: 45, difficulty: 'MEDIUM' },
+        { movement: 'Rotation to Left', normalDegrees: 45, difficulty: 'MEDIUM' },
+        { movement: 'Flexion to the Right', normalDegrees: 30, difficulty: 'EASY' },
+        { movement: 'Flexion to the Left', normalDegrees: 30, difficulty: 'EASY' },
+    ],
 }
 
 // ============ ROM 受限因子 ============
@@ -180,6 +190,7 @@ export const ICD_BODY_MAP: Record<string, string[]> = {
     LBP: ['M54.5', 'M54.4', 'M54.3', 'M47.8', 'M51'],
     UPPER_BACK: ['M54.6', 'M54.2'],
     HIP: ['M25.55', 'M16'],
+    MID_LOW_BACK: ['M54.5', 'M54.4', 'M54.3', 'M47.8', 'M51', 'M54.6'],
 }
 
 /**
@@ -209,4 +220,5 @@ export const BODY_PART_NEEDLE_GAUGES: Record<string, string[]> = {
     HIP: ['36#', '34#', '30#'],
     UPPER_BACK: ['36#', '34#'],
     MIDDLE_BACK: ['36#', '34#'],
+    MID_LOW_BACK: ['36#', '34#', '30#'],
 }
