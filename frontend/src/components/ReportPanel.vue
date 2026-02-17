@@ -37,6 +37,8 @@ const auditVisits = computed(() => {
     visitText: visitTexts[idx] || '',
     prevVisitText: idx > 0 ? (visitTexts[idx - 1] || '') : '',
     prevVisitType: idx > 0 ? (visits[idx - 1]?.subjective?.visitType || '') : '',
+    nextVisitText: idx < visits.length - 1 ? (visitTexts[idx + 1] || '') : '',
+    nextVisitType: idx < visits.length - 1 ? (visits[idx + 1]?.subjective?.visitType || '') : '',
     errors: errors.filter(e => (e.location?.visitIndex ?? e.visitIndex) === idx)
   }))
 })
@@ -280,6 +282,8 @@ const correctionsByVisit = computed(() => {
             :visit-text="av.visitText"
             :prev-visit-text="av.prevVisitText"
             :prev-visit-type="av.prevVisitType"
+            :next-visit-text="av.nextVisitText"
+            :next-visit-type="av.nextVisitType"
             :visit="av.visit"
             :errors="av.errors"
           />

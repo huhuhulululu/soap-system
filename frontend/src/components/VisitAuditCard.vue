@@ -7,6 +7,8 @@ const props = defineProps({
   visitText: { type: String, default: '' },
   prevVisitText: { type: String, default: '' },
   prevVisitType: { type: String, default: '' },
+  nextVisitText: { type: String, default: '' },
+  nextVisitType: { type: String, default: '' },
   visit: { type: Object, default: () => ({}) },
   errors: { type: Array, default: () => [] }
 })
@@ -112,65 +114,138 @@ function lineHasError(line) {
   return errorKeywords.value.some(kw => lower.includes(kw))
 }
 
+// Determine consistency comparison target:
+// - First TX → compare against IE (prevVisitText)
+// - IE → compare against first TX (nextVisitText)
+const consistencyTarget = computed(() => {
+  if (visitType.value === 'TX' && props.prevVisitType === 'INITIAL EVALUATION' && props.prevVisitText.trim()) {
+    return props.prevVisitText
+  }
+  if (visitType.value === 'IE' && props.nextVisitText.trim() && props.nextVisitType !== 'INITIAL EVALUATION') {
+    return props.nextVisitText
+  }
+  return ''
+})
+
+const isConsistencyMode = computed(() => consistencyTarget.value.length > 0)
+
+// Find the section a line belongs to by scanning lines up to lineIdx
+function findSection(allLines, lineIdx) {
+  let cur = '_pre'
+  for (let i = 0; i <= lineIdx; i++) {
+    const t = allLines[i].trim()
+    if (SECTION_HEADERS.has(t)) cur = t
+  }
+  return cur
+}
+
+// Find best matching line in a section's lines
+function findBestMatch(trimmed, sectionLines) {
+  let bestMatch = ''
+  let bestScore = 0
+  for (const pl of sectionLines) {
+    const plTrimmed = pl.trim()
+    if (plTrimmed === trimmed) {
+      return { match: pl, score: 1 }
+    }
+    const curWords = new Set(trimmed.toLowerCase().split(/\s+/))
+    const prevWords = new Set(plTrimmed.toLowerCase().split(/\s+/))
+    const shared = [...curWords].filter(w => prevWords.has(w)).length
+    const score = shared / Math.max(curWords.size, prevWords.size, 1)
+    if (score > bestScore && score > 0.3) {
+      bestScore = score
+      bestMatch = pl
+    }
+  }
+  return { match: bestMatch, score: bestScore }
+}
+
 // Compute diff lines with section alignment
 const diffLines = computed(() => {
   if (!props.visitText) return []
 
   const lines = props.visitText.split('\n')
 
-  // No previous visit, IE visit, or previous visit is IE (different format) → no diff
-  const prevIsIE = props.prevVisitType === 'INITIAL EVALUATION'
-  if (!props.prevVisitText || visitType.value === 'IE' || prevIsIE) {
+  // IE note without consistency target or no previous for TX: no comparison
+  if (!isConsistencyMode.value && (!props.prevVisitText || visitType.value === 'IE')) {
     return lines.map(line => ({
-      segments: [{ text: line, hl: false }],
+      segments: [{ text: line, hl: false, match: false }],
       hasError: lineHasError(line)
     }))
   }
 
-  const curSecs = splitSections(props.visitText)
-  const prevSecs = splitSections(props.prevVisitText)
+  // Choose comparison target based on mode
+  const compareText = isConsistencyMode.value ? consistencyTarget.value : props.prevVisitText
+
+  // Skip normal diff when prev is IE but no consistency mode (shouldn't happen with current logic, but safe guard)
+  if (!compareText) {
+    return lines.map(line => ({
+      segments: [{ text: line, hl: false, match: false }],
+      hasError: lineHasError(line)
+    }))
+  }
+
+  const compareSecs = splitSections(compareText)
 
   return lines.map((line, lineIdx) => {
     const trimmed = line.trim()
 
-    // Section headers are never highlighted
+    // Section headers and blank lines: no highlighting
     if (SECTION_HEADERS.has(trimmed) || trimmed === '') {
-      return { segments: [{ text: line, hl: false }], hasError: false }
+      return { segments: [{ text: line, hl: false, match: false }], hasError: false }
     }
 
-    // Find which section this line belongs to (index-based to handle duplicates)
-    let curSection = '_pre'
-    const allLines = props.visitText.split('\n')
-    for (let li = 0; li <= lineIdx; li++) {
-      const lt = allLines[li].trim()
-      if (SECTION_HEADERS.has(lt)) curSection = lt
+    const curSection = findSection(lines, lineIdx)
+    const targetSecLines = compareSecs[curSection] || []
+    const { match: bestMatch, score: bestScore } = findBestMatch(trimmed, targetSecLines)
+
+    if (isConsistencyMode.value) {
+      // Consistency mode: highlight MATCHING parts (red) with IE/TX counterpart
+      if (bestScore >= 1) {
+        // Exact match: whole line is consistent
+        return {
+          segments: [{ text: line, hl: false, match: true }],
+          hasError: lineHasError(line)
+        }
+      }
+      if (bestMatch) {
+        // Partial match: run diff and invert — matching words get {match: true}
+        const diffSegs = diffLineWords(line, bestMatch)
+        const segs = diffSegs.map(seg => ({
+          text: seg.text,
+          hl: false,
+          match: !seg.hl && seg.text.trim().length > 0
+        }))
+        return { segments: segs, hasError: lineHasError(line) }
+      }
+      // No match: line is unique to this visit type (expected)
+      return {
+        segments: [{ text: line, hl: false, match: false }],
+        hasError: lineHasError(line)
+      }
     }
 
-    // Find best matching previous line in same section
-    const prevSecLines = prevSecs[curSection] || []
-    let bestMatch = ''
-    let bestScore = 0
-    for (const pl of prevSecLines) {
-      if (pl.trim() === trimmed) { bestMatch = pl; bestScore = 1; break }
-      const curWords = new Set(trimmed.toLowerCase().split(/\s+/))
-      const prevWords = new Set(pl.trim().toLowerCase().split(/\s+/))
-      const shared = [...curWords].filter(w => prevWords.has(w)).length
-      const score = shared / Math.max(curWords.size, prevWords.size, 1)
-      if (score > bestScore && score > 0.4) { bestScore = score; bestMatch = pl }
-    }
-
-    let segments
+    // Normal diff mode (TX vs TX): highlight CHANGED parts (yellow)
     if (bestScore >= 1) {
-      segments = [{ text: line, hl: false }]
-    } else if (bestMatch) {
-      segments = diffLineWords(line, bestMatch)
-    } else if (trimmed) {
-      segments = [{ text: line, hl: true }]
-    } else {
-      segments = [{ text: line, hl: false }]
+      return {
+        segments: [{ text: line, hl: false, match: false }],
+        hasError: lineHasError(line)
+      }
     }
-
-    return { segments, hasError: lineHasError(line) }
+    if (bestMatch) {
+      const segs = diffLineWords(line, bestMatch).map(s => ({ ...s, match: false }))
+      return { segments: segs, hasError: lineHasError(line) }
+    }
+    if (trimmed) {
+      return {
+        segments: [{ text: line, hl: true, match: false }],
+        hasError: lineHasError(line)
+      }
+    }
+    return {
+      segments: [{ text: line, hl: false, match: false }],
+      hasError: lineHasError(line)
+    }
   })
 })
 
@@ -213,6 +288,12 @@ const errorCount = computed(() => props.errors.length)
           ]"
         >{{ visitType }}</span>
 
+        <!-- Consistency Badge -->
+        <span
+          v-if="isConsistencyMode"
+          class="px-2 py-0.5 text-[10px] font-medium rounded shrink-0 bg-red-50 text-red-600 border border-red-200"
+        >IE-TX</span>
+
         <!-- Error Count Badge -->
         <span
           v-if="errorCount > 0"
@@ -237,6 +318,22 @@ const errorCount = computed(() => props.errors.length)
 
     <!-- Expanded Content: SOAP Text -->
     <div v-show="isExpanded" class="p-4 border-t border-ink-100">
+      <!-- Legend -->
+      <div v-if="isConsistencyMode" class="mb-3 flex items-center gap-4 text-[10px] text-ink-500">
+        <span class="flex items-center gap-1.5">
+          <span class="inline-block w-3 h-2.5 bg-red-200/60 rounded-sm border border-red-300/50"></span>
+          IE-TX 一致
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="inline-block w-3 h-2.5 bg-paper-50 rounded-sm border border-ink-200"></span>
+          动态差异（预期）
+        </span>
+        <span v-if="errorCount > 0" class="flex items-center gap-1.5">
+          <span class="inline-block w-3 h-2.5 border-b-2 border-red-500 rounded-sm" style="border-bottom-style: wavy;"></span>
+          错误
+        </span>
+      </div>
+
       <div class="p-3 bg-paper-50 border border-ink-100 rounded-lg max-h-[500px] overflow-y-auto">
         <div class="text-sm text-ink-800 leading-relaxed font-mono whitespace-pre-wrap">
           <div v-for="(line, i) in diffLines" :key="i">
@@ -244,6 +341,7 @@ const errorCount = computed(() => props.errors.length)
               :class="{ 'decoration-wavy decoration-red-500 underline underline-offset-4': line.hasError }"
             ><template v-for="(seg, j) in line.segments" :key="j"
               ><mark v-if="seg.hl" class="bg-yellow-200/80">{{ seg.text }}</mark
+              ><mark v-else-if="seg.match" class="bg-red-200/60 text-red-900">{{ seg.text }}</mark
               ><template v-else>{{ seg.text }}</template
             ></template></span>
           </div>
