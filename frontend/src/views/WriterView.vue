@@ -42,7 +42,12 @@ const secondaryLaterality = reactive({})
 const medicalHistory = ref([])
 
 const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
-const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW', 'HIP']
+const BODY_PARTS = [
+  'LBP', 'NECK', 'UPPER_BACK', 'MIDDLE_BACK',
+  'SHOULDER', 'ELBOW', 'WRIST', 'HAND',
+  'HIP', 'KNEE', 'ANKLE', 'FOOT',
+  'THIGH', 'CALF', 'ARM', 'FOREARM',
+]
 const GENDER_OPTIONS = ['Male', 'Female']
 // 病史选项 — 分组
 const MEDICAL_HISTORY_GROUPS = [
@@ -130,9 +135,51 @@ const LATERALITY_MAP = {
     { value: 'right', label: 'Right' },
     { value: 'bilateral', label: 'Bilateral' }
   ],
+  'WRIST': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'HAND': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'ANKLE': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'FOOT': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'THIGH': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'CALF': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'ARM': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
+  'FOREARM': [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+    { value: 'bilateral', label: 'Bilateral' }
+  ],
   // 脊柱部位无侧别
   'LBP': null,
   'NECK': null,
+  'UPPER_BACK': null,
+  'MIDDLE_BACK': null,
 }
 
 // 当前部位是否有侧别选项
