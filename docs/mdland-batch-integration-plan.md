@@ -34,7 +34,7 @@
 │  │     a. 搜索患者 (DOB)                                        │    │
 │  │     b. 打开 visit (按时间正序第N个)                           │    │
 │  │     c. ICD/CPT → addSelectionD + letsGo(2) 保存             │    │
-│  │     d. PT Note → TinyMCE setContent + reallySubmit(2) 保存  │    │
+│  │     d. PT Note → TinyMCE setContent + reallySubmit() 保存   │    │
 │  │     e. Checkout → Generate Billing                          │    │
 │  │     f. 失败 → 标记 → 继续下一个 (不停止)                      │    │
 │  │  3. UI 悬浮面板: 进度 + 日志 + 暂停/继续/重试                  │    │
@@ -164,6 +164,10 @@ BatchView 预览时支持下拉框修改 CPT 组合
    - TX#2-3: 逐步改善
    - TX#4+: 明显好转, ROM 接近正常
 6. IE 使用 exportSOAPAsText(context, {}) 单独生成
+7. RE (Re-evaluation) 使用 exportSOAPAsText(reContext, {}) 生成
+   - RE 与 IE 类似，但侧重复评进展 (progress since initial eval)
+   - RE 的 GenerationContext.noteType = 'RE'
+   - RE 的 CPT 由用户手工填写 (可能包含 97161-97163 评估码)
 
 示例:
   CHEN,AIJIN (4 visits):
@@ -231,9 +235,9 @@ Response:
             { "code": "M54.50", "name": "Low back pain, unspecified" }
           ],
           "cptCodes": [
-            { "code": "97810", "units": 1 },
-            { "code": "97811", "units": 3 },
-            { "code": "97140", "units": 1 }
+            { "code": "97810", "name": "ACUP 1/> WO ESTIM 1ST 15 MIN", "units": 1 },
+            { "code": "97811", "name": "ACUP 1/> W/O ESTIM EA ADD 15", "units": 3 },
+            { "code": "97140", "name": "MANUAL THERAPY 1/> REGIONS", "units": 1 }
           ],
           "generated": {
             "soap": {
@@ -386,11 +390,12 @@ soap-system/
 //    └── navigateToCheckout()    ← ★ 新增: 点击 Checkout 菜单
 //
 // 2. ICDFiller   — ICD 填充 ★ 新增
-//    ├── addICDCodes([{code, name}])
+//    ├── addICDCodes([{code, name}])  // 优先从备选列表选取，否则 addSelectionD
 //    └── saveICD()
 //
 // 3. CPTFiller   — CPT 填充 ★ 新增
-//    ├── addCPTCodes([{code, units}])
+//    ├── addCPTCodes([{code, units, name}])  // 优先从备选列表选取，否则 addSelectionD_cpt
+//    ├── setUnits(cptIndex, units)    // 始终显式设置，不依赖默认值
 //    └── saveCPT()
 //
 // 4. SOAPFiller  — SOAP 填充 ★ 新增
@@ -403,7 +408,7 @@ soap-system/
 // 6. Closer      — 关闭 Visit ★ 新增
 //    └── closeVisit()              // closeMe(true) → 跳过confirm
 //
-// 6. 主流程 (仿 pt-auto-bill-v5):
+// 7. 主流程 (仿 pt-auto-bill-v5):
 //    runTasks()
 //      → processPatientGroup(group, isFirst)
 //        → executeVisitTask(task)
@@ -433,11 +438,13 @@ soap-system/
 │     └─ a_EMR_icdcpt.click() → parent.select_page(5,0)   │
 │                                                         │
 │  3. addICDCodes(task.icdCodes)                          │
-│     └─ addSelectionD(name, code) × N                    │
+│     └─ 优先从备选列表 select[name="list"] 选取           │
+│     └─ 未匹配则 addSelectionD(name, code) × N            │
 │                                                         │
 │  4. addCPTCodes(task.cptCodes)                          │
-│     └─ addSelectionD_cpt(text, text, code) × N          │
-│     └─ 设置 Units (name=Units input)                    │
+│     └─ 优先从备选列表 select[name="list_cpt"] 选取       │
+│     └─ 未匹配则 addSelectionD_cpt(text, text, code) × N  │
+│     └─ 始终显式设置 Units (不依赖默认值)                  │
 │     └─ 设置 LinkICD (关联ICD序号)                        │
 │                                                         │
 │  5. saveICDCPT()                                        │
@@ -454,13 +461,14 @@ soap-system/
 │     └─ modified = 1                                     │
 │                                                         │
 │  8. saveSOAP()                                          │
-│     └─ reallySubmit(2) → AJAX POST → 无页面重载          │
+│     └─ reallySubmit() → AJAX POST → 无页面重载            │
 │                                                         │
 │  9. navigateToCheckout()                                │
 │     └─ a_EMR_checkout.click() → parent.select_page(9,0) │
 │                                                         │
 │  10. generateBilling()                                  │
 │      └─ checkoutWin.checkOutOV(2) → doCheckOut → letsGo │
+│      └─ waitFor: spanPassToBill 显示 "(Billing is created)" │
 │                                                         │
 │  11. closeVisit()                                       │
 │      └─ wa0Win.closeMe(true) → 跳过confirm → emptyarea  │
@@ -593,8 +601,8 @@ soap-system/
 | Navigator.navigateToICD | 脚本内 | 切到 ICD/CPT 页面 |
 | Navigator.navigateToPTNote | 脚本内 | 切到 PT Note 页面 |
 | Navigator.navigateToCheckout | 脚本内 | 切到 Checkout 页面 |
-| ICDFiller | 脚本内 | addSelectionD 批量添加 ICD |
-| CPTFiller | 脚本内 | addSelectionD_cpt 批量添加 CPT + Units + LinkICD |
+| ICDFiller | 脚本内 | 优先备选列表 → addSelectionD 批量添加 ICD |
+| CPTFiller | 脚本内 | 优先备选列表 → addSelectionD_cpt + 显式设置 Units + LinkICD |
 | SOAPFiller | 脚本内 | TinyMCE setContent + reallySubmit |
 | Biller | 脚本内 | Generate Billing |
 | text-to-html.ts | server/services/ | 纯文本 → HTML 转换 |
@@ -635,7 +643,7 @@ soap-system/
   - reallySubmit() 内部自动从 TinyMCE getBody().innerHTML 提取内容
 
 验证:
-  const ptFrame = workarea.contentDocument.querySelector('iframe[name="ptnote"]')
+  const ptFrame = workarea.contentDocument.getElementById('ptnote')
   const pdoc = ptFrame.contentDocument
   const tinyMCE = pdoc.defaultView.tinyMCE
   // 检查 tinyMCE 是否可用
@@ -659,14 +667,21 @@ soap-system/
 ### 7.4 CPT Units 和 LinkICD 设置
 
 ```
-问题: addSelectionD_cpt 只添加 CPT code，Units 默认为 1，LinkICD 需手动设置
-影响: 如果不设置 Units，97811x3 实际只算 1 unit
+问题: addSelectionD_cpt 只添加 CPT code，Units 由 __CPTCodeUnitMap__ 决定默认值
+      97814 默认 Units=2 (MDLand 内置), 其他 CPT 默认 Units=1
+影响: 如果不显式设置 Units:
+      - HF/OPTUM: 97810×1 → 默认1 ✅ 无需改
+      - WC: 97813×1(1✅), 97814×2(2✅), 97811×1(1✅) → 全部匹配默认值
+      - VC: 97813×1(1✅), 97814×1(默认2❌), 97811×2(默认1❌) → 需要覆盖!
+
+策略: 始终显式设置每个 CPT 的 Units 值，不依赖默认值
+      即使当前默认值恰好正确，也主动设置，防止 MDLand 修改默认映射
 
 方案:
   添加 CPT 后，遍历已选 CPT 列表:
   for each CPT row:
     if task.cptCodes includes this code:
-      set Units input value = task.units
+      set Units input value = task.units    // 始终显式设置
       set LinkICD input value = "1,2,3..." (关联所有已选 ICD)
 ```
 
@@ -814,10 +829,10 @@ function checkSession() {
 优化方案: 利用 AutoSaveIframe 机制
   1. 添加所有 ICD + CPT + Units + LinkICD
   2. 设置 modified = 1
-  3. 直接切换到 PT Note (parent.Relocal('ptnote', true))
+  3. 直接切换到 PT Note (a_EMR_ptnote.click() → parent.select_page(4,7))
   4. AutoSaveIframe 自动触发 ICD/CPT 保存
   5. 在 PT Note 中填入 SOAP
-  6. 手动 reallySubmit(2) 保存 SOAP
+  6. 手动 reallySubmit() 保存 SOAP (AJAX, 无重载)
 
 需验证: AutoSaveIframe 是否总能正确触发并完成保存
 回退方案: 如果 AutoSave 不可靠，改为手动 letsGo(2) + waitFor 重载完成
@@ -843,8 +858,19 @@ function checkSession() {
 代码:
   await wa0Win.closeMe(true)    // 直接关闭，无 confirm
   await wait(2000)              // 等待 emptyarea 加载
-  // 需要重新搜索患者 (如果还有同患者的其他 visits)
-  // 或搜索下一个患者
+
+同患者多 Visit 流程:
+  患者有 4 个 visits (DOS=1,2,3,4):
+    1. 搜索患者 → 进入 Waiting Room → 看到 4 个 visits
+    2. 打开 visit #1 → 填 ICD/CPT/SOAP → Checkout → closeMe(true)
+       → workarea0 = emptyarea.html
+    3. 需要重新搜索同一患者 → 进入 Waiting Room → 打开 visit #2
+       (不能直接从 emptyarea 打开下一个 visit，必须重新搜索)
+    4. 重复步骤 3 直到所有 visits 完成
+    5. 搜索下一个患者
+
+  优化: processPatientGroup(group) 中缓存患者 DOB，
+        closeVisit 后直接 searchPatient(dob) 重新搜索
 ```
 
 ---
