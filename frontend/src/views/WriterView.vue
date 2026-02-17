@@ -41,7 +41,14 @@ const secondaryBodyParts = ref([])
 const secondaryLaterality = reactive({})
 const medicalHistory = ref([])
 
-const INSURANCE_OPTIONS = ['OPTUM', 'HF', 'WC', 'VC', 'ELDERPLAN', 'NONE']
+const INSURANCE_OPTIONS = [
+  { value: 'OPTUM', label: 'Optum' },
+  { value: 'HF', label: 'HealthFirst' },
+  { value: 'WC', label: "Workers' Comp" },
+  { value: 'VC', label: 'Veterans Care' },
+  { value: 'ELDERPLAN', label: 'ElderPlan' },
+  { value: 'NONE', label: 'None / Self-pay' },
+]
 const BODY_PARTS = [
   'LBP', 'NECK', 'UPPER_BACK', 'MIDDLE_BACK',
   'SHOULDER', 'ELBOW', 'WRIST', 'HAND',
@@ -599,7 +606,7 @@ function isLongField(path) {
             <div>
               <label class="text-xs text-ink-500 mb-1 block">保险类型</label>
               <select v-model="insuranceType" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-                <option v-for="t in INSURANCE_OPTIONS" :key="t" :value="t">{{ t }}</option>
+                <option v-for="t in INSURANCE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
               </select>
             </div>
             <div>
