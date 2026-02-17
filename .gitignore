@@ -23,3 +23,10 @@ npm-debug.log*
 
 # Test
 coverage/
+
+# Data (cookies, screenshots, batch files)
+data/mdland-storage-state.json
+data/screenshots/
+
+# Playwright
+.playwright-mcp/
