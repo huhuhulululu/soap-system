@@ -23,7 +23,7 @@ services:
       - DATA_DIR=/app/data
       - API_KEY=${API_KEY:-}
       - COOKIE_ENCRYPTION_KEY=${COOKIE_ENCRYPTION_KEY:-}
-      - CORS_ORIGIN=http://ac.aanao.cc
+      - CORS_ORIGIN=https://ac.aanao.cc
     restart: unless-stopped
 
 volumes:
