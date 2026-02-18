@@ -767,15 +767,36 @@ class MDLandAutomation {
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
+    // Debug: check content before save
+    const debug = await this.page.evaluate(() => {
+      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
+      const ptWin: any = pt?.contentWindow;
+      const ptDoc = pt?.contentDocument;
+      if (!ptWin || !ptDoc) return { error: 'no ptWin/ptDoc' };
+
+      const tinyMCE = ptWin.tinyMCE;
+      const editors: Record<string, string> = {};
+      const textareas: Record<string, string> = {};
+      for (let i = 0; i < 4; i++) {
+        const id = `SOAPtext${i}`;
+        const ed = tinyMCE?.getInstanceById?.(id);
+        editors[id] = ed ? ed.getContent().slice(0, 80) : 'NO_EDITOR';
+        const ta = ptDoc.getElementById(id) as HTMLTextAreaElement | null;
+        textareas[id] = ta ? ta.value.slice(0, 80) : 'NO_TEXTAREA';
+      }
+      const fnSrc = String(ptWin.reallySubmit).slice(0, 200);
+      return { editors, textareas, fnSrc, modified: ptWin.modified };
+    });
+    console.log('  DEBUG pre-save:', JSON.stringify(debug));
+
     await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ptWin: any = pt?.contentWindow;
 
       if (!ptWin) throw new Error('PT Note window not accessible');
 
-      // Sync TinyMCE editor content to textareas before submit
       if (ptWin.tinyMCE?.triggerSave) {
         ptWin.tinyMCE.triggerSave();
       }
