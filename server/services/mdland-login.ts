@@ -189,24 +189,26 @@ export async function loginToMDLand(
       await passwordInput.press('Enter')
     }
 
-    // Wait for either success or error
+    // Poll URL until clinic_main or timeout
     console.log('Waiting for login response...')
+    const deadline = Date.now() + opts.timeout
+    let loginOutcome = { success: false, error: 'Login timeout. Please check credentials.' }
 
-    const loginOutcome = await Promise.race([
-      page.waitForFunction(
-        () => document.location.href.includes('clinic_main'),
-        { timeout: opts.timeout }
-      ).then(() => ({ success: true, error: '' })),
-
-      page.waitForSelector(LOGIN_SELECTORS.ERROR_MSG, { timeout: opts.timeout })
-        .then(async (el) => {
-          const text = await el.textContent().catch(() => '')
-          return { success: false, error: text?.trim() || 'Login failed' }
-        }),
-    ]).catch(() => ({
-      success: false,
-      error: 'Login timeout. Please check credentials.',
-    }))
+    while (Date.now() < deadline) {
+      await page.waitForTimeout(2000)
+      const url = page.url()
+      console.log('Current URL:', url)
+      if (url.includes('clinic_main')) {
+        loginOutcome = { success: true, error: '' }
+        break
+      }
+      const errEl = await page.$(LOGIN_SELECTORS.ERROR_MSG).catch(() => null)
+      if (errEl) {
+        const text = await errEl.textContent().catch(() => '')
+        loginOutcome = { success: false, error: text?.trim() || 'Login failed' }
+        break
+      }
+    }
 
     if (!loginOutcome.success) {
       return {
