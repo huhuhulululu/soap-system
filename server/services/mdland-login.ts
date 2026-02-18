@@ -5,8 +5,9 @@
  * captures session cookies, and saves storage state.
  */
 
-import { chromium, type Browser } from 'playwright'
+import { chromium, type Browser, type Page } from 'playwright'
 import { saveCookies, loadCookies, hasCookies } from './automation-runner'
+import path from 'path'
 
 // ── Types ────────────────────────────────────────
 
@@ -97,6 +98,83 @@ async function tryWithSavedCookies(
   } finally {
     await context.close()
   }
+}
+
+// ── 2FA / Poll Helpers ──────────────────────────
+
+const SCREENSHOT_DIR = path.resolve('data/screenshots')
+
+async function handle2FAPage(page: Page): Promise<void> {
+  // Screenshot for debugging
+  const ssPath = path.join(SCREENSHOT_DIR, `2fa-${Date.now()}.png`)
+  await page.screenshot({ path: ssPath }).catch(() => {})
+  console.log('2FA screenshot saved:', ssPath)
+
+  // Log page content for debugging
+  const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) ?? '').catch(() => '')
+  console.log('2FA page content:', bodyText)
+
+  // Try clicking any verify/continue/submit buttons
+  const btnSelectors = [
+    'input[type="submit"]', 'button[type="submit"]',
+    '#btnVerify', '#btnContinue', '#btnSubmit',
+    'a.btn', 'button.btn',
+  ]
+  for (const sel of btnSelectors) {
+    const btn = await page.$(sel).catch(() => null)
+    if (btn) {
+      const text = await btn.textContent().catch(() => sel)
+      console.log('2FA: clicking button:', text)
+      await btn.click().catch(() => {})
+      await page.waitForTimeout(3000)
+      return
+    }
+  }
+
+  // If no buttons found, try evaluating any auto-submit forms
+  await page.evaluate(() => {
+    const form = document.querySelector('form')
+    if (form) form.submit()
+  }).catch(() => {})
+}
+
+async function pollForLogin(
+  page: Page,
+  timeout: number
+): Promise<{ success: boolean; error: string }> {
+  const deadline = Date.now() + timeout
+  let handled2FA = false
+
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(2000)
+    const url = page.url()
+    console.log('Current URL:', url)
+
+    if (url.includes('clinic_main')) {
+      return { success: true, error: '' }
+    }
+
+    // Handle 2FA page once
+    if (url.includes('2FA') && !handled2FA) {
+      handled2FA = true
+      console.log('Detected 2FA page, attempting to handle...')
+      await handle2FAPage(page)
+      continue
+    }
+
+    const errEl = await page.$(LOGIN_SELECTORS.ERROR_MSG).catch(() => null)
+    if (errEl) {
+      const text = await errEl.textContent().catch(() => '')
+      return { success: false, error: text?.trim() || 'Login failed' }
+    }
+  }
+
+  // Timeout — capture final state
+  const ssPath = path.join(SCREENSHOT_DIR, `timeout-${Date.now()}.png`)
+  await page.screenshot({ path: ssPath }).catch(() => {})
+  console.log('Timeout screenshot:', ssPath, 'URL:', page.url())
+
+  return { success: false, error: 'Login timeout. Please check credentials.' }
 }
 
 // ── Login Function ───────────────────────────────
@@ -191,24 +269,7 @@ export async function loginToMDLand(
 
     // Poll URL until clinic_main or timeout
     console.log('Waiting for login response...')
-    const deadline = Date.now() + opts.timeout
-    let loginOutcome = { success: false, error: 'Login timeout. Please check credentials.' }
-
-    while (Date.now() < deadline) {
-      await page.waitForTimeout(2000)
-      const url = page.url()
-      console.log('Current URL:', url)
-      if (url.includes('clinic_main')) {
-        loginOutcome = { success: true, error: '' }
-        break
-      }
-      const errEl = await page.$(LOGIN_SELECTORS.ERROR_MSG).catch(() => null)
-      if (errEl) {
-        const text = await errEl.textContent().catch(() => '')
-        loginOutcome = { success: false, error: text?.trim() || 'Login failed' }
-        break
-      }
-    }
+    const loginOutcome = await pollForLogin(page, opts.timeout)
 
     if (!loginOutcome.success) {
       return {
