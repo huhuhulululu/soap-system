@@ -27,7 +27,7 @@ const MDLAND_URL = 'https://login.mdland.com/login_central.aspx'
 
 const DEFAULT_OPTIONS: LoginOptions = {
   headless: true,
-  timeout: 30000,
+  timeout: 60000,
 }
 
 const LOGIN_SELECTORS = {
@@ -193,8 +193,10 @@ export async function loginToMDLand(
     console.log('Waiting for login response...')
 
     const loginOutcome = await Promise.race([
-      page.waitForURL('**/clinic_main*', { timeout: opts.timeout })
-        .then(() => ({ success: true, error: '' })),
+      page.waitForFunction(
+        () => document.location.href.includes('clinic_main'),
+        { timeout: opts.timeout }
+      ).then(() => ({ success: true, error: '' })),
 
       page.waitForSelector(LOGIN_SELECTORS.ERROR_MSG, { timeout: opts.timeout })
         .then(async (el) => {
