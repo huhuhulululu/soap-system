@@ -428,6 +428,46 @@ class MDLandAutomation {
   }
 
   /**
+   * 读取 claim 行信息（Appt Time、保险等）
+   */
+  async readClaimRows(): Promise<Array<{ row: number; apptTime: string; text: string }>> {
+    const rows = await this.page.evaluate(() => {
+      const results: Array<{ row: number; apptTime: string; text: string }> = [];
+      const search = (doc: Document): boolean => {
+        const trs = doc.querySelectorAll('tr[id^="trt"]');
+        if (trs.length === 0) {
+          for (const f of Array.from(doc.querySelectorAll('iframe, frame'))) {
+            try {
+              const fd = (f as HTMLIFrameElement).contentDocument;
+              if (fd && search(fd)) return true;
+            } catch { /* cross-origin */ }
+          }
+          return false;
+        }
+        trs.forEach((tr, i) => {
+          const cells = tr.querySelectorAll('td');
+          const text = (tr as HTMLElement).innerText || '';
+          // Appt Time is typically in one of the cells - extract time pattern
+          const timeMatch = text.match(/\d{1,2}:\d{2}\s*(AM|PM)/i);
+          results.push({
+            row: i + 1,
+            apptTime: timeMatch ? timeMatch[0] : '',
+            text: text.replace(/\s+/g, ' ').trim().slice(0, 120),
+          });
+        });
+        return true;
+      };
+      search(document);
+      return results;
+    });
+
+    for (const r of rows) {
+      console.log(`  Row ${r.row}: ${r.apptTime} | ${r.text}`);
+    }
+    return rows;
+  }
+
+  /**
    * 打开第 N 个 visit
    */
   async openVisit(visitIndex: number): Promise<void> {
@@ -1030,7 +1070,7 @@ class MDLandAutomation {
    * 处理一个患者的所有 visits
    */
   async processPatient(patient: PatientData, isFirst: boolean): Promise<ReadonlyArray<VisitResult>> {
-    console.log(`\nProcessing patient: ${patient.name} (${patient.visits.length} visits)`);
+    console.log(`\nProcessing patient: ${patient.name} (${patient.visits.length} visits, insurance: ${patient.insurance})`);
 
     if (isFirst) {
       await this.clickWaitingRoom();
@@ -1041,18 +1081,38 @@ class MDLandAutomation {
     await this.selectPatient(patient.name, patient.dob);
     await this.sortByApptTime();
 
+    // Read actual claim rows to determine chronological order
+    const claimRows = await this.readClaimRows();
+    console.log(`  Found ${claimRows.length} claim rows in MDLand`);
+
+    // Filter by insurance if specified
+    const matchingRows = patient.insurance
+      ? claimRows.filter(r => r.text.toUpperCase().includes(patient.insurance.toUpperCase()))
+      : claimRows;
+
+    if (matchingRows.length > 0 && matchingRows.length !== claimRows.length) {
+      console.log(`  Filtered to ${matchingRows.length} rows matching insurance: ${patient.insurance}`);
+    }
+
+    // Use matching rows if available, otherwise fall back to all rows
+    const targetRows = matchingRows.length > 0 ? matchingRows : claimRows;
+
+    // Get done visits sorted: IE first, then TX in order
+    const doneVisits = patient.visits.filter(v => v.status === 'done');
     const results: VisitResult[] = [];
 
-    for (let i = 0; i < patient.visits.length; i++) {
-      const visit = patient.visits[i];
-      if (visit.status !== 'done') continue;
+    for (let i = 0; i < doneVisits.length && i < targetRows.length; i++) {
+      const visit = doneVisits[i];
+      const rowNum = targetRows[i].row;
 
-      await this.openVisit(visit.dos);
+      console.log(`  Mapping visit ${i + 1} (${visit.noteType}) → Row ${rowNum} (${targetRows[i].apptTime})`);
+
+      await this.openVisit(rowNum);
       const result = await this.processVisit(patient, visit);
       results.push(result);
 
-      // 同患者多 visit: 关闭后回到 Waiting Room 重新搜索
-      if (i < patient.visits.length - 1 && result.success) {
+      // Re-search patient for next visit
+      if (i < doneVisits.length - 1 && i < targetRows.length - 1 && result.success) {
         await this.clickWaitingRoom();
         await this.clickOnePatient();
         await this.searchPatient(patient.dob);
