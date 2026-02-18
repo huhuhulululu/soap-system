@@ -356,6 +356,7 @@ function resetAll() {
   loginStatus.value = 'idle'
   loginError.value = ''
   showManualUpload.value = false
+  cookiePasteText.value = ''
 }
 
 // ── Note Type Badge ──────────────────────────────
@@ -382,6 +383,7 @@ const loginError = ref('')
 const loginPolling = ref(null)
 const loginPollCount = ref(0)
 const showManualUpload = ref(false)
+const cookiePasteText = ref('')
 
 async function checkCookies() {
   try {
@@ -495,6 +497,32 @@ async function handleCookieFileSelect(e) {
     cookiesInfo.value = { exists: true, updatedAt: result.data.updatedAt }
   } catch (err) {
     error.value = err.message || 'Invalid JSON file'
+  } finally {
+    uploadingCookies.value = false
+  }
+}
+
+async function submitPastedCookies() {
+  if (!cookiePasteText.value.trim()) return
+  uploadingCookies.value = true
+  error.value = ''
+  try {
+    const json = JSON.parse(cookiePasteText.value)
+    const res = await fetch(`${API_BASE}/automate/cookies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(json),
+    })
+    const result = await res.json()
+    if (!result.success) {
+      error.value = result.error || 'Failed to upload cookies'
+      return
+    }
+    cookiesInfo.value = { exists: true, updatedAt: result.data.updatedAt }
+    cookiePasteText.value = ''
+    showManualUpload.value = false
+  } catch (err) {
+    error.value = err.message || 'Invalid JSON'
   } finally {
     uploadingCookies.value = false
   }
@@ -1119,24 +1147,31 @@ onUnmounted(() => {
             </button>
             <div v-if="showManualUpload" class="mt-2 pl-4 border-l-2 border-ink-100">
               <p class="text-xs text-ink-400 mb-2">
-                Run <code class="bg-ink-50 px-1 rounded">extract-cookies.ts</code> locally, then upload the JSON.
+                Paste cookies JSON or upload a file.
               </p>
-              <button
-                @click="openCookieFilePicker"
-                :disabled="uploadingCookies"
-                class="btn-secondary text-xs flex items-center gap-2"
-                :class="{ 'opacity-60': uploadingCookies }"
-              >
-                <svg v-if="uploadingCookies" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                {{ uploadingCookies ? 'Uploading...' : 'Upload Cookies JSON' }}
-              </button>
+              <textarea
+                v-model="cookiePasteText"
+                placeholder='{"cookies":[...],"origins":[...]}'
+                rows="4"
+                class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 mb-2 resize-y"
+              ></textarea>
+              <div class="flex gap-2">
+                <button
+                  @click="submitPastedCookies"
+                  :disabled="uploadingCookies || !cookiePasteText.trim()"
+                  class="btn-primary text-xs flex items-center gap-1"
+                  :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }"
+                >
+                  {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
+                </button>
+                <button
+                  @click="openCookieFilePicker"
+                  :disabled="uploadingCookies"
+                  class="btn-secondary text-xs"
+                >
+                  Upload File
+                </button>
+              </div>
               <input
                 ref="cookieFileInput"
                 type="file"
