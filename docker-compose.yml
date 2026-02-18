@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     ports:
-      - "9090:8080"
+      - "80:8080"
     depends_on:
       - backend
     restart: unless-stopped
@@ -23,7 +23,7 @@ services:
       - DATA_DIR=/app/data
       - API_KEY=${API_KEY:-}
       - COOKIE_ENCRYPTION_KEY=${COOKIE_ENCRYPTION_KEY:-}
-      - CORS_ORIGIN=http://localhost:9090
+      - CORS_ORIGIN=http://150.136.150.184
     restart: unless-stopped
 
 volumes:
