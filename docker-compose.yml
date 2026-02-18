@@ -13,14 +13,16 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     volumes:
       - batch-data:/app/data
     environment:
       - PORT=3001
       - NODE_ENV=production
       - DATA_DIR=/app/data
+      - API_KEY=${API_KEY:-}
+      - CORS_ORIGIN=http://localhost:9090
     restart: unless-stopped
 
 volumes:

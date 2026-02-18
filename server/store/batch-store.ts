@@ -16,8 +16,14 @@ function ensureStoreDir(): void {
   }
 }
 
+function sanitizeBatchId(batchId: string): string {
+  const sanitized = batchId.replace(/[^a-zA-Z0-9_-]/g, '')
+  if (!sanitized) throw new Error('Invalid batch ID')
+  return sanitized
+}
+
 function batchFilePath(batchId: string): string {
-  return path.join(STORE_DIR, `${batchId}.json`)
+  return path.join(STORE_DIR, `${sanitizeBatchId(batchId)}.json`)
 }
 
 /**
