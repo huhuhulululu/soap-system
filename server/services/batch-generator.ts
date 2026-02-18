@@ -12,6 +12,7 @@ import type { GenerationContext } from '../../src/types'
 import type { TXSequenceOptions } from '../../src/generator/tx-sequence-engine'
 import { exportSOAPAsText, exportTXSeriesAsText } from '../../src/generator/soap-generator'
 import { inferLocalPatterns, inferSystemicPatterns } from '../../src/knowledge/medical-history-engine'
+import { extractStateFromTX, buildContextFromExtracted, buildInitialStateFromExtracted } from '../../src/parser/tx-extractor'
 import { splitSOAPText } from './text-to-html'
 import type { BatchData, BatchPatient, BatchVisit } from '../types'
 
@@ -228,6 +229,66 @@ export function generateBatch(batch: BatchData): BatchGenerationResult {
     totalFailed,
     patients: updatedPatients,
   }
+}
+
+/**
+ * Continue 模式：从 TX SOAP 文本提取状态并续写
+ */
+export function generateContinueBatch(batch: BatchData): BatchGenerationResult {
+  let totalGenerated = 0
+  let totalFailed = 0
+
+  const updatedPatients = batch.patients.map(patient => {
+    if (!patient.soapText) {
+      return { ...patient, visits: patient.visits.map(v => ({ ...v, status: 'failed' as const })) }
+    }
+
+    const extracted = extractStateFromTX(patient.soapText)
+    const context = buildContextFromExtracted(extracted, {
+      insuranceType: patient.insurance,
+      age: patient.age,
+      gender: patient.gender,
+      medicalHistory: [...(patient.visits[0]?.history ?? [])],
+    })
+    const initialState = buildInitialStateFromExtracted(extracted)
+
+    const txVisits = patient.visits.filter(v => v.noteType === 'TX')
+    if (txVisits.length === 0) {
+      return patient
+    }
+
+    const options: TXSequenceOptions = {
+      txCount: 11,
+      startVisitIndex: extracted.estimatedVisitIndex + 1,
+      seed: Math.floor(Math.random() * 100000),
+      initialState,
+    }
+
+    const results = exportTXSeriesAsText(context, options)
+    const generatedTX = txVisits.map((visit, i) => {
+      const result = results[i]
+      if (!result) {
+        totalFailed++
+        return { ...visit, status: 'failed' as const }
+      }
+      totalGenerated++
+      const soap = splitSOAPText(result.text)
+      return {
+        ...visit,
+        generated: { soap, fullText: result.text, seed: options.seed ?? 0 },
+        status: 'done' as const,
+      }
+    })
+
+    const updatedVisits = patient.visits.map(v => {
+      const match = generatedTX.find(g => g.index === v.index)
+      return match ?? v
+    })
+
+    return { ...patient, visits: updatedVisits }
+  })
+
+  return { batchId: batch.batchId, totalGenerated, totalFailed, patients: updatedPatients }
 }
 
 /**

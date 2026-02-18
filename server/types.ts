@@ -52,9 +52,10 @@ export interface BatchPatient {
   readonly insurance: InsuranceType
   readonly clinical: BatchPatientClinical
   readonly visits: BatchVisit[]
+  readonly soapText?: string
 }
 
-export type BatchMode = 'full' | 'soap-only'
+export type BatchMode = 'full' | 'soap-only' | 'continue'
 
 export interface BatchData {
   readonly batchId: string
@@ -91,4 +92,5 @@ export interface ExcelRow {
   readonly painFrequency: string
   readonly secondaryParts: string
   readonly history: string
+  readonly soapText: string
 }

@@ -10,7 +10,7 @@ const loading = ref(false)
 const error = ref('')
 
 // Mode
-const batchMode = ref('full') // 'full' | 'soap-only'
+const batchMode = ref('full') // 'full' | 'soap-only' | 'continue'
 
 // Upload
 const isDragging = ref(false)
@@ -40,6 +40,13 @@ const isSoapOnly = computed(() => {
   if (batchData.value?.mode) return batchData.value.mode === 'soap-only'
   return batchMode.value === 'soap-only'
 })
+
+const isContinue = computed(() => {
+  if (batchData.value?.mode) return batchData.value.mode === 'continue'
+  return batchMode.value === 'continue'
+})
+
+const needsGenerateStep = computed(() => isSoapOnly.value || isContinue.value)
 
 const allVisitsGenerated = computed(() => {
   if (!batchData.value) return false
@@ -565,6 +572,14 @@ onUnmounted(() => {
             SOAP Only
             <span class="block text-xs mt-0.5 opacity-70">Generate SOAP notes only</span>
           </button>
+          <button
+            @click="batchMode = 'continue'"
+            class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
+            :class="batchMode === 'continue' ? 'bg-ink-800 text-white' : 'bg-white text-ink-600 hover:bg-paper-100'"
+          >
+            Continue
+            <span class="block text-xs mt-0.5 opacity-70">Continue from TX SOAP text</span>
+          </button>
         </div>
       </div>
 
@@ -717,8 +732,8 @@ onUnmounted(() => {
             Batch ID: {{ batchId }}
             <span
               class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full"
-              :class="isSoapOnly ? 'bg-purple-100 text-purple-700' : 'bg-ink-100 text-ink-600'"
-            >{{ isSoapOnly ? 'SOAP Only' : 'Full' }}</span>
+              :class="isContinue ? 'bg-teal-100 text-teal-700' : isSoapOnly ? 'bg-purple-100 text-purple-700' : 'bg-ink-100 text-ink-600'"
+            >{{ isContinue ? 'Continue' : isSoapOnly ? 'SOAP Only' : 'Full' }}</span>
           </p>
         </div>
         <div class="flex gap-3">
@@ -731,9 +746,9 @@ onUnmounted(() => {
             {{ copiedAll ? 'Copied!' : 'Copy All' }}
           </button>
 
-          <!-- SOAP Only: Generate button (before generation) -->
+          <!-- Generate button (soap-only / continue: before generation) -->
           <button
-            v-if="isSoapOnly && !allVisitsGenerated"
+            v-if="needsGenerateStep && !allVisitsGenerated"
             @click="generateAll"
             :disabled="generating"
             class="btn-primary text-sm flex items-center gap-2"
@@ -746,9 +761,9 @@ onUnmounted(() => {
             <span>{{ generating ? 'Generating...' : 'Generate SOAP' }}</span>
           </button>
 
-          <!-- SOAP Only: Save button (after generation) -->
+          <!-- Save/Confirm button (soap-only / continue: after generation) -->
           <button
-            v-if="isSoapOnly && allVisitsGenerated"
+            v-if="needsGenerateStep && allVisitsGenerated"
             @click="confirmBatch"
             :disabled="loading"
             class="btn-primary text-sm flex items-center gap-2"
@@ -763,7 +778,7 @@ onUnmounted(() => {
 
           <!-- Full mode: Confirm button -->
           <button
-            v-if="!isSoapOnly"
+            v-if="!needsGenerateStep"
             @click="confirmBatch"
             :disabled="loading || !allVisitsGenerated"
             class="btn-primary text-sm flex items-center gap-2"
@@ -928,7 +943,7 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <!-- CPT codes -->
-                <div v-if="!isSoapOnly && visit.cptCodes && visit.cptCodes.length > 0" class="mt-3 flex items-center gap-2 flex-wrap">
+                <div v-if="!isSoapOnly && !isContinue && visit.cptCodes && visit.cptCodes.length > 0" class="mt-3 flex items-center gap-2 flex-wrap">
                   <span class="text-xs font-semibold text-ink-500">CPT:</span>
                   <span
                     v-for="cpt in visit.cptCodes"

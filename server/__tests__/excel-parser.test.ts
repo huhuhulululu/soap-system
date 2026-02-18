@@ -24,6 +24,7 @@ function makeRow(overrides: Partial<ExcelRow> = {}): ExcelRow {
     painFrequency: 'Constant',
     secondaryParts: '',
     history: '',
+    soapText: '',
     ...overrides,
   }
 }

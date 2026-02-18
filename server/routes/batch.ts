@@ -14,7 +14,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { parseExcelBuffer, buildPatientsFromRows } from '../services/excel-parser'
-import { generateBatch, regenerateVisit } from '../services/batch-generator'
+import { generateBatch, generateContinueBatch, regenerateVisit } from '../services/batch-generator'
 import { generateBatchId, saveBatch, getBatch, confirmBatch } from '../store/batch-store'
 import type { BatchData, BatchMode } from '../types'
 
@@ -45,7 +45,8 @@ export function createBatchRouter(): Router {
       }
 
       // 1. 读取 mode
-      const mode: BatchMode = req.body?.mode === 'soap-only' ? 'soap-only' : 'full'
+      const rawMode = req.body?.mode as string
+      const mode: BatchMode = rawMode === 'soap-only' ? 'soap-only' : rawMode === 'continue' ? 'continue' : 'full'
 
       // 2. 解析 Excel
       const rows = await parseExcelBuffer(req.file.buffer)
@@ -64,8 +65,8 @@ export function createBatchRouter(): Router {
         summary,
       }
 
-      // 5. soap-only: parse only, no generation yet
-      if (mode === 'soap-only') {
+      // 5. soap-only / continue: parse only, no generation yet
+      if (mode === 'soap-only' || mode === 'continue') {
         saveBatch(batchData)
         res.json({
           success: true,
@@ -194,7 +195,7 @@ export function createBatchRouter(): Router {
         return
       }
 
-      const result = generateBatch(batch)
+      const result = batch.mode === 'continue' ? generateContinueBatch(batch) : generateBatch(batch)
       const updatedBatch: BatchData = { ...batch, patients: result.patients }
       saveBatch(updatedBatch)
 

@@ -10,6 +10,7 @@ import type { ExcelRow, BatchPatient, BatchVisit, BatchPatientClinical, BatchMod
 import { getICDName } from '../../src/shared/icd-catalog'
 import { parseCPTString, getDefaultTXCPT, type CPTWithUnits } from '../../src/shared/cpt-catalog'
 import { severityFromPain } from '../../src/shared/severity'
+import { extractStateFromTX } from '../../src/parser/tx-extractor'
 
 const VALID_INSURANCE = new Set<string>(['HF', 'OPTUM', 'WC', 'VC', 'ELDERPLAN', 'NONE'])
 
@@ -222,6 +223,7 @@ function buildRowsFromRecords(records: Record<string, string>[]): ExcelRow[] {
       painFrequency: getString(['PainFrequency', 'painFrequency', 'S']),
       secondaryParts: getString(['SecondaryParts', 'secondaryParts', 'Secondary', 'T']),
       history: getString(['History', 'history', 'U']),
+      soapText: getString(['SoapText', 'soapText', 'SOAP', 'V']),
     }
   })
 }
@@ -250,6 +252,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     if (!row.gender || !['M', 'F'].includes(row.gender)) errors.push(`Row ${rowNum}: Gender must be M or F`)
     if (!VALID_INSURANCE.has(row.insurance)) errors.push(`Row ${rowNum}: Invalid insurance "${row.insurance}"`)
     if (mode === 'full' && !row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
+    if (mode === 'continue' && !row.soapText) errors.push(`Row ${rowNum}: SoapText is required for continue mode`)
     if (row.totalVisits < 1) errors.push(`Row ${rowNum}: TotalVisits must be at least 1`)
   }
 
@@ -265,6 +268,69 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     const age = calculateAge(dob)
     const gender: 'Male' | 'Female' = row.gender === 'M' ? 'Male' : 'Female'
     const insurance = row.insurance as InsuranceType
+
+    // ── Continue mode: extract from SOAP text ──
+    if (mode === 'continue') {
+      const extracted = extractStateFromTX(row.soapText)
+      const bodyPart = extracted.bodyPart
+      const laterality = extracted.laterality
+      const totalVisits = row.totalVisits
+
+      const clinical: BatchPatientClinical = {
+        painWorst: Math.min(10, extracted.painScale + 2),
+        painBest: Math.max(1, extracted.painScale - 3),
+        painCurrent: extracted.painScale,
+        severityLevel: severityFromPain(extracted.painScale),
+        symptomDuration: extracted.symptomDuration,
+        painRadiation: extracted.painRadiation,
+        painTypes: extracted.painTypes,
+        associatedSymptoms: [extracted.associatedSymptom],
+        causativeFactors: extracted.causativeFactors,
+        relievingFactors: extracted.relievingFactors,
+        symptomScale: extracted.symptomScale,
+        painFrequency: parsePainFrequency(''),
+      }
+
+      const icdCodes = row.icd.trim()
+        ? row.icd.split(',').filter(c => c.trim()).map(code => ({ code: code.trim(), name: getICDName(code.trim()) }))
+        : []
+
+      const cptCodes: CPTWithUnits[] = row.cpt.trim()
+        ? parseCPTString(row.cpt)
+        : [...getDefaultTXCPT(insurance)]
+
+      const history = row.history
+        ? row.history.split(',').map(h => h.trim()).filter(h => h && h.toUpperCase() !== 'N/A')
+        : []
+
+      const visits: BatchVisit[] = []
+      for (let txIdx = 0; txIdx < totalVisits; txIdx++) {
+        visits.push({
+          index: txIdx,
+          dos: txIdx + 1,
+          noteType: 'TX',
+          txNumber: txIdx + 1,
+          bodyPart,
+          laterality,
+          secondaryParts: [],
+          history,
+          icdCodes,
+          cptCodes,
+          generated: null,
+          status: 'pending',
+        })
+        byType['TX'] = (byType['TX'] ?? 0) + 1
+      }
+
+      totalVisitCount += totalVisits
+
+      return {
+        name, dob, age, gender, insurance, clinical, visits,
+        soapText: row.soapText,
+      }
+    }
+
+    // ── Full / soap-only mode ──
     const bodyPart = normalizeBodyPart(row.bodyPart)
     const laterality = VALID_LATERALITY.get(row.laterality) ?? 'bilateral'
 

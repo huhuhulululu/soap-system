@@ -3,7 +3,8 @@
  * 从 TX 文本中提取状态和推断上下文
  */
 
-import type { BodyPart, Laterality } from '../types'
+import type { BodyPart, Laterality, GenerationContext, SeverityLevel } from '../types'
+import { severityFromPain } from '../shared/severity'
 
 export interface ExtractedTXState {
   bodyPart: BodyPart
@@ -18,6 +19,11 @@ export interface ExtractedTXState {
   associatedSymptom: string
   estimatedProgress: number
   estimatedVisitIndex: number
+  painTypes: string[]
+  painRadiation: string
+  symptomDuration: { value: string; unit: string }
+  causativeFactors: string[]
+  relievingFactors: string[]
 }
 
 const BODY_PART_MAP: Record<string, BodyPart> = {
@@ -107,7 +113,33 @@ export function extractStateFromTX(text: string): ExtractedTXState {
   // Associated symptom
   const assocMatch = text.match(/associated with muscles\s+(\w+)/i)
   const associatedSymptom = assocMatch ? assocMatch[1].toLowerCase() : 'soreness'
-  
+
+  // Pain types
+  const ptMatch = text.match(/(?:Dull|Aching|Stabbing|Sharp|Burning|Throbbing)(?:\s*,\s*(?:Dull|Aching|Stabbing|Sharp|Burning|Throbbing))*/i)
+  const painTypes = ptMatch ? ptMatch[0].split(/\s*,\s*/).map(s => s.trim()) : ['Dull', 'Aching']
+
+  // Pain radiation
+  const radMatch = text.match(/(with(?:out)?\s+radiation[^.]*)/i)
+  const painRadiation = radMatch ? radMatch[1].trim() : 'without radiation'
+
+  // Symptom duration
+  const durMatch = text.match(/for\s+(?:more\s+than\s+)?(\d+)\s*(year|month|week|day)/i)
+  const symptomDuration = durMatch
+    ? { value: durMatch[1], unit: `${durMatch[2].toLowerCase()}(s)` }
+    : { value: '3', unit: 'year(s)' }
+
+  // Causative factors
+  const causeMatch = text.match(/(?:due to|because of|caused by)\s+([^.]+)/i)
+  const causativeFactors = causeMatch
+    ? causeMatch[1].split(/,\s*/).map(s => s.trim()).filter(Boolean)
+    : ['age related/degenerative changes']
+
+  // Relieving factors
+  const reliefMatch = text.match(/(?:reliev|alleviat)\w+\s+by\s+([^.]+)/i)
+  const relievingFactors = reliefMatch
+    ? reliefMatch[1].split(/,\s*/).map(s => s.trim()).filter(Boolean)
+    : ['Changing positions', 'Resting', 'Massage']
+
   // Estimate progress based on indicators
   const painProgress = (8 - painScale) / 5  // 8→3 = 0→1
   const tightProgress = (4 - tightness) / 3  // 4→1 = 0→1
@@ -124,20 +156,54 @@ export function extractStateFromTX(text: string): ExtractedTXState {
     bodyPart, laterality, localPattern,
     painScale, painFrequency, symptomScale,
     tightness, tenderness, spasm, associatedSymptom,
-    estimatedProgress, estimatedVisitIndex
+    estimatedProgress, estimatedVisitIndex,
+    painTypes, painRadiation, symptomDuration,
+    causativeFactors, relievingFactors,
   }
 }
 
-export function buildContextFromExtracted(extracted: ExtractedTXState) {
+export interface ContinueOverrides {
+  insuranceType?: string
+  age?: number
+  gender?: 'Male' | 'Female'
+  medicalHistory?: string[]
+  secondaryBodyParts?: BodyPart[]
+}
+
+const FREQ_NUM_TO_TEXT: Record<number, string> = {
+  3: 'Constant (symptoms occur between 76% and 100% of the time)',
+  2: 'Frequent (symptoms occur between 51% and 75% of the time)',
+  1: 'Occasional (symptoms occur between 26% and 50% of the time)',
+  0: 'Intermittent (symptoms occur less than 25% of the time)',
+}
+
+export function buildContextFromExtracted(extracted: ExtractedTXState, overrides: ContinueOverrides = {}): GenerationContext {
   return {
-    noteType: 'TX' as const,
-    insuranceType: 'OPTUM' as const,
+    noteType: 'TX',
+    insuranceType: (overrides.insuranceType || 'OPTUM') as GenerationContext['insuranceType'],
     primaryBodyPart: extracted.bodyPart,
     laterality: extracted.laterality,
     localPattern: extracted.localPattern,
     systemicPattern: 'Kidney Yang Deficiency',
-    chronicityLevel: 'Chronic' as const,
-    severityLevel: 'moderate' as const
+    chronicityLevel: 'Chronic',
+    severityLevel: severityFromPain(extracted.painScale),
+    painCurrent: extracted.painScale,
+    painWorst: Math.min(10, extracted.painScale + 2),
+    painBest: Math.max(1, extracted.painScale - 3),
+    painTypes: extracted.painTypes,
+    associatedSymptom: extracted.associatedSymptom as GenerationContext['associatedSymptom'],
+    symptomDuration: extracted.symptomDuration,
+    painRadiation: extracted.painRadiation,
+    symptomScale: extracted.symptomScale,
+    painFrequency: FREQ_NUM_TO_TEXT[extracted.painFrequency] ?? FREQ_NUM_TO_TEXT[3],
+    causativeFactors: extracted.causativeFactors,
+    relievingFactors: extracted.relievingFactors,
+    age: overrides.age ?? 55,
+    gender: overrides.gender ?? 'Female',
+    medicalHistory: overrides.medicalHistory ?? [],
+    secondaryBodyParts: overrides.secondaryBodyParts ?? [],
+    hasPacemaker: overrides.medicalHistory?.includes('Pacemaker') ?? false,
+    hasMetalImplant: overrides.medicalHistory?.includes('Joint Replacement') ?? false,
   }
 }
 

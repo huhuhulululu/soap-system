@@ -43,6 +43,7 @@ const fields: FieldDef[] = [
   { key: 'PainFrequency', label: 'PainFrequency', dropdown: ['Constant', 'Frequent', 'Occasional', 'Intermittent'] },
   { key: 'SecondaryParts', label: 'SecondaryParts', note: 'e.g. NECK,SHOULDER' },
   { key: 'History', label: 'History', note: 'e.g. Hypertension,Diabetes or N/A' },
+  { key: 'SoapText', label: 'SoapText', note: 'Continue mode: paste full TX SOAP text' },
 ]
 
 const sampleData: Record<string, string | number>[] = [
