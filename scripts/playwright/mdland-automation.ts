@@ -771,28 +771,38 @@ class MDLandAutomation {
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    const ptFrame = this.getPtNoteFrame();
-    if (!ptFrame) throw new Error('ptnote frame not found');
-
-    // DEBUG: dump all buttons/links/inputs in ptnote
-    const elements = await ptFrame.evaluate(() => {
+    // DEBUG: find save button in ALL frames
+    const elements = await this.page.evaluate(() => {
       const results: string[] = [];
-      // Buttons
-      document.querySelectorAll('input[type="button"],input[type="submit"],button,a[href*="javascript"],img[onclick]').forEach((el: any) => {
-        const tag = el.tagName;
-        const id = el.id || '';
-        const name = el.name || '';
-        const val = el.value || el.textContent?.trim()?.slice(0, 50) || '';
-        const onclick = el.getAttribute('onclick')?.slice(0, 80) || '';
-        const src = el.src ? el.src.split('/').pop() : '';
-        results.push(`${tag} id=${id} name=${name} val=${val} onclick=${onclick} src=${src}`);
-      });
+      const scanDoc = (doc: Document, label: string) => {
+        doc.querySelectorAll('input[type="button"],input[type="submit"],input[type="image"],button,img[onclick],a[onclick],td[onclick]').forEach((el: any) => {
+          const tag = el.tagName;
+          const id = el.id || '';
+          const val = el.value || el.textContent?.trim()?.slice(0, 40) || el.title || '';
+          const onclick = el.getAttribute('onclick')?.slice(0, 100) || '';
+          const src = el.src ? el.src.split('/').pop() : '';
+          const alt = el.alt || '';
+          if (val.toLowerCase().includes('save') || onclick.toLowerCase().includes('save') ||
+              onclick.toLowerCase().includes('submit') || onclick.toLowerCase().includes('really') ||
+              alt.toLowerCase().includes('save') || src.toLowerCase().includes('save')) {
+            results.push(`[${label}] ${tag} id=${id} val=${val} alt=${alt} onclick=${onclick} src=${src}`);
+          }
+        });
+      };
+      // Scan all frames
+      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+      if (wa0?.contentDocument) {
+        scanDoc(wa0.contentDocument, 'wa0');
+        const ov = wa0.contentDocument.getElementById('OfficeVisit') as HTMLIFrameElement;
+        if (ov?.contentDocument) scanDoc(ov.contentDocument, 'OV');
+        const pt = wa0.contentDocument.getElementById('ptnote') as HTMLIFrameElement;
+        if (pt?.contentDocument) scanDoc(pt.contentDocument, 'ptnote');
+      }
       return results;
     });
-    console.log('  PT Note interactive elements:');
+    console.log('  Save-related elements:');
     elements.forEach(e => console.log(`    ${e}`));
 
-    // TODO: implement click-based save
     await this.page.waitForTimeout(1000);
   }
 
