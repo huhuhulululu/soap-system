@@ -2,8 +2,8 @@
  * 批量处理相关类型定义
  */
 
-import type { NoteType, InsuranceType, BodyPart, Laterality, SeverityLevel } from '../../src/types'
-import type { CPTWithUnits } from '../../src/shared/cpt-catalog'
+import type { NoteType, InsuranceType, BodyPart, Laterality, SeverityLevel } from '../src/types'
+import type { CPTWithUnits } from '../src/shared/cpt-catalog'
 
 export interface BatchVisit {
   readonly index: number
@@ -14,7 +14,7 @@ export interface BatchVisit {
   readonly laterality: Laterality
   readonly secondaryParts: readonly BodyPart[]
   readonly history: readonly string[]
-  readonly icdCodes: readonly Array<{ code: string; name: string }>
+  readonly icdCodes: ReadonlyArray<{ code: string; name: string }>
   readonly cptCodes: readonly CPTWithUnits[]
   readonly generated: {
     readonly soap: {

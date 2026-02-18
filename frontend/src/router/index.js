@@ -1,37 +1,31 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import CheckerView from '../views/CheckerView.vue'
-import HistoryView from '../views/HistoryView.vue'
-import ContinueView from '../views/ContinueView.vue'
-import WriterView from '../views/WriterView.vue'
-import BatchView from '../views/BatchView.vue'
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
       name: 'checker',
-      component: CheckerView
+      component: () => import('../views/CheckerView.vue')
     },
     {
       path: '/continue',
       name: 'continue',
-      component: ContinueView
+      component: () => import('../views/ContinueView.vue')
     },
     {
       path: '/writer',
       name: 'writer',
-      component: WriterView
+      component: () => import('../views/WriterView.vue')
     },
     {
       path: '/batch',
       name: 'batch',
-      component: BatchView
+      component: () => import('../views/BatchView.vue')
     },
     {
       path: '/history',
       name: 'history',
-      component: HistoryView
+      component: () => import('../views/HistoryView.vue')
     }
   ]
 })

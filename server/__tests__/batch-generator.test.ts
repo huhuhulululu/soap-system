@@ -54,6 +54,7 @@ function makeBatch(patients: BatchPatient[]): BatchData {
   return {
     batchId: 'test_batch_gen',
     createdAt: new Date().toISOString(),
+    mode: 'full',
     confirmed: false,
     patients,
     summary: {

@@ -175,8 +175,8 @@ export interface Plan {
   evaluationType: 'Initial Evaluation' | 'Re-Evaluation'
   contactTime: string
   steps: string[]
-  shortTermGoal: TreatmentGoal
-  longTermGoal: TreatmentGoal
+  shortTermGoal?: TreatmentGoal
+  longTermGoal?: TreatmentGoal
   needleProtocol: NeedleProtocol
 }
 

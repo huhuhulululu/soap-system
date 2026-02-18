@@ -12,6 +12,7 @@ function makeBatch(id?: string): BatchData {
   return {
     batchId: id ?? generateBatchId(),
     createdAt: new Date().toISOString(),
+    mode: 'full',
     confirmed: false,
     patients: [],
     summary: {

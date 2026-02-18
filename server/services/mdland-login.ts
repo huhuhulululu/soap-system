@@ -60,7 +60,7 @@ async function tryWithSavedCookies(
     return null
   }
 
-  const storageState = loadCookies() as { cookies: Array<{ domain: string }> }
+  const storageState = loadCookies() as any
 
   const context = await browser.newContext({
     viewport: { width: 1400, height: 900 },

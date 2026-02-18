@@ -175,7 +175,7 @@ export const ICD_MAP: Record<BodyPart, { code: string, desc: string, hasLaterali
 }
 
 const LATERALITY_SUFFIX: Record<Laterality, string> = {
-  right: '1', left: '2', bilateral: '9'
+  right: '1', left: '2', bilateral: '9', unspecified: '9'
 }
 
 export function inferDiagnosisCodes(bodyPart: BodyPart, laterality: Laterality) {

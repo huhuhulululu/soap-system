@@ -114,7 +114,7 @@ function parseCSV(raw: string): string[] {
  */
 export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelRow[]> {
   const workbook = new ExcelJS.Workbook()
-  await workbook.xlsx.load(buffer)
+  await workbook.xlsx.load(buffer as unknown as ArrayBuffer)
 
   const sheet = workbook.worksheets[0]
   if (!sheet || sheet.rowCount < 2) throw new Error('Excel file has no data rows')

@@ -8,7 +8,10 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { BatchData } from '../types'
 
-const STORE_DIR = path.join(process.cwd(), '.batch-data')
+const MAX_CACHE_SIZE = 50
+const STORE_DIR = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, 'batches')
+  : path.join(process.cwd(), '.batch-data')
 
 function ensureStoreDir(): void {
   if (!fs.existsSync(STORE_DIR)) {
@@ -45,8 +48,17 @@ export function generateBatchId(): string {
 /**
  * 保存批次
  */
+function evictIfNeeded(): void {
+  while (batchCache.size > MAX_CACHE_SIZE) {
+    const oldest = batchCache.keys().next().value
+    if (oldest) batchCache.delete(oldest)
+  }
+}
+
 export function saveBatch(batch: BatchData): void {
+  batchCache.delete(batch.batchId)
   batchCache.set(batch.batchId, batch)
+  evictIfNeeded()
   try {
     ensureStoreDir()
     fs.writeFileSync(batchFilePath(batch.batchId), JSON.stringify(batch, null, 2))
@@ -60,7 +72,11 @@ export function saveBatch(batch: BatchData): void {
  */
 export function getBatch(batchId: string): BatchData | undefined {
   const cached = batchCache.get(batchId)
-  if (cached) return cached
+  if (cached) {
+    batchCache.delete(batchId)
+    batchCache.set(batchId, cached)
+    return cached
+  }
 
   try {
     const filePath = batchFilePath(batchId)

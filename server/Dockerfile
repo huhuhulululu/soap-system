@@ -30,6 +30,9 @@ RUN mkdir -p /app/data /app/data/screenshots \
 
 USER appuser
 
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD node -e "fetch('http://localhost:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+
 EXPOSE 3001
 
 CMD ["npx", "tsx", "server/index.ts"]

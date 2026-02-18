@@ -48,7 +48,7 @@ function request(app: Application) {
       const res = await globalThis.fetch(url, {
         method,
         headers,
-        body: bodyData,
+        body: bodyData as BodyInit | undefined,
       })
 
       const responseBody = await res.json().catch(() => null)
@@ -195,6 +195,7 @@ describe('batch API routes', () => {
       const batch: BatchData = {
         batchId: 'test_api_get',
         createdAt: new Date().toISOString(),
+        mode: 'full',
         confirmed: false,
         patients: [],
         summary: { totalPatients: 0, totalVisits: 0, byType: {} },
@@ -224,6 +225,7 @@ describe('batch API routes', () => {
       const batch: BatchData = {
         batchId: 'test_confirm',
         createdAt: new Date().toISOString(),
+        mode: 'full',
         confirmed: false,
         patients: [],
         summary: { totalPatients: 0, totalVisits: 0, byType: {} },
