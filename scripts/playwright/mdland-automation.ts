@@ -392,6 +392,40 @@ class MDLandAutomation {
   }
 
   /**
+   * 按 Appt Time 排序（升序）
+   */
+  async sortByApptTime(): Promise<void> {
+    console.log('  Sorting by Appt Time...');
+
+    await this.page.evaluate(() => {
+      const searchFrames = (doc: Document): boolean => {
+        const form = (doc as any).ecform || doc.querySelector('form[name="ecform"]');
+        if (form) {
+          const win = doc.defaultView as any;
+          form.sortby.value = 12;
+          if (typeof win?.changeSort === 'function') {
+            win.changeSort();
+            win.selectDate();
+            return true;
+          }
+        }
+        const iframes = Array.from(doc.querySelectorAll('iframe, frame'));
+        for (const iframe of iframes) {
+          try {
+            const fd = (iframe as HTMLIFrameElement).contentDocument;
+            if (fd && searchFrames(fd)) return true;
+          } catch { /* cross-origin */ }
+        }
+        return false;
+      };
+      return searchFrames(document);
+    });
+
+    await this.page.waitForTimeout(2000);
+    console.log('  Sorted by Appt Time');
+  }
+
+  /**
    * 打开第 N 个 visit
    */
   async openVisit(visitIndex: number): Promise<void> {
@@ -677,58 +711,54 @@ class MDLandAutomation {
   /**
    * 填充 SOAP 四个部分
    */
-  async fillSOAP(soap: VisitData['generated']['soap']): Promise<void> {
+  async fillSOAP(soap: VisitData['generated']['soap'], html?: VisitData['generated']['html']): Promise<void> {
     console.log('  Filling SOAP sections...');
 
-    await this.page.evaluate((soapData) => {
+    await this.page.evaluate(({ soapData, htmlData }) => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ptWin: any = pt?.contentWindow;
+      const ptDoc = pt?.contentDocument;
 
-      if (!ptWin) throw new Error('PT Note window not accessible');
+      if (!ptWin || !ptDoc) throw new Error('PT Note window not accessible');
 
-      const tinyMCE = ptWin.tinyMCE as {
-        getInstanceById: (id: string) => {
-          setContent: (html: string) => void;
-        } | null;
-      };
-
+      const tinyMCE = ptWin.tinyMCE;
       if (!tinyMCE) throw new Error('TinyMCE not loaded');
 
       const textToHTML = (text: string): string => {
         if (!text) return '';
-        return text
-          .split('\n')
-          .filter(line => line.trim().length > 0)
-          .map(line => {
-            const escaped = line
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;');
-            return `<p>${escaped}</p>`;
-          })
-          .join('');
-      }
+        return text.split('\n').filter(l => l.trim()).map(l => {
+          const e = l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<p>${e}</p>`;
+        }).join('');
+      };
 
       const sections = [
-        { id: 'SOAPtext0', content: soapData.subjective },
-        { id: 'SOAPtext1', content: soapData.objective },
-        { id: 'SOAPtext2', content: soapData.assessment },
-        { id: 'SOAPtext3', content: soapData.plan },
+        { id: 'SOAPtext0', content: htmlData?.subjective || textToHTML(soapData.subjective) },
+        { id: 'SOAPtext1', content: htmlData?.objective || textToHTML(soapData.objective) },
+        { id: 'SOAPtext2', content: htmlData?.assessment || textToHTML(soapData.assessment) },
+        { id: 'SOAPtext3', content: htmlData?.plan || textToHTML(soapData.plan) },
       ];
 
       for (const section of sections) {
         const editor = tinyMCE.getInstanceById(section.id);
         if (editor) {
-          editor.setContent(textToHTML(section.content));
+          editor.setContent(section.content);
+        }
+        // Also write to underlying textarea for form submit
+        const textarea = ptDoc.getElementById(section.id) as HTMLTextAreaElement | null;
+        if (textarea) {
+          textarea.value = section.content;
         }
       }
 
-      // 标记修改
+      // Sync all editors to textareas
+      if (tinyMCE.triggerSave) tinyMCE.triggerSave();
+
+      // Mark as modified
       ptWin.modified = 1;
-    }, soap);
+    }, { soapData: soap, htmlData: html || null });
 
     console.log('  SOAP filled');
   }
@@ -745,14 +775,30 @@ class MDLandAutomation {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ptWin: any = pt?.contentWindow;
 
-      if (typeof ptWin?.reallySubmit === 'function') {
+      if (!ptWin) throw new Error('PT Note window not accessible');
+
+      // Sync TinyMCE editor content to textareas before submit
+      if (ptWin.tinyMCE?.triggerSave) {
+        ptWin.tinyMCE.triggerSave();
+      }
+
+      if (typeof ptWin.reallySubmit === 'function') {
         ptWin.reallySubmit();
       } else {
         throw new Error('reallySubmit not available');
       }
     });
 
-    await this.page.waitForTimeout(2000);
+    // Wait for save to complete and ptnote to reload
+    await this.page.waitForFunction(() => {
+      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
+      if (!pt?.contentDocument) return false;
+      const url = pt.contentDocument.location?.href || '';
+      return url.includes('ov_ptnote');
+    }, { timeout: 15000 });
+
+    await this.page.waitForTimeout(1000);
     console.log('  SOAP saved');
   }
 
@@ -892,7 +938,7 @@ class MDLandAutomation {
 
       // Step 2: SOAP
       await this.navigateToPTNote();
-      await this.fillSOAP(visit.generated.soap);
+      await this.fillSOAP(visit.generated.soap, visit.generated.html);
       await this.saveSOAP();
       await this.takeScreenshot(`soap-saved-${patient.name}-${visit.dos}`);
 
@@ -950,6 +996,7 @@ class MDLandAutomation {
     await this.clickOnePatient();
     await this.searchPatient(patient.dob);
     await this.selectPatient(patient.name, patient.dob);
+    await this.sortByApptTime();
 
     const results: VisitResult[] = [];
 
@@ -967,6 +1014,7 @@ class MDLandAutomation {
         await this.clickOnePatient();
         await this.searchPatient(patient.dob);
         await this.selectPatient(patient.name, patient.dob);
+        await this.sortByApptTime();
       }
     }
 
