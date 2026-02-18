@@ -399,13 +399,11 @@ class MDLandAutomation {
 
     await this.page.evaluate(() => {
       const searchFrames = (doc: Document): boolean => {
-        const form = (doc as any).ecform || doc.querySelector('form[name="ecform"]');
-        if (form) {
-          const win = doc.defaultView as any;
-          form.sortby.value = 12;
-          if (typeof win?.changeSort === 'function') {
-            win.changeSort();
-            win.selectDate();
+        // Find the <td> containing "Appt Time" and click it
+        const tds = doc.querySelectorAll('td[onclick]');
+        for (const td of tds) {
+          if (td.textContent?.includes('Appt Time')) {
+            (td as HTMLElement).click();
             return true;
           }
         }
