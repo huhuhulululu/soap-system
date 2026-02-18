@@ -11,31 +11,64 @@
 import type { GenerationContext } from '../../src/types'
 import type { TXSequenceOptions } from '../../src/generator/tx-sequence-engine'
 import { exportSOAPAsText, exportTXSeriesAsText } from '../../src/generator/soap-generator'
+import { inferLocalPatterns, inferSystemicPatterns } from '../../src/knowledge/medical-history-engine'
 import { splitSOAPText } from './text-to-html'
 import type { BatchData, BatchPatient, BatchVisit } from '../types'
 
 /**
- * 根据 BatchVisit 构建 GenerationContext
+ * 根据 BatchPatient + BatchVisit 构建 GenerationContext
+ * 使用患者临床数据 + 自动推断 TCM 证型
  */
 function buildContext(
   patient: BatchPatient,
   visit: BatchVisit
 ): GenerationContext {
+  const { clinical } = patient
+  const history = [...visit.history]
+
+  // 自动推断 TCM 证型
+  const localCandidates = inferLocalPatterns(
+    [...clinical.painTypes],
+    [...clinical.associatedSymptoms],
+    visit.bodyPart,
+    'Chronic'
+  )
+  const systemicCandidates = inferSystemicPatterns(history, patient.age)
+
+  const localPattern = localCandidates.length > 0
+    ? localCandidates[0].pattern
+    : 'Qi Stagnation'
+  const systemicPattern = systemicCandidates.length > 0
+    ? systemicCandidates[0].pattern
+    : 'Kidney Yang Deficiency'
+
   return {
     noteType: visit.noteType,
     insuranceType: patient.insurance,
     primaryBodyPart: visit.bodyPart,
     secondaryBodyParts: [...visit.secondaryParts],
     laterality: visit.laterality,
-    localPattern: 'Qi and Blood Stagnation',
-    systemicPattern: 'Liver Qi Stagnation',
+    localPattern,
+    systemicPattern,
     chronicityLevel: 'Chronic',
-    severityLevel: 'moderate',
+    severityLevel: clinical.severityLevel,
+    painCurrent: clinical.painCurrent,
+    painWorst: clinical.painWorst,
+    painBest: clinical.painBest,
+    painTypes: [...clinical.painTypes],
+    associatedSymptom: clinical.associatedSymptoms[0] as GenerationContext['associatedSymptom'] ?? 'soreness',
+    symptomDuration: { ...clinical.symptomDuration },
+    painRadiation: clinical.painRadiation,
+    symptomScale: clinical.symptomScale,
+    painFrequency: clinical.painFrequency,
+    causativeFactors: [...clinical.causativeFactors],
+    relievingFactors: [...clinical.relievingFactors],
+    recentWorse: { value: '1', unit: 'week(s)' },
     age: patient.age,
     gender: patient.gender,
-    medicalHistory: [...visit.history],
-    hasPacemaker: visit.history.includes('Pacemaker'),
-    hasMetalImplant: visit.history.includes('Metal Implant'),
+    medicalHistory: history,
+    hasPacemaker: history.includes('Pacemaker'),
+    hasMetalImplant: history.includes('Metal Implant') || history.includes('Joint Replacement'),
   }
 }
 
@@ -71,16 +104,39 @@ function generateSingleVisit(
 function generateTXSeries(
   patient: BatchPatient,
   txVisits: readonly BatchVisit[],
-  ieVisit: BatchVisit | undefined
+  _ieVisit: BatchVisit | undefined
 ): BatchVisit[] {
   if (txVisits.length === 0) return []
 
   const firstTX = txVisits[0]
   const context = buildContext(patient, firstTX)
+  const { clinical } = patient
+
+  // 构建 initialState（与前端 useSOAPGeneration 一致）
+  const freqText = clinical.painFrequency
+  const freqLevel = freqText.includes('Constant')
+    ? 3
+    : freqText.includes('Frequent')
+      ? 2
+      : freqText.includes('Occasional')
+        ? 1
+        : freqText.includes('Intermittent')
+          ? 0
+          : 3
 
   const options: TXSequenceOptions = {
     txCount: txVisits.length,
     seed: Math.floor(Math.random() * 100000),
+    initialState: {
+      pain: clinical.painCurrent,
+      tightness: clinical.painCurrent >= 7 ? 3 : 2,
+      tenderness: clinical.painCurrent >= 7 ? 3 : 2,
+      spasm: clinical.painCurrent >= 7 ? 3 : 2,
+      frequency: freqLevel,
+      associatedSymptom: (clinical.associatedSymptoms[0] as string) || 'soreness',
+      symptomScale: clinical.symptomScale,
+      painTypes: [...clinical.painTypes],
+    },
   }
 
   const results = exportTXSeriesAsText(context, options)

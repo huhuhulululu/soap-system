@@ -132,15 +132,25 @@ describe('batch API routes', () => {
     it('parses Excel and generates SOAP', async () => {
       const excelBuffer = createTestExcel([
         {
-          DOS: 1,
           Patient: 'CHEN,AIJIN(09/27/1956)',
           Gender: 'F',
           Insurance: 'HF',
           BodyPart: 'LBP',
           Laterality: 'B',
-          NoteType: 'IE',
           ICD: 'M54.50,M54.41',
           CPT: '97810,97811x3',
+          TotalVisits: 3,
+          PainWorst: 8,
+          PainBest: 3,
+          PainCurrent: 6,
+          SymptomDuration: '3 year(s)',
+          PainRadiation: 'without radiation',
+          PainTypes: 'Dull,Aching',
+          AssociatedSymptoms: 'soreness',
+          CausativeFactors: 'age related/degenerative changes',
+          RelievingFactors: 'Changing positions,Resting,Massage',
+          SymptomScale: '70%-80%',
+          PainFrequency: 'Constant',
           SecondaryParts: '',
           History: '',
         },
@@ -155,8 +165,8 @@ describe('batch API routes', () => {
       const data = body.data as Record<string, unknown>
       expect(data.batchId).toBeTruthy()
       expect(data.totalPatients).toBe(1)
-      expect(data.totalVisits).toBe(1)
-      expect(data.totalGenerated).toBe(1)
+      expect(data.totalVisits).toBe(3)
+      expect(data.totalGenerated).toBe(3)
     })
 
     it('rejects non-Excel files', async () => {

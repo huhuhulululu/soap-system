@@ -12,7 +12,7 @@ import { Router, type Request, type Response } from 'express'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { parseExcelBuffer, groupAndNumberVisits } from '../services/excel-parser'
+import { parseExcelBuffer, buildPatientsFromRows } from '../services/excel-parser'
 import { generateBatch, regenerateVisit } from '../services/batch-generator'
 import { generateBatchId, saveBatch, getBatch, confirmBatch } from '../store/batch-store'
 import type { BatchData } from '../types'
@@ -46,8 +46,8 @@ export function createBatchRouter(): Router {
       // 1. 解析 Excel
       const rows = parseExcelBuffer(req.file.buffer)
 
-      // 2. 分组 + 编号
-      const { patients, summary } = groupAndNumberVisits(rows)
+      // 2. 解析患者 + 自动展开 visits
+      const { patients, summary } = buildPatientsFromRows(rows)
 
       // 3. 构造 BatchData
       const batchId = generateBatchId()

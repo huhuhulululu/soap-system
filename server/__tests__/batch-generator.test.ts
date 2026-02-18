@@ -1,5 +1,23 @@
 import { generateBatch, regenerateVisit, type BatchGenerationResult } from '../services/batch-generator'
-import type { BatchData, BatchPatient, BatchVisit } from '../types'
+import type { BatchData, BatchPatient, BatchPatientClinical, BatchVisit } from '../types'
+
+function makeClinical(overrides: Partial<BatchPatientClinical> = {}): BatchPatientClinical {
+  return {
+    painWorst: 8,
+    painBest: 3,
+    painCurrent: 6,
+    severityLevel: 'moderate',
+    symptomDuration: { value: '3', unit: 'year(s)' },
+    painRadiation: 'without radiation',
+    painTypes: ['Dull', 'Aching'],
+    associatedSymptoms: ['soreness'],
+    causativeFactors: ['age related/degenerative changes'],
+    relievingFactors: ['Changing positions', 'Resting', 'Massage'],
+    symptomScale: '70%-80%',
+    painFrequency: 'Constant (symptoms occur between 76% and 100% of the time)',
+    ...overrides,
+  }
+}
 
 function makeVisit(overrides: Partial<BatchVisit> = {}): BatchVisit {
   return {
@@ -26,6 +44,7 @@ function makePatient(overrides: Partial<BatchPatient> = {}): BatchPatient {
     age: 69,
     gender: 'Female',
     insurance: 'HF',
+    clinical: makeClinical(),
     visits: [makeVisit()],
     ...overrides,
   }
@@ -87,6 +106,24 @@ describe('batch-generator', () => {
         expect(visit.generated).not.toBeNull()
         expect(visit.generated!.fullText.length).toBeGreaterThan(100)
       }
+    })
+
+    it('generates with patient-specific clinical data', () => {
+      const patient = makePatient({
+        clinical: makeClinical({
+          painCurrent: 9,
+          severityLevel: 'severe',
+          painTypes: ['Stabbing', 'Burning'],
+          symptomScale: '90%',
+        }),
+      })
+      const batch = makeBatch([patient])
+      const result = generateBatch(batch)
+
+      expect(result.totalGenerated).toBe(1)
+      const text = result.patients[0].visits[0].generated!.fullText
+      // Severe pain should influence the generated content
+      expect(text).toContain('Subjective')
     })
 
     it('handles RE visits', () => {

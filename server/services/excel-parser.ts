@@ -1,18 +1,18 @@
 /**
  * Excel 解析器
  *
- * 解析上传的 Excel 文件 → 患者分组 → TX 自动编号
- * 根据计划 Section 3 的模板列定义
+ * 解析上传的 Excel 文件 → 每行一个患者 → 自动展开为 1 IE + (N-1) TX visits
  */
 
 import * as XLSX from 'xlsx'
-import type { BodyPart, InsuranceType, Laterality, NoteType } from '../../src/types'
-import type { ExcelRow, BatchPatient, BatchVisit } from '../types'
+import type { BodyPart, InsuranceType, Laterality } from '../../src/types'
+import type { ExcelRow, BatchPatient, BatchVisit, BatchPatientClinical } from '../types'
 import { getICDName } from '../../src/shared/icd-catalog'
 import { parseCPTString, getDefaultTXCPT, type CPTWithUnits } from '../../src/shared/cpt-catalog'
+import { severityFromPain } from '../../src/shared/severity'
 
 const VALID_INSURANCE = new Set<string>(['HF', 'OPTUM', 'WC', 'VC', 'ELDERPLAN', 'NONE'])
-const VALID_NOTE_TYPES = new Set<string>(['IE', 'TX', 'RE'])
+
 const VALID_LATERALITY = new Map<string, Laterality>([
   ['B', 'bilateral'], ['L', 'left'], ['R', 'right'],
   ['BILATERAL', 'bilateral'], ['LEFT', 'left'], ['RIGHT', 'right'],
@@ -29,6 +29,13 @@ const VALID_BODY_PARTS = new Set<string>([
 const BODY_PART_ALIAS: Record<string, BodyPart> = {
   'SHLDR': 'SHOULDER',
   'BACK': 'LBP',
+}
+
+const PAIN_FREQUENCY_MAP: Record<string, string> = {
+  'INTERMITTENT': 'Intermittent (symptoms occur less than 25% of the time)',
+  'OCCASIONAL': 'Occasional (symptoms occur between 26% and 50% of the time)',
+  'FREQUENT': 'Frequent (symptoms occur between 51% and 75% of the time)',
+  'CONSTANT': 'Constant (symptoms occur between 76% and 100% of the time)',
 }
 
 function normalizeBodyPart(raw: string): BodyPart {
@@ -60,6 +67,49 @@ function calculateAge(dob: string): number {
 }
 
 /**
+ * 解析 SymptomDuration 字符串 → {value, unit}
+ * 支持: "3 year(s)", "6 month(s)", "2 week(s)"
+ */
+function parseSymptomDuration(raw: string): { value: string; unit: string } {
+  if (!raw.trim()) return { value: '3', unit: 'year(s)' }
+  const match = raw.trim().match(/^(\d+|more than \d+|many)\s*(year|month|week|day)\(?s?\)?$/i)
+  if (match) {
+    const unit = match[2].toLowerCase()
+    return { value: match[1], unit: `${unit}(s)` }
+  }
+  return { value: '3', unit: 'year(s)' }
+}
+
+/**
+ * 解析 PainFrequency 简写 → 完整文本
+ */
+function parsePainFrequency(raw: string): string {
+  if (!raw.trim()) return PAIN_FREQUENCY_MAP['CONSTANT']
+  const upper = raw.trim().toUpperCase()
+  const mapped = PAIN_FREQUENCY_MAP[upper]
+  if (mapped) return mapped
+  // 如果用户直接填了完整文本，原样返回
+  if (raw.includes('symptoms occur')) return raw
+  return PAIN_FREQUENCY_MAP['CONSTANT']
+}
+
+/**
+ * 解析疼痛值 (支持 "8", "8-7" 等格式)
+ */
+function parsePainValue(raw: string, fallback: number): number {
+  if (!raw.trim()) return fallback
+  const match = raw.match(/(\d+)/)
+  return match ? parseInt(match[1], 10) : fallback
+}
+
+/**
+ * 解析逗号分隔字符串为数组
+ */
+function parseCSV(raw: string): string[] {
+  return raw.split(',').map(s => s.trim()).filter(Boolean)
+}
+
+/**
  * 解析 Excel Buffer 为原始行数据
  */
 export function parseExcelBuffer(buffer: Buffer): ExcelRow[] {
@@ -80,25 +130,36 @@ export function parseExcelBuffer(buffer: Buffer): ExcelRow[] {
       }
       return ''
     }
-    const getNumber = (keys: string[]): number => {
+    const getNumber = (keys: string[], fallback?: number): number => {
       const s = getString(keys)
+      if (!s && fallback !== undefined) return fallback
       const n = parseInt(s, 10)
       if (isNaN(n)) throw new Error(`Row ${idx + 2}: Invalid number in column ${keys[0]}`)
       return n
     }
 
     return {
-      dos: getNumber(['DOS', 'dos', 'A']),
-      patient: getString(['Patient', 'patient', 'B']),
-      gender: getString(['Gender', 'gender', 'C']).toUpperCase() as 'M' | 'F',
-      insurance: getString(['Insurance', 'insurance', 'Ins', 'D']).toUpperCase(),
-      bodyPart: getString(['BodyPart', 'bodyPart', 'Body', 'E']).toUpperCase(),
-      laterality: getString(['Laterality', 'laterality', 'Side', 'F']).toUpperCase(),
-      noteType: getString(['NoteType', 'noteType', 'Type', 'G']).toUpperCase(),
-      icd: getString(['ICD', 'icd', 'H']),
-      cpt: getString(['CPT', 'cpt', 'I']),
-      secondaryParts: getString(['SecondaryParts', 'secondaryParts', 'Secondary', 'J']),
-      history: getString(['History', 'history', 'K']),
+      patient: getString(['Patient', 'patient', 'A']),
+      gender: getString(['Gender', 'gender', 'B']).toUpperCase() as 'M' | 'F',
+      insurance: getString(['Insurance', 'insurance', 'Ins', 'C']).toUpperCase(),
+      bodyPart: getString(['BodyPart', 'bodyPart', 'Body', 'D']).toUpperCase(),
+      laterality: getString(['Laterality', 'laterality', 'Side', 'E']).toUpperCase(),
+      icd: getString(['ICD', 'icd', 'F']),
+      cpt: getString(['CPT', 'cpt', 'G']),
+      totalVisits: getNumber(['TotalVisits', 'totalVisits', 'Total', 'H'], 12),
+      painWorst: getString(['PainWorst', 'painWorst', 'I']),
+      painBest: getString(['PainBest', 'painBest', 'J']),
+      painCurrent: getString(['PainCurrent', 'painCurrent', 'K']),
+      symptomDuration: getString(['SymptomDuration', 'symptomDuration', 'L']),
+      painRadiation: getString(['PainRadiation', 'painRadiation', 'M']),
+      painTypes: getString(['PainTypes', 'painTypes', 'N']),
+      associatedSymptoms: getString(['AssociatedSymptoms', 'associatedSymptoms', 'O']),
+      causativeFactors: getString(['CausativeFactors', 'causativeFactors', 'P']),
+      relievingFactors: getString(['RelievingFactors', 'relievingFactors', 'Q']),
+      symptomScale: getString(['SymptomScale', 'symptomScale', 'R']),
+      painFrequency: getString(['PainFrequency', 'painFrequency', 'S']),
+      secondaryParts: getString(['SecondaryParts', 'secondaryParts', 'Secondary', 'T']),
+      history: getString(['History', 'history', 'U']),
     }
   })
 }
@@ -113,12 +174,12 @@ export interface ParsedExcelResult {
 }
 
 /**
- * 将原始行数据分组为患者 + visits，自动编号 TX
+ * 将 Excel 行数据转换为患者列表
+ * 每行 = 一个患者，自动展开为 1 IE + (totalVisits-1) TX
  */
-export function groupAndNumberVisits(rows: ExcelRow[]): ParsedExcelResult {
+export function buildPatientsFromRows(rows: ExcelRow[]): ParsedExcelResult {
   const errors: string[] = []
 
-  // 验证基本字段
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     const rowNum = i + 2
@@ -126,127 +187,139 @@ export function groupAndNumberVisits(rows: ExcelRow[]): ParsedExcelResult {
     if (!row.patient) errors.push(`Row ${rowNum}: Patient is required`)
     if (!row.gender || !['M', 'F'].includes(row.gender)) errors.push(`Row ${rowNum}: Gender must be M or F`)
     if (!VALID_INSURANCE.has(row.insurance)) errors.push(`Row ${rowNum}: Invalid insurance "${row.insurance}"`)
-    if (!VALID_NOTE_TYPES.has(row.noteType)) errors.push(`Row ${rowNum}: Invalid note type "${row.noteType}"`)
+    if (!row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
+    if (row.totalVisits < 1) errors.push(`Row ${rowNum}: TotalVisits must be at least 1`)
   }
 
   if (errors.length > 0) {
     throw new Error(`Excel validation errors:\n${errors.join('\n')}`)
   }
 
-  // 按 Patient (Name+DOB) 分组
-  const patientMap = new Map<string, { rows: Array<{ row: ExcelRow; idx: number }> }>()
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    const key = row.patient
-    const existing = patientMap.get(key)
-    if (existing) {
-      existing.rows.push({ row, idx: i })
-    } else {
-      patientMap.set(key, { rows: [{ row, idx: i }] })
-    }
-  }
-
   const byType: Record<string, number> = {}
-  const patients: BatchPatient[] = []
+  let totalVisitCount = 0
 
-  for (const [patientKey, { rows: patientRows }] of patientMap) {
-    // 按 DOS 排序
-    const sorted = [...patientRows].sort((a, b) => a.row.dos - b.row.dos)
-
-    const firstRow = sorted[0].row
-    const { name, dob } = parsePatientNameDOB(patientKey)
+  const patients: BatchPatient[] = rows.map(row => {
+    const { name, dob } = parsePatientNameDOB(row.patient)
     const age = calculateAge(dob)
-    const gender: 'Male' | 'Female' = firstRow.gender === 'M' ? 'Male' : 'Female'
-    const insurance = firstRow.insurance as InsuranceType
+    const gender: 'Male' | 'Female' = row.gender === 'M' ? 'Male' : 'Female'
+    const insurance = row.insurance as InsuranceType
+    const bodyPart = normalizeBodyPart(row.bodyPart)
+    const laterality = VALID_LATERALITY.get(row.laterality) ?? 'bilateral'
 
-    // ICD 继承逻辑
-    let lastICD: string = ''
-    // TX 编号
-    let txCounter = 0
+    // Parse clinical fields
+    const painWorst = parsePainValue(row.painWorst, 8)
+    const painBest = parsePainValue(row.painBest, 3)
+    const painCurrent = parsePainValue(row.painCurrent, 6)
+    const symptomDuration = parseSymptomDuration(row.symptomDuration)
+    const painRadiation = row.painRadiation || 'without radiation'
+    const painTypes = row.painTypes ? parseCSV(row.painTypes) : ['Dull', 'Aching']
+    const associatedSymptoms = row.associatedSymptoms ? parseCSV(row.associatedSymptoms) : ['soreness']
+    const causativeFactors = row.causativeFactors ? parseCSV(row.causativeFactors) : ['age related/degenerative changes']
+    const relievingFactors = row.relievingFactors ? parseCSV(row.relievingFactors) : ['Changing positions', 'Resting', 'Massage']
+    const symptomScale = row.symptomScale || '70%-80%'
+    const painFrequency = parsePainFrequency(row.painFrequency)
 
-    const visits: BatchVisit[] = sorted.map((item, visitIdx) => {
-      const row = item.row
-      const noteType = row.noteType as NoteType
+    const clinical: BatchPatientClinical = {
+      painWorst,
+      painBest,
+      painCurrent,
+      severityLevel: severityFromPain(painCurrent),
+      symptomDuration,
+      painRadiation,
+      painTypes,
+      associatedSymptoms,
+      causativeFactors,
+      relievingFactors,
+      symptomScale,
+      painFrequency,
+    }
 
-      // ICD: 继承上一行
-      const icdRaw = row.icd || lastICD
-      if (visitIdx === 0 && !icdRaw) {
-        throw new Error(`Patient "${patientKey}": first visit must have ICD codes`)
-      }
-      if (icdRaw) lastICD = icdRaw
+    // Parse shared visit fields
+    const icdCodes = row.icd.split(',').filter(c => c.trim()).map(code => ({
+      code: code.trim(),
+      name: getICDName(code.trim()),
+    }))
 
-      const icdCodes = icdRaw.split(',').filter(c => c.trim()).map(code => ({
-        code: code.trim(),
-        name: getICDName(code.trim()),
-      }))
+    const secondaryParts = row.secondaryParts
+      ? row.secondaryParts.split(',').filter(p => p.trim()).map(p => normalizeBodyPart(p.trim()))
+      : []
 
-      // TX 编号
-      let txNumber: number | null = null
-      if (noteType === 'TX') {
-        txCounter++
-        txNumber = txCounter
-      }
+    const history = row.history
+      ? row.history.split(',').map(h => h.trim()).filter(Boolean)
+      : []
 
-      // CPT: 用户指定 或 按保险自动推断 (TX only)
-      let cptCodes: CPTWithUnits[]
-      if (row.cpt.trim()) {
-        cptCodes = parseCPTString(row.cpt)
-      } else if (noteType === 'TX') {
-        cptCodes = [...getDefaultTXCPT(insurance)]
-      } else {
-        cptCodes = []
-      }
+    // Build visits: 1 IE + (totalVisits-1) TX
+    const totalVisits = row.totalVisits
+    const visits: BatchVisit[] = []
 
-      // BodyPart & Laterality
-      const bodyPart = normalizeBodyPart(row.bodyPart)
-      const laterality = VALID_LATERALITY.get(row.laterality) ?? 'bilateral'
+    // IE visit (dos=1)
+    const ieCPT: CPTWithUnits[] = row.cpt.trim()
+      ? parseCPTString(row.cpt)
+      : []
 
-      // Secondary parts
-      const secondaryParts = row.secondaryParts
-        ? row.secondaryParts.split(',').filter(p => p.trim()).map(p => normalizeBodyPart(p.trim()))
-        : []
+    visits.push({
+      index: 0,
+      dos: 1,
+      noteType: 'IE',
+      txNumber: null,
+      bodyPart,
+      laterality,
+      secondaryParts,
+      history,
+      icdCodes,
+      cptCodes: ieCPT,
+      generated: null,
+      status: 'pending',
+    })
+    byType['IE'] = (byType['IE'] ?? 0) + 1
 
-      // History
-      const history = row.history
-        ? row.history.split(',').map(h => h.trim()).filter(Boolean)
-        : []
+    // TX visits (dos=2..totalVisits)
+    for (let txIdx = 0; txIdx < totalVisits - 1; txIdx++) {
+      const txCPT: CPTWithUnits[] = row.cpt.trim()
+        ? parseCPTString(row.cpt)
+        : [...getDefaultTXCPT(insurance)]
 
-      // Count by type
-      byType[noteType] = (byType[noteType] ?? 0) + 1
-
-      return {
-        index: visitIdx,
-        dos: row.dos,
-        noteType,
-        txNumber,
+      visits.push({
+        index: txIdx + 1,
+        dos: txIdx + 2,
+        noteType: 'TX',
+        txNumber: txIdx + 1,
         bodyPart,
         laterality,
         secondaryParts,
         history,
         icdCodes,
-        cptCodes,
+        cptCodes: txCPT,
         generated: null,
-        status: 'pending' as const,
-      }
-    })
+        status: 'pending',
+      })
+      byType['TX'] = (byType['TX'] ?? 0) + 1
+    }
 
-    patients.push({
+    totalVisitCount += totalVisits
+
+    return {
       name,
       dob,
       age,
       gender,
       insurance,
+      clinical,
       visits,
-    })
-  }
+    }
+  })
 
   return {
     patients,
     summary: {
       totalPatients: patients.length,
-      totalVisits: rows.length,
+      totalVisits: totalVisitCount,
       byType,
     },
   }
 }
+
+/**
+ * @deprecated Use buildPatientsFromRows instead
+ */
+export const groupAndNumberVisits = buildPatientsFromRows
