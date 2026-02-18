@@ -771,51 +771,48 @@ class MDLandAutomation {
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    // Execute directly inside ptnote iframe context (correct origin/cookies)
     const ptFrame = this.getPtNoteFrame();
     if (!ptFrame) throw new Error('ptnote frame not found');
 
-    const result = await ptFrame.evaluate(() => {
+    // Sync TinyMCE → form fields, then submit form directly (non-AJAX)
+    await ptFrame.evaluate(() => {
       const w = window as any;
       const tinyMCE = w.tinyMCE;
       const form = (document as any).ecform;
-      if (!form) return { ok: false, data: 'ecform not found' };
+      if (!form) throw new Error('ecform not found');
 
-      // Sync TinyMCE → form fields (exactly like reallySubmit)
       for (let i = 0; i <= 4; i++) {
         const id = `SOAPtext${i}`;
         const ed = tinyMCE?.getInstanceById?.(id);
         if (ed && form[id]) form[id].value = ed.getBody().innerHTML;
       }
-      form.isAjaxSave.value = '1';
-
-      const $ = w.$;
-      if (!$) return Promise.resolve({ ok: false, data: 'no jQuery' });
-
-      return new Promise<{ ok: boolean; data: string }>((resolve) => {
-        $.ajax({
-          url: '/eClinic/ov_ptnote2018.aspx',
-          type: 'post',
-          dataType: 'json',
-          data: $("form").serialize(),
-          success: (json: any) => {
-            if (json?.Success === '1') {
-              w.modified = 0;
-              resolve({ ok: true, data: 'saved' });
-            } else {
-              resolve({ ok: false, data: 'server rejected' });
-            }
-          },
-          error: (xhr: any) => resolve({
-            ok: false,
-            data: `ajax error: status=${xhr?.status} statusText=${xhr?.statusText} response=${(xhr?.responseText || '').slice(0, 300)}`
-          }),
-        });
-      });
+      form.isAjaxSave.value = '0';
+      form.submit();
     });
 
-    console.log('  SOAP save result:', JSON.stringify(result));
+    // Wait for iframe to reload after form submission
+    await this.page.waitForFunction(() => {
+      const frames = (window as any).frames;
+      // Check all frames for ptnote reload completion
+      for (const f of Array.from(document.querySelectorAll('iframe'))) {
+        try {
+          const fd = (f as HTMLIFrameElement).contentDocument;
+          if (!fd) continue;
+          // Check nested iframes too
+          for (const nf of Array.from(fd.querySelectorAll('iframe'))) {
+            try {
+              const nfd = (nf as HTMLIFrameElement).contentDocument;
+              const url = nfd?.location?.href || '';
+              if (url.includes('ov_ptnote') && nfd?.readyState === 'complete') return true;
+            } catch {}
+          }
+        } catch {}
+      }
+      return false;
+    }, { timeout: 15000 });
+
     await this.page.waitForTimeout(2000);
+    console.log('  SOAP saved via form submit');
   }
 
   // ==============================
