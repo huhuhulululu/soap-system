@@ -216,7 +216,7 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
 
   const child = spawn('npx', args, {
     cwd: path.resolve(__dirname, '../..'),
-    env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: '0' },
+    env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || '/app/.playwright' },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 
