@@ -242,7 +242,10 @@ class MDLandAutomation {
       console.log('Session valid');
       return true;
     } catch {
-      console.log('Session invalid - workarea0 not found');
+      const finalUrl = this.page.url();
+      const title = await this.page.title().catch(() => '');
+      console.log(`Session invalid - workarea0 not found. URL: ${finalUrl}, Title: ${title}`);
+      await this.page.screenshot({ path: join(dirname(dirname(__dirname)), 'data', 'screenshots', `session-fail-${Date.now()}.png`) }).catch(() => {});
       return false;
     }
   }
