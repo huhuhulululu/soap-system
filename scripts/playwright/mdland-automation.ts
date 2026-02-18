@@ -767,45 +767,32 @@ class MDLandAutomation {
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    // Debug: check content before save
-    const debug = await this.page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      const ptWin: any = pt?.contentWindow;
-      const ptDoc = pt?.contentDocument;
-      if (!ptWin || !ptDoc) return { error: 'no ptWin/ptDoc' };
-
-      const tinyMCE = ptWin.tinyMCE;
-      const editors: Record<string, string> = {};
-      const textareas: Record<string, string> = {};
-      for (let i = 0; i < 4; i++) {
-        const id = `SOAPtext${i}`;
-        const ed = tinyMCE?.getInstanceById?.(id);
-        editors[id] = ed ? ed.getContent().slice(0, 80) : 'NO_EDITOR';
-        const ta = ptDoc.getElementById(id) as HTMLTextAreaElement | null;
-        textareas[id] = ta ? ta.value.slice(0, 80) : 'NO_TEXTAREA';
-      }
-      const fnSrc = String(ptWin.reallySubmit).slice(0, 200);
-      return { editors, textareas, fnSrc, modified: ptWin.modified };
-    });
-    console.log('  DEBUG pre-save:', JSON.stringify(debug));
-
+    // reallySubmit uses AJAX save which fails in headless — do direct form POST
     await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
       const ptWin: any = pt?.contentWindow;
+      const ptDoc = pt?.contentDocument;
 
-      if (!ptWin) throw new Error('PT Note window not accessible');
+      if (!ptWin || !ptDoc) throw new Error('PT Note not accessible');
 
-      if (ptWin.tinyMCE?.triggerSave) {
-        ptWin.tinyMCE.triggerSave();
+      const tinyMCE = ptWin.tinyMCE;
+      const form = ptDoc.forms.namedItem('ecform') || (ptDoc as any).ecform;
+      if (!form) throw new Error('ecform not found');
+
+      // Sync TinyMCE content to form fields (same as reallySubmit does)
+      for (let i = 0; i < 4; i++) {
+        const id = `SOAPtext${i}`;
+        const ed = tinyMCE?.getInstanceById?.(id);
+        if (ed) {
+          form[id].value = ed.getBody().innerHTML;
+        }
       }
 
-      if (typeof ptWin.reallySubmit === 'function') {
-        ptWin.reallySubmit();
-      } else {
-        throw new Error('reallySubmit not available');
-      }
+      // Regular form POST (not AJAX)
+      form.isAjaxSave.value = '0';
+      form.formMode.value = '1';
+      form.submit();
     });
 
     // Wait for save to complete and ptnote to reload
