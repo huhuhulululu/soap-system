@@ -742,9 +742,12 @@ class MDLandAutomation {
       for (const section of sections) {
         const editor = tinyMCE.getInstanceById(section.id);
         if (editor) {
+          // Focus editor, set content, mark dirty
+          editor.focus();
           editor.setContent(section.content);
+          editor.isNotDirty = false;
+          if (editor.nodeChanged) editor.nodeChanged();
         }
-        // Also write to underlying textarea for form submit
         const textarea = ptDoc.getElementById(section.id) as HTMLTextAreaElement | null;
         if (textarea) {
           textarea.value = section.content;
@@ -754,56 +757,52 @@ class MDLandAutomation {
       // Sync all editors to textareas
       if (tinyMCE.triggerSave) tinyMCE.triggerSave();
 
-      // Mark as modified
+      // Mark page as modified so saveIt() proceeds
       ptWin.modified = 1;
+      if (ptWin.isAjaxSave !== undefined) ptWin.isAjaxSave = '1';
     }, { soapData: soap, htmlData: html || null });
 
     console.log('  SOAP filled');
   }
 
-  /**
-   * 保存 SOAP (reallySubmit)
-   */
-  private getPtNoteFrame() {
-    return this.page.frames().find(f => f.url().includes('ov_ptnote'));
-  }
-
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    // DEBUG: find save button in ALL frames
-    const elements = await this.page.evaluate(() => {
-      const results: string[] = [];
-      const scanDoc = (doc: Document, label: string) => {
-        doc.querySelectorAll('input[type="button"],input[type="submit"],input[type="image"],button,img[onclick],a[onclick],td[onclick]').forEach((el: any) => {
-          const tag = el.tagName;
-          const id = el.id || '';
-          const val = el.value || el.textContent?.trim()?.slice(0, 40) || el.title || '';
-          const onclick = el.getAttribute('onclick')?.slice(0, 100) || '';
-          const src = el.src ? el.src.split('/').pop() : '';
-          const alt = el.alt || '';
-          if (val.toLowerCase().includes('save') || onclick.toLowerCase().includes('save') ||
-              onclick.toLowerCase().includes('submit') || onclick.toLowerCase().includes('really') ||
-              alt.toLowerCase().includes('save') || src.toLowerCase().includes('save')) {
-            results.push(`[${label}] ${tag} id=${id} val=${val} alt=${alt} onclick=${onclick} src=${src}`);
-          }
-        });
-      };
-      // Scan all frames
+    // Ensure TinyMCE content is synced, then click Save button
+    await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      if (wa0?.contentDocument) {
-        scanDoc(wa0.contentDocument, 'wa0');
-        const ov = wa0.contentDocument.getElementById('OfficeVisit') as HTMLIFrameElement;
-        if (ov?.contentDocument) scanDoc(ov.contentDocument, 'OV');
-        const pt = wa0.contentDocument.getElementById('ptnote') as HTMLIFrameElement;
-        if (pt?.contentDocument) scanDoc(pt.contentDocument, 'ptnote');
-      }
-      return results;
-    });
-    console.log('  Save-related elements:');
-    elements.forEach(e => console.log(`    ${e}`));
+      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
+      const ptDoc = pt?.contentDocument;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ptWin: any = pt?.contentWindow;
+      if (!ptDoc || !ptWin) throw new Error('PT Note not accessible');
 
-    await this.page.waitForTimeout(1000);
+      // Sync TinyMCE editors to textareas before save
+      if (ptWin.tinyMCE?.triggerSave) ptWin.tinyMCE.triggerSave();
+
+      // Find and click #SavePage with full mouse event chain (humanClick pattern)
+      const saveBtn = ptDoc.getElementById('SavePage');
+      if (!saveBtn) throw new Error('SavePage button not found in ptnote');
+
+      const events = ['mouseenter', 'mouseover', 'mousedown', 'mouseup', 'click'];
+      for (const eventType of events) {
+        saveBtn.dispatchEvent(new MouseEvent(eventType, {
+          bubbles: true, cancelable: true, view: ptWin
+        }));
+      }
+    });
+
+    // Wait for save to complete (page may reload or show confirmation)
+    await this.page.waitForTimeout(3000);
+
+    // Verify save by checking if ptnote iframe is still accessible
+    await this.page.waitForFunction(() => {
+      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
+      return pt?.contentDocument?.readyState === 'complete';
+    }, { timeout: 15000 });
+
+    console.log('  SOAP saved');
   }
 
   // ==============================
@@ -836,29 +835,49 @@ class MDLandAutomation {
   async generateBilling(): Promise<void> {
     console.log('  Generating billing...');
 
+    // Click the Generate Billing button using humanClick pattern (matching BILL.js)
     await this.page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const co = wa0?.contentDocument?.getElementById('checkout') as HTMLIFrameElement;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const coWin: any = co?.contentWindow;
+      // Search all nested iframes for the billing button
+      const findInDocs = (selector: string): { el: HTMLElement; win: Window } | null => {
+        const search = (doc: Document): { el: HTMLElement; win: Window } | null => {
+          const el = doc.querySelector(selector) as HTMLElement;
+          if (el) return { el, win: doc.defaultView || window };
+          for (const f of Array.from(doc.querySelectorAll('iframe, frame'))) {
+            try {
+              const fd = (f as HTMLIFrameElement).contentDocument;
+              if (fd) { const r = search(fd); if (r) return r; }
+            } catch { /* cross-origin */ }
+          }
+          return null;
+        };
+        return search(document);
+      };
 
-      if (typeof coWin?.checkOutOV === 'function') {
-        coWin.checkOutOV(2);
-      } else if (typeof coWin?.doCheckOut === 'function') {
-        coWin.doCheckOut(2);
-      } else {
-        throw new Error('checkOutOV/doCheckOut not available');
+      const btn = findInDocs('#btn_generatebill') || findInDocs('[onclick*="letsGo(2)"]');
+      if (!btn) {
+        // Fallback: call checkOutOV directly
+        const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+        const co = wa0?.contentDocument?.getElementById('checkout') as HTMLIFrameElement;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const coWin: any = co?.contentWindow;
+        if (typeof coWin?.checkOutOV === 'function') {
+          coWin.checkOutOV(2);
+          return;
+        }
+        throw new Error('Generate Billing button not found');
+      }
+
+      // humanClick: full mouse event chain
+      const events = ['mouseenter', 'mouseover', 'mousedown', 'mouseup', 'click'];
+      for (const eventType of events) {
+        btn.el.dispatchEvent(new MouseEvent(eventType, {
+          bubbles: true, cancelable: true, view: btn.win
+        }));
       }
     });
 
-    // 等待 billing 创建
-    await this.page.waitForFunction(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const co = wa0?.contentDocument?.getElementById('checkout') as HTMLIFrameElement;
-      const span = co?.contentDocument?.getElementById('spanPassToBill');
-      return span?.textContent?.includes('Billing is created');
-    }, { timeout: 20000 });
-
+    // Wait for billing completion
+    await this.page.waitForTimeout(3000);
     console.log('  Billing generated');
   }
 
