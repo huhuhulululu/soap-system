@@ -73,6 +73,15 @@ interface BatchData {
   };
 }
 
+// Insurance abbreviation → full names shown in MDLand
+const INSURANCE_NAMES: Record<string, string[]> = {
+  HF: ['HealthFirst', 'Healthfirst', 'HF'],
+  WC: ['Wellcare', 'WellCare', 'WC'],
+  VC: ['VillageCare', 'Village Care', 'VC'],
+  OPTUM: ['Optum', 'OPTUM', 'UHC', 'United'],
+  ELDERPLAN: ['ElderPlan', 'Elderplan', 'ELDERPLAN'],
+}
+
 interface AutomationOptions {
   readonly headless: boolean;
   readonly screenshot: boolean;
@@ -1085,9 +1094,13 @@ class MDLandAutomation {
     const claimRows = await this.readClaimRows();
     console.log(`  Found ${claimRows.length} claim rows in MDLand`);
 
-    // Filter by insurance if specified
-    const matchingRows = patient.insurance
-      ? claimRows.filter(r => r.text.toUpperCase().includes(patient.insurance.toUpperCase()))
+    // Filter by insurance using full name mapping
+    const insKeys = INSURANCE_NAMES[patient.insurance.toUpperCase()] || [patient.insurance]
+    const matchingRows = patient.insurance && patient.insurance !== 'NONE'
+      ? claimRows.filter(r => {
+          const upper = r.text.toUpperCase()
+          return insKeys.some(k => upper.includes(k.toUpperCase()))
+        })
       : claimRows;
 
     if (matchingRows.length > 0 && matchingRows.length !== claimRows.length) {
