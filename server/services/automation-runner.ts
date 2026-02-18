@@ -94,11 +94,25 @@ export function hasCookies(): boolean {
   return fs.existsSync(cookiesPath())
 }
 
+const VALID_SAME_SITE = new Set(['Strict', 'Lax', 'None'])
+
+function normalizeCookies(state: any): any {
+  if (!state?.cookies) return state
+  return {
+    ...state,
+    cookies: state.cookies.map((c: any) => ({
+      ...c,
+      sameSite: VALID_SAME_SITE.has(c.sameSite) ? c.sameSite : 'Lax',
+    })),
+  }
+}
+
 export function saveCookies(storageState: unknown): void {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true })
   }
-  const encrypted = encrypt(JSON.stringify(storageState))
+  const normalized = normalizeCookies(storageState)
+  const encrypted = encrypt(JSON.stringify(normalized))
   fs.writeFileSync(cookiesPath(), encrypted)
 }
 
