@@ -207,7 +207,7 @@ class MDLandAutomation {
     console.log('Validating MDLand session...');
 
     // 导航到 MDLand 主页
-    await this.page.goto('https://ehr.mdland.net', {
+    await this.page.goto('https://login.mdland.com/login_central.aspx', {
       waitUntil: 'domcontentloaded',
       timeout: 15000
     });
