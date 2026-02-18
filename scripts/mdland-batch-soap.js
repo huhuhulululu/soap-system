@@ -734,27 +734,31 @@
     /**
      * 执行单个 visit 任务
      */
-    async function executeVisitTask(task, patient) {
+    async function executeVisitTask(task, patient, mode) {
         const stepLabel = `${patient.name} Visit #${task.dos} (${task.noteType})`;
         log(`=== Processing: ${stepLabel} ===`);
 
         try {
             checkSession();
 
-            // Step 1: ICD/CPT
-            await Navigator.navigateToICD();
-            await ICDFiller.addICDCodes(task.icdCodes);
-            await CPTFiller.addCPTCodes(task.cptCodes);
-            await saveDiagnose();
+            // Step 1: ICD/CPT (skip in soap-only mode)
+            if (mode !== 'soap-only') {
+                await Navigator.navigateToICD();
+                await ICDFiller.addICDCodes(task.icdCodes);
+                await CPTFiller.addCPTCodes(task.cptCodes);
+                await saveDiagnose();
+            }
 
             // Step 2: SOAP
             await Navigator.navigateToPTNote();
             await SOAPFiller.fillSOAP(task.generated.soap);
             await SOAPFiller.saveSOAP();
 
-            // Step 3: Checkout / Billing
-            await Navigator.navigateToCheckout();
-            await Biller.generateBilling();
+            // Step 3: Checkout / Billing (skip in soap-only mode)
+            if (mode !== 'soap-only') {
+                await Navigator.navigateToCheckout();
+                await Biller.generateBilling();
+            }
 
             // Step 4: Close
             await Closer.closeVisit();
@@ -774,7 +778,7 @@
     /**
      * 处理一个患者的所有 visits
      */
-    async function processPatientGroup(patient, isFirst) {
+    async function processPatientGroup(patient, isFirst, mode) {
         const { name, dob, visits } = patient;
         log(`Processing patient: ${name} (${visits.length} visits)`);
 
@@ -811,7 +815,7 @@
             await Navigator.openVisitByIndex(visit.dos);
 
             // 执行任务
-            const result = await executeVisitTask(visit, patient);
+            const result = await executeVisitTask(visit, patient, mode);
 
             if (taskIdx >= 0) {
                 stateManager.updateTask(taskIdx, {
@@ -880,11 +884,12 @@
         await ScreenWakeLock.enable();
 
         const patients = batchData.patients;
+        const mode = batchData.mode || 'full';
 
         try {
             for (let i = 0; i < patients.length; i++) {
                 if (stateManager.shouldStop()) break;
-                await processPatientGroup(patients[i], i === 0);
+                await processPatientGroup(patients[i], i === 0, mode);
             }
         } catch (err) {
             error(err, 'runTasks');

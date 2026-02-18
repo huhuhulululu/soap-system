@@ -54,9 +54,12 @@ export interface BatchPatient {
   readonly visits: BatchVisit[]
 }
 
+export type BatchMode = 'full' | 'soap-only'
+
 export interface BatchData {
   readonly batchId: string
   readonly createdAt: string
+  readonly mode: BatchMode
   confirmed: boolean
   readonly patients: BatchPatient[]
   readonly summary: {

@@ -6,7 +6,7 @@
 
 import * as XLSX from 'xlsx'
 import type { BodyPart, InsuranceType, Laterality } from '../../src/types'
-import type { ExcelRow, BatchPatient, BatchVisit, BatchPatientClinical } from '../types'
+import type { ExcelRow, BatchPatient, BatchVisit, BatchPatientClinical, BatchMode } from '../types'
 import { getICDName } from '../../src/shared/icd-catalog'
 import { parseCPTString, getDefaultTXCPT, type CPTWithUnits } from '../../src/shared/cpt-catalog'
 import { severityFromPain } from '../../src/shared/severity'
@@ -177,7 +177,7 @@ export interface ParsedExcelResult {
  * 将 Excel 行数据转换为患者列表
  * 每行 = 一个患者，自动展开为 1 IE + (totalVisits-1) TX
  */
-export function buildPatientsFromRows(rows: ExcelRow[]): ParsedExcelResult {
+export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'): ParsedExcelResult {
   const errors: string[] = []
 
   for (let i = 0; i < rows.length; i++) {
@@ -187,7 +187,7 @@ export function buildPatientsFromRows(rows: ExcelRow[]): ParsedExcelResult {
     if (!row.patient) errors.push(`Row ${rowNum}: Patient is required`)
     if (!row.gender || !['M', 'F'].includes(row.gender)) errors.push(`Row ${rowNum}: Gender must be M or F`)
     if (!VALID_INSURANCE.has(row.insurance)) errors.push(`Row ${rowNum}: Invalid insurance "${row.insurance}"`)
-    if (!row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
+    if (mode === 'full' && !row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
     if (row.totalVisits < 1) errors.push(`Row ${rowNum}: TotalVisits must be at least 1`)
   }
 
@@ -235,10 +235,12 @@ export function buildPatientsFromRows(rows: ExcelRow[]): ParsedExcelResult {
     }
 
     // Parse shared visit fields
-    const icdCodes = row.icd.split(',').filter(c => c.trim()).map(code => ({
-      code: code.trim(),
-      name: getICDName(code.trim()),
-    }))
+    const icdCodes = row.icd.trim()
+      ? row.icd.split(',').filter(c => c.trim()).map(code => ({
+          code: code.trim(),
+          name: getICDName(code.trim()),
+        }))
+      : []
 
     const secondaryParts = row.secondaryParts
       ? row.secondaryParts.split(',').filter(p => p.trim()).map(p => normalizeBodyPart(p.trim()))

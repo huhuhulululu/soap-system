@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -8,6 +8,9 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const step = ref('upload') // 'upload' | 'review' | 'confirmed'
 const loading = ref(false)
 const error = ref('')
+
+// Mode
+const batchMode = ref('full') // 'full' | 'soap-only'
 
 // Upload
 const isDragging = ref(false)
@@ -20,6 +23,7 @@ const batchData = ref(null)
 const expandedPatients = ref(new Set())
 const expandedVisits = ref(new Set())
 const regeneratingVisits = ref(new Set())
+const generating = ref(false)
 
 // ── Computed ─────────────────────────────────────
 const uploadSummary = computed(() => {
@@ -30,6 +34,11 @@ const uploadSummary = computed(() => {
 const patients = computed(() => {
   if (!batchData.value) return []
   return batchData.value.patients
+})
+
+const isSoapOnly = computed(() => {
+  if (batchData.value?.mode) return batchData.value.mode === 'soap-only'
+  return batchMode.value === 'soap-only'
 })
 
 const allVisitsGenerated = computed(() => {
@@ -96,6 +105,7 @@ async function uploadFile() {
   try {
     const formData = new FormData()
     formData.append('file', selectedFile.value)
+    formData.append('mode', batchMode.value)
 
     const res = await fetch(`${API_BASE}/batch`, {
       method: 'POST',
@@ -222,6 +232,28 @@ async function regenerateVisit(pi, vi) {
   }
 }
 
+// ── Generate All (soap-only mode) ────────────────
+async function generateAll() {
+  generating.value = true
+  error.value = ''
+
+  try {
+    const res = await fetch(`${API_BASE}/batch/${batchId.value}/generate`, {
+      method: 'POST',
+    })
+    const json = await res.json()
+    if (!json.success) {
+      error.value = json.error || 'Generation failed'
+      return
+    }
+    await loadBatch(batchId.value)
+  } catch (err) {
+    error.value = err.message || 'Network error'
+  } finally {
+    generating.value = false
+  }
+}
+
 // ── Confirm Batch ────────────────────────────────
 async function confirmBatch() {
   loading.value = true
@@ -312,6 +344,7 @@ function resetAll() {
   expandedPatients.value = new Set()
   expandedVisits.value = new Set()
   regeneratingVisits.value = new Set()
+  generating.value = false
   error.value = ''
   copiedKey.value = ''
   copiedAll.value = false
@@ -338,6 +371,7 @@ const uploadingCookies = ref(false)
 const automationStatus = ref('idle') // idle | running | done | failed
 const automationLogs = ref([])
 const automationPolling = ref(null)
+const automationPollCount = ref(0)
 const startingAutomation = ref(false)
 
 // ── Login ────────────────────────────────────────
@@ -346,6 +380,7 @@ const mdlandPassword = ref('')
 const loginStatus = ref('idle') // idle | logging_in | done | failed
 const loginError = ref('')
 const loginPolling = ref(null)
+const loginPollCount = ref(0)
 const showManualUpload = ref(false)
 
 async function checkCookies() {
@@ -395,6 +430,7 @@ async function loginMDLand() {
 
 function startLoginPolling() {
   stopLoginPolling()
+  loginPollCount.value = 0
   loginPolling.value = setInterval(pollLoginStatus, 1500)
 }
 
@@ -406,6 +442,13 @@ function stopLoginPolling() {
 }
 
 async function pollLoginStatus() {
+  loginPollCount.value++
+  if (loginPollCount.value > 40) {
+    stopLoginPolling()
+    loginStatus.value = 'failed'
+    loginError.value = 'Login timed out (60s). Please try again.'
+    return
+  }
   try {
     const res = await fetch(`${API_BASE}/automate/login/status`)
     const json = await res.json()
@@ -488,6 +531,7 @@ async function stopAutomation() {
 
 function startPolling() {
   stopPolling()
+  automationPollCount.value = 0
   automationPolling.value = setInterval(pollStatus, 2000)
 }
 
@@ -499,6 +543,13 @@ function stopPolling() {
 }
 
 async function pollStatus() {
+  automationPollCount.value++
+  if (automationPollCount.value > 300) {
+    stopPolling()
+    automationStatus.value = 'failed'
+    error.value = 'Automation polling timed out (10min)'
+    return
+  }
   try {
     const res = await fetch(`${API_BASE}/automate/${batchId.value}`)
     const json = await res.json()
@@ -518,6 +569,14 @@ function formatCookiesDate(iso) {
   const d = new Date(iso)
   return d.toLocaleString()
 }
+
+let errorTimer = null
+watch(error, (val) => {
+  if (errorTimer) clearTimeout(errorTimer)
+  if (val) {
+    errorTimer = setTimeout(() => { error.value = '' }, 8000)
+  }
+})
 
 onUnmounted(() => {
   stopPolling()
@@ -539,6 +598,28 @@ onUnmounted(() => {
         <p class="text-ink-500">
           Upload an Excel file to batch generate SOAP notes
         </p>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="max-w-2xl mx-auto mb-6">
+        <div class="flex rounded-xl border border-ink-200 overflow-hidden">
+          <button
+            @click="batchMode = 'full'"
+            class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
+            :class="batchMode === 'full' ? 'bg-ink-800 text-white' : 'bg-white text-ink-600 hover:bg-paper-100'"
+          >
+            Full Batch
+            <span class="block text-xs mt-0.5 opacity-70">SOAP + ICD + CPT + Billing</span>
+          </button>
+          <button
+            @click="batchMode = 'soap-only'"
+            class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
+            :class="batchMode === 'soap-only' ? 'bg-ink-800 text-white' : 'bg-white text-ink-600 hover:bg-paper-100'"
+          >
+            SOAP Only
+            <span class="block text-xs mt-0.5 opacity-70">Generate SOAP notes only</span>
+          </button>
+        </div>
       </div>
 
       <!-- Upload Zone -->
@@ -656,17 +737,55 @@ onUnmounted(() => {
           </h1>
           <p class="text-sm text-ink-400 mt-1">
             Batch ID: {{ batchId }}
+            <span
+              class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full"
+              :class="isSoapOnly ? 'bg-purple-100 text-purple-700' : 'bg-ink-100 text-ink-600'"
+            >{{ isSoapOnly ? 'SOAP Only' : 'Full' }}</span>
           </p>
         </div>
         <div class="flex gap-3">
-          <button @click="copyAllSOAP" class="btn-secondary text-sm flex items-center gap-2">
+          <!-- Copy All (only when generated) -->
+          <button v-if="allVisitsGenerated" @click="copyAllSOAP" class="btn-secondary text-sm flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
             </svg>
             {{ copiedAll ? 'Copied!' : 'Copy All' }}
           </button>
+
+          <!-- SOAP Only: Generate button (before generation) -->
           <button
+            v-if="isSoapOnly && !allVisitsGenerated"
+            @click="generateAll"
+            :disabled="generating"
+            class="btn-primary text-sm flex items-center gap-2"
+            :class="{ 'opacity-60 cursor-not-allowed': generating }"
+          >
+            <svg v-if="generating" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span>{{ generating ? 'Generating...' : 'Generate SOAP' }}</span>
+          </button>
+
+          <!-- SOAP Only: Save button (after generation) -->
+          <button
+            v-if="isSoapOnly && allVisitsGenerated"
+            @click="confirmBatch"
+            :disabled="loading"
+            class="btn-primary text-sm flex items-center gap-2"
+            :class="{ 'opacity-60 cursor-not-allowed': loading }"
+          >
+            <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span>Save</span>
+          </button>
+
+          <!-- Full mode: Confirm button -->
+          <button
+            v-if="!isSoapOnly"
             @click="confirmBatch"
             :disabled="loading || !allVisitsGenerated"
             class="btn-primary text-sm flex items-center gap-2"
@@ -768,6 +887,7 @@ onUnmounted(() => {
                     <span class="text-xs text-ink-400">{{ visit.laterality }}</span>
                     <!-- ICD codes -->
                     <span
+                      v-if="!isSoapOnly"
                       v-for="icd in visit.icdCodes"
                       :key="icd.code"
                       class="text-xs text-ink-400 bg-ink-50 px-1.5 py-0.5 rounded"
@@ -830,7 +950,7 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <!-- CPT codes -->
-                <div v-if="visit.cptCodes && visit.cptCodes.length > 0" class="mt-3 flex items-center gap-2 flex-wrap">
+                <div v-if="!isSoapOnly && visit.cptCodes && visit.cptCodes.length > 0" class="mt-3 flex items-center gap-2 flex-wrap">
                   <span class="text-xs font-semibold text-ink-500">CPT:</span>
                   <span
                     v-for="cpt in visit.cptCodes"
@@ -891,7 +1011,7 @@ onUnmounted(() => {
       </div>
 
       <!-- ═══ MDLand Automation Panel ═══ -->
-      <div class="card p-6">
+      <div v-if="!isSoapOnly" class="card p-6">
         <h3 class="font-display text-lg font-bold text-ink-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-ink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

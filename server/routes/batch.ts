@@ -1,9 +1,10 @@
 /**
  * 批量处理 API 路由
  *
- * POST   /api/batch              - 上传 Excel → 解析 → 生成 → 返回 batchId
+ * POST   /api/batch              - 上传 Excel → 解析 (soap-only: parse only / full: parse+generate)
  * GET    /api/batch/:id          - 获取 batch 详情
  * PUT    /api/batch/:batchId/visit/:patientIdx/:visitIdx - 重新生成单个 visit
+ * POST   /api/batch/:batchId/generate - 生成所有 SOAP (soap-only 模式用)
  * POST   /api/batch/:batchId/confirm - 确认 batch
  * GET    /api/template           - 下载 Excel 模板
  */
@@ -15,7 +16,7 @@ import fs from 'fs'
 import { parseExcelBuffer, buildPatientsFromRows } from '../services/excel-parser'
 import { generateBatch, regenerateVisit } from '../services/batch-generator'
 import { generateBatchId, saveBatch, getBatch, confirmBatch } from '../store/batch-store'
-import type { BatchData } from '../types'
+import type { BatchData, BatchMode } from '../types'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -43,26 +44,45 @@ export function createBatchRouter(): Router {
         return
       }
 
-      // 1. 解析 Excel
+      // 1. 读取 mode
+      const mode: BatchMode = req.body?.mode === 'soap-only' ? 'soap-only' : 'full'
+
+      // 2. 解析 Excel
       const rows = parseExcelBuffer(req.file.buffer)
 
-      // 2. 解析患者 + 自动展开 visits
-      const { patients, summary } = buildPatientsFromRows(rows)
+      // 3. 解析患者 + 自动展开 visits
+      const { patients, summary } = buildPatientsFromRows(rows, mode)
 
-      // 3. 构造 BatchData
+      // 4. 构造 BatchData
       const batchId = generateBatchId()
       const batchData: BatchData = {
         batchId,
         createdAt: new Date().toISOString(),
+        mode,
         confirmed: false,
         patients,
         summary,
       }
 
-      // 4. 生成 SOAP
-      const result = generateBatch(batchData)
+      // 5. soap-only: parse only, no generation yet
+      if (mode === 'soap-only') {
+        saveBatch(batchData)
+        res.json({
+          success: true,
+          data: {
+            batchId,
+            totalPatients: summary.totalPatients,
+            totalVisits: summary.totalVisits,
+            totalGenerated: 0,
+            totalFailed: 0,
+            byType: summary.byType,
+          },
+        })
+        return
+      }
 
-      // 5. 保存 (带生成结果)
+      // 6. full mode: generate immediately
+      const result = generateBatch(batchData)
       const finalBatch: BatchData = {
         ...batchData,
         patients: result.patients,
@@ -155,6 +175,34 @@ export function createBatchRouter(): Router {
           patientIndex: patientIdx,
           visitIndex: visitIdx,
           generated: regenerated.generated,
+        },
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      res.status(500).json({ success: false, error: message })
+    }
+  })
+
+  /**
+   * POST /api/batch/:batchId/generate - 生成所有 SOAP (soap-only 模式)
+   */
+  router.post('/:batchId/generate', (req: Request, res: Response) => {
+    try {
+      const batch = getBatch(String(req.params.batchId))
+      if (!batch) {
+        res.status(404).json({ success: false, error: 'Batch not found' })
+        return
+      }
+
+      const result = generateBatch(batch)
+      const updatedBatch: BatchData = { ...batch, patients: result.patients }
+      saveBatch(updatedBatch)
+
+      res.json({
+        success: true,
+        data: {
+          totalGenerated: result.totalGenerated,
+          totalFailed: result.totalFailed,
         },
       })
     } catch (error) {
