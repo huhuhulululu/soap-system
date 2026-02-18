@@ -115,7 +115,7 @@ const SELECTORS = {
   WORKAREA0: 'iframe[name="workarea0"]',
 
   // 等待室
-  WAITING_ROOM_BTN: '#mainmenubutton',
+  WAITING_ROOM_BTN: 'td[title="Waiting Room"]',
   WL_DIV: '#WL',
   ONE_PATIENT_RADIO: 'input[type="radio"][name="listAllPatient"]',
 
