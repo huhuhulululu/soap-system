@@ -394,7 +394,7 @@ class MDLandAutomation {
 
     // 在所有 frames 中查找 visit 行
     const opened = await this.page.evaluate((index) => {
-      function searchFrames(doc: Document): boolean {
+      const searchFrames = (doc: Document): boolean => {
         const rows = doc.querySelectorAll('tr[id^="trt"]');
         if (rows.length > 0) {
           const target = rows[index - 1];
@@ -691,7 +691,7 @@ class MDLandAutomation {
 
       if (!tinyMCE) throw new Error('TinyMCE not loaded');
 
-      function textToHTML(text: string): string {
+      const textToHTML = (text: string): string => {
         if (!text) return '';
         return text
           .split('\n')
