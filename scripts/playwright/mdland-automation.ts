@@ -66,6 +66,7 @@ interface PatientData {
 
 interface BatchData {
   readonly batchId: string;
+  readonly mode: 'full' | 'soap-only';
   readonly patients: ReadonlyArray<PatientData>;
   readonly summary: {
     readonly totalPatients: number;
@@ -161,6 +162,7 @@ const SELECTORS = {
 
 class MDLandAutomation {
   private readonly options: AutomationOptions;
+  private mode: 'full' | 'soap-only' = 'full';
   private page!: Page;
   private context!: BrowserContext;
 
@@ -1021,12 +1023,14 @@ class MDLandAutomation {
     console.log(`\n=== Processing: ${label} ===`);
 
     try {
-      // Step 1: ICD/CPT
-      await this.navigateToICD();
-      await this.addICDCodes(visit.icdCodes);
-      await this.addCPTCodes(visit.cptCodes);
-      await this.saveDiagnose();
-      await this.takeScreenshot(`icd-saved-${patient.name}-${visit.dos}`);
+      // Step 1: ICD/CPT (skip in soap-only mode)
+      if (this.mode !== 'soap-only') {
+        await this.navigateToICD();
+        await this.addICDCodes(visit.icdCodes);
+        await this.addCPTCodes(visit.cptCodes);
+        await this.saveDiagnose();
+        await this.takeScreenshot(`icd-saved-${patient.name}-${visit.dos}`);
+      }
 
       // Step 2: SOAP
       await this.navigateToPTNote();
@@ -1034,10 +1038,12 @@ class MDLandAutomation {
       await this.saveSOAP();
       await this.takeScreenshot(`soap-saved-${patient.name}-${visit.dos}`);
 
-      // Step 3: Checkout
-      await this.navigateToCheckout();
-      await this.generateBilling();
-      await this.takeScreenshot(`billing-done-${patient.name}-${visit.dos}`);
+      // Step 3: Checkout (skip in soap-only mode)
+      if (this.mode !== 'soap-only') {
+        await this.navigateToCheckout();
+        await this.generateBilling();
+        await this.takeScreenshot(`billing-done-${patient.name}-${visit.dos}`);
+      }
 
       // Step 4: Close
       await this.closeVisit();
@@ -1141,8 +1147,9 @@ class MDLandAutomation {
    * 处理完整批次
    */
   async processBatch(batchData: BatchData): Promise<ReadonlyArray<VisitResult>> {
+    this.mode = batchData.mode || 'full';
     console.log(`\n========================================`);
-    console.log(`Batch: ${batchData.batchId}`);
+    console.log(`Batch: ${batchData.batchId} (mode: ${this.mode})`);
     console.log(`Patients: ${batchData.patients.length}`);
     console.log(`Visits: ${batchData.summary.totalVisits}`);
     console.log(`========================================\n`);
