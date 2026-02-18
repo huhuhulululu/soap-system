@@ -2,7 +2,7 @@
  * 批量处理相关类型定义
  */
 
-import type { NoteType, InsuranceType, BodyPart, Laterality } from '../../src/types'
+import type { NoteType, InsuranceType, BodyPart, Laterality, SeverityLevel } from '../../src/types'
 import type { CPTWithUnits } from '../../src/shared/cpt-catalog'
 
 export interface BatchVisit {
@@ -29,12 +29,28 @@ export interface BatchVisit {
   status: 'pending' | 'confirmed' | 'processing' | 'done' | 'failed'
 }
 
+export interface BatchPatientClinical {
+  readonly painWorst: number
+  readonly painBest: number
+  readonly painCurrent: number
+  readonly severityLevel: SeverityLevel
+  readonly symptomDuration: { readonly value: string; readonly unit: string }
+  readonly painRadiation: string
+  readonly painTypes: readonly string[]
+  readonly associatedSymptoms: readonly string[]
+  readonly causativeFactors: readonly string[]
+  readonly relievingFactors: readonly string[]
+  readonly symptomScale: string
+  readonly painFrequency: string
+}
+
 export interface BatchPatient {
   readonly name: string
   readonly dob: string
   readonly age: number
   readonly gender: 'Male' | 'Female'
   readonly insurance: InsuranceType
+  readonly clinical: BatchPatientClinical
   readonly visits: BatchVisit[]
 }
 
@@ -51,15 +67,25 @@ export interface BatchData {
 }
 
 export interface ExcelRow {
-  readonly dos: number
   readonly patient: string
   readonly gender: 'M' | 'F'
   readonly insurance: string
   readonly bodyPart: string
   readonly laterality: string
-  readonly noteType: string
   readonly icd: string
   readonly cpt: string
+  readonly totalVisits: number
+  readonly painWorst: string
+  readonly painBest: string
+  readonly painCurrent: string
+  readonly symptomDuration: string
+  readonly painRadiation: string
+  readonly painTypes: string
+  readonly associatedSymptoms: string
+  readonly causativeFactors: string
+  readonly relievingFactors: string
+  readonly symptomScale: string
+  readonly painFrequency: string
   readonly secondaryParts: string
   readonly history: string
 }
