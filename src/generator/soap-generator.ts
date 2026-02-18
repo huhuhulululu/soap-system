@@ -1325,13 +1325,12 @@ export function generatePlanIE(context: GenerationContext): string {
   plan += `Short Term Goal (RELIEF TREATMENT FREQUENCY: 12 treatments in 5-6 weeks):\n`
 
   if (isMainBP) {
-    // 主要部位: 无空格格式 "to5-6.", "to4"
-    plan += `Decrease Pain Scale to${goals.pain.st}.\n`
+    plan += `Decrease Pain Scale to ${goals.pain.st}.\n`
     plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.st}\n`
     plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`
-    plan += `Increase Muscles Strength to${goals.strength.st}\n\n`
+    plan += `Increase Muscles Strength to ${goals.strength.st}\n\n`
   } else {
     // 其他部位: 有空格格式
     plan += `Decrease Pain Scale to ${goals.pain.st}.\n`
@@ -1349,12 +1348,12 @@ export function generatePlanIE(context: GenerationContext): string {
   const tightnessLT = goals.tightness.lt.replace(/ to /g, '-')
 
   if (isMainBP) {
-    plan += `Decrease Pain Scale to${goals.pain.lt}\n`
+    plan += `Decrease Pain Scale to ${goals.pain.lt}\n`
     plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.lt}\n`
     plan += `Decrease Muscles Tightness to ${tightnessLT}\n`
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}\n`
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.lt}\n`
-    plan += `Increase Muscles Strength to${goals.strength.lt}\n`
+    plan += `Increase Muscles Strength to ${goals.strength.lt}\n`
     plan += `Increase ROM ${goals.rom.lt}\n`
     plan += `Decrease impaired Activities of Daily Living to ${goals.adl.lt}.`
   } else {
@@ -1738,12 +1737,12 @@ export function generateAssessmentTX(context: GenerationContext, visitState?: TX
   let assessment = ''
 
   // 治疗延续 — 各部位格式差异:
-  // KNEE: "The patient continues treatment for in bilateral knee area today."
-  // SHOULDER: "The patient continues treatment for in bilateral shoulder area today."
+  // KNEE: "The patient continues treatment for bilateral knee area today."
+  // SHOULDER: "The patient continues treatment for left shoulder area today."
   // LBP: "The patient continues treatment for lower back area today." (无侧别)
   // NECK: "Patient continue treatment for neck area today." (无 "The", 无 "s")
   if (bp === 'KNEE' || bp === 'SHOULDER') {
-    assessment += `The patient continues treatment for in ${laterality} ${bodyPartName.toLowerCase()} area today.\n`
+    assessment += `The patient continues treatment for ${laterality} ${bodyPartName.toLowerCase()} area today.\n`
   } else if (bp === 'NECK') {
     assessment += `Patient continue treatment for ${bodyPartName.toLowerCase()} area today.\n`
   } else {

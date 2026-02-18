@@ -393,6 +393,7 @@ function deriveAssessmentFromSOA(input: {
   painDelta: number
   adlDelta: number
   frequencyImproved: boolean
+  visitIndex: number
   objectiveTightnessTrend: 'reduced' | 'slightly reduced' | 'stable'
   objectiveTendernessTrend: 'reduced' | 'slightly reduced' | 'stable'
   objectiveSpasmTrend: 'reduced' | 'slightly reduced' | 'stable'
@@ -415,10 +416,12 @@ function deriveAssessmentFromSOA(input: {
 
   // Hard chain rule:
   // S frequency improved -> A must mention "pain frequency".
+  // Rotate among equivalent options by visitIndex to avoid identical assessments
+  const adlOptions = ['difficulty in performing ADLs', 'pain and discomfort', 'symptom severity']
   const whatChanged = input.frequencyImproved
     ? 'pain frequency'
     : input.adlDelta > 0.2
-      ? 'difficulty in performing ADLs'
+      ? adlOptions[input.visitIndex % adlOptions.length]
       : 'pain'
 
   const strongPhysicalImprove =
@@ -1148,6 +1151,7 @@ export function generateTXSequenceStates(
       painDelta,
       adlDelta,
       frequencyImproved,
+      visitIndex: i,
       objectiveTightnessTrend: tightnessTrend,
       objectiveTendernessTrend: tendernessTrend,
       objectiveSpasmTrend: spasmTrend,

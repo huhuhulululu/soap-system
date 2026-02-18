@@ -264,7 +264,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       : []
 
     const history = row.history
-      ? row.history.split(',').map(h => h.trim()).filter(Boolean)
+      ? row.history.split(',').map(h => h.trim()).filter(h => h && h.toUpperCase() !== 'N/A')
       : []
 
     // Build visits: 1 IE + (totalVisits-1) TX
