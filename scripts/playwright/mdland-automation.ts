@@ -215,6 +215,12 @@ class MDLandAutomation {
     // 等待页面加载
     await this.page.waitForTimeout(3000);
 
+    // Debug: log cookies count, URL, and page snippet
+    const cookies = await this.page.context().cookies();
+    console.log(`Debug: ${cookies.length} cookies loaded, URL: ${this.page.url()}`);
+    const snippet = await this.page.evaluate(() => document.documentElement.innerHTML.substring(0, 500));
+    console.log(`Debug HTML: ${snippet}`);
+
     // 检查是否在登录页（session 过期）
     const isLoginPage = await this.page.evaluate(() => {
       const loginForm = document.querySelector('input[name="password"], #loginForm, form[action*="login"]');
