@@ -764,35 +764,35 @@ class MDLandAutomation {
   /**
    * 保存 SOAP (reallySubmit)
    */
+  private getPtNoteFrame() {
+    return this.page.frames().find(f => f.url().includes('ov_ptnote'));
+  }
+
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    // Use jQuery $.ajax from within the iframe — identical to reallySubmit()
-    const result = await this.page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      const ptWin: any = pt?.contentWindow;
-      const ptDoc = pt?.contentDocument;
-      if (!ptWin || !ptDoc) throw new Error('PT Note not accessible');
+    // Execute directly inside ptnote iframe context (correct origin/cookies)
+    const ptFrame = this.getPtNoteFrame();
+    if (!ptFrame) throw new Error('ptnote frame not found');
 
-      const tinyMCE = ptWin.tinyMCE;
-      const form = (ptDoc as any).ecform;
-      if (!form) throw new Error('ecform not found');
+    const result = await ptFrame.evaluate(() => {
+      const w = window as any;
+      const tinyMCE = w.tinyMCE;
+      const form = (document as any).ecform;
+      if (!form) return { ok: false, data: 'ecform not found' };
 
       // Sync TinyMCE → form fields (exactly like reallySubmit)
       for (let i = 0; i <= 4; i++) {
         const id = `SOAPtext${i}`;
         const ed = tinyMCE?.getInstanceById?.(id);
-        if (ed && form[id]) {
-          form[id].value = ed.getBody().innerHTML;
-        }
+        if (ed && form[id]) form[id].value = ed.getBody().innerHTML;
       }
       form.isAjaxSave.value = '1';
 
-      const $ = ptWin.$;
-      if (!$) throw new Error('jQuery not available in ptnote iframe');
+      const $ = w.$;
+      if (!$) return Promise.resolve({ ok: false, data: 'no jQuery' });
 
-      return new Promise<{ ok: boolean; data?: string }>((resolve) => {
+      return new Promise<{ ok: boolean; data: string }>((resolve) => {
         $.ajax({
           url: '/eClinic/ov_ptnote2018.aspx',
           type: 'post',
@@ -800,48 +800,18 @@ class MDLandAutomation {
           data: $("form").serialize(),
           success: (json: any) => {
             if (json?.Success === '1') {
-              ptWin.modified = 0;
+              w.modified = 0;
               resolve({ ok: true, data: 'saved' });
             } else {
-              resolve({ ok: false, data: 'server returned failure' });
+              resolve({ ok: false, data: 'server rejected' });
             }
           },
-          error: (_e: any) => {
-            resolve({ ok: false, data: 'ajax error' });
-          }
+          error: () => resolve({ ok: false, data: 'ajax error' }),
         });
       });
     });
 
     console.log('  SOAP save result:', JSON.stringify(result));
-
-    if (!result.ok) {
-      console.log('  SOAP save via jQuery failed, retrying with fetch+XMLHttpRequest header...');
-      // Fallback: fetch with X-Requested-With header
-      const fallback = await this.page.evaluate(async () => {
-        const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-        const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-        const ptWin: any = pt?.contentWindow;
-        if (!ptWin) return { ok: false, text: 'no ptWin' };
-
-        const body = ptWin.$("form").serialize();
-        const resp = await ptWin.fetch.call(ptWin, '/eClinic/ov_ptnote2018.aspx', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          body,
-        });
-        const text = await resp.text();
-        let json: any = null;
-        try { json = JSON.parse(text); } catch {}
-        return { ok: json?.Success === '1', text: text.slice(0, 200) };
-      });
-
-      console.log('  SOAP fallback result:', JSON.stringify(fallback));
-    }
-
     await this.page.waitForTimeout(2000);
   }
 
