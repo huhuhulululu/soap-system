@@ -1,8 +1,10 @@
 /**
  * Automation API Routes
  *
- * POST   /api/automate/cookies       - Upload MDLand storage state (cookies)
- * GET    /api/automate/cookies        - Check cookies status
+ * POST   /api/automate/login          - Auto-login to MDLand via Playwright
+ * GET    /api/automate/login/status    - Check login status
+ * POST   /api/automate/cookies        - Upload MDLand storage state (cookies)
+ * GET    /api/automate/cookies         - Check cookies status
  * POST   /api/automate/:batchId       - Trigger automation for a batch
  * GET    /api/automate/:batchId       - Get automation status + logs
  * POST   /api/automate/:batchId/stop  - Stop running automation
@@ -17,12 +19,81 @@ import {
   getJobStatus,
   getActiveJob,
   isRunning,
+  isLoggingIn,
+  setLoginStatus,
+  getLoginStatus,
   stopAutomation,
 } from '../services/automation-runner'
+import { loginToMDLand } from '../services/mdland-login'
 import { getBatch } from '../store/batch-store'
 
 export function createAutomateRouter(): Router {
   const router = Router()
+
+  /**
+   * POST /api/automate/login — auto-login to MDLand via Playwright
+   */
+  router.post('/login', async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body
+
+      if (!username || typeof username !== 'string') {
+        res.status(400).json({ success: false, error: 'Username is required' })
+        return
+      }
+      if (!password || typeof password !== 'string') {
+        res.status(400).json({ success: false, error: 'Password is required' })
+        return
+      }
+
+      if (isLoggingIn()) {
+        res.status(409).json({ success: false, error: 'Login already in progress' })
+        return
+      }
+      if (isRunning()) {
+        res.status(409).json({ success: false, error: 'Automation is running. Cannot login now.' })
+        return
+      }
+
+      setLoginStatus('logging_in')
+      res.json({ success: true, data: { status: 'logging_in' } })
+
+      // Run login asynchronously (don't block the response)
+      loginToMDLand(username, password)
+        .then((result) => {
+          if (result.success) {
+            setLoginStatus('done')
+          } else {
+            setLoginStatus('failed', result.error || 'Login failed')
+          }
+        })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : 'Unknown error'
+          setLoginStatus('failed', message)
+        })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      setLoginStatus('failed', message)
+      res.status(500).json({ success: false, error: message })
+    }
+  })
+
+  /**
+   * GET /api/automate/login/status — check login status
+   */
+  router.get('/login/status', (_req: Request, res: Response) => {
+    try {
+      const loginStatus = getLoginStatus()
+      const cookiesInfo = getCookiesInfo()
+      res.json({
+        success: true,
+        data: { ...loginStatus, cookies: cookiesInfo },
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      res.status(500).json({ success: false, error: message })
+    }
+  })
 
   /**
    * POST /api/automate/cookies — upload MDLand storage state JSON

@@ -304,6 +304,7 @@ async function copyAllSOAP() {
 // ── Reset ────────────────────────────────────────
 function resetAll() {
   stopPolling()
+  stopLoginPolling()
   step.value = 'upload'
   batchId.value = ''
   batchData.value = null
@@ -317,6 +318,11 @@ function resetAll() {
   automationStatus.value = 'idle'
   automationLogs.value = []
   startingAutomation.value = false
+  mdlandUsername.value = ''
+  mdlandPassword.value = ''
+  loginStatus.value = 'idle'
+  loginError.value = ''
+  showManualUpload.value = false
 }
 
 // ── Note Type Badge ──────────────────────────────
@@ -334,12 +340,85 @@ const automationLogs = ref([])
 const automationPolling = ref(null)
 const startingAutomation = ref(false)
 
+// ── Login ────────────────────────────────────────
+const mdlandUsername = ref('')
+const mdlandPassword = ref('')
+const loginStatus = ref('idle') // idle | logging_in | done | failed
+const loginError = ref('')
+const loginPolling = ref(null)
+const showManualUpload = ref(false)
+
 async function checkCookies() {
   try {
     const res = await fetch(`${API_BASE}/automate/cookies`)
     const json = await res.json()
     if (json.success) {
       cookiesInfo.value = json.data
+    }
+  } catch { /* ignore */ }
+}
+
+async function loginMDLand() {
+  if (!mdlandUsername.value || !mdlandPassword.value) {
+    error.value = 'Please enter username and password'
+    return
+  }
+
+  loginStatus.value = 'logging_in'
+  loginError.value = ''
+  error.value = ''
+
+  try {
+    const res = await fetch(`${API_BASE}/automate/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: mdlandUsername.value,
+        password: mdlandPassword.value,
+      }),
+    })
+    const json = await res.json()
+    if (!json.success) {
+      loginStatus.value = 'failed'
+      loginError.value = json.error || 'Login request failed'
+      return
+    }
+    // Clear password from memory
+    mdlandPassword.value = ''
+    // Start polling login status
+    startLoginPolling()
+  } catch (err) {
+    loginStatus.value = 'failed'
+    loginError.value = err.message || 'Network error'
+  }
+}
+
+function startLoginPolling() {
+  stopLoginPolling()
+  loginPolling.value = setInterval(pollLoginStatus, 1500)
+}
+
+function stopLoginPolling() {
+  if (loginPolling.value) {
+    clearInterval(loginPolling.value)
+    loginPolling.value = null
+  }
+}
+
+async function pollLoginStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/automate/login/status`)
+    const json = await res.json()
+    if (!json.success) return
+
+    loginStatus.value = json.data.status
+
+    if (json.data.status === 'done') {
+      stopLoginPolling()
+      cookiesInfo.value = json.data.cookies
+    } else if (json.data.status === 'failed') {
+      stopLoginPolling()
+      loginError.value = json.data.error || 'Login failed'
     }
   } catch { /* ignore */ }
 }
@@ -442,6 +521,7 @@ function formatCookiesDate(iso) {
 
 onUnmounted(() => {
   stopPolling()
+  stopLoginPolling()
 })
 </script>
 
@@ -820,46 +900,132 @@ onUnmounted(() => {
           Push to MDLand
         </h3>
 
-        <!-- Step 1: Cookie Upload -->
+        <!-- Step 1: Login to MDLand -->
         <div class="mb-6">
           <div class="flex items-center justify-between mb-2">
-            <p class="text-sm font-medium text-ink-700">1. MDLand Session Cookies</p>
+            <p class="text-sm font-medium text-ink-700">1. Login to MDLand</p>
             <span
               v-if="cookiesInfo.exists"
               class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full"
             >
-              Uploaded {{ formatCookiesDate(cookiesInfo.updatedAt) }}
+              Session active {{ formatCookiesDate(cookiesInfo.updatedAt) }}
             </span>
             <span v-else class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-              Not uploaded
+              Not logged in
             </span>
           </div>
-          <p class="text-xs text-ink-400 mb-3">
-            Run <code class="bg-ink-50 px-1 rounded">extract-cookies.ts</code> locally, then upload the JSON file.
-          </p>
-          <button
-            @click="openCookieFilePicker"
-            :disabled="uploadingCookies"
-            class="btn-secondary text-sm flex items-center gap-2"
-            :class="{ 'opacity-60': uploadingCookies }"
-          >
-            <svg v-if="uploadingCookies" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+
+          <!-- Login Success State -->
+          <div v-if="cookiesInfo.exists && loginStatus !== 'logging_in'" class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-3">
+            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            {{ uploadingCookies ? 'Uploading...' : cookiesInfo.exists ? 'Re-upload Cookies' : 'Upload Cookies JSON' }}
-          </button>
-          <input
-            ref="cookieFileInput"
-            type="file"
-            accept=".json"
-            class="hidden"
-            @change="handleCookieFileSelect"
-          />
+            <p class="text-sm text-green-700">MDLand session ready</p>
+            <button
+              @click="loginStatus = 'idle'; cookiesInfo = { exists: false, updatedAt: null }"
+              class="ml-auto text-xs text-green-600 hover:text-green-800 underline"
+            >Re-login</button>
+          </div>
+
+          <!-- Login Form -->
+          <div v-if="!cookiesInfo.exists || loginStatus === 'idle' && !cookiesInfo.exists" class="space-y-3">
+            <div>
+              <label class="block text-xs text-ink-500 mb-1">Username</label>
+              <input
+                v-model="mdlandUsername"
+                type="text"
+                placeholder="MDLand username"
+                :disabled="loginStatus === 'logging_in'"
+                class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 focus:border-transparent transition-shadow"
+                @keydown.enter="$event.target.nextElementSibling?.nextElementSibling?.querySelector('input')?.focus()"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-ink-500 mb-1">Password</label>
+              <input
+                v-model="mdlandPassword"
+                type="password"
+                placeholder="MDLand password"
+                :disabled="loginStatus === 'logging_in'"
+                class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 focus:border-transparent transition-shadow"
+                @keydown.enter="loginMDLand"
+              />
+            </div>
+
+            <!-- Login Button -->
+            <button
+              @click="loginMDLand"
+              :disabled="loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword"
+              class="btn-primary text-sm flex items-center gap-2"
+              :class="{ 'opacity-60 cursor-not-allowed': loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword }"
+            >
+              <svg v-if="loginStatus === 'logging_in'" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              {{ loginStatus === 'logging_in' ? 'Logging in...' : 'Login to MDLand' }}
+            </button>
+
+            <!-- Login Error -->
+            <p v-if="loginError" class="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
+              {{ loginError }}
+            </p>
+
+            <!-- Logging in progress -->
+            <div v-if="loginStatus === 'logging_in'" class="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+              <span class="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+              Playwright is logging in to MDLand... This may take up to 30 seconds.
+            </div>
+          </div>
+
+          <!-- Manual Upload Fallback -->
+          <div class="mt-3">
+            <button
+              @click="showManualUpload = !showManualUpload"
+              class="text-xs text-ink-400 hover:text-ink-600 transition-colors flex items-center gap-1"
+            >
+              <svg
+                class="w-3 h-3 transition-transform duration-200"
+                :class="{ 'rotate-90': showManualUpload }"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+              Manual cookie upload
+            </button>
+            <div v-if="showManualUpload" class="mt-2 pl-4 border-l-2 border-ink-100">
+              <p class="text-xs text-ink-400 mb-2">
+                Run <code class="bg-ink-50 px-1 rounded">extract-cookies.ts</code> locally, then upload the JSON.
+              </p>
+              <button
+                @click="openCookieFilePicker"
+                :disabled="uploadingCookies"
+                class="btn-secondary text-xs flex items-center gap-2"
+                :class="{ 'opacity-60': uploadingCookies }"
+              >
+                <svg v-if="uploadingCookies" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                {{ uploadingCookies ? 'Uploading...' : 'Upload Cookies JSON' }}
+              </button>
+              <input
+                ref="cookieFileInput"
+                type="file"
+                accept=".json"
+                class="hidden"
+                @change="handleCookieFileSelect"
+              />
+            </div>
+          </div>
         </div>
 
         <!-- Divider -->
@@ -906,7 +1072,7 @@ onUnmounted(() => {
           </div>
 
           <p v-if="!cookiesInfo.exists" class="text-xs text-amber-500 mt-2">
-            Upload cookies first before starting automation.
+            Login to MDLand first before starting automation.
           </p>
         </div>
 

@@ -22,6 +22,27 @@ export interface AutomationJob {
   readonly exitCode: number | null
 }
 
+// ── Login State ─────────────────────────────────
+
+export type LoginStatus = 'idle' | 'logging_in' | 'done' | 'failed'
+
+let loginState: {
+  status: LoginStatus
+  error: string | null
+} = { status: 'idle', error: null }
+
+export function isLoggingIn(): boolean {
+  return loginState.status === 'logging_in'
+}
+
+export function setLoginStatus(status: LoginStatus, error: string | null = null): void {
+  loginState = { status, error }
+}
+
+export function getLoginStatus(): { status: LoginStatus; error: string | null } {
+  return { ...loginState }
+}
+
 // ── State ────────────────────────────────────────
 
 const DATA_DIR = process.env.DATA_DIR || '/app/data'
