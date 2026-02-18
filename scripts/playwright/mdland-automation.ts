@@ -186,6 +186,11 @@ class MDLandAutomation {
     this.page = await this.context.newPage();
     this.page.setDefaultTimeout(this.options.timeout);
 
+    // tsx injects __name() calls that don't exist in browser context
+    await this.page.addInitScript(() => {
+      (window as any).__name = (fn: any) => fn;
+    });
+
     // 拦截所有 dialog (confirm/alert)
     this.page.on('dialog', async dialog => {
       console.log(`  Dialog: ${dialog.type()} - ${dialog.message()}`);
