@@ -900,25 +900,29 @@ class MDLandAutomation {
   async closeVisit(): Promise<void> {
     console.log('  Closing visit...');
 
-    await this.page.evaluate(() => {
+    // After billing, visit may already be auto-closed
+    const alreadyClosed = await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+      if (!wa0?.contentDocument) return true;
+      const url = wa0.contentDocument.location?.href || '';
+      if (url.includes('emptyarea')) return true;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const wa0Win: any = wa0?.contentWindow;
-
+      const wa0Win: any = wa0.contentWindow;
       if (typeof wa0Win?.closeMe === 'function') {
         wa0Win.closeMe(true);
-      } else {
-        throw new Error('closeMe not available');
+        return false;
       }
+      return true; // no closeMe = treat as already closed
     });
 
-    // 等待 emptyarea 加载
-    await this.page.waitForFunction(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      if (!wa0?.contentDocument) return false;
-      const url = wa0.contentDocument.location?.href || '';
-      return url.includes('emptyarea');
-    }, { timeout: 10000 });
+    if (!alreadyClosed) {
+      await this.page.waitForFunction(() => {
+        const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+        if (!wa0?.contentDocument) return false;
+        const url = wa0.contentDocument.location?.href || '';
+        return url.includes('emptyarea');
+      }, { timeout: 10000 }).catch(() => {});
+    }
 
     await this.page.waitForTimeout(1000);
     console.log('  Visit closed');
