@@ -23,7 +23,7 @@ interface LoginOptions {
 
 // ── Constants ────────────────────────────────────
 
-const MDLAND_URL = 'https://ehr.mdland.net'
+const MDLAND_URL = 'https://login.mdland.com/login_central.aspx'
 
 const DEFAULT_OPTIONS: LoginOptions = {
   headless: true,
@@ -31,12 +31,11 @@ const DEFAULT_OPTIONS: LoginOptions = {
 }
 
 const LOGIN_SELECTORS = {
-  USERNAME: 'input[name="userName"], input[name="username"], input[name="login"], input[type="text"][id*="user"], #userName',
-  PASSWORD: 'input[name="password"], input[type="password"]',
-  SUBMIT: 'input[type="submit"], button[type="submit"], #btnLogin, .login-btn',
-  LOGIN_FORM: '#loginForm, form[action*="login"], form[action*="Login"]',
+  USERNAME: '#id',
+  PASSWORD: '#password',
+  SUBMIT: '#loginBtn',
   ERROR_MSG: '.error-message, .login-error, .alert-danger, #errorMsg, .err',
-  WORKAREA: 'iframe[name="workarea0"], #workarea0',
+  POST_LOGIN: 'text=Dashboard, text=Waiting Room, text=clinic_main',
 } as const
 
 // ── Helpers ──────────────────────────────────────
@@ -79,9 +78,7 @@ async function tryWithSavedCookies(
     await page.waitForTimeout(3000)
 
     const isLoggedIn = await page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0')
-      const sessionId = (window as unknown as Record<string, unknown>).g_sessionID
-      return (wa0 !== null) || (sessionId !== undefined && sessionId !== '')
+      return document.location.href.includes('clinic_main')
     })
 
     if (isLoggedIn) {
@@ -142,9 +139,9 @@ export async function loginToMDLand(
 
     await page.waitForTimeout(2000)
 
-    // Check if already logged in (has workarea0)
+    // Check if already logged in (redirected to clinic_main)
     const alreadyLoggedIn = await page.evaluate(() => {
-      return document.getElementById('workarea0') !== null
+      return document.location.href.includes('clinic_main')
     })
 
     if (alreadyLoggedIn) {
@@ -196,17 +193,8 @@ export async function loginToMDLand(
     console.log('Waiting for login response...')
 
     const loginOutcome = await Promise.race([
-      page.waitForSelector(LOGIN_SELECTORS.WORKAREA, { timeout: opts.timeout })
+      page.waitForURL('**/clinic_main*', { timeout: opts.timeout })
         .then(() => ({ success: true, error: '' })),
-
-      page.waitForFunction(
-        () => {
-          const wa0 = document.getElementById('workarea0')
-          const sessionId = (window as unknown as Record<string, unknown>).g_sessionID
-          return (wa0 !== null) || (sessionId !== undefined && sessionId !== '')
-        },
-        { timeout: opts.timeout }
-      ).then(() => ({ success: true, error: '' })),
 
       page.waitForSelector(LOGIN_SELECTORS.ERROR_MSG, { timeout: opts.timeout })
         .then(async (el) => {
