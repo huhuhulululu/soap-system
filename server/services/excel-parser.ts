@@ -112,12 +112,54 @@ function parseCSV(raw: string): string[] {
 /**
  * 解析 Excel Buffer 为原始行数据 (async — exceljs)
  */
+/**
+ * 检测是否为纵向布局 (Col A = field labels, Col B+ = patients)
+ */
+function isVerticalLayout(sheet: ExcelJS.Worksheet): boolean {
+  const a1 = String(sheet.getRow(1).getCell(1).value ?? '').trim().toLowerCase()
+  return a1 === 'field'
+}
+
+/**
+ * 纵向布局转换为标准 Record[] (每列一个患者)
+ */
+function transposeVertical(sheet: ExcelJS.Worksheet): Record<string, string>[] {
+  // Row 1 = "Field", "Patient 1", "Patient 2", ...
+  // Row 2+ = field label in col A, values in col B+
+  const fieldKeys: string[] = []
+  for (let r = 2; r <= sheet.rowCount; r++) {
+    const label = String(sheet.getRow(r).getCell(1).value ?? '').trim().replace(/\s*\*$/, '')
+    if (label) fieldKeys.push(label)
+  }
+
+  const colCount = sheet.getRow(1).cellCount
+  const records: Record<string, string>[] = []
+
+  for (let c = 2; c <= colCount; c++) {
+    const record: Record<string, string> = {}
+    let hasData = false
+    for (let f = 0; f < fieldKeys.length; f++) {
+      const val = String(sheet.getRow(f + 2).getCell(c).value ?? '').trim()
+      record[fieldKeys[f]] = val
+      if (val) hasData = true
+    }
+    if (hasData) records.push(record)
+  }
+
+  return records
+}
+
 export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelRow[]> {
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer)
 
   const sheet = workbook.worksheets[0]
   if (!sheet || sheet.rowCount < 2) throw new Error('Excel file has no data rows')
+
+  // Detect layout: vertical (col A = fields) vs horizontal (row 1 = headers)
+  if (isVerticalLayout(sheet)) {
+    return buildRowsFromRecords(transposeVertical(sheet))
+  }
 
   // Row 1 = headers
   const headerRow = sheet.getRow(1)
@@ -126,7 +168,8 @@ export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelRow[]> {
     headers[colNumber] = String(cell.value ?? '').trim()
   })
 
-  const rows: ExcelRow[] = []
+  // Horizontal: each row is a patient record
+  const records: Record<string, string>[] = []
   for (let r = 2; r <= sheet.rowCount; r++) {
     const row = sheet.getRow(r)
     const record: Record<string, string> = {}
@@ -134,25 +177,30 @@ export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelRow[]> {
       const key = headers[colNumber] ?? `Col${colNumber}`
       record[key] = String(cell.value ?? '').trim()
     })
+    if (!Object.values(record).every(v => !v)) records.push(record)
+  }
 
-    // Skip completely empty rows
-    if (Object.values(record).every(v => !v)) continue
+  return buildRowsFromRecords(records)
+}
 
+function buildRowsFromRecords(records: Record<string, string>[]): ExcelRow[] {
+  if (records.length === 0) throw new Error('Excel file has no data rows')
+
+  return records.map((record, idx) => {
+    const rowNum = idx + 2
     const getString = (keys: string[]): string => {
-      for (const k of keys) {
-        if (record[k]) return record[k]
-      }
+      for (const k of keys) { if (record[k]) return record[k] }
       return ''
     }
     const getNumber = (keys: string[], fallback?: number): number => {
       const s = getString(keys)
       if (!s && fallback !== undefined) return fallback
       const n = parseInt(s, 10)
-      if (isNaN(n)) throw new Error(`Row ${r}: Invalid number in column ${keys[0]}`)
+      if (isNaN(n)) throw new Error(`Row ${rowNum}: Invalid number in column ${keys[0]}`)
       return n
     }
 
-    rows.push({
+    return {
       patient: getString(['Patient', 'patient', 'A']),
       gender: getString(['Gender', 'gender', 'B']).toUpperCase() as 'M' | 'F',
       insurance: getString(['Insurance', 'insurance', 'Ins', 'C']).toUpperCase(),
@@ -174,11 +222,8 @@ export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelRow[]> {
       painFrequency: getString(['PainFrequency', 'painFrequency', 'S']),
       secondaryParts: getString(['SecondaryParts', 'secondaryParts', 'Secondary', 'T']),
       history: getString(['History', 'history', 'U']),
-    })
-  }
-
-  if (rows.length === 0) throw new Error('Excel file has no data rows')
-  return rows
+    }
+  })
 }
 
 export interface ParsedExcelResult {
