@@ -806,7 +806,10 @@ class MDLandAutomation {
               resolve({ ok: false, data: 'server rejected' });
             }
           },
-          error: () => resolve({ ok: false, data: 'ajax error' }),
+          error: (xhr: any) => resolve({
+            ok: false,
+            data: `ajax error: status=${xhr?.status} statusText=${xhr?.statusText} response=${(xhr?.responseText || '').slice(0, 300)}`
+          }),
         });
       });
     });
