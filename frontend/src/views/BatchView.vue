@@ -336,7 +336,6 @@ async function copyAllSOAP() {
 // ── Reset ────────────────────────────────────────
 function resetAll() {
   stopPolling()
-  stopLoginPolling()
   step.value = 'upload'
   batchId.value = ''
   batchData.value = null
@@ -351,12 +350,6 @@ function resetAll() {
   automationStatus.value = 'idle'
   automationLogs.value = []
   startingAutomation.value = false
-  if (!rememberCredentials.value) {
-    mdlandUsername.value = ''
-    mdlandPassword.value = ''
-  }
-  loginStatus.value = 'idle'
-  loginError.value = ''
   showManualUpload.value = false
   cookiePasteText.value = ''
 }
@@ -377,16 +370,7 @@ const automationPolling = ref(null)
 const automationPollCount = ref(0)
 const startingAutomation = ref(false)
 
-// ── Login ────────────────────────────────────────
-const mdlandUsername = ref('')
-const mdlandPassword = ref('')
-const rememberCredentials = ref(false)
-const loginStatus = ref('idle') // idle | logging_in | done | failed
-const loginError = ref('')
-const loginPolling = ref(null)
-const loginPollCount = ref(0)
 const showManualUpload = ref(false)
-const mdlandTab = ref('login')
 const cookiePasteText = ref('')
 
 async function checkCookies() {
@@ -395,83 +379,6 @@ async function checkCookies() {
     const json = await res.json()
     if (json.success) {
       cookiesInfo.value = json.data
-    }
-  } catch { /* ignore */ }
-}
-
-async function loginMDLand() {
-  if (!mdlandUsername.value || !mdlandPassword.value) {
-    error.value = 'Please enter username and password'
-    return
-  }
-
-  loginStatus.value = 'logging_in'
-  loginError.value = ''
-  error.value = ''
-
-  try {
-    const res = await fetch(`${API_BASE}/automate/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: mdlandUsername.value,
-        password: mdlandPassword.value,
-      }),
-    })
-    const json = await res.json()
-    if (!json.success) {
-      loginStatus.value = 'failed'
-      loginError.value = json.error || 'Login request failed'
-      return
-    }
-    if (rememberCredentials.value) {
-      localStorage.setItem('mdland_credentials', JSON.stringify({ u: mdlandUsername.value, p: mdlandPassword.value }))
-    } else {
-      localStorage.removeItem('mdland_credentials')
-      mdlandPassword.value = ''
-    }
-    // Start polling login status
-    startLoginPolling()
-  } catch (err) {
-    loginStatus.value = 'failed'
-    loginError.value = err.message || 'Network error'
-  }
-}
-
-function startLoginPolling() {
-  stopLoginPolling()
-  loginPollCount.value = 0
-  loginPolling.value = setInterval(pollLoginStatus, 1500)
-}
-
-function stopLoginPolling() {
-  if (loginPolling.value) {
-    clearInterval(loginPolling.value)
-    loginPolling.value = null
-  }
-}
-
-async function pollLoginStatus() {
-  loginPollCount.value++
-  if (loginPollCount.value > 40) {
-    stopLoginPolling()
-    loginStatus.value = 'failed'
-    loginError.value = 'Login timed out (60s). Please try again.'
-    return
-  }
-  try {
-    const res = await fetch(`${API_BASE}/automate/login/status`)
-    const json = await res.json()
-    if (!json.success) return
-
-    loginStatus.value = json.data.status
-
-    if (json.data.status === 'done') {
-      stopLoginPolling()
-      cookiesInfo.value = json.data.cookies
-    } else if (json.data.status === 'failed') {
-      stopLoginPolling()
-      loginError.value = json.data.error || 'Login failed'
     }
   } catch { /* ignore */ }
 }
@@ -616,20 +523,10 @@ watch(error, (val) => {
 
 onMounted(() => {
   checkCookies()
-  const saved = localStorage.getItem('mdland_credentials')
-  if (saved) {
-    try {
-      const { u, p } = JSON.parse(saved)
-      mdlandUsername.value = u || ''
-      mdlandPassword.value = p || ''
-      rememberCredentials.value = true
-    } catch { /* ignore */ }
-  }
 })
 
 onUnmounted(() => {
   stopPolling()
-  stopLoginPolling()
 })
 </script>
 
@@ -778,47 +675,22 @@ onUnmounted(() => {
           </div>
 
           <!-- Already connected -->
-          <div v-if="cookiesInfo.exists && loginStatus !== 'logging_in'" class="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700">
+          <div v-if="cookiesInfo.exists" class="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700">
             <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
             Session ready
-            <button @click="loginStatus = 'idle'; cookiesInfo = { exists: false, updatedAt: null }" class="ml-auto text-xs underline">Re-login</button>
+            <button @click="cookiesInfo = { exists: false, updatedAt: null }" class="ml-auto text-xs underline">Re-upload</button>
           </div>
 
-          <!-- Login + Cookie tabs -->
-          <div v-else>
-            <div class="flex border-b border-ink-100 mb-3">
-              <button @click="mdlandTab = 'login'" class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors" :class="mdlandTab === 'login' ? 'border-ink-700 text-ink-800' : 'border-transparent text-ink-400'">Account Login</button>
-              <button @click="mdlandTab = 'cookie'" class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors" :class="mdlandTab === 'cookie' ? 'border-ink-700 text-ink-800' : 'border-transparent text-ink-400'">Cookie Upload</button>
-            </div>
-
-            <!-- Tab: Login -->
-            <div v-if="mdlandTab === 'login'" class="space-y-2">
-              <input v-model="mdlandUsername" type="text" placeholder="Username" :disabled="loginStatus === 'logging_in'" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              <input v-model="mdlandPassword" type="password" placeholder="Password" :disabled="loginStatus === 'logging_in'" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" @keydown.enter="loginMDLand" />
-              <label class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer select-none">
-                <input v-model="rememberCredentials" type="checkbox" class="rounded" />
-                Remember credentials
-              </label>
-              <button @click="loginMDLand" :disabled="loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword" class="btn-primary text-sm w-full" :class="{ 'opacity-60': loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword }">
-                {{ loginStatus === 'logging_in' ? 'Logging in...' : 'Login' }}
+          <!-- Cookie Upload -->
+          <div v-else class="space-y-2">
+            <textarea v-model="cookiePasteText" placeholder='Paste cookies JSON here...' rows="4" class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y"></textarea>
+            <div class="flex gap-2">
+              <button @click="submitPastedCookies" :disabled="uploadingCookies || !cookiePasteText.trim()" class="btn-primary text-xs flex-1" :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }">
+                {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
               </button>
-              <p v-if="loginError" class="text-xs text-red-600">{{ loginError }}</p>
-              <div v-if="loginStatus === 'logging_in'" class="flex items-center gap-2 text-xs text-blue-600">
-                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>Connecting...
-              </div>
+              <button @click="openCookieFilePicker" :disabled="uploadingCookies" class="btn-secondary text-xs">Upload File</button>
             </div>
-
-            <!-- Tab: Cookie -->
-            <div v-if="mdlandTab === 'cookie'" class="space-y-2">
-              <textarea v-model="cookiePasteText" placeholder='Paste cookies JSON here...' rows="4" class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y"></textarea>
-              <div class="flex gap-2">
-                <button @click="submitPastedCookies" :disabled="uploadingCookies || !cookiePasteText.trim()" class="btn-primary text-xs flex-1" :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }">
-                  {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
-                </button>
-                <button @click="openCookieFilePicker" :disabled="uploadingCookies" class="btn-secondary text-xs">Upload File</button>
-              </div>
-              <input ref="cookieFileInput" type="file" accept=".json" class="hidden" @change="handleCookieFileSelect" />
-            </div>
+            <input ref="cookieFileInput" type="file" accept=".json" class="hidden" @change="handleCookieFileSelect" />
           </div>
         </div>
       </div>
@@ -1142,127 +1014,52 @@ onUnmounted(() => {
           </div>
 
           <!-- Login Success State -->
-          <div v-if="cookiesInfo.exists && loginStatus !== 'logging_in'" class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-3">
+          <div v-if="cookiesInfo.exists" class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-3">
             <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
             <p class="text-sm text-green-700">MDLand session ready</p>
             <button
-              @click="loginStatus = 'idle'; cookiesInfo = { exists: false, updatedAt: null }"
+              @click="cookiesInfo = { exists: false, updatedAt: null }"
               class="ml-auto text-xs text-green-600 hover:text-green-800 underline"
-            >Re-login</button>
+            >Re-upload</button>
           </div>
 
-          <!-- Login Form -->
-          <div v-if="!cookiesInfo.exists || loginStatus === 'idle' && !cookiesInfo.exists" class="space-y-3">
-            <div>
-              <label class="block text-xs text-ink-500 mb-1">Username</label>
-              <input
-                v-model="mdlandUsername"
-                type="text"
-                placeholder="MDLand username"
-                :disabled="loginStatus === 'logging_in'"
-                class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 focus:border-transparent transition-shadow"
-                @keydown.enter="$event.target.nextElementSibling?.nextElementSibling?.querySelector('input')?.focus()"
-              />
-            </div>
-            <div>
-              <label class="block text-xs text-ink-500 mb-1">Password</label>
-              <input
-                v-model="mdlandPassword"
-                type="password"
-                placeholder="MDLand password"
-                :disabled="loginStatus === 'logging_in'"
-                class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 focus:border-transparent transition-shadow"
-                @keydown.enter="loginMDLand"
-              />
-            </div>
-
-            <label class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer select-none">
-              <input v-model="rememberCredentials" type="checkbox" class="rounded" />
-              Remember credentials
-            </label>
-
-            <!-- Login Button -->
-            <button
-              @click="loginMDLand"
-              :disabled="loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword"
-              class="btn-primary text-sm flex items-center gap-2"
-              :class="{ 'opacity-60 cursor-not-allowed': loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword }"
-            >
-              <svg v-if="loginStatus === 'logging_in'" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-              </svg>
-              {{ loginStatus === 'logging_in' ? 'Logging in...' : 'Login to MDLand' }}
-            </button>
-
-            <!-- Login Error -->
-            <p v-if="loginError" class="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
-              {{ loginError }}
+          <!-- Cookie Upload -->
+          <div v-if="!cookiesInfo.exists" class="space-y-3">
+            <p class="text-xs text-ink-400 mb-2">
+              Paste cookies JSON or upload a file.
             </p>
-
-            <!-- Logging in progress -->
-            <div v-if="loginStatus === 'logging_in'" class="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
-              <span class="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-              Playwright is logging in to MDLand... This may take up to 30 seconds.
-            </div>
-          </div>
-
-          <!-- Manual Upload Fallback -->
-          <div class="mt-3">
-            <button
-              @click="showManualUpload = !showManualUpload"
-              class="text-xs text-ink-400 hover:text-ink-600 transition-colors flex items-center gap-1"
-            >
-              <svg
-                class="w-3 h-3 transition-transform duration-200"
-                :class="{ 'rotate-90': showManualUpload }"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            <textarea
+              v-model="cookiePasteText"
+              placeholder='{"cookies":[...],"origins":[...]}'
+              rows="4"
+              class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y"
+            ></textarea>
+            <div class="flex gap-2">
+              <button
+                @click="submitPastedCookies"
+                :disabled="uploadingCookies || !cookiePasteText.trim()"
+                class="btn-primary text-xs flex-1"
+                :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-              Manual cookie upload
-            </button>
-            <div v-if="showManualUpload" class="mt-2 pl-4 border-l-2 border-ink-100">
-              <p class="text-xs text-ink-400 mb-2">
-                Paste cookies JSON or upload a file.
-              </p>
-              <textarea
-                v-model="cookiePasteText"
-                placeholder='{"cookies":[...],"origins":[...]}'
-                rows="4"
-                class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 mb-2 resize-y"
-              ></textarea>
-              <div class="flex gap-2">
-                <button
-                  @click="submitPastedCookies"
-                  :disabled="uploadingCookies || !cookiePasteText.trim()"
-                  class="btn-primary text-xs flex items-center gap-1"
-                  :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }"
-                >
-                  {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
-                </button>
-                <button
-                  @click="openCookieFilePicker"
-                  :disabled="uploadingCookies"
-                  class="btn-secondary text-xs"
-                >
-                  Upload File
-                </button>
-              </div>
-              <input
-                ref="cookieFileInput"
-                type="file"
-                accept=".json"
-                class="hidden"
-                @change="handleCookieFileSelect"
-              />
+                {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
+              </button>
+              <button
+                @click="openCookieFilePicker"
+                :disabled="uploadingCookies"
+                class="btn-secondary text-xs"
+              >
+                Upload File
+              </button>
             </div>
+            <input
+              ref="cookieFileInput"
+              type="file"
+              accept=".json"
+              class="hidden"
+              @change="handleCookieFileSelect"
+            />
           </div>
         </div>
 
