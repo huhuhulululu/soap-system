@@ -107,16 +107,20 @@ export function createAutomateRouter(): Router {
         return
       }
 
-      // Validate it looks like a Playwright storage state
-      if (!Array.isArray(body.cookies)) {
+      // Accept raw array or {cookies:[...]} format
+      const storageState = Array.isArray(body)
+        ? { cookies: body, origins: [] }
+        : body
+
+      if (!Array.isArray(storageState.cookies)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid storage state: missing "cookies" array',
+          error: 'Expected {cookies:[...]} or a raw cookies array',
         })
         return
       }
 
-      saveCookies(body)
+      saveCookies(storageState)
 
       res.json({
         success: true,
