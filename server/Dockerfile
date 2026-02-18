@@ -8,12 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
-# Install Chromium browser for Playwright
+# Install Chromium browser for Playwright (shared path so appuser can access)
 RUN npx playwright install chromium
 
 COPY src/ ./src/
