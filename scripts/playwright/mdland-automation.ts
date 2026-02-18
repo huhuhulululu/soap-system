@@ -206,8 +206,8 @@ class MDLandAutomation {
   async validateSession(): Promise<boolean> {
     console.log('Validating MDLand session...');
 
-    // 导航到 MDLand 主页
-    await this.page.goto('https://web153.b.mdland.net/eClinic/login_single.aspx', {
+    // 导航到 MDLand 主页（需要认证的页面）
+    await this.page.goto('https://web153.b.mdland.net/eClinic/clinic_main.aspx', {
       waitUntil: 'domcontentloaded',
       timeout: 15000
     });
