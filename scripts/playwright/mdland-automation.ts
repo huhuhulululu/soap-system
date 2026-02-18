@@ -961,8 +961,10 @@ class MDLandAutomation {
       const result = await this.processVisit(patient, visit);
       results.push(result);
 
-      // 同患者多 visit: 关闭后重新搜索
+      // 同患者多 visit: 关闭后回到 Waiting Room 重新搜索
       if (i < patient.visits.length - 1 && result.success) {
+        await this.clickWaitingRoom();
+        await this.clickOnePatient();
         await this.searchPatient(patient.dob);
         await this.selectPatient(patient.name, patient.dob);
       }
