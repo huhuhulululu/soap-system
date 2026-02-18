@@ -767,75 +767,59 @@ class MDLandAutomation {
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    // Dump full reallySubmit source for analysis
-    const fnSrc = await this.page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      const ptWin: any = pt?.contentWindow;
-      return typeof ptWin?.reallySubmit === 'function'
-        ? String(ptWin.reallySubmit)
-        : 'NOT_FOUND';
-    });
-    console.log('  reallySubmit source:\n' + fnSrc);
-
-    // Call reallySubmit but intercept the AJAX to use regular POST
-    await this.page.evaluate(() => {
+    const result = await this.page.evaluate(async () => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
       const ptWin: any = pt?.contentWindow;
       const ptDoc = pt?.contentDocument;
       if (!ptWin || !ptDoc) throw new Error('PT Note not accessible');
 
-      // Override XMLHttpRequest to prevent AJAX and fall through to form.submit
-      const OrigXHR = ptWin.XMLHttpRequest;
-      ptWin.XMLHttpRequest = function(this: any) {
-        const xhr = new OrigXHR();
-        const origOpen = xhr.open.bind(xhr);
-        const origSend = xhr.send.bind(xhr);
-        xhr.open = (...args: any[]) => {
-          (this as any)._url = args[1];
-          return origOpen(...args);
-        };
-        xhr.send = (body: any) => {
-          // Intercept: do regular form submit instead
-          const form = ptDoc.forms.namedItem('ecform') || (ptDoc as any).ecform;
-          if (form) {
-            form.isAjaxSave.value = '0';
-            form.submit();
-          }
-          return undefined;
-        };
-        return xhr;
-      };
+      const tinyMCE = ptWin.tinyMCE;
+      const form = (ptDoc as any).ecform;
+      if (!form) throw new Error('ecform not found');
 
-      ptWin.reallySubmit();
+      // Sync TinyMCE → form fields (same as reallySubmit)
+      for (let i = 0; i <= 4; i++) {
+        const id = `SOAPtext${i}`;
+        const ed = tinyMCE?.getInstanceById?.(id);
+        if (ed && form[id]) {
+          form[id].value = ed.getBody().innerHTML;
+        }
+      }
+      form.isAjaxSave.value = '1';
+
+      // Serialize form and POST via iframe's fetch (correct origin)
+      const formData = new URLSearchParams(new FormData(form) as any).toString();
+      const iframeFetch = ptWin.fetch.bind(ptWin);
+      const resp = await iframeFetch('/eClinic/ov_ptnote2018.aspx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData,
+      });
+      const text = await resp.text();
+      let json: any = null;
+      try { json = JSON.parse(text); } catch {}
+      return { status: resp.status, ok: resp.ok, json, textSnippet: text.slice(0, 200) };
     });
 
-    // Wait for ptnote iframe to reload after form POST
-    await this.page.waitForFunction(() => {
+    console.log('  SOAP save response:', JSON.stringify(result));
+
+    if (result.json?.Success === '1') {
+      console.log('  SOAP saved successfully');
+    } else {
+      console.log('  SOAP save may have failed, continuing...');
+    }
+
+    // Reload ptnote to reflect saved state
+    await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      if (!pt?.contentDocument) return false;
-      const url = pt.contentDocument.location?.href || '';
-      return url.includes('ov_ptnote');
-    }, { timeout: 15000 });
-
-    await this.page.waitForTimeout(1000);
-
-    // Verify: check if SOAP content persisted after reload
-    const verify = await this.page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      const ptWin: any = pt?.contentWindow;
-      if (!ptWin?.tinyMCE) return { error: 'no tinyMCE after reload' };
-      const s0 = ptWin.tinyMCE.getInstanceById?.('SOAPtext0');
-      return {
-        hasContent: !!(s0 && s0.getContent().trim().length > 10),
-        snippet: s0 ? s0.getContent().slice(0, 100) : 'EMPTY',
-      };
+      if (pt?.contentWindow) {
+        (pt.contentWindow as any).location.reload();
+      }
     });
-    console.log('  Post-save verify:', JSON.stringify(verify));
-    console.log('  SOAP saved');
+
+    await this.page.waitForTimeout(2000);
   }
 
   // ==============================
