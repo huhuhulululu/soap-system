@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -383,6 +383,7 @@ const loginError = ref('')
 const loginPolling = ref(null)
 const loginPollCount = ref(0)
 const showManualUpload = ref(false)
+const mdlandTab = ref('login')
 const cookiePasteText = ref('')
 
 async function checkCookies() {
@@ -606,6 +607,8 @@ watch(error, (val) => {
   }
 })
 
+onMounted(() => { checkCookies() })
+
 onUnmounted(() => {
   stopPolling()
   stopLoginPolling()
@@ -742,6 +745,59 @@ onUnmounted(() => {
           >
             Download Excel Template
           </button>
+        </div>
+      </div>
+
+      <!-- ═══ MDLand Session ═══ -->
+      <div class="max-w-2xl mx-auto mt-8">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-ink-700">MDLand Session</h3>
+            <span v-if="cookiesInfo.exists" class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+              Active {{ formatCookiesDate(cookiesInfo.updatedAt) }}
+            </span>
+            <span v-else class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Not connected</span>
+          </div>
+
+          <!-- Already connected -->
+          <div v-if="cookiesInfo.exists && loginStatus !== 'logging_in'" class="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            Session ready
+            <button @click="loginStatus = 'idle'; cookiesInfo = { exists: false, updatedAt: null }" class="ml-auto text-xs underline">Re-login</button>
+          </div>
+
+          <!-- Login + Cookie tabs -->
+          <div v-else>
+            <div class="flex border-b border-ink-100 mb-3">
+              <button @click="mdlandTab = 'login'" class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors" :class="mdlandTab === 'login' ? 'border-ink-700 text-ink-800' : 'border-transparent text-ink-400'">Account Login</button>
+              <button @click="mdlandTab = 'cookie'" class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors" :class="mdlandTab === 'cookie' ? 'border-ink-700 text-ink-800' : 'border-transparent text-ink-400'">Cookie Upload</button>
+            </div>
+
+            <!-- Tab: Login -->
+            <div v-if="mdlandTab === 'login'" class="space-y-2">
+              <input v-model="mdlandUsername" type="text" placeholder="Username" :disabled="loginStatus === 'logging_in'" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              <input v-model="mdlandPassword" type="password" placeholder="Password" :disabled="loginStatus === 'logging_in'" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" @keydown.enter="loginMDLand" />
+              <button @click="loginMDLand" :disabled="loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword" class="btn-primary text-sm w-full" :class="{ 'opacity-60': loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword }">
+                {{ loginStatus === 'logging_in' ? 'Logging in...' : 'Login' }}
+              </button>
+              <p v-if="loginError" class="text-xs text-red-600">{{ loginError }}</p>
+              <div v-if="loginStatus === 'logging_in'" class="flex items-center gap-2 text-xs text-blue-600">
+                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>Connecting...
+              </div>
+            </div>
+
+            <!-- Tab: Cookie -->
+            <div v-if="mdlandTab === 'cookie'" class="space-y-2">
+              <textarea v-model="cookiePasteText" placeholder='Paste cookies JSON here...' rows="4" class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y"></textarea>
+              <div class="flex gap-2">
+                <button @click="submitPastedCookies" :disabled="uploadingCookies || !cookiePasteText.trim()" class="btn-primary text-xs flex-1" :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }">
+                  {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
+                </button>
+                <button @click="openCookieFilePicker" :disabled="uploadingCookies" class="btn-secondary text-xs">Upload File</button>
+              </div>
+              <input ref="cookieFileInput" type="file" accept=".json" class="hidden" @change="handleCookieFileSelect" />
+            </div>
+          </div>
         </div>
       </div>
 
