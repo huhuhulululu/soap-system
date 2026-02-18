@@ -774,45 +774,26 @@ class MDLandAutomation {
     const ptFrame = this.getPtNoteFrame();
     if (!ptFrame) throw new Error('ptnote frame not found');
 
-    // Sync TinyMCE → form fields, then submit form directly (non-AJAX)
-    await ptFrame.evaluate(() => {
-      const w = window as any;
-      const tinyMCE = w.tinyMCE;
-      const form = (document as any).ecform;
-      if (!form) throw new Error('ecform not found');
-
-      for (let i = 0; i <= 4; i++) {
-        const id = `SOAPtext${i}`;
-        const ed = tinyMCE?.getInstanceById?.(id);
-        if (ed && form[id]) form[id].value = ed.getBody().innerHTML;
-      }
-      form.isAjaxSave.value = '0';
-      form.submit();
+    // DEBUG: dump all buttons/links/inputs in ptnote
+    const elements = await ptFrame.evaluate(() => {
+      const results: string[] = [];
+      // Buttons
+      document.querySelectorAll('input[type="button"],input[type="submit"],button,a[href*="javascript"],img[onclick]').forEach((el: any) => {
+        const tag = el.tagName;
+        const id = el.id || '';
+        const name = el.name || '';
+        const val = el.value || el.textContent?.trim()?.slice(0, 50) || '';
+        const onclick = el.getAttribute('onclick')?.slice(0, 80) || '';
+        const src = el.src ? el.src.split('/').pop() : '';
+        results.push(`${tag} id=${id} name=${name} val=${val} onclick=${onclick} src=${src}`);
+      });
+      return results;
     });
+    console.log('  PT Note interactive elements:');
+    elements.forEach(e => console.log(`    ${e}`));
 
-    // Wait for iframe to reload after form submission
-    await this.page.waitForFunction(() => {
-      const frames = (window as any).frames;
-      // Check all frames for ptnote reload completion
-      for (const f of Array.from(document.querySelectorAll('iframe'))) {
-        try {
-          const fd = (f as HTMLIFrameElement).contentDocument;
-          if (!fd) continue;
-          // Check nested iframes too
-          for (const nf of Array.from(fd.querySelectorAll('iframe'))) {
-            try {
-              const nfd = (nf as HTMLIFrameElement).contentDocument;
-              const url = nfd?.location?.href || '';
-              if (url.includes('ov_ptnote') && nfd?.readyState === 'complete') return true;
-            } catch {}
-          }
-        } catch {}
-      }
-      return false;
-    }, { timeout: 15000 });
-
-    await this.page.waitForTimeout(2000);
-    console.log('  SOAP saved via form submit');
+    // TODO: implement click-based save
+    await this.page.waitForTimeout(1000);
   }
 
   // ==============================
