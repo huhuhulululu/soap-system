@@ -125,7 +125,7 @@ export function createAutomateRouter(): Router {
       res.json({
         success: true,
         data: {
-          cookieCount: body.cookies.length,
+          cookieCount: storageState.cookies.length,
           ...getCookiesInfo(),
         },
       })

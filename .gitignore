@@ -31,3 +31,4 @@ data/screenshots/
 
 # Playwright
 .playwright-mcp/
+test.xlsx

@@ -351,8 +351,10 @@ function resetAll() {
   automationStatus.value = 'idle'
   automationLogs.value = []
   startingAutomation.value = false
-  mdlandUsername.value = ''
-  mdlandPassword.value = ''
+  if (!rememberCredentials.value) {
+    mdlandUsername.value = ''
+    mdlandPassword.value = ''
+  }
   loginStatus.value = 'idle'
   loginError.value = ''
   showManualUpload.value = false
@@ -378,6 +380,7 @@ const startingAutomation = ref(false)
 // ── Login ────────────────────────────────────────
 const mdlandUsername = ref('')
 const mdlandPassword = ref('')
+const rememberCredentials = ref(false)
 const loginStatus = ref('idle') // idle | logging_in | done | failed
 const loginError = ref('')
 const loginPolling = ref(null)
@@ -421,8 +424,12 @@ async function loginMDLand() {
       loginError.value = json.error || 'Login request failed'
       return
     }
-    // Clear password from memory
-    mdlandPassword.value = ''
+    if (rememberCredentials.value) {
+      localStorage.setItem('mdland_credentials', JSON.stringify({ u: mdlandUsername.value, p: mdlandPassword.value }))
+    } else {
+      localStorage.removeItem('mdland_credentials')
+      mdlandPassword.value = ''
+    }
     // Start polling login status
     startLoginPolling()
   } catch (err) {
@@ -607,7 +614,18 @@ watch(error, (val) => {
   }
 })
 
-onMounted(() => { checkCookies() })
+onMounted(() => {
+  checkCookies()
+  const saved = localStorage.getItem('mdland_credentials')
+  if (saved) {
+    try {
+      const { u, p } = JSON.parse(saved)
+      mdlandUsername.value = u || ''
+      mdlandPassword.value = p || ''
+      rememberCredentials.value = true
+    } catch { /* ignore */ }
+  }
+})
 
 onUnmounted(() => {
   stopPolling()
@@ -777,6 +795,10 @@ onUnmounted(() => {
             <div v-if="mdlandTab === 'login'" class="space-y-2">
               <input v-model="mdlandUsername" type="text" placeholder="Username" :disabled="loginStatus === 'logging_in'" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
               <input v-model="mdlandPassword" type="password" placeholder="Password" :disabled="loginStatus === 'logging_in'" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" @keydown.enter="loginMDLand" />
+              <label class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer select-none">
+                <input v-model="rememberCredentials" type="checkbox" class="rounded" />
+                Remember credentials
+              </label>
               <button @click="loginMDLand" :disabled="loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword" class="btn-primary text-sm w-full" :class="{ 'opacity-60': loginStatus === 'logging_in' || !mdlandUsername || !mdlandPassword }">
                 {{ loginStatus === 'logging_in' ? 'Logging in...' : 'Login' }}
               </button>
@@ -1155,6 +1177,11 @@ onUnmounted(() => {
                 @keydown.enter="loginMDLand"
               />
             </div>
+
+            <label class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer select-none">
+              <input v-model="rememberCredentials" type="checkbox" class="rounded" />
+              Remember credentials
+            </label>
 
             <!-- Login Button -->
             <button
