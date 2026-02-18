@@ -23,7 +23,12 @@ COPY scripts/ ./scripts/
 COPY templates/ ./templates/
 COPY tsconfig.json ./
 
-RUN mkdir -p /app/data /app/data/screenshots
+RUN mkdir -p /app/data /app/data/screenshots \
+    && addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser \
+    && chown -R appuser:appgroup /app/data
+
+USER appuser
 
 EXPOSE 3001
 

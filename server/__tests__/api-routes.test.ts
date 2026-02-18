@@ -1,7 +1,7 @@
 import { createApp } from '../index'
 import { clearAllBatches, saveBatch, getBatch } from '../store/batch-store'
 import type { BatchData } from '../types'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { Application } from 'express'
 import http from 'http'
 
@@ -101,11 +101,13 @@ function request(app: Application) {
 }
 
 /** 创建测试用 Excel buffer */
-function createTestExcel(rows: Record<string, unknown>[]): Buffer {
-  const ws = XLSX.utils.json_to_sheet(rows)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
-  return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }))
+async function createTestExcel(rows: Record<string, unknown>[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Sheet1')
+  if (rows.length === 0) return Buffer.from(await wb.xlsx.writeBuffer())
+  ws.addRow(Object.keys(rows[0]))
+  for (const row of rows) ws.addRow(Object.values(row))
+  return Buffer.from(await wb.xlsx.writeBuffer())
 }
 
 describe('batch API routes', () => {
@@ -130,7 +132,7 @@ describe('batch API routes', () => {
 
   describe('POST /api/batch', () => {
     it('parses Excel and generates SOAP', async () => {
-      const excelBuffer = createTestExcel([
+      const excelBuffer = await createTestExcel([
         {
           Patient: 'CHEN,AIJIN(09/27/1956)',
           Gender: 'F',

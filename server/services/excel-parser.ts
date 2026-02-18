@@ -4,7 +4,7 @@
  * 解析上传的 Excel 文件 → 每行一个患者 → 自动展开为 1 IE + (N-1) TX visits
  */
 
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { BodyPart, InsuranceType, Laterality } from '../../src/types'
 import type { ExcelRow, BatchPatient, BatchVisit, BatchPatientClinical, BatchMode } from '../types'
 import { getICDName } from '../../src/shared/icd-catalog'
@@ -110,23 +110,37 @@ function parseCSV(raw: string): string[] {
 }
 
 /**
- * 解析 Excel Buffer 为原始行数据
+ * 解析 Excel Buffer 为原始行数据 (async — exceljs)
  */
-export function parseExcelBuffer(buffer: Buffer): ExcelRow[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' })
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) throw new Error('Excel file has no sheets')
+export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelRow[]> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
 
-  const sheet = workbook.Sheets[sheetName]
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
+  const sheet = workbook.worksheets[0]
+  if (!sheet || sheet.rowCount < 2) throw new Error('Excel file has no data rows')
 
-  if (rawRows.length === 0) throw new Error('Excel file has no data rows')
+  // Row 1 = headers
+  const headerRow = sheet.getRow(1)
+  const headers: string[] = []
+  headerRow.eachCell((cell, colNumber) => {
+    headers[colNumber] = String(cell.value ?? '').trim()
+  })
 
-  return rawRows.map((row, idx) => {
+  const rows: ExcelRow[] = []
+  for (let r = 2; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r)
+    const record: Record<string, string> = {}
+    row.eachCell((cell, colNumber) => {
+      const key = headers[colNumber] ?? `Col${colNumber}`
+      record[key] = String(cell.value ?? '').trim()
+    })
+
+    // Skip completely empty rows
+    if (Object.values(record).every(v => !v)) continue
+
     const getString = (keys: string[]): string => {
       for (const k of keys) {
-        const val = row[k]
-        if (val !== undefined && val !== null && val !== '') return String(val).trim()
+        if (record[k]) return record[k]
       }
       return ''
     }
@@ -134,11 +148,11 @@ export function parseExcelBuffer(buffer: Buffer): ExcelRow[] {
       const s = getString(keys)
       if (!s && fallback !== undefined) return fallback
       const n = parseInt(s, 10)
-      if (isNaN(n)) throw new Error(`Row ${idx + 2}: Invalid number in column ${keys[0]}`)
+      if (isNaN(n)) throw new Error(`Row ${r}: Invalid number in column ${keys[0]}`)
       return n
     }
 
-    return {
+    rows.push({
       patient: getString(['Patient', 'patient', 'A']),
       gender: getString(['Gender', 'gender', 'B']).toUpperCase() as 'M' | 'F',
       insurance: getString(['Insurance', 'insurance', 'Ins', 'C']).toUpperCase(),
@@ -160,8 +174,11 @@ export function parseExcelBuffer(buffer: Buffer): ExcelRow[] {
       painFrequency: getString(['PainFrequency', 'painFrequency', 'S']),
       secondaryParts: getString(['SecondaryParts', 'secondaryParts', 'Secondary', 'T']),
       history: getString(['History', 'history', 'U']),
-    }
-  })
+    })
+  }
+
+  if (rows.length === 0) throw new Error('Excel file has no data rows')
+  return rows
 }
 
 export interface ParsedExcelResult {

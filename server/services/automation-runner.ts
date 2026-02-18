@@ -8,6 +8,7 @@
 import { spawn, type ChildProcess } from 'child_process'
 import path from 'path'
 import fs from 'fs'
+import crypto from 'crypto'
 
 // ── Types ────────────────────────────────────────
 
@@ -46,7 +47,32 @@ export function getLoginStatus(): { status: LoginStatus; error: string | null } 
 // ── State ────────────────────────────────────────
 
 const DATA_DIR = process.env.DATA_DIR || '/app/data'
-const COOKIES_FILENAME = 'mdland-storage-state.json'
+const COOKIES_FILENAME = 'mdland-storage-state.enc'
+const ALGO = 'aes-256-gcm'
+
+function getCookieKey(): Buffer {
+  const raw = process.env.COOKIE_ENCRYPTION_KEY
+  if (!raw) throw new Error('COOKIE_ENCRYPTION_KEY env var is required')
+  return Buffer.from(raw, 'hex')
+}
+
+function encrypt(plaintext: string): Buffer {
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv(ALGO, getCookieKey(), iv)
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  // Format: [iv 12B][tag 16B][ciphertext]
+  return Buffer.concat([iv, tag, encrypted])
+}
+
+function decrypt(data: Buffer): string {
+  const iv = data.subarray(0, 12)
+  const tag = data.subarray(12, 28)
+  const ciphertext = data.subarray(28)
+  const decipher = crypto.createDecipheriv(ALGO, getCookieKey(), iv)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+}
 
 let currentJob: {
   batchId: string
@@ -69,11 +95,32 @@ export function hasCookies(): boolean {
 }
 
 export function saveCookies(storageState: unknown): void {
-  const dir = DATA_DIR
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true })
   }
-  fs.writeFileSync(cookiesPath(), JSON.stringify(storageState, null, 2))
+  const encrypted = encrypt(JSON.stringify(storageState))
+  fs.writeFileSync(cookiesPath(), encrypted)
+}
+
+export function loadCookies(): unknown {
+  const data = fs.readFileSync(cookiesPath())
+  return JSON.parse(decrypt(data))
+}
+
+/**
+ * Decrypt cookies to a temp file for Playwright, returns path.
+ * Caller must clean up via cleanupTempCookies().
+ */
+const TEMP_COOKIES = path.join(DATA_DIR, '.tmp-cookies.json')
+
+export function decryptCookiesToTempFile(): string {
+  const plain = JSON.stringify(loadCookies(), null, 2)
+  fs.writeFileSync(TEMP_COOKIES, plain, { mode: 0o600 })
+  return TEMP_COOKIES
+}
+
+export function cleanupTempCookies(): void {
+  try { fs.unlinkSync(TEMP_COOKIES) } catch { /* already gone */ }
 }
 
 export function getCookiesInfo(): { exists: boolean; updatedAt: string | null } {
@@ -140,7 +187,7 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
     '--headless',
     '--screenshot',
     '--api', apiBase,
-    '--state', cookiesPath(),
+    '--state', decryptCookiesToTempFile(),
   ]
 
   const now = new Date().toISOString()
@@ -190,6 +237,7 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
   })
 
   child.on('close', (code) => {
+    cleanupTempCookies()
     if (!currentJob) return
     currentJob.exitCode = code
     currentJob.finishedAt = new Date().toISOString()
@@ -199,6 +247,7 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
   })
 
   child.on('error', (err) => {
+    cleanupTempCookies()
     if (!currentJob) return
     currentJob.finishedAt = new Date().toISOString()
     currentJob.status = 'failed'

@@ -37,7 +37,7 @@ export function createBatchRouter(): Router {
   /**
    * POST /api/batch - 上传 Excel 并生成 SOAP
    */
-  router.post('/', upload.single('file'), (req: Request, res: Response) => {
+  router.post('/', upload.single('file'), async (req: Request, res: Response) => {
     try {
       if (!req.file) {
         res.status(400).json({ success: false, error: 'No file uploaded' })
@@ -48,7 +48,7 @@ export function createBatchRouter(): Router {
       const mode: BatchMode = req.body?.mode === 'soap-only' ? 'soap-only' : 'full'
 
       // 2. 解析 Excel
-      const rows = parseExcelBuffer(req.file.buffer)
+      const rows = await parseExcelBuffer(req.file.buffer)
 
       // 3. 解析患者 + 自动展开 visits
       const { patients, summary } = buildPatientsFromRows(rows, mode)

@@ -5,7 +5,7 @@
  * 运行: npx tsx scripts/create-template.ts
  */
 
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import path from 'path'
 import fs from 'fs'
 
@@ -66,78 +66,58 @@ const sampleRows = [
   ],
 ]
 
-const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows])
+const colWidths = [30, 8, 12, 14, 12, 20, 20, 12, 10, 10, 12, 16, 25, 20, 20, 35, 35, 12, 14, 20, 25]
 
-// 设置列宽
-ws['!cols'] = [
-  { wch: 30 },  // Patient
-  { wch: 8 },   // Gender
-  { wch: 12 },  // Insurance
-  { wch: 14 },  // BodyPart
-  { wch: 12 },  // Laterality
-  { wch: 20 },  // ICD
-  { wch: 20 },  // CPT
-  { wch: 12 },  // TotalVisits
-  { wch: 10 },  // PainWorst
-  { wch: 10 },  // PainBest
-  { wch: 12 },  // PainCurrent
-  { wch: 16 },  // SymptomDuration
-  { wch: 25 },  // PainRadiation
-  { wch: 20 },  // PainTypes
-  { wch: 20 },  // AssociatedSymptoms
-  { wch: 35 },  // CausativeFactors
-  { wch: 35 },  // RelievingFactors
-  { wch: 12 },  // SymptomScale
-  { wch: 14 },  // PainFrequency
-  { wch: 20 },  // SecondaryParts
-  { wch: 25 },  // History
-]
-
-const wb = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(wb, ws, 'Patients')
-
-// 添加说明 sheet
-const instructionData = [
+const instructionRows = [
+  ['=== Batch Template Instructions ==='],
+  ['Full Batch: fills ALL columns (ICD, CPT required)'],
+  ['SOAP Only: leave ICD & CPT empty, only SOAP notes generated'],
+  [],
   ['Column', 'Required', 'Description', 'Example', 'Valid Values'],
-  ['Patient', 'Yes', 'Name and DOB: NAME(MM/DD/YYYY)', 'CHEN,AIJIN(09/27/1956)', ''],
+  ['Patient', 'Yes', 'NAME(MM/DD/YYYY)', 'CHEN,AIJIN(09/27/1956)', ''],
   ['Gender', 'Yes', 'M or F', 'F', 'M, F'],
   ['Insurance', 'Yes', 'Insurance type', 'HF', 'HF, OPTUM, WC, VC, ELDERPLAN, NONE'],
-  ['BodyPart', 'Yes', 'Primary body part', 'LBP', 'LBP, NECK, SHOULDER, KNEE, ELBOW, HIP, MID_LOW_BACK, etc.'],
-  ['Laterality', 'Yes', 'Side', 'B', 'B (bilateral), L (left), R (right)'],
-  ['ICD', 'Yes', 'Comma-separated ICD-10 codes', 'M54.50,M54.41', ''],
-  ['CPT', 'No', 'Comma-separated CPT codes with units. Empty TX = auto-fill by insurance.', '97810,97811x3', ''],
-  ['TotalVisits', 'Yes', 'Total visits including IE. System generates 1 IE + (N-1) TX.', '12', '1-30'],
-  ['PainWorst', 'Default: 8', 'Worst pain level (0-10)', '8', '0-10'],
-  ['PainBest', 'Default: 3', 'Best pain level (0-10)', '3', '0-10'],
-  ['PainCurrent', 'Default: 6', 'Current pain level (0-10). Determines severity.', '6', '0-10'],
-  ['SymptomDuration', 'Default: 3 year(s)', 'How long symptoms have lasted', '3 year(s)', 'N year(s), N month(s), N week(s), N day(s)'],
-  ['PainRadiation', 'Default: without radiation', 'Pain radiation description', 'without radiation', 'without radiation, with radiation to R arm, with radiation to L arm, with dizziness, etc.'],
-  ['PainTypes', 'Default: Dull,Aching', 'Comma-separated pain types', 'Dull,Aching', 'Dull, Burning, Freezing, Shooting, Tingling, Stabbing, Aching, Squeezing, Cramping'],
-  ['AssociatedSymptoms', 'Default: soreness', 'Comma-separated symptoms', 'soreness', 'soreness, stiffness, heaviness, weakness, numbness'],
-  ['CausativeFactors', 'Default: age related', 'Comma-separated causes', 'age related/degenerative changes', 'age related/degenerative changes, weather change, poor sleep, prolong walking, etc.'],
-  ['RelievingFactors', 'Default: Changing positions,Resting,Massage', 'Comma-separated relief methods', 'Changing positions,Resting', 'Moving around, Changing positions, Stretching, Resting, Lying down, Applying heating pad, Massage, Medications'],
-  ['SymptomScale', 'Default: 70%-80%', 'Symptom percentage scale', '70%-80%', '10%, 10%-20%, 20%, ... 100%'],
-  ['PainFrequency', 'Default: Constant', 'Pain frequency (shorthand)', 'Constant', 'Intermittent, Occasional, Frequent, Constant'],
-  ['SecondaryParts', 'No', 'Comma-separated additional body parts', 'NECK,SHOULDER', ''],
-  ['History', 'No', 'Comma-separated medical history', 'Hypertension,Diabetes', 'Hypertension, Diabetes, Heart Disease, Pacemaker, Osteoporosis, Joint Replacement, etc.'],
+  ['BodyPart', 'Yes', 'Primary body part', 'LBP', 'LBP, NECK, SHOULDER, KNEE, etc.'],
+  ['Laterality', 'Yes', 'Side', 'B', 'B, L, R'],
+  ['ICD', 'Full only', 'Comma-separated ICD-10', 'M54.50,M54.41', ''],
+  ['CPT', 'Full only', 'CPT with units', '97810,97811x3', ''],
+  ['TotalVisits', 'Yes', '1 IE + (N-1) TX', '12', '1-30'],
+  ['PainWorst', 'Default: 8', '0-10', '8', ''],
+  ['PainBest', 'Default: 3', '0-10', '3', ''],
+  ['PainCurrent', 'Default: 6', '0-10, determines severity', '6', ''],
+  ['SymptomDuration', 'Default: 3 year(s)', 'N unit(s)', '3 year(s)', ''],
+  ['PainRadiation', 'Default: without', 'Radiation description', 'without radiation', ''],
+  ['PainTypes', 'Default: Dull,Aching', 'Comma-separated', 'Dull,Aching', ''],
+  ['AssociatedSymptoms', 'Default: soreness', 'Comma-separated', 'soreness', ''],
+  ['CausativeFactors', 'Default: age related', 'Comma-separated', 'age related/degenerative changes', ''],
+  ['RelievingFactors', 'Default: multiple', 'Comma-separated', 'Resting,Massage', ''],
+  ['SymptomScale', 'Default: 70%-80%', 'Percentage', '70%-80%', ''],
+  ['PainFrequency', 'Default: Constant', 'Shorthand', 'Constant', 'Intermittent, Occasional, Frequent, Constant'],
+  ['SecondaryParts', 'No', 'Additional body parts', 'NECK,SHOULDER', ''],
+  ['History', 'No', 'Medical history', 'Hypertension,Diabetes', ''],
 ]
 
-const wsInstructions = XLSX.utils.aoa_to_sheet(instructionData)
-wsInstructions['!cols'] = [
-  { wch: 20 },  // Column
-  { wch: 28 },  // Required
-  { wch: 55 },  // Description
-  { wch: 35 },  // Example
-  { wch: 65 },  // Valid Values
-]
-XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions')
+async function main() {
+  const wb = new ExcelJS.Workbook()
 
-const outDir = path.resolve(__dirname, '../templates')
-if (!fs.existsSync(outDir)) {
-  fs.mkdirSync(outDir, { recursive: true })
+  // Patients sheet
+  const ws = wb.addWorksheet('Patients')
+  ws.addRow(headers)
+  for (const row of sampleRows) ws.addRow(row)
+  ws.columns.forEach((col, i) => { col.width = colWidths[i] ?? 15 })
+
+  // Instructions sheet
+  const wsI = wb.addWorksheet('Instructions')
+  for (const row of instructionRows) wsI.addRow(row)
+  const iWidths = [20, 28, 55, 35, 65]
+  wsI.columns.forEach((col, i) => { col.width = iWidths[i] ?? 20 })
+
+  const outDir = path.resolve(__dirname, '../templates')
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
+
+  const outPath = path.join(outDir, 'batch-template.xlsx')
+  await wb.xlsx.writeFile(outPath)
+  process.stdout.write(`Template created: ${outPath}\n`)
 }
 
-const outPath = path.join(outDir, 'batch-template.xlsx')
-XLSX.writeFile(wb, outPath)
-
-console.log(`Template created: ${outPath}`)
+main()

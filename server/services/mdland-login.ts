@@ -6,8 +6,7 @@
  */
 
 import { chromium, type Browser } from 'playwright'
-import path from 'path'
-import fs from 'fs'
+import { saveCookies, loadCookies, hasCookies } from './automation-runner'
 
 // ── Types ────────────────────────────────────────
 
@@ -25,8 +24,6 @@ interface LoginOptions {
 // ── Constants ────────────────────────────────────
 
 const MDLAND_URL = 'https://ehr.mdland.net'
-const DATA_DIR = process.env.DATA_DIR || '/app/data'
-const COOKIES_FILENAME = 'mdland-storage-state.json'
 
 const DEFAULT_OPTIONS: LoginOptions = {
   headless: true,
@@ -44,22 +41,12 @@ const LOGIN_SELECTORS = {
 
 // ── Helpers ──────────────────────────────────────
 
-function cookiesFilePath(): string {
-  return path.join(DATA_DIR, COOKIES_FILENAME)
-}
-
-function saveCookiesToFile(storageState: { cookies: Array<{ domain: string }> }): number {
+function saveFilteredCookies(storageState: { cookies: Array<{ domain: string }> }): number {
   const mdlandCookies = storageState.cookies.filter(
     (c) => c.domain.includes('mdland')
   )
   const filteredState = { ...storageState, cookies: mdlandCookies }
-  const statePath = cookiesFilePath()
-
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true })
-  }
-  fs.writeFileSync(statePath, JSON.stringify(filteredState, null, 2))
-  console.log(`Saved ${mdlandCookies.length} cookies to ${statePath}`)
+  saveCookies(filteredState)
   return mdlandCookies.length
 }
 
@@ -69,14 +56,11 @@ async function tryWithSavedCookies(
   browser: Browser,
   opts: LoginOptions
 ): Promise<LoginResult | null> {
-  const statePath = cookiesFilePath()
-  if (!fs.existsSync(statePath)) {
-    console.log('No saved cookies found, will use credentials.')
+  if (!hasCookies()) {
     return null
   }
 
-  console.log('Found saved cookies, verifying session...')
-  const storageState = JSON.parse(fs.readFileSync(statePath, 'utf-8'))
+  const storageState = loadCookies() as { cookies: Array<{ domain: string }> }
 
   const context = await browser.newContext({
     viewport: { width: 1400, height: 900 },
@@ -103,7 +87,7 @@ async function tryWithSavedCookies(
     if (isLoggedIn) {
       console.log('Saved cookies still valid! Reusing session.')
       const freshState = await context.storageState()
-      const cookieCount = saveCookiesToFile(freshState)
+      const cookieCount = saveFilteredCookies(freshState)
       return { success: true, cookieCount }
     }
 
@@ -166,7 +150,7 @@ export async function loginToMDLand(
     if (alreadyLoggedIn) {
       console.log('Already logged in, saving session...')
       const storageState = await context.storageState()
-      const cookieCount = saveCookiesToFile(storageState)
+      const cookieCount = saveFilteredCookies(storageState)
       return { success: true, cookieCount }
     }
 
@@ -247,7 +231,7 @@ export async function loginToMDLand(
     console.log('Login successful, capturing session...')
 
     const storageState = await context.storageState()
-    const cookieCount = saveCookiesToFile(storageState)
+    const cookieCount = saveFilteredCookies(storageState)
 
     return { success: true, cookieCount }
   } catch (err) {

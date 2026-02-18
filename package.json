@@ -65,11 +65,11 @@
     "@types/express": "^5.0.6",
     "@types/multer": "^2.0.0",
     "cors": "^2.8.6",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "multer": "^2.0.2",
     "playwright": "^1.58.2",
-    "tsx": "^4.21.0",
-    "xlsx": "^0.18.5"
+    "tsx": "^4.21.0"
   }
 }
