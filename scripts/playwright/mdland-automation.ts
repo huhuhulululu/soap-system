@@ -767,7 +767,8 @@ class MDLandAutomation {
   async saveSOAP(): Promise<void> {
     console.log('  Saving SOAP...');
 
-    const result = await this.page.evaluate(async () => {
+    // Use jQuery $.ajax from within the iframe — identical to reallySubmit()
+    const result = await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
       const ptWin: any = pt?.contentWindow;
@@ -778,7 +779,7 @@ class MDLandAutomation {
       const form = (ptDoc as any).ecform;
       if (!form) throw new Error('ecform not found');
 
-      // Sync TinyMCE → form fields (same as reallySubmit)
+      // Sync TinyMCE → form fields (exactly like reallySubmit)
       for (let i = 0; i <= 4; i++) {
         const id = `SOAPtext${i}`;
         const ed = tinyMCE?.getInstanceById?.(id);
@@ -788,36 +789,58 @@ class MDLandAutomation {
       }
       form.isAjaxSave.value = '1';
 
-      // Serialize form and POST via iframe's fetch (correct origin)
-      const formData = new URLSearchParams(new FormData(form) as any).toString();
-      const iframeFetch = ptWin.fetch.bind(ptWin);
-      const resp = await iframeFetch('/eClinic/ov_ptnote2018.aspx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData,
+      const $ = ptWin.$;
+      if (!$) throw new Error('jQuery not available in ptnote iframe');
+
+      return new Promise<{ ok: boolean; data?: string }>((resolve) => {
+        $.ajax({
+          url: '/eClinic/ov_ptnote2018.aspx',
+          type: 'post',
+          dataType: 'json',
+          data: $("form").serialize(),
+          success: (json: any) => {
+            if (json?.Success === '1') {
+              ptWin.modified = 0;
+              resolve({ ok: true, data: 'saved' });
+            } else {
+              resolve({ ok: false, data: 'server returned failure' });
+            }
+          },
+          error: (_e: any) => {
+            resolve({ ok: false, data: 'ajax error' });
+          }
+        });
       });
-      const text = await resp.text();
-      let json: any = null;
-      try { json = JSON.parse(text); } catch {}
-      return { status: resp.status, ok: resp.ok, json, textSnippet: text.slice(0, 200) };
     });
 
-    console.log('  SOAP save response:', JSON.stringify(result));
+    console.log('  SOAP save result:', JSON.stringify(result));
 
-    if (result.json?.Success === '1') {
-      console.log('  SOAP saved successfully');
-    } else {
-      console.log('  SOAP save may have failed, continuing...');
+    if (!result.ok) {
+      console.log('  SOAP save via jQuery failed, retrying with fetch+XMLHttpRequest header...');
+      // Fallback: fetch with X-Requested-With header
+      const fallback = await this.page.evaluate(async () => {
+        const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
+        const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
+        const ptWin: any = pt?.contentWindow;
+        if (!ptWin) return { ok: false, text: 'no ptWin' };
+
+        const body = ptWin.$("form").serialize();
+        const resp = await ptWin.fetch.call(ptWin, '/eClinic/ov_ptnote2018.aspx', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body,
+        });
+        const text = await resp.text();
+        let json: any = null;
+        try { json = JSON.parse(text); } catch {}
+        return { ok: json?.Success === '1', text: text.slice(0, 200) };
+      });
+
+      console.log('  SOAP fallback result:', JSON.stringify(fallback));
     }
-
-    // Reload ptnote to reflect saved state
-    await this.page.evaluate(() => {
-      const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      if (pt?.contentWindow) {
-        (pt.contentWindow as any).location.reload();
-      }
-    });
 
     await this.page.waitForTimeout(2000);
   }
