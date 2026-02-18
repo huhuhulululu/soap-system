@@ -771,23 +771,35 @@ class MDLandAutomation {
     // Ensure TinyMCE content is synced, then click Save button
     await this.page.evaluate(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
-      const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
-      const ptDoc = pt?.contentDocument;
+      const wa0Doc = wa0?.contentDocument;
+      if (!wa0Doc) throw new Error('workarea0 not accessible');
+
+      // Sync TinyMCE in ptnote
+      const pt = wa0Doc.getElementById('ptnote') as HTMLIFrameElement;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ptWin: any = pt?.contentWindow;
-      if (!ptDoc || !ptWin) throw new Error('PT Note not accessible');
+      if (ptWin?.tinyMCE?.triggerSave) ptWin.tinyMCE.triggerSave();
 
-      // Sync TinyMCE editors to textareas before save
-      if (ptWin.tinyMCE?.triggerSave) ptWin.tinyMCE.triggerSave();
+      // Search all frames for #SavePage
+      const findSave = (doc: Document): { el: HTMLElement; win: Window } | null => {
+        const el = doc.getElementById('SavePage') as HTMLElement;
+        if (el) return { el, win: doc.defaultView || window };
+        for (const f of Array.from(doc.querySelectorAll('iframe, frame'))) {
+          try {
+            const fd = (f as HTMLIFrameElement).contentDocument;
+            if (fd) { const r = findSave(fd); if (r) return r; }
+          } catch { /* cross-origin */ }
+        }
+        return null;
+      };
 
-      // Find and click #SavePage with full mouse event chain (humanClick pattern)
-      const saveBtn = ptDoc.getElementById('SavePage');
-      if (!saveBtn) throw new Error('SavePage button not found in ptnote');
+      const save = findSave(document);
+      if (!save) throw new Error('SavePage not found in any frame');
 
       const events = ['mouseenter', 'mouseover', 'mousedown', 'mouseup', 'click'];
       for (const eventType of events) {
-        saveBtn.dispatchEvent(new MouseEvent(eventType, {
-          bubbles: true, cancelable: true, view: ptWin
+        save.el.dispatchEvent(new MouseEvent(eventType, {
+          bubbles: true, cancelable: true, view: save.win
         }));
       }
     });
