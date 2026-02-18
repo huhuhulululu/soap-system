@@ -128,7 +128,7 @@ export function loadCookies(): unknown {
 const TEMP_COOKIES = path.join(DATA_DIR, '.tmp-cookies.json')
 
 export function decryptCookiesToTempFile(): string {
-  const plain = JSON.stringify(loadCookies(), null, 2)
+  const plain = JSON.stringify(normalizeCookies(loadCookies()), null, 2)
   fs.writeFileSync(TEMP_COOKIES, plain, { mode: 0o600 })
   return TEMP_COOKIES
 }
