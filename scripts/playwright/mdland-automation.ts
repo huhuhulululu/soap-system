@@ -395,32 +395,36 @@ class MDLandAutomation {
    * 按 Appt Time 排序（升序）
    */
   async sortByApptTime(): Promise<void> {
-    console.log('  Sorting by Appt Time...');
+    console.log('  Sorting by Appt Time (ascending)...');
 
-    await this.page.evaluate(() => {
-      const searchFrames = (doc: Document): boolean => {
-        // Find the <td> containing "Appt Time" and click it
-        const tds = doc.querySelectorAll('td[onclick]');
-        for (const td of tds) {
-          if (td.textContent?.includes('Appt Time')) {
-            (td as HTMLElement).click();
-            return true;
+    const clickApptTime = async () => {
+      await this.page.evaluate(() => {
+        const search = (doc: Document): boolean => {
+          const tds = doc.querySelectorAll('td[onclick]');
+          for (const td of tds) {
+            if (td.textContent?.includes('Appt Time')) {
+              (td as HTMLElement).click();
+              return true;
+            }
           }
-        }
-        const iframes = Array.from(doc.querySelectorAll('iframe, frame'));
-        for (const iframe of iframes) {
-          try {
-            const fd = (iframe as HTMLIFrameElement).contentDocument;
-            if (fd && searchFrames(fd)) return true;
-          } catch { /* cross-origin */ }
-        }
-        return false;
-      };
-      return searchFrames(document);
-    });
+          for (const f of Array.from(doc.querySelectorAll('iframe, frame'))) {
+            try {
+              const fd = (f as HTMLIFrameElement).contentDocument;
+              if (fd && search(fd)) return true;
+            } catch { /* cross-origin */ }
+          }
+          return false;
+        };
+        return search(document);
+      });
+      await this.page.waitForTimeout(1500);
+    };
 
-    await this.page.waitForTimeout(2000);
-    console.log('  Sorted by Appt Time');
+    // Click twice: first click = descending, second click = ascending
+    await clickApptTime();
+    await clickApptTime();
+
+    console.log('  Sorted by Appt Time (ascending)');
   }
 
   /**
