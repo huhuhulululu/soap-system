@@ -92,6 +92,19 @@ export function getDefaultTXCPT(insurance: InsuranceType): readonly CPTWithUnits
 }
 
 /**
+ * 保险类型 → 默认 IE CPT（首诊）
+ * HF/VC: 99203 (Modifier 25 已内置于 MDLand 选项)
+ */
+const INSURANCE_IE_CPT: Partial<Record<InsuranceType, readonly CPTWithUnits[]>> = {
+  HF: [{ code: '99203', name: 'OFFICE O/P NEW LOW 30 MIN', units: 1 }],
+  VC: [{ code: '99203', name: 'OFFICE O/P NEW LOW 30 MIN', units: 1 }],
+}
+
+export function getDefaultIECPT(insurance: InsuranceType): readonly CPTWithUnits[] {
+  return INSURANCE_IE_CPT[insurance] ?? []
+}
+
+/**
  * 解析 CPT 字符串 (如 "97810,97811x3,97140x2")
  * 返回 CPTWithUnits 数组
  */
