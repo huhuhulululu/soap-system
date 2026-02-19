@@ -441,13 +441,28 @@ class MDLandScraper {
 
   /** Read SOAP text from ptnote TinyMCE iframes */
   private async readSOAPFromPTNote(): Promise<{ subjective: string; objective: string; assessment: string; plan: string }> {
-    return await this.page.evaluate(() => {
+    const result = await this.page.evaluate(() => {
       try {
         const wa = document.querySelector('iframe[name="workarea0"]') as HTMLIFrameElement
-        if (!wa?.contentDocument) return { subjective: '', objective: '', assessment: '', plan: '' }
+        if (!wa?.contentDocument) return { subjective: '', objective: '', assessment: '', plan: '', debug: 'no-workarea' }
         const ptnote = wa.contentDocument.querySelector('iframe[name="ptnote"]') as HTMLIFrameElement
-        if (!ptnote?.contentDocument) return { subjective: '', objective: '', assessment: '', plan: '' }
+        if (!ptnote?.contentDocument) return { subjective: '', objective: '', assessment: '', plan: '', debug: 'no-ptnote' }
         const ptDoc = ptnote.contentDocument
+
+        // Debug: list all iframes in ptnote
+        const allIframes = Array.from(ptDoc.querySelectorAll('iframe')).map(f => ({
+          id: f.id || '(no-id)',
+          name: f.name || '(no-name)',
+          hasBody: !!f.contentDocument?.body,
+          textLen: f.contentDocument?.body?.innerText?.trim().length || 0,
+        }))
+
+        // Debug: list all textareas
+        const allTextareas = Array.from(ptDoc.querySelectorAll('textarea')).map(t => ({
+          id: t.id || '(no-id)',
+          name: t.name || '(no-name)',
+          textLen: t.value?.length || 0,
+        }))
 
         function getIframeText(name: string): string {
           const iframe = ptDoc.querySelector('iframe[id="' + name + '"]') as HTMLIFrameElement
@@ -455,16 +470,38 @@ class MDLandScraper {
           return iframe.contentDocument.body.innerText?.trim() || ''
         }
 
-        return {
-          subjective: getIframeText('SOAPtext0_ifr'),
-          objective: getIframeText('SOAPtext1_ifr'),
-          assessment: getIframeText('SOAPtext2_ifr'),
-          plan: getIframeText('SOAPtext3_ifr'),
+        // Also try textarea fallback
+        function getTextareaText(name: string): string {
+          const ta = ptDoc.querySelector('textarea[id="' + name + '"]') as HTMLTextAreaElement
+          return ta?.value?.trim() || ''
         }
-      } catch {
-        return { subjective: '', objective: '', assessment: '', plan: '' }
+
+        const soap = {
+          subjective: getIframeText('SOAPtext0_ifr') || getTextareaText('SOAPtext0'),
+          objective: getIframeText('SOAPtext1_ifr') || getTextareaText('SOAPtext1'),
+          assessment: getIframeText('SOAPtext2_ifr') || getTextareaText('SOAPtext2'),
+          plan: getIframeText('SOAPtext3_ifr') || getTextareaText('SOAPtext3'),
+        }
+
+        return {
+          ...soap,
+          debug: JSON.stringify({ iframes: allIframes.slice(0, 10), textareas: allTextareas.slice(0, 10) }),
+        }
+      } catch (e) {
+        return { subjective: '', objective: '', assessment: '', plan: '', debug: `error: ${e}` }
       }
     })
+
+    if (result.debug) {
+      log(`      [soap-debug] ${result.debug.slice(0, 300)}`)
+    }
+
+    return {
+      subjective: result.subjective,
+      objective: result.objective,
+      assessment: result.assessment,
+      plan: result.plan,
+    }
   }
 
   private async extractSOAPAndCodes(): Promise<{
