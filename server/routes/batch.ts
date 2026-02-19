@@ -14,7 +14,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { parseExcelBuffer, buildPatientsFromRows } from '../services/excel-parser'
-import { generateBatch, generateContinueBatch, regenerateVisit } from '../services/batch-generator'
+import { generateBatch, generateContinueBatch, generateMixedBatch, regenerateVisit } from '../services/batch-generator'
 import { generateBatchId, saveBatch, getBatch, confirmBatch } from '../store/batch-store'
 import type { BatchData, BatchMode } from '../types'
 
@@ -65,30 +65,9 @@ export function createBatchRouter(): Router {
         summary,
       }
 
-      // 5. soap-only / continue: parse only, no generation yet
-      if (mode === 'soap-only' || mode === 'continue') {
-        saveBatch(batchData)
-        res.json({
-          success: true,
-          data: {
-            batchId,
-            totalPatients: summary.totalPatients,
-            totalVisits: summary.totalVisits,
-            totalGenerated: 0,
-            totalFailed: 0,
-            byType: summary.byType,
-          },
-        })
-        return
-      }
-
-      // 6. full mode: generate immediately
-      const result = generateBatch(batchData)
-      const finalBatch: BatchData = {
-        ...batchData,
-        patients: result.patients,
-      }
-      saveBatch(finalBatch)
+      // 5. Generate via mixed handler (supports per-patient modes)
+      const result = generateMixedBatch(batchData)
+      saveBatch({ ...batchData, patients: result.patients })
 
       res.json({
         success: true,
@@ -131,13 +110,8 @@ export function createBatchRouter(): Router {
         summary,
       }
 
-      if (mode === 'soap-only' || mode === 'continue') {
-        saveBatch(batchData)
-        res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: 0, totalFailed: 0, byType: summary.byType } })
-        return
-      }
-
-      const result = generateBatch(batchData)
+      // Always generate via mixed handler (supports per-patient modes)
+      const result = generateMixedBatch(batchData)
       saveBatch({ ...batchData, patients: result.patients })
       res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: result.totalGenerated, totalFailed: result.totalFailed, byType: summary.byType } })
     } catch (error) {
@@ -234,7 +208,7 @@ export function createBatchRouter(): Router {
         return
       }
 
-      const result = batch.mode === 'continue' ? generateContinueBatch(batch) : generateBatch(batch)
+      const result = generateMixedBatch(batch)
       const updatedBatch: BatchData = { ...batch, patients: result.patients }
       saveBatch(updatedBatch)
 

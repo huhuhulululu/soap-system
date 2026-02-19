@@ -26,7 +26,7 @@ const EMPTY_ROW = () => ({
   causativeFactors: '', relievingFactors: 'Changing positions,Resting',
   symptomScale: '70%-80%', painFrequency: 'Constant',
   secondaryParts: '', history: '', soapText: '',
-  chronicityLevel: 'Chronic', recentWorse: '1 week(s)',
+  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: '',
 })
 
 const drafts = ref([EMPTY_ROW()])
@@ -102,7 +102,8 @@ function patientLabel(d, i) {
 }
 
 function patientSummary(d) {
-  const parts = [d.insurance, d.bodyPart, d.laterality === 'B' ? 'Bilateral' : d.laterality === 'L' ? 'Left' : 'Right', `${d.totalVisits}v`].filter(Boolean)
+  const modeLabel = d.mode ? `[${d.mode}]` : ''
+  const parts = [modeLabel, d.insurance, d.bodyPart, d.laterality === 'B' ? 'Bilateral' : d.laterality === 'L' ? 'Left' : 'Right', `${d.totalVisits}v`].filter(Boolean)
   return parts.join(' / ')
 }
 
@@ -124,12 +125,6 @@ async function submitDrafts() {
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
     batchId.value = json.data.batchId
-
-    // Auto-generate for soap-only / continue (no manual step needed)
-    if (batchMode.value !== 'full') {
-      await fetch(`${API_BASE}/batch/${json.data.batchId}/generate`, { method: 'POST' })
-    }
-
     await loadBatch(json.data.batchId)
     step.value = 'review'
   } catch (err) {
@@ -756,8 +751,17 @@ onUnmounted(() => {
         <!-- Active Patient Form (horizontal compact) -->
         <div v-if="activeDraft" class="card p-4 space-y-3 ring-2 ring-ink-300">
 
-            <!-- Row 1: Identity -->
-            <div class="grid grid-cols-6 gap-2">
+            <!-- Row 1: Identity + Mode -->
+            <div class="grid grid-cols-7 gap-2">
+              <div>
+                <label class="text-xs text-ink-500 mb-0.5 block">Mode</label>
+                <select :value="activeDraft.mode || ''" @change="updateField('mode', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" :class="activeDraft.mode === 'continue' ? 'bg-teal-50 border-teal-300' : activeDraft.mode === 'soap-only' ? 'bg-purple-50 border-purple-300' : ''">
+                  <option value="">Default</option>
+                  <option value="full">Full</option>
+                  <option value="soap-only">SOAP Only</option>
+                  <option value="continue">Continue</option>
+                </select>
+              </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Patient *</label>
                 <input :value="activeDraft.patient" @input="updateField('patient', $event.target.value)" placeholder="LAST,FIRST(MM/DD/YYYY)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
@@ -795,7 +799,7 @@ onUnmounted(() => {
                 <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div class="col-span-2">
-                <label class="text-xs text-ink-500 mb-0.5 block">ICD{{ batchMode === 'full' ? ' *' : '' }}</label>
+                <label class="text-xs text-ink-500 mb-0.5 block">ICD{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
                 <input :value="activeDraft.icd" @input="updateField('icd', $event.target.value)" placeholder="M54.50,M54.41" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div class="col-span-2">
@@ -880,8 +884,8 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- SoapText (Continue mode) -->
-            <div v-if="batchMode === 'continue'">
+            <!-- SoapText (Continue mode - per patient or global) -->
+            <div v-if="activeDraft.mode === 'continue' || (!activeDraft.mode && batchMode === 'continue')">
               <label class="text-xs text-ink-500 mb-0.5 block">SoapText *</label>
               <textarea :value="activeDraft.soapText" @input="updateField('soapText', $event.target.value)" placeholder="Paste existing TX SOAP text..." rows="3" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400 resize-y font-mono"></textarea>
             </div>

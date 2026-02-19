@@ -292,6 +292,69 @@ export function generateContinueBatch(batch: BatchData): BatchGenerationResult {
 }
 
 /**
+ * Mixed mode: generate each patient according to its own mode field
+ */
+export function generateMixedBatch(batch: BatchData): BatchGenerationResult {
+  let totalGenerated = 0
+  let totalFailed = 0
+
+  const updatedPatients = batch.patients.map(patient => {
+    const mode = patient.mode ?? batch.mode ?? 'full'
+
+    if (mode === 'continue') {
+      // Reuse continue logic inline
+      if (!patient.soapText) {
+        return { ...patient, visits: patient.visits.map(v => ({ ...v, status: 'failed' as const })) }
+      }
+      const extracted = extractStateFromTX(patient.soapText)
+      const context = buildContextFromExtracted(extracted, {
+        insuranceType: patient.insurance,
+        age: patient.age,
+        gender: patient.gender,
+        medicalHistory: [...(patient.visits[0]?.history ?? [])],
+      })
+      const initialState = buildInitialStateFromExtracted(extracted)
+      const txVisits = patient.visits.filter(v => v.noteType === 'TX')
+      if (txVisits.length === 0) return patient
+
+      const options: TXSequenceOptions = {
+        txCount: txVisits.length + extracted.estimatedVisitIndex,
+        startVisitIndex: extracted.estimatedVisitIndex + 1,
+        seed: Math.floor(Math.random() * 100000),
+        initialState,
+      }
+      const results = exportTXSeriesAsText(context, options)
+      const generatedTX = txVisits.map((visit, i) => {
+        const result = results[i]
+        if (!result) { totalFailed++; return { ...visit, status: 'failed' as const } }
+        totalGenerated++
+        return { ...visit, generated: { soap: splitSOAPText(result.text), fullText: result.text, seed: options.seed ?? 0 }, status: 'done' as const }
+      })
+      const updatedVisits = patient.visits.map(v => generatedTX.find(g => g.index === v.index) ?? v)
+      return { ...patient, visits: updatedVisits }
+    }
+
+    // full / soap-only: use standard generation
+    const ieVisit = patient.visits.find(v => v.noteType === 'IE')
+    const txVisits = patient.visits.filter(v => v.noteType === 'TX')
+    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit) : undefined
+    const generatedTX = generateTXSeries(patient, txVisits, generatedIE)
+
+    const updatedVisits = patient.visits.map(v => {
+      if (v.noteType === 'IE' && generatedIE) return generatedIE
+      return generatedTX.find(g => g.index === v.index) ?? v
+    })
+    for (const v of updatedVisits) {
+      if (v.status === 'done') totalGenerated++
+      else if (v.status === 'failed') totalFailed++
+    }
+    return { ...patient, visits: updatedVisits }
+  })
+
+  return { batchId: batch.batchId, totalGenerated, totalFailed, patients: updatedPatients }
+}
+
+/**
  * 重新生成单个 visit 的 SOAP (用于用户调整后重新生成)
  */
 export function regenerateVisit(

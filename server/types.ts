@@ -55,6 +55,7 @@ export interface BatchPatient {
   readonly clinical: BatchPatientClinical
   readonly visits: BatchVisit[]
   readonly soapText?: string
+  readonly mode?: BatchMode
 }
 
 export type BatchMode = 'full' | 'soap-only' | 'continue'
@@ -97,4 +98,5 @@ export interface ExcelRow {
   readonly soapText: string
   readonly chronicityLevel: string
   readonly recentWorse: string
+  readonly mode?: string
 }

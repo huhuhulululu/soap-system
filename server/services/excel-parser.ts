@@ -240,6 +240,7 @@ function buildRowsFromRecords(records: Record<string, string>[]): ExcelRow[] {
       soapText: getString(['SoapText', 'soapText', 'SOAP', 'V']),
       chronicityLevel: getString(['ChronicityLevel', 'chronicityLevel', 'Chronicity', 'W']),
       recentWorse: getString(['RecentWorse', 'recentWorse', 'X']),
+      mode: getString(['Mode', 'mode', 'Y']),
     }
   })
 }
@@ -263,12 +264,13 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     const rowNum = i + 2
+    const rowMode = (row.mode === 'soap-only' || row.mode === 'continue' || row.mode === 'full') ? row.mode : mode
 
     if (!row.patient) errors.push(`Row ${rowNum}: Patient is required`)
     if (!row.gender || !['M', 'F'].includes(row.gender)) errors.push(`Row ${rowNum}: Gender must be M or F`)
     if (!VALID_INSURANCE.has(row.insurance)) errors.push(`Row ${rowNum}: Invalid insurance "${row.insurance}"`)
-    if (mode === 'full' && !row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
-    if (mode === 'continue' && !row.soapText) errors.push(`Row ${rowNum}: SoapText is required for continue mode`)
+    if (rowMode === 'full' && !row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
+    if (rowMode === 'continue' && !row.soapText) errors.push(`Row ${rowNum}: SoapText is required for continue mode`)
     if (row.totalVisits < 1) errors.push(`Row ${rowNum}: TotalVisits must be at least 1`)
   }
 
@@ -284,9 +286,10 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     const age = calculateAge(dob)
     const gender: 'Male' | 'Female' = row.gender === 'M' ? 'Male' : 'Female'
     const insurance = row.insurance as InsuranceType
+    const rowMode: BatchMode = (row.mode === 'soap-only' || row.mode === 'continue' || row.mode === 'full') ? row.mode : mode
 
     // ── Continue mode: extract from SOAP text ──
-    if (mode === 'continue') {
+    if (rowMode === 'continue') {
       const extracted = extractStateFromTX(row.soapText)
       const bodyPart = extracted.bodyPart
       const laterality = extracted.laterality
@@ -345,6 +348,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       return {
         name, dob, age, gender, insurance, clinical, visits,
         soapText: row.soapText,
+        mode: rowMode,
       }
     }
 
@@ -398,40 +402,44 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       ? row.history.split(',').map(h => h.trim()).filter(h => h && h.toUpperCase() !== 'N/A')
       : []
 
-    // Build visits: 1 IE + (totalVisits-1) TX
+    // Build visits based on rowMode
     const totalVisits = row.totalVisits
     const visits: BatchVisit[] = []
 
-    // IE visit (dos=1)
-    const ieCPT: CPTWithUnits[] = row.cpt.trim()
-      ? parseCPTString(row.cpt)
-      : []
+    if (rowMode === 'full') {
+      // IE visit (dos=1)
+      const ieCPT: CPTWithUnits[] = row.cpt.trim()
+        ? parseCPTString(row.cpt)
+        : []
 
-    visits.push({
-      index: 0,
-      dos: 1,
-      noteType: 'IE',
-      txNumber: null,
-      bodyPart,
-      laterality,
-      secondaryParts,
-      history,
-      icdCodes,
-      cptCodes: ieCPT,
-      generated: null,
-      status: 'pending',
-    })
-    byType['IE'] = (byType['IE'] ?? 0) + 1
+      visits.push({
+        index: 0,
+        dos: 1,
+        noteType: 'IE',
+        txNumber: null,
+        bodyPart,
+        laterality,
+        secondaryParts,
+        history,
+        icdCodes,
+        cptCodes: ieCPT,
+        generated: null,
+        status: 'pending',
+      })
+      byType['IE'] = (byType['IE'] ?? 0) + 1
+    }
 
-    // TX visits (dos=2..totalVisits)
-    for (let txIdx = 0; txIdx < totalVisits - 1; txIdx++) {
+    // TX visits
+    const txCount = rowMode === 'full' ? totalVisits - 1 : totalVisits
+    for (let txIdx = 0; txIdx < txCount; txIdx++) {
       const txCPT: CPTWithUnits[] = row.cpt.trim()
         ? parseCPTString(row.cpt)
         : [...getDefaultTXCPT(insurance)]
 
+      const offset = rowMode === 'full' ? 1 : 0
       visits.push({
-        index: txIdx + 1,
-        dos: txIdx + 2,
+        index: txIdx + offset,
+        dos: txIdx + offset + 1,
         noteType: 'TX',
         txNumber: txIdx + 1,
         bodyPart,
@@ -456,6 +464,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       insurance,
       clinical,
       visits,
+      mode: rowMode,
     }
   })
 
