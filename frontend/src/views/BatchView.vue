@@ -88,6 +88,24 @@ function updateField(key, value) {
   )
 }
 
+function saveAndNext() {
+  drafts.value = [...drafts.value, EMPTY_ROW()]
+  activeIndex.value = drafts.value.length - 1
+}
+
+function editPatient(i) {
+  activeIndex.value = i
+}
+
+function patientLabel(d, i) {
+  return d.patient || `Patient ${i + 1}`
+}
+
+function patientSummary(d) {
+  const parts = [d.insurance, d.bodyPart, d.laterality === 'B' ? 'Bilateral' : d.laterality === 'L' ? 'Left' : 'Right', `${d.totalVisits}v`].filter(Boolean)
+  return parts.join(' / ')
+}
+
 function clearDrafts() {
   drafts.value = [EMPTY_ROW()]
   activeIndex.value = 0
@@ -106,6 +124,12 @@ async function submitDrafts() {
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
     batchId.value = json.data.batchId
+
+    // Auto-generate for soap-only / continue (no manual step needed)
+    if (batchMode.value !== 'full') {
+      await fetch(`${API_BASE}/batch/${json.data.batchId}/generate`, { method: 'POST' })
+    }
+
     await loadBatch(json.data.batchId)
     step.value = 'review'
   } catch (err) {
@@ -702,192 +726,173 @@ onUnmounted(() => {
       </div>
 
       <!-- ═══ Patient Editor ═══ -->
-      <div v-if="inputMode === 'editor'" class="max-w-4xl mx-auto">
-        <div class="flex gap-4">
+      <div v-if="inputMode === 'editor'" class="max-w-7xl mx-auto">
 
-          <!-- Left: Patient List -->
-          <div class="w-56 flex-shrink-0 space-y-2">
+        <!-- Saved Patient Drawers -->
+        <div class="space-y-1 mb-3">
+          <div v-for="(d, i) in drafts" :key="i">
+            <!-- Collapsed drawer (non-active) -->
             <div
-              v-for="(d, i) in drafts" :key="i"
-              @click="activeIndex = i"
-              class="card px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors text-sm"
-              :class="i === activeIndex ? 'ring-2 ring-ink-400 bg-ink-50' : 'hover:bg-paper-100'"
+              v-if="i !== activeIndex"
+              class="card px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-paper-100 transition-colors"
+              @click="editPatient(i)"
             >
-              <span class="flex-1 truncate">{{ d.patient || `Patient ${i + 1}` }}</span>
-              <span class="text-xs text-ink-300">#{{ i + 1 }}</span>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex gap-1 pt-1">
-              <button @click="addPatient" class="flex-1 text-xs py-1.5 rounded-lg bg-ink-100 text-ink-600 hover:bg-ink-200 transition-colors">+ Add</button>
-              <button @click="duplicatePatient(activeIndex)" class="text-xs px-2 py-1.5 rounded-lg bg-ink-100 text-ink-600 hover:bg-ink-200 transition-colors">Copy</button>
-            </div>
-            <div class="flex gap-1">
-              <button @click="movePatient(activeIndex, -1)" :disabled="activeIndex === 0" class="flex-1 text-xs py-1 rounded-lg bg-paper-100 text-ink-400 hover:bg-ink-100 disabled:opacity-30">↑</button>
-              <button @click="movePatient(activeIndex, 1)" :disabled="activeIndex === drafts.length - 1" class="flex-1 text-xs py-1 rounded-lg bg-paper-100 text-ink-400 hover:bg-ink-100 disabled:opacity-30">↓</button>
-              <button @click="removePatient(activeIndex)" :disabled="drafts.length <= 1" class="flex-1 text-xs py-1 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 disabled:opacity-30">Del</button>
+              <span class="w-6 h-6 rounded-full bg-ink-100 text-ink-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{{ i + 1 }}</span>
+              <span class="font-medium text-sm text-ink-800 truncate min-w-0">{{ patientLabel(d, i) }}</span>
+              <span class="text-xs text-ink-400 truncate">{{ patientSummary(d) }}</span>
+              <div class="ml-auto flex items-center gap-1 flex-shrink-0">
+                <button @click.stop="duplicatePatient(i)" class="p-1 text-ink-300 hover:text-ink-600 rounded" title="Duplicate">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+                <button @click.stop="removePatient(i)" :disabled="drafts.length <= 1" class="p-1 text-ink-300 hover:text-red-500 rounded disabled:opacity-30" title="Remove">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <svg class="w-4 h-4 text-ink-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
             </div>
           </div>
+        </div>
 
-          <!-- Right: Form -->
-          <div v-if="activeDraft" class="flex-1 card p-5 space-y-4">
+        <!-- Active Patient Form (horizontal compact) -->
+        <div v-if="activeDraft" class="card p-4 space-y-3 ring-2 ring-ink-300">
 
-            <!-- Group: Basic -->
-            <div class="grid grid-cols-2 gap-3">
+            <!-- Row 1: Identity -->
+            <div class="grid grid-cols-6 gap-2">
               <div class="col-span-2">
-                <label class="text-xs font-medium text-ink-500 mb-1 block">Patient *</label>
-                <input :value="activeDraft.patient" @input="updateField('patient', $event.target.value)" placeholder="LAST,FIRST(MM/DD/YYYY)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Patient *</label>
+                <input :value="activeDraft.patient" @input="updateField('patient', $event.target.value)" placeholder="LAST,FIRST(MM/DD/YYYY)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">Gender *</label>
-                <select :value="activeDraft.gender" @change="updateField('gender', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
-                  <option value="F">Female</option>
-                  <option value="M">Male</option>
+                <label class="text-xs text-ink-500 mb-0.5 block">Gender *</label>
+                <select :value="activeDraft.gender" @change="updateField('gender', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                  <option value="F">F</option><option value="M">M</option>
                 </select>
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">Insurance *</label>
-                <select :value="activeDraft.insurance" @change="updateField('insurance', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                <label class="text-xs text-ink-500 mb-0.5 block">Insurance *</label>
+                <select :value="activeDraft.insurance" @change="updateField('insurance', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="ins in ['HF','OPTUM','WC','VC','ELDERPLAN','NONE']" :key="ins" :value="ins">{{ ins }}</option>
                 </select>
               </div>
-            </div>
-
-            <!-- Group: Body -->
-            <div class="grid grid-cols-3 gap-3">
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">BodyPart *</label>
-                <select :value="activeDraft.bodyPart" @change="updateField('bodyPart', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                <label class="text-xs text-ink-500 mb-0.5 block">BodyPart *</label>
+                <select :value="activeDraft.bodyPart" @change="updateField('bodyPart', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="bp in ['LBP','NECK','UPPER_BACK','MIDDLE_BACK','MID_LOW_BACK','SHOULDER','ELBOW','WRIST','HAND','HIP','KNEE','ANKLE','FOOT']" :key="bp" :value="bp">{{ bp }}</option>
                 </select>
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">Laterality *</label>
-                <select :value="activeDraft.laterality" @change="updateField('laterality', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
-                  <option value="B">Bilateral</option>
-                  <option value="L">Left</option>
-                  <option value="R">Right</option>
+                <label class="text-xs text-ink-500 mb-0.5 block">Side *</label>
+                <select :value="activeDraft.laterality" @change="updateField('laterality', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                  <option value="B">Bilateral</option><option value="L">Left</option><option value="R">Right</option>
                 </select>
               </div>
+            </div>
+
+            <!-- Row 2: Visits + Diagnosis + Chronicity -->
+            <div class="grid grid-cols-6 gap-2">
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">TotalVisits *</label>
-                <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Visits *</label>
+                <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">ICD{{ batchMode === 'full' ? ' *' : '' }}</label>
+                <input :value="activeDraft.icd" @input="updateField('icd', $event.target.value)" placeholder="M54.50,M54.41" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">CPT</label>
+                <input :value="activeDraft.cpt" @input="updateField('cpt', $event.target.value)" placeholder="97810,97811x3" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs text-ink-500 mb-0.5 block">Chronicity</label>
+                <select :value="activeDraft.chronicityLevel" @change="updateField('chronicityLevel', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                  <option v-for="c in ['Chronic','Sub Acute','Acute']" :key="c" :value="c">{{ c }}</option>
+                </select>
               </div>
             </div>
 
-            <!-- Group: Diagnosis -->
-            <div class="grid grid-cols-2 gap-3">
+            <!-- Row 3: Pain -->
+            <div class="grid grid-cols-6 gap-2">
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">ICD{{ batchMode === 'full' ? ' *' : '' }}</label>
-                <input :value="activeDraft.icd" @input="updateField('icd', $event.target.value)" placeholder="M54.50,M54.41" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Worst</label>
+                <input :value="activeDraft.painWorst" @input="updateField('painWorst', $event.target.value)" placeholder="8" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">CPT</label>
-                <input :value="activeDraft.cpt" @input="updateField('cpt', $event.target.value)" placeholder="97810,97811x3" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              </div>
-            </div>
-
-            <!-- Group: Pain -->
-            <div class="grid grid-cols-3 gap-3">
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">PainWorst</label>
-                <input :value="activeDraft.painWorst" @input="updateField('painWorst', $event.target.value)" placeholder="8" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Best</label>
+                <input :value="activeDraft.painBest" @input="updateField('painBest', $event.target.value)" placeholder="3" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">PainBest</label>
-                <input :value="activeDraft.painBest" @input="updateField('painBest', $event.target.value)" placeholder="3" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Current</label>
+                <input :value="activeDraft.painCurrent" @input="updateField('painCurrent', $event.target.value)" placeholder="6" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">PainCurrent</label>
-                <input :value="activeDraft.painCurrent" @input="updateField('painCurrent', $event.target.value)" placeholder="6" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              </div>
-            </div>
-
-            <!-- Group: Pain details -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">PainFrequency</label>
-                <select :value="activeDraft.painFrequency" @change="updateField('painFrequency', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                <label class="text-xs text-ink-500 mb-0.5 block">Frequency</label>
+                <select :value="activeDraft.painFrequency" @change="updateField('painFrequency', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="f in ['Constant','Frequent','Occasional','Intermittent']" :key="f" :value="f">{{ f }}</option>
                 </select>
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">SymptomDuration</label>
-                <input :value="activeDraft.symptomDuration" @input="updateField('symptomDuration', $event.target.value)" placeholder="3 year(s)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Duration</label>
+                <input :value="activeDraft.symptomDuration" @input="updateField('symptomDuration', $event.target.value)" placeholder="3 year(s)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs text-ink-500 mb-0.5 block">Scale</label>
+                <input :value="activeDraft.symptomScale" @input="updateField('symptomScale', $event.target.value)" placeholder="70%-80%" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
             </div>
 
-            <!-- Group: Symptoms -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">PainRadiation</label>
-                <input :value="activeDraft.painRadiation" @input="updateField('painRadiation', $event.target.value)" placeholder="without radiation" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+            <!-- Row 4: Symptoms -->
+            <div class="grid grid-cols-6 gap-2">
+              <div class="col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">Radiation</label>
+                <input :value="activeDraft.painRadiation" @input="updateField('painRadiation', $event.target.value)" placeholder="without radiation" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">PainTypes</label>
+                <input :value="activeDraft.painTypes" @input="updateField('painTypes', $event.target.value)" placeholder="Dull,Aching" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">PainTypes</label>
-                <input :value="activeDraft.painTypes" @input="updateField('painTypes', $event.target.value)" placeholder="Dull,Aching" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Symptoms</label>
+                <input :value="activeDraft.associatedSymptoms" @input="updateField('associatedSymptoms', $event.target.value)" placeholder="soreness" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">AssociatedSymptoms</label>
-                <input :value="activeDraft.associatedSymptoms" @input="updateField('associatedSymptoms', $event.target.value)" placeholder="soreness,stiffness" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              </div>
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">SymptomScale</label>
-                <input :value="activeDraft.symptomScale" @input="updateField('symptomScale', $event.target.value)" placeholder="70%-80%" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              </div>
-            </div>
-
-            <!-- Group: Factors -->
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">CausativeFactors</label>
-                <input :value="activeDraft.causativeFactors" @input="updateField('causativeFactors', $event.target.value)" placeholder="age related/degenerative changes" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              </div>
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">RelievingFactors</label>
-                <input :value="activeDraft.relievingFactors" @input="updateField('relievingFactors', $event.target.value)" placeholder="Changing positions,Resting" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">RecentWorse</label>
+                <input :value="activeDraft.recentWorse" @input="updateField('recentWorse', $event.target.value)" placeholder="1 week(s)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
             </div>
 
-            <!-- Group: Chronicity -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">ChronicityLevel</label>
-                <select :value="activeDraft.chronicityLevel" @change="updateField('chronicityLevel', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
-                  <option v-for="c in ['Chronic','Sub Acute','Acute']" :key="c" :value="c">{{ c }}</option>
-                </select>
+            <!-- Row 5: Factors + Other -->
+            <div class="grid grid-cols-6 gap-2">
+              <div class="col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">CausativeFactors</label>
+                <input :value="activeDraft.causativeFactors" @input="updateField('causativeFactors', $event.target.value)" placeholder="age related/degenerative" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">RelievingFactors</label>
+                <input :value="activeDraft.relievingFactors" @input="updateField('relievingFactors', $event.target.value)" placeholder="Changing positions,Resting" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">RecentWorse</label>
-                <input :value="activeDraft.recentWorse" @input="updateField('recentWorse', $event.target.value)" placeholder="1 week(s)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
-              </div>
-            </div>
-
-            <!-- Group: Other -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">SecondaryParts</label>
-                <input :value="activeDraft.secondaryParts" @input="updateField('secondaryParts', $event.target.value)" placeholder="NECK" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Secondary</label>
+                <input :value="activeDraft.secondaryParts" @input="updateField('secondaryParts', $event.target.value)" placeholder="NECK" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-ink-500 mb-1 block">History</label>
-                <input :value="activeDraft.history" @input="updateField('history', $event.target.value)" placeholder="Hypertension,Diabetes" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">History</label>
+                <input :value="activeDraft.history" @input="updateField('history', $event.target.value)" placeholder="HTN,DM" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
             </div>
 
             <!-- SoapText (Continue mode) -->
             <div v-if="batchMode === 'continue'">
-              <label class="text-xs font-medium text-ink-500 mb-1 block">SoapText *</label>
-              <textarea :value="activeDraft.soapText" @input="updateField('soapText', $event.target.value)" placeholder="Paste existing TX SOAP text..." rows="4" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y font-mono"></textarea>
+              <label class="text-xs text-ink-500 mb-0.5 block">SoapText *</label>
+              <textarea :value="activeDraft.soapText" @input="updateField('soapText', $event.target.value)" placeholder="Paste existing TX SOAP text..." rows="3" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400 resize-y font-mono"></textarea>
             </div>
           </div>
-        </div>
 
         <!-- Submit Bar -->
-        <div class="mt-4 flex items-center justify-between">
+        <div class="mt-3 flex items-center justify-between">
           <div class="text-sm text-ink-400">{{ drafts.length }} patient{{ drafts.length > 1 ? 's' : '' }}</div>
           <div class="flex gap-2">
             <button @click="clearDrafts" class="text-xs px-3 py-2 rounded-lg text-ink-400 hover:text-ink-600 hover:bg-ink-100 transition-colors">Clear All</button>
+            <button @click="saveAndNext" class="btn-secondary text-sm">Save & Next</button>
             <button
               @click="submitDrafts"
               :disabled="loading || drafts.length === 0"
@@ -895,7 +900,7 @@ onUnmounted(() => {
               :class="{ 'opacity-60 cursor-not-allowed': loading }"
             >
               <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              <span>{{ loading ? 'Generating...' : 'Generate SOAP' }}</span>
+              <span>{{ loading ? 'Generating...' : 'Submit All' }}</span>
             </button>
           </div>
         </div>
@@ -1064,39 +1069,8 @@ onUnmounted(() => {
             {{ copiedAll ? 'Copied!' : 'Copy All' }}
           </button>
 
-          <!-- Generate button (soap-only / continue: before generation) -->
+          <!-- Confirm button -->
           <button
-            v-if="needsGenerateStep && !allVisitsGenerated"
-            @click="generateAll"
-            :disabled="generating"
-            class="btn-primary text-sm flex items-center gap-2"
-            :class="{ 'opacity-60 cursor-not-allowed': generating }"
-          >
-            <svg v-if="generating" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-            </svg>
-            <span>{{ generating ? 'Generating...' : 'Generate SOAP' }}</span>
-          </button>
-
-          <!-- Save/Confirm button (soap-only / continue: after generation) -->
-          <button
-            v-if="needsGenerateStep && allVisitsGenerated"
-            @click="confirmBatch"
-            :disabled="loading"
-            class="btn-primary text-sm flex items-center gap-2"
-            :class="{ 'opacity-60 cursor-not-allowed': loading }"
-          >
-            <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-            </svg>
-            <span>Save</span>
-          </button>
-
-          <!-- Full mode: Confirm button -->
-          <button
-            v-if="!needsGenerateStep"
             @click="confirmBatch"
             :disabled="loading || !allVisitsGenerated"
             class="btn-primary text-sm flex items-center gap-2"
@@ -1106,7 +1080,7 @@ onUnmounted(() => {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
             </svg>
-            <span>Confirm Batch</span>
+            <span>{{ loading ? 'Confirming...' : 'Confirm Batch' }}</span>
           </button>
         </div>
       </div>
