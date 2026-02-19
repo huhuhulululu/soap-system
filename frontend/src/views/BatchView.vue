@@ -12,6 +12,108 @@ const error = ref('')
 // Mode
 const batchMode = ref('full') // 'full' | 'soap-only' | 'continue'
 
+// Input mode
+const inputMode = ref('editor') // 'editor' | 'excel'
+
+// ── Patient Editor ──────────────────────────────
+const STORAGE_KEY = 'soap-batch-drafts'
+const EMPTY_ROW = () => ({
+  patient: '', gender: 'F', insurance: 'HF', bodyPart: 'LBP', laterality: 'B',
+  icd: '', cpt: '', totalVisits: 12,
+  painWorst: '8', painBest: '3', painCurrent: '6',
+  symptomDuration: '3 year(s)', painRadiation: 'without radiation',
+  painTypes: 'Dull,Aching', associatedSymptoms: 'soreness',
+  causativeFactors: '', relievingFactors: 'Changing positions,Resting',
+  symptomScale: '70%-80%', painFrequency: 'Constant',
+  secondaryParts: '', history: '', soapText: '',
+})
+
+const drafts = ref([EMPTY_ROW()])
+const activeIndex = ref(0)
+const activeDraft = computed(() => drafts.value[activeIndex.value])
+
+function loadDrafts() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        drafts.value = parsed
+        return
+      }
+    }
+  } catch { /* ignore */ }
+  drafts.value = [EMPTY_ROW()]
+}
+
+let saveTimer = null
+function saveDrafts() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts.value))
+  }, 500)
+}
+watch(drafts, saveDrafts, { deep: true })
+
+function addPatient() {
+  drafts.value = [...drafts.value, EMPTY_ROW()]
+  activeIndex.value = drafts.value.length - 1
+}
+
+function removePatient(i) {
+  if (drafts.value.length <= 1) return
+  drafts.value = drafts.value.filter((_, idx) => idx !== i)
+  if (activeIndex.value >= drafts.value.length) activeIndex.value = drafts.value.length - 1
+}
+
+function duplicatePatient(i) {
+  const copy = { ...drafts.value[i] }
+  drafts.value = [...drafts.value.slice(0, i + 1), copy, ...drafts.value.slice(i + 1)]
+  activeIndex.value = i + 1
+}
+
+function movePatient(i, dir) {
+  const j = i + dir
+  if (j < 0 || j >= drafts.value.length) return
+  const arr = [...drafts.value]
+  ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  drafts.value = arr
+  activeIndex.value = j
+}
+
+function updateField(key, value) {
+  drafts.value = drafts.value.map((d, i) =>
+    i === activeIndex.value ? { ...d, [key]: value } : d
+  )
+}
+
+function clearDrafts() {
+  drafts.value = [EMPTY_ROW()]
+  activeIndex.value = 0
+  localStorage.removeItem(STORAGE_KEY)
+}
+
+async function submitDrafts() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await fetch(`${API_BASE}/batch/json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: drafts.value, mode: batchMode.value }),
+    })
+    const json = await res.json()
+    if (!json.success) { error.value = json.error || 'Submit failed'; return }
+    batchId.value = json.data.batchId
+    await loadBatch(json.data.batchId)
+    step.value = 'review'
+  } catch (err) {
+    error.value = err.message || 'Network error'
+  } finally {
+    loading.value = false
+  }
+}
+
 // Upload
 const isDragging = ref(false)
 const selectedFile = ref(null)
@@ -530,6 +632,7 @@ watch(error, (val) => {
 
 onMounted(() => {
   checkCookies()
+  loadDrafts()
 })
 
 onUnmounted(() => {
@@ -549,7 +652,7 @@ onUnmounted(() => {
           Batch SOAP
         </h1>
         <p class="text-ink-500">
-          Upload an Excel file to batch generate SOAP notes
+          Create batch SOAP notes from form or Excel
         </p>
       </div>
 
@@ -583,8 +686,208 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Upload Zone -->
-      <div class="max-w-2xl mx-auto">
+      <!-- Input Mode Tabs -->
+      <div class="max-w-2xl mx-auto mb-6 flex gap-2 justify-center">
+        <button
+          @click="inputMode = 'editor'"
+          class="px-4 py-2 text-sm rounded-lg transition-colors"
+          :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800 font-medium' : 'text-ink-400 hover:text-ink-600'"
+        >Patient Editor</button>
+        <button
+          @click="inputMode = 'excel'"
+          class="px-4 py-2 text-sm rounded-lg transition-colors"
+          :class="inputMode === 'excel' ? 'bg-ink-100 text-ink-800 font-medium' : 'text-ink-400 hover:text-ink-600'"
+        >Excel Upload</button>
+      </div>
+
+      <!-- ═══ Patient Editor ═══ -->
+      <div v-if="inputMode === 'editor'" class="max-w-4xl mx-auto">
+        <div class="flex gap-4">
+
+          <!-- Left: Patient List -->
+          <div class="w-56 flex-shrink-0 space-y-2">
+            <div
+              v-for="(d, i) in drafts" :key="i"
+              @click="activeIndex = i"
+              class="card px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors text-sm"
+              :class="i === activeIndex ? 'ring-2 ring-ink-400 bg-ink-50' : 'hover:bg-paper-100'"
+            >
+              <span class="flex-1 truncate">{{ d.patient || `Patient ${i + 1}` }}</span>
+              <span class="text-xs text-ink-300">#{{ i + 1 }}</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-1 pt-1">
+              <button @click="addPatient" class="flex-1 text-xs py-1.5 rounded-lg bg-ink-100 text-ink-600 hover:bg-ink-200 transition-colors">+ Add</button>
+              <button @click="duplicatePatient(activeIndex)" class="text-xs px-2 py-1.5 rounded-lg bg-ink-100 text-ink-600 hover:bg-ink-200 transition-colors">Copy</button>
+            </div>
+            <div class="flex gap-1">
+              <button @click="movePatient(activeIndex, -1)" :disabled="activeIndex === 0" class="flex-1 text-xs py-1 rounded-lg bg-paper-100 text-ink-400 hover:bg-ink-100 disabled:opacity-30">↑</button>
+              <button @click="movePatient(activeIndex, 1)" :disabled="activeIndex === drafts.length - 1" class="flex-1 text-xs py-1 rounded-lg bg-paper-100 text-ink-400 hover:bg-ink-100 disabled:opacity-30">↓</button>
+              <button @click="removePatient(activeIndex)" :disabled="drafts.length <= 1" class="flex-1 text-xs py-1 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 disabled:opacity-30">Del</button>
+            </div>
+          </div>
+
+          <!-- Right: Form -->
+          <div v-if="activeDraft" class="flex-1 card p-5 space-y-4">
+
+            <!-- Group: Basic -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="col-span-2">
+                <label class="text-xs font-medium text-ink-500 mb-1 block">Patient *</label>
+                <input :value="activeDraft.patient" @input="updateField('patient', $event.target.value)" placeholder="LAST,FIRST(MM/DD/YYYY)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">Gender *</label>
+                <select :value="activeDraft.gender" @change="updateField('gender', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                  <option value="F">Female</option>
+                  <option value="M">Male</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">Insurance *</label>
+                <select :value="activeDraft.insurance" @change="updateField('insurance', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                  <option v-for="ins in ['HF','OPTUM','WC','VC','ELDERPLAN','NONE']" :key="ins" :value="ins">{{ ins }}</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Group: Body -->
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">BodyPart *</label>
+                <select :value="activeDraft.bodyPart" @change="updateField('bodyPart', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                  <option v-for="bp in ['LBP','NECK','UPPER_BACK','MIDDLE_BACK','MID_LOW_BACK','SHOULDER','ELBOW','WRIST','HAND','HIP','KNEE','ANKLE','FOOT']" :key="bp" :value="bp">{{ bp }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">Laterality *</label>
+                <select :value="activeDraft.laterality" @change="updateField('laterality', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                  <option value="B">Bilateral</option>
+                  <option value="L">Left</option>
+                  <option value="R">Right</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">TotalVisits *</label>
+                <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Diagnosis -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">ICD{{ batchMode === 'full' ? ' *' : '' }}</label>
+                <input :value="activeDraft.icd" @input="updateField('icd', $event.target.value)" placeholder="M54.50,M54.41" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">CPT</label>
+                <input :value="activeDraft.cpt" @input="updateField('cpt', $event.target.value)" placeholder="97810,97811x3" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Pain -->
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">PainWorst</label>
+                <input :value="activeDraft.painWorst" @input="updateField('painWorst', $event.target.value)" placeholder="8" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">PainBest</label>
+                <input :value="activeDraft.painBest" @input="updateField('painBest', $event.target.value)" placeholder="3" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">PainCurrent</label>
+                <input :value="activeDraft.painCurrent" @input="updateField('painCurrent', $event.target.value)" placeholder="6" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Pain details -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">PainFrequency</label>
+                <select :value="activeDraft.painFrequency" @change="updateField('painFrequency', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                  <option v-for="f in ['Constant','Frequent','Occasional','Intermittent']" :key="f" :value="f">{{ f }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">SymptomDuration</label>
+                <input :value="activeDraft.symptomDuration" @input="updateField('symptomDuration', $event.target.value)" placeholder="3 year(s)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Symptoms -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">PainRadiation</label>
+                <input :value="activeDraft.painRadiation" @input="updateField('painRadiation', $event.target.value)" placeholder="without radiation" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">PainTypes</label>
+                <input :value="activeDraft.painTypes" @input="updateField('painTypes', $event.target.value)" placeholder="Dull,Aching" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">AssociatedSymptoms</label>
+                <input :value="activeDraft.associatedSymptoms" @input="updateField('associatedSymptoms', $event.target.value)" placeholder="soreness,stiffness" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">SymptomScale</label>
+                <input :value="activeDraft.symptomScale" @input="updateField('symptomScale', $event.target.value)" placeholder="70%-80%" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Factors -->
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">CausativeFactors</label>
+                <input :value="activeDraft.causativeFactors" @input="updateField('causativeFactors', $event.target.value)" placeholder="age related/degenerative changes" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">RelievingFactors</label>
+                <input :value="activeDraft.relievingFactors" @input="updateField('relievingFactors', $event.target.value)" placeholder="Changing positions,Resting" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Other -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">SecondaryParts</label>
+                <input :value="activeDraft.secondaryParts" @input="updateField('secondaryParts', $event.target.value)" placeholder="NECK" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">History</label>
+                <input :value="activeDraft.history" @input="updateField('history', $event.target.value)" placeholder="Hypertension,Diabetes" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- SoapText (Continue mode) -->
+            <div v-if="batchMode === 'continue'">
+              <label class="text-xs font-medium text-ink-500 mb-1 block">SoapText *</label>
+              <textarea :value="activeDraft.soapText" @input="updateField('soapText', $event.target.value)" placeholder="Paste existing TX SOAP text..." rows="4" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y font-mono"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Bar -->
+        <div class="mt-4 flex items-center justify-between">
+          <div class="text-sm text-ink-400">{{ drafts.length }} patient{{ drafts.length > 1 ? 's' : '' }}</div>
+          <div class="flex gap-2">
+            <button @click="clearDrafts" class="text-xs px-3 py-2 rounded-lg text-ink-400 hover:text-ink-600 hover:bg-ink-100 transition-colors">Clear All</button>
+            <button
+              @click="submitDrafts"
+              :disabled="loading || drafts.length === 0"
+              class="btn-primary flex items-center gap-2"
+              :class="{ 'opacity-60 cursor-not-allowed': loading }"
+            >
+              <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <span>{{ loading ? 'Generating...' : 'Generate SOAP' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Excel Upload (backup) ═══ -->
+      <div v-if="inputMode === 'excel'" class="max-w-2xl mx-auto">
         <div
           v-if="!selectedFile"
           @dragover="handleDragOver"

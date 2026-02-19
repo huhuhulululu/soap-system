@@ -108,6 +108,45 @@ export function createBatchRouter(): Router {
   })
 
   /**
+   * POST /api/batch/json - JSON 提交患者数据 (网页表单)
+   */
+  router.post('/json', async (req: Request, res: Response) => {
+    try {
+      const { rows, mode: rawMode } = req.body ?? {}
+      if (!Array.isArray(rows) || rows.length === 0) {
+        res.status(400).json({ success: false, error: 'rows[] is required' })
+        return
+      }
+
+      const mode: BatchMode = rawMode === 'soap-only' ? 'soap-only' : rawMode === 'continue' ? 'continue' : 'full'
+      const { patients, summary } = buildPatientsFromRows(rows, mode)
+
+      const batchId = generateBatchId()
+      const batchData: BatchData = {
+        batchId,
+        createdAt: new Date().toISOString(),
+        mode,
+        confirmed: false,
+        patients,
+        summary,
+      }
+
+      if (mode === 'soap-only' || mode === 'continue') {
+        saveBatch(batchData)
+        res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: 0, totalFailed: 0, byType: summary.byType } })
+        return
+      }
+
+      const result = generateBatch(batchData)
+      saveBatch({ ...batchData, patients: result.patients })
+      res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: result.totalGenerated, totalFailed: result.totalFailed, byType: summary.byType } })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      res.status(400).json({ success: false, error: message })
+    }
+  })
+
+  /**
    * GET /api/batch/:id - 获取 batch 详情
    */
   router.get('/:id', (req: Request, res: Response) => {
