@@ -700,58 +700,40 @@ onUnmounted(() => {
     <!-- ════════════ STEP 1: Upload ════════════ -->
     <div v-if="step === 'upload'">
 
-      <!-- Header -->
-      <div class="mb-8 text-center">
-        <h1 class="font-display text-3xl font-bold text-ink-800 mb-2">
-          Batch SOAP
-        </h1>
-        <p class="text-ink-500">
-          Create batch SOAP notes from form or Excel
-        </p>
-      </div>
-
-      <!-- Mode Selector -->
-      <div class="max-w-2xl mx-auto mb-6">
-        <div class="flex rounded-xl border border-ink-200 overflow-hidden">
-          <button
-            @click="batchMode = 'full'"
-            class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
-            :class="batchMode === 'full' ? 'bg-ink-800 text-white' : 'bg-white text-ink-600 hover:bg-paper-100'"
-          >
-            Full Batch
-            <span class="block text-xs mt-0.5 opacity-70">SOAP + ICD + CPT + Billing</span>
-          </button>
-          <button
-            @click="batchMode = 'soap-only'"
-            class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
-            :class="batchMode === 'soap-only' ? 'bg-ink-800 text-white' : 'bg-white text-ink-600 hover:bg-paper-100'"
-          >
-            SOAP Only
-            <span class="block text-xs mt-0.5 opacity-70">Generate SOAP notes only</span>
-          </button>
-          <button
-            @click="batchMode = 'continue'"
-            class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
-            :class="batchMode === 'continue' ? 'bg-ink-800 text-white' : 'bg-white text-ink-600 hover:bg-paper-100'"
-          >
-            Continue
-            <span class="block text-xs mt-0.5 opacity-70">Continue from TX SOAP text</span>
-          </button>
+      <!-- Compact Header Bar -->
+      <div class="max-w-7xl mx-auto mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <h1 class="font-display text-lg font-bold text-ink-800">Batch SOAP</h1>
+        <div class="flex items-center gap-2">
+          <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
+            <button v-for="m in [{k:'full',l:'Full'},{k:'soap-only',l:'SOAP Only'},{k:'continue',l:'Continue'}]" :key="m.k" @click="batchMode = m.k" class="px-3 py-1.5 font-medium transition-colors" :class="batchMode === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">{{ m.l }}</button>
+          </div>
+          <span class="text-ink-200">|</span>
+          <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
+            <button @click="inputMode = 'editor'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800' : 'text-ink-400 hover:text-ink-600'">Editor</button>
+            <button @click="inputMode = 'excel'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'excel' ? 'bg-ink-100 text-ink-800' : 'text-ink-400 hover:text-ink-600'">Excel</button>
+          </div>
         </div>
       </div>
 
-      <!-- Input Mode Tabs -->
-      <div class="max-w-2xl mx-auto mb-6 flex gap-2 justify-center">
-        <button
-          @click="inputMode = 'editor'"
-          class="px-4 py-2 text-sm rounded-lg transition-colors"
-          :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800 font-medium' : 'text-ink-400 hover:text-ink-600'"
-        >Patient Editor</button>
-        <button
-          @click="inputMode = 'excel'"
-          class="px-4 py-2 text-sm rounded-lg transition-colors"
-          :class="inputMode === 'excel' ? 'bg-ink-100 text-ink-800 font-medium' : 'text-ink-400 hover:text-ink-600'"
-        >Excel Upload</button>
+      <!-- MDLand Session (prominent) -->
+      <div class="max-w-7xl mx-auto mb-4">
+        <div class="flex items-center gap-3 p-3 rounded-xl border" :class="cookiesInfo.exists ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'">
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-sm font-bold" :class="cookiesInfo.exists ? 'text-green-700' : 'text-amber-700'">MDLand Session</span>
+            <span v-if="cookiesInfo.exists" class="text-xs text-green-600">Active {{ formatCookiesDate(cookiesInfo.updatedAt) }}</span>
+          </div>
+          <div v-if="cookiesInfo.exists" class="flex items-center gap-2 ml-auto">
+            <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <span class="text-sm text-green-700">Ready</span>
+            <button @click="cookiesInfo = { exists: false, updatedAt: null }" class="text-xs text-green-600 underline ml-2">Re-upload</button>
+          </div>
+          <div v-else class="flex items-center gap-2 flex-1 min-w-0">
+            <input v-model="cookiePasteText" placeholder="Paste cookies JSON..." class="flex-1 px-2 py-1 text-xs font-mono border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-400" />
+            <button @click="submitPastedCookies" :disabled="uploadingCookies || !cookiePasteText.trim()" class="btn-primary text-xs px-3 py-1" :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }">{{ uploadingCookies ? '...' : 'Submit' }}</button>
+            <button @click="openCookieFilePicker" :disabled="uploadingCookies" class="btn-secondary text-xs px-3 py-1">File</button>
+            <input ref="cookieFileInput" type="file" accept=".json" class="hidden" @change="handleCookieFileSelect" />
+          </div>
+        </div>
       </div>
 
       <!-- ═══ Patient Editor ═══ -->
@@ -1073,38 +1055,6 @@ onUnmounted(() => {
           >
             Download Excel Template
           </button>
-        </div>
-      </div>
-
-      <!-- ═══ MDLand Session ═══ -->
-      <div class="max-w-2xl mx-auto mt-8">
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-bold text-ink-700">MDLand Session</h3>
-            <span v-if="cookiesInfo.exists" class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-              Active {{ formatCookiesDate(cookiesInfo.updatedAt) }}
-            </span>
-            <span v-else class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Not connected</span>
-          </div>
-
-          <!-- Already connected -->
-          <div v-if="cookiesInfo.exists" class="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-            Session ready
-            <button @click="cookiesInfo = { exists: false, updatedAt: null }" class="ml-auto text-xs underline">Re-upload</button>
-          </div>
-
-          <!-- Cookie Upload -->
-          <div v-else class="space-y-2">
-            <textarea v-model="cookiePasteText" placeholder='Paste cookies JSON here...' rows="4" class="w-full px-3 py-2 text-xs font-mono border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400 resize-y"></textarea>
-            <div class="flex gap-2">
-              <button @click="submitPastedCookies" :disabled="uploadingCookies || !cookiePasteText.trim()" class="btn-primary text-xs flex-1" :class="{ 'opacity-60': uploadingCookies || !cookiePasteText.trim() }">
-                {{ uploadingCookies ? 'Uploading...' : 'Submit' }}
-              </button>
-              <button @click="openCookieFilePicker" :disabled="uploadingCookies" class="btn-secondary text-xs">Upload File</button>
-            </div>
-            <input ref="cookieFileInput" type="file" accept=".json" class="hidden" @change="handleCookieFileSelect" />
-          </div>
         </div>
       </div>
 
