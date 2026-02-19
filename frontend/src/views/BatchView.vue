@@ -761,7 +761,7 @@ onUnmounted(() => {
           </div>
 
             <!-- Row 1: Identity -->
-            <div class="grid grid-cols-6 gap-2">
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Patient *</label>
                 <input :value="activeDraft.patient" @input="updateField('patient', $event.target.value)" placeholder="LAST,FIRST(MM/DD/YYYY)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
@@ -793,7 +793,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Row 2: Visits + Diagnosis + Chronicity -->
-            <div class="grid grid-cols-6 gap-2">
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Visits *</label>
                 <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
@@ -815,7 +815,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Row 3: Pain -->
-            <div class="grid grid-cols-6 gap-2">
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Worst</label>
                 <select :value="activeDraft.painWorst" @change="updateField('painWorst', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
@@ -855,7 +855,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Row 4: Radiation + RecentWorse -->
-            <div class="grid grid-cols-6 gap-2">
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Radiation</label>
                 <select :value="activeDraft.painRadiation" @change="updateField('painRadiation', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
@@ -866,7 +866,7 @@ onUnmounted(() => {
                 <label class="text-xs text-ink-500 mb-0.5 block">Secondary Parts</label>
                 <div class="flex flex-wrap gap-1">
                   <button v-for="bp in BATCH_BODY_PARTS.filter(b => b !== activeDraft.bodyPart)" :key="bp" @click="toggleCSV('secondaryParts', bp)" type="button"
-                    class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                    class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
                     :class="hasCSV('secondaryParts', bp) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ BP_LABEL[bp] || bp }}</button>
                 </div>
               </div>
@@ -887,7 +887,7 @@ onUnmounted(() => {
               <label class="text-xs text-ink-500 mb-1 block">Pain Types</label>
               <div class="flex flex-wrap gap-1">
                 <button v-for="pt in PAIN_TYPES" :key="pt" @click="toggleCSV('painTypes', pt)" type="button"
-                  class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                  class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
                   :class="hasCSV('painTypes', pt) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ pt }}</button>
               </div>
             </div>
@@ -897,7 +897,7 @@ onUnmounted(() => {
               <label class="text-xs text-ink-500 mb-1 block">Associated Symptoms</label>
               <div class="flex flex-wrap gap-1">
                 <button v-for="s in ASSOC_SYMPTOMS" :key="s" @click="toggleCSV('associatedSymptoms', s)" type="button"
-                  class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                  class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
                   :class="hasCSV('associatedSymptoms', s) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ s }}</button>
               </div>
             </div>
@@ -907,7 +907,7 @@ onUnmounted(() => {
               <label class="text-xs text-ink-500 mb-1 block">Causative Factors</label>
               <div class="flex flex-wrap gap-1">
                 <button v-for="c in CAUSATIVE_OPTS" :key="c" @click="toggleCSV('causativeFactors', c)" type="button"
-                  class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                  class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
                   :class="hasCSV('causativeFactors', c) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ c }}</button>
               </div>
             </div>
@@ -917,7 +917,7 @@ onUnmounted(() => {
               <label class="text-xs text-ink-500 mb-1 block">Relieving Factors</label>
               <div class="flex flex-wrap gap-1">
                 <button v-for="r in RELIEVING_OPTS" :key="r" @click="toggleCSV('relievingFactors', r)" type="button"
-                  class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                  class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
                   :class="hasCSV('relievingFactors', r) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ r }}</button>
               </div>
             </div>
@@ -941,7 +941,7 @@ onUnmounted(() => {
                   <p class="text-[10px] text-ink-400 font-medium mb-1">{{ group.label }}</p>
                   <div class="flex flex-wrap gap-1">
                     <button v-for="h in group.items" :key="h" @click="toggleCSV('history', h)" type="button"
-                      class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                      class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
                       :class="hasCSV('history', h) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ h }}</button>
                   </div>
                 </div>
