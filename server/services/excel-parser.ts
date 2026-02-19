@@ -407,10 +407,10 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     const visits: BatchVisit[] = []
 
     if (rowMode === 'full') {
-      // IE visit (dos=1)
+      // IE visit (dos=1) — includes 99203 if present
       const ieCPT: CPTWithUnits[] = row.cpt.trim()
         ? parseCPTString(row.cpt)
-        : []
+        : [...getDefaultTXCPT(insurance)]
 
       visits.push({
         index: 0,
@@ -433,7 +433,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     const txCount = rowMode === 'full' ? totalVisits - 1 : totalVisits
     for (let txIdx = 0; txIdx < txCount; txIdx++) {
       const txCPT: CPTWithUnits[] = row.cpt.trim()
-        ? parseCPTString(row.cpt)
+        ? parseCPTString(row.cpt).filter(c => c.code !== '99203')
         : [...getDefaultTXCPT(insurance)]
 
       const offset = rowMode === 'full' ? 1 : 0
