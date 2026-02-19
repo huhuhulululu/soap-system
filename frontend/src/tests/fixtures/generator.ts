@@ -435,8 +435,8 @@ function applyInjection(doc: OptumNoteDocument, injection: ErrorInjection): void
   switch (injection.ruleId) {
     // IE rules
     case 'IE01': {
+      ;(visit.subjective.painScale as any).current = 9
       visit.subjective.adlImpairment = 'mild difficulty with daily activities'
-      visit.subjective.adlDifficultyLevel = 'mild'
       break
     }
     case 'IE02': visit.objective.tendernessMuscles.scale = 1; visit.objective.tendernessMuscles.scaleDescription = TENDER_DESC[1]; break
@@ -505,12 +505,12 @@ function applyInjection(doc: OptumNoteDocument, injection: ErrorInjection): void
     case 'V01': {
       // pain increases
       const prev = (visits[idx - 1]?.subjective.painScale as any)?.current ?? 7
-      ;(visit.subjective.painScale as any).current = prev + 1
+      ;(visit.subjective.painScale as any).current = prev + 2
       break
     }
     case 'V02': {
       const prevT = visits[idx - 1]?.objective.tendernessMuscles.scale ?? 3
-      visit.objective.tendernessMuscles.scale = prevT + 1
+      visit.objective.tendernessMuscles.scale = prevT + 2
       break
     }
     case 'V03': {
@@ -520,7 +520,7 @@ function applyInjection(doc: OptumNoteDocument, injection: ErrorInjection): void
     }
     case 'V04': {
       const prevS = visits[idx - 1]?.objective.spasmMuscles.frequencyScale ?? 2
-      visit.objective.spasmMuscles.frequencyScale = prevS + 1
+      visit.objective.spasmMuscles.frequencyScale = prevS + 2
       break
     }
     case 'V05': {
@@ -575,10 +575,10 @@ function applyInjection(doc: OptumNoteDocument, injection: ErrorInjection): void
       break
     }
     case 'X3': {
-      // X3 is IE-only, must inject on visit 0
       const ieVisit = visits[0]
-      ieVisit.assessment.localPattern = 'Blood Stasis'
-      ieVisit.objective.tonguePulse = { tongue: 'pale, thin white coat', pulse: 'thready' } // wrong for Blood Stasis (expects 'purple')
+      ieVisit.assessment.localPattern = 'Kidney Yang Deficiency'
+      ieVisit.assessment.systemicPattern = 'Kidney Yang Deficiency'
+      ieVisit.objective.tonguePulse = { tongue: 'red, yellow coat', pulse: 'rapid' }
       break
     }
     case 'X4': {

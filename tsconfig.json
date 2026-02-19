@@ -30,7 +30,8 @@
     "dist",
     "coverage",
     "frontend",
-    "parsers/optum-note/checker/__tests__/text-rules.test.ts",
+    "**/__tests__/**",
+    "**/*.test.ts",
     "parsers/optum-note/parser.test.ts",
     "scripts/playwright/**/*",
     "server/services/mdland-login.ts"

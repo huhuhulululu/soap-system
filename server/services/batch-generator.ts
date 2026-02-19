@@ -258,7 +258,7 @@ export function generateContinueBatch(batch: BatchData): BatchGenerationResult {
     }
 
     const options: TXSequenceOptions = {
-      txCount: 11,
+      txCount: txVisits.length + extracted.estimatedVisitIndex,
       startVisitIndex: extracted.estimatedVisitIndex + 1,
       seed: Math.floor(Math.random() * 100000),
       initialState,

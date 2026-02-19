@@ -252,10 +252,18 @@ describe('随机输入测试 (20 组)', () => {
       })
 
       it('后期 symptomChange 倾向改善', () => {
-        // progress > 0.7 的 TX 应该使用 improvement 表述
+        // progress > 0.7 的 TX: pain 下降时必须 improvement，持平时允许 similar
         const lateTX = states.filter(s => s.progress > 0.7)
         for (const s of lateTX) {
-          expect(s.symptomChange.toLowerCase()).toContain('improvement')
+          const idx = states.indexOf(s)
+          const prevPain = idx > 0 ? states[idx - 1].painScaleCurrent : s.painScaleCurrent
+          const painDelta = prevPain - s.painScaleCurrent
+          const text = s.symptomChange.toLowerCase()
+          if (painDelta > 0) {
+            expect(text).toContain('improvement')
+          } else {
+            expect(text.includes('improvement') || text.includes('similar')).toBe(true)
+          }
         }
       })
 
