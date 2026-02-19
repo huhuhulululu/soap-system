@@ -47,7 +47,7 @@ const navItems = [
     <!-- Footer -->
     <footer class="border-t border-ink-100 py-4 mt-auto">
       <div class="max-w-7xl mx-auto px-6 text-center text-ink-400 text-sm">
-        AChecker v2.1 · AC NOTE CHECK SYSTEM
+        AChecker v2.2 · AC NOTE CHECK SYSTEM
       </div>
     </footer>
   </div>

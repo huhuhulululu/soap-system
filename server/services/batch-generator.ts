@@ -336,12 +336,16 @@ export function generateMixedBatch(batch: BatchData): BatchGenerationResult {
 
     // full / soap-only: use standard generation
     const ieVisit = patient.visits.find(v => v.noteType === 'IE')
+    const reVisits = patient.visits.filter(v => v.noteType === 'RE')
     const txVisits = patient.visits.filter(v => v.noteType === 'TX')
     const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit) : undefined
+    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v))
     const generatedTX = generateTXSeries(patient, txVisits, generatedIE)
 
     const updatedVisits = patient.visits.map(v => {
       if (v.noteType === 'IE' && generatedIE) return generatedIE
+      const reMatch = generatedRE.find(g => g.index === v.index)
+      if (reMatch) return reMatch
       return generatedTX.find(g => g.index === v.index) ?? v
     })
     for (const v of updatedVisits) {
