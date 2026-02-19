@@ -6,10 +6,8 @@ const route = useRoute()
 
 const navItems = [
   { name: '验证', path: '/' },
-  { name: '续写', path: '/continue' },
-  { name: '编写', path: '/writer' },
+  { name: '编写', path: '/composer' },
   { name: '批量', path: '/batch' },
-  { name: '历史', path: '/history' }
 ]
 </script>
 

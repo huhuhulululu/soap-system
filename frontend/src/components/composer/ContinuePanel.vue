@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive } from 'vue'
-import { generateContinuation } from '../services/generator.js'
+import { generateContinuation } from '../../services/generator.js'
 
 const inputText = ref('')
 const insuranceType = ref('OPTUM')

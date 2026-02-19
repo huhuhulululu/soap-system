@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useFilesStore } from '../stores/files'
+import { useHistory } from '../composables/useHistory'
 import FileUploader from '../components/FileUploader.vue'
 import FileList from '../components/FileList.vue'
 import ReportPanel from '../components/ReportPanel.vue'
@@ -43,13 +44,77 @@ function handlePreview(file) {
 function closePreview() {
   previewFile.value = null
 }
+
+// ── History ──
+const { getHistory, clearAll: clearHistory } = useHistory()
+const historyRecords = ref([])
+onMounted(() => { historyRecords.value = getHistory() })
+
+function clearAllHistory() {
+  if (!confirm('确定要清空所有历史记录吗？')) return
+  clearHistory()
+  historyRecords.value = []
+}
+
+function viewDetail(record) {
+  if (!record.report) return
+  filesStore.loadFromHistory(record.fileName, record.report)
+}
+
+function formatDate(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return '刚刚'
+  if (mins < 60) return `${mins} 分钟前`
+  const hrs = Math.floor(diff / 3600000)
+  if (hrs < 24) return `${hrs} 小时前`
+  const days = Math.floor(diff / 86400000)
+  if (days < 7) return `${days} 天前`
+  return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+const STATUS_BADGE = {
+  pass: { text: '通过', cls: 'bg-green-100 text-green-700' },
+  fail: { text: '不通过', cls: 'bg-red-100 text-red-700' },
+  warning: { text: '警告', cls: 'bg-yellow-100 text-yellow-700' },
+  pending: { text: '待验证', cls: 'bg-gray-100 text-gray-700' },
+}
 </script>
 
 <template>
   <div class="max-w-7xl w-full mx-auto px-6 py-8">
     <!-- Empty State -->
-    <div v-if="!hasFiles" class="animate-fade-in">
+    <div v-if="!hasFiles" class="animate-fade-in space-y-6">
       <FileUploader @files-added="addFiles" />
+
+      <!-- Inline History -->
+      <div v-if="historyRecords.length > 0">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-ink-700">历史记录</h2>
+          <button @click="clearAllHistory" class="text-xs text-ink-400 hover:text-red-500 transition-colors">清空</button>
+        </div>
+        <div class="card overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-ink-50 border-b border-ink-200">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-ink-600">文件名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-ink-600">日期</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-ink-600">分数</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-ink-600">状态</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-ink-100">
+              <tr v-for="r in historyRecords" :key="r.id" @click="viewDetail(r)"
+                class="hover:bg-ink-50 cursor-pointer transition-colors">
+                <td class="px-4 py-3 text-sm text-ink-800">{{ r.fileName }}</td>
+                <td class="px-4 py-3 text-sm text-ink-500">{{ formatDate(r.date) }}</td>
+                <td class="px-4 py-3 text-sm font-semibold" :class="r.score >= 80 ? 'text-green-600' : r.score >= 60 ? 'text-yellow-600' : 'text-red-600'">{{ r.score || 0 }}%</td>
+                <td class="px-4 py-3"><span class="px-2 py-0.5 text-xs font-medium rounded-full" :class="(STATUS_BADGE[r.status] || STATUS_BADGE.pending).cls">{{ (STATUS_BADGE[r.status] || STATUS_BADGE.pending).text }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- Working State -->

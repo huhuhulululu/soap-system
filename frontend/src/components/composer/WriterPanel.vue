@@ -1,14 +1,14 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import whitelist from '../data/whitelist.json'
-import { setWhitelist } from '../../../src/parser/template-rule-whitelist.browser.ts'
-import { inferSystemicPatterns, inferLocalPatterns } from '../../../src/knowledge/medical-history-engine.ts'
-import { useWriterFields } from '../composables/useWriterFields'
-import { useSOAPGeneration } from '../composables/useSOAPGeneration'
-import { useDiffHighlight } from '../composables/useDiffHighlight'
-import { isPainTypeConsistentWithPattern } from '../../../src/shared/tcm-mappings'
-import { isAdlConsistentWithBodyPart } from '../../../src/shared/adl-mappings'
-import { BODY_PART_ADL } from '../../../src/shared/body-part-constants'
+import whitelist from '../../data/whitelist.json'
+import { setWhitelist } from '../../../../src/parser/template-rule-whitelist.browser.ts'
+import { inferSystemicPatterns, inferLocalPatterns } from '../../../../src/knowledge/medical-history-engine.ts'
+import { useWriterFields } from '../../composables/useWriterFields'
+import { useSOAPGeneration } from '../../composables/useSOAPGeneration'
+import { useDiffHighlight } from '../../composables/useDiffHighlight'
+import { isPainTypeConsistentWithPattern } from '../../../../src/shared/tcm-mappings'
+import { isAdlConsistentWithBodyPart } from '../../../../src/shared/adl-mappings'
+import { BODY_PART_ADL } from '../../../../src/shared/body-part-constants'
 
 setWhitelist(whitelist)
 

@@ -8,25 +8,18 @@ const router = createRouter({
       component: () => import('../views/CheckerView.vue')
     },
     {
-      path: '/continue',
-      name: 'continue',
-      component: () => import('../views/ContinueView.vue')
+      path: '/composer',
+      name: 'composer',
+      component: () => import('../views/ComposerView.vue')
     },
-    {
-      path: '/writer',
-      name: 'writer',
-      component: () => import('../views/WriterView.vue')
-    },
+    { path: '/writer', redirect: '/composer' },
+    { path: '/continue', redirect: '/composer?mode=continue' },
     {
       path: '/batch',
       name: 'batch',
       component: () => import('../views/BatchView.vue')
     },
-    {
-      path: '/history',
-      name: 'history',
-      component: () => import('../views/HistoryView.vue')
-    }
+    { path: '/history', redirect: '/' }
   ]
 })
 

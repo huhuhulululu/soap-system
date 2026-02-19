@@ -19,7 +19,7 @@ const inputMode = ref('editor') // 'editor' | 'excel'
 const STORAGE_KEY = 'soap-batch-drafts'
 const EMPTY_ROW = () => ({
   patient: '', gender: 'F', insurance: 'HF', bodyPart: 'LBP', laterality: 'B',
-  icd: '', cpt: '', totalVisits: 12,
+  icd: '', cpt: '', totalVisits: 12, age: 55,
   painWorst: '8', painBest: '3', painCurrent: '6',
   symptomDuration: '3 year(s)', painRadiation: 'without radiation',
   painTypes: 'Dull,Aching', associatedSymptoms: 'soreness',
@@ -50,6 +50,15 @@ const ASSOC_SYMPTOMS = ['soreness', 'stiffness', 'heaviness', 'weakness', 'numbn
 const CAUSATIVE_OPTS = ['age related/degenerative changes', 'weather change', 'poor sleep', 'over used due to heavy household chores', 'prolong sitting', 'prolong walking', 'lifting too much weight', 'Bad Posture', 'recent sprain']
 const RELIEVING_OPTS = ['Changing positions', 'Stretching', 'Resting', 'Lying down', 'Applying heating pad', 'Massage', 'Medications']
 const SCALE_OPTS = ['90%-100%', '80%-90%', '70%-80%', '60%-70%', '50%-60%', '40%-50%', '30%-40%']
+
+const MEDICAL_HISTORY_GROUPS = [
+  { label: '心血管', items: ['Hypertension', 'Heart Disease', 'Heart Murmur', 'Pacemaker', 'Stroke', 'Cholesterol', 'Hyperlipidemia'] },
+  { label: '代谢/内科', items: ['Diabetes', 'Thyroid', 'Liver Disease', 'Kidney Disease', 'Anemia', 'Asthma', 'Lung Disease', 'stomach trouble', 'Prostate'] },
+  { label: '骨骼肌肉', items: ['Herniated Disk', 'Osteoporosis', 'Fractures', 'Joint Replacement', 'Pinched Nerve'] },
+  { label: '其他', items: ['Smoking', 'Alcohol', 'Parkinson', 'tinnitus', 'Hysterectomy', 'C-section'] },
+]
+
+const historyPanelOpen = ref(false)
 
 const drafts = ref([EMPTY_ROW()])
 const activeIndex = ref(0)
@@ -855,10 +864,11 @@ onUnmounted(() => {
               </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Secondary Parts</label>
-                <select :value="activeDraft.secondaryParts" @change="updateField('secondaryParts', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
-                  <option value="">None</option>
-                  <option v-for="bp in BATCH_BODY_PARTS.filter(b => b !== activeDraft.bodyPart)" :key="bp" :value="bp">{{ BP_LABEL[bp] || bp }}</option>
-                </select>
+                <div class="flex flex-wrap gap-1">
+                  <button v-for="bp in BATCH_BODY_PARTS.filter(b => b !== activeDraft.bodyPart)" :key="bp" @click="toggleCSV('secondaryParts', bp)" type="button"
+                    class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                    :class="hasCSV('secondaryParts', bp) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ BP_LABEL[bp] || bp }}</button>
+                </div>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">RecentWorse</label>
@@ -867,8 +877,8 @@ onUnmounted(() => {
                 </select>
               </div>
               <div>
-                <label class="text-xs text-ink-500 mb-0.5 block">History</label>
-                <input :value="activeDraft.history" @input="updateField('history', $event.target.value)" placeholder="HTN,DM" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                <label class="text-xs text-ink-500 mb-0.5 block">Age</label>
+                <input type="number" :value="activeDraft.age" @input="updateField('age', parseInt($event.target.value) || 55)" min="1" max="120" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
             </div>
 
@@ -909,6 +919,32 @@ onUnmounted(() => {
                 <button v-for="r in RELIEVING_OPTS" :key="r" @click="toggleCSV('relievingFactors', r)" type="button"
                   class="px-2 py-0.5 text-xs rounded-full border transition-colors"
                   :class="hasCSV('relievingFactors', r) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ r }}</button>
+              </div>
+            </div>
+
+            <!-- Row 9: Medical History (multi-select grouped chips) -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs text-ink-500">History ({{ (activeDraft.history || '').split(',').filter(Boolean).length || 0 }})</label>
+                <button @click="historyPanelOpen = !historyPanelOpen" type="button" class="text-xs text-ink-400 hover:text-ink-600">{{ historyPanelOpen ? 'Close' : 'Edit' }}</button>
+              </div>
+              <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
+                <span v-if="!activeDraft.history" class="text-xs text-ink-300 italic">None</span>
+                <span v-for="h in (activeDraft.history || '').split(',').filter(Boolean)" :key="h"
+                  class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs rounded-full bg-ink-800 text-white">
+                  {{ h.trim() }}
+                  <button @click="toggleCSV('history', h.trim())" type="button" class="hover:text-red-300">&times;</button>
+                </span>
+              </div>
+              <div v-if="historyPanelOpen" class="mt-1 border border-ink-200 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
+                <div v-for="group in MEDICAL_HISTORY_GROUPS" :key="group.label">
+                  <p class="text-[10px] text-ink-400 font-medium mb-1">{{ group.label }}</p>
+                  <div class="flex flex-wrap gap-1">
+                    <button v-for="h in group.items" :key="h" @click="toggleCSV('history', h)" type="button"
+                      class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                      :class="hasCSV('history', h) ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">{{ h }}</button>
+                  </div>
+                </div>
               </div>
             </div>
 
