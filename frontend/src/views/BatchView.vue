@@ -26,6 +26,7 @@ const EMPTY_ROW = () => ({
   causativeFactors: '', relievingFactors: 'Changing positions,Resting',
   symptomScale: '70%-80%', painFrequency: 'Constant',
   secondaryParts: '', history: '', soapText: '',
+  chronicityLevel: 'Chronic', recentWorse: '1 week(s)',
 })
 
 const drafts = ref([EMPTY_ROW()])
@@ -845,6 +846,20 @@ onUnmounted(() => {
               <div>
                 <label class="text-xs font-medium text-ink-500 mb-1 block">RelievingFactors</label>
                 <input :value="activeDraft.relievingFactors" @input="updateField('relievingFactors', $event.target.value)" placeholder="Changing positions,Resting" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
+              </div>
+            </div>
+
+            <!-- Group: Chronicity -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">ChronicityLevel</label>
+                <select :value="activeDraft.chronicityLevel" @change="updateField('chronicityLevel', $event.target.value)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400">
+                  <option v-for="c in ['Chronic','Sub Acute','Acute']" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-ink-500 mb-1 block">RecentWorse</label>
+                <input :value="activeDraft.recentWorse" @input="updateField('recentWorse', $event.target.value)" placeholder="1 week(s)" class="w-full px-3 py-2 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ink-400" />
               </div>
             </div>
 

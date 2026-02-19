@@ -42,6 +42,8 @@ export interface BatchPatientClinical {
   readonly relievingFactors: readonly string[]
   readonly symptomScale: string
   readonly painFrequency: string
+  readonly chronicityLevel: 'Acute' | 'Sub Acute' | 'Chronic'
+  readonly recentWorse: { readonly value: string; readonly unit: string }
 }
 
 export interface BatchPatient {
@@ -93,4 +95,6 @@ export interface ExcelRow {
   readonly secondaryParts: string
   readonly history: string
   readonly soapText: string
+  readonly chronicityLevel: string
+  readonly recentWorse: string
 }

@@ -302,6 +302,8 @@ export interface GenerationContext {
   recentWorse?: { value: string; unit: string }
   /** 用户选择的病因 */
   causativeFactors?: string[]
+  /** 用户选择的加重因素 */
+  exacerbatingFactors?: string[]
   /** 用户选择的缓解因素 */
   relievingFactors?: string[]
   /** 患者年龄 */

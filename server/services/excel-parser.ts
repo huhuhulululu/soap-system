@@ -94,6 +94,20 @@ function parsePainFrequency(raw: string): string {
   return PAIN_FREQUENCY_MAP['CONSTANT']
 }
 
+function parseChronicityLevel(raw: string): 'Acute' | 'Sub Acute' | 'Chronic' {
+  const upper = raw.trim().toUpperCase()
+  if (upper === 'ACUTE') return 'Acute'
+  if (upper === 'SUB ACUTE' || upper === 'SUBACUTE') return 'Sub Acute'
+  return 'Chronic'
+}
+
+function parseRecentWorse(raw: string): { value: string; unit: string } {
+  if (!raw.trim()) return { value: '1', unit: 'week(s)' }
+  const match = raw.trim().match(/^(\d+|more than \d+)\s*(year|month|week|day)\(?s?\)?$/i)
+  if (match) return { value: match[1], unit: `${match[2].toLowerCase()}(s)` }
+  return { value: '1', unit: 'week(s)' }
+}
+
 /**
  * 解析疼痛值 (支持 "8", "8-7" 等格式)
  */
@@ -224,6 +238,8 @@ function buildRowsFromRecords(records: Record<string, string>[]): ExcelRow[] {
       secondaryParts: getString(['SecondaryParts', 'secondaryParts', 'Secondary', 'T']),
       history: getString(['History', 'history', 'U']),
       soapText: getString(['SoapText', 'soapText', 'SOAP', 'V']),
+      chronicityLevel: getString(['ChronicityLevel', 'chronicityLevel', 'Chronicity', 'W']),
+      recentWorse: getString(['RecentWorse', 'recentWorse', 'X']),
     }
   })
 }
@@ -289,6 +305,8 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
         relievingFactors: extracted.relievingFactors,
         symptomScale: extracted.symptomScale,
         painFrequency: parsePainFrequency(''),
+        chronicityLevel: parseChronicityLevel(row.chronicityLevel),
+        recentWorse: parseRecentWorse(row.recentWorse),
       }
 
       const icdCodes = row.icd.trim()
@@ -360,6 +378,8 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       relievingFactors,
       symptomScale,
       painFrequency,
+      chronicityLevel: parseChronicityLevel(row.chronicityLevel),
+      recentWorse: parseRecentWorse(row.recentWorse),
     }
 
     // Parse shared visit fields

@@ -85,10 +85,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     ],
     age: patientAge.value,
     gender: patientGender.value,
-    secondaryBodyParts: secondaryBodyParts.value.map(bp => {
-      const lat = secondaryLaterality.value[bp]
-      return lat && lat !== 'bilateral' ? `${lat} ${bp}` : bp
-    }),
+    secondaryBodyParts: [...secondaryBodyParts.value],
     hasPacemaker: medicalHistory.value.includes('Pacemaker'),
     hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
     medicalHistory: medicalHistory.value,

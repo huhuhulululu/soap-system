@@ -32,7 +32,7 @@ function buildContext(
     [...clinical.painTypes],
     [...clinical.associatedSymptoms],
     visit.bodyPart,
-    'Chronic'
+    clinical.chronicityLevel ?? 'Chronic'
   )
   const systemicCandidates = inferSystemicPatterns(history, patient.age)
 
@@ -51,7 +51,7 @@ function buildContext(
     laterality: visit.laterality,
     localPattern,
     systemicPattern,
-    chronicityLevel: 'Chronic',
+    chronicityLevel: clinical.chronicityLevel ?? 'Chronic',
     severityLevel: clinical.severityLevel,
     painCurrent: clinical.painCurrent,
     painWorst: clinical.painWorst,
@@ -64,7 +64,7 @@ function buildContext(
     painFrequency: clinical.painFrequency,
     causativeFactors: [...clinical.causativeFactors],
     relievingFactors: [...clinical.relievingFactors],
-    recentWorse: { value: '1', unit: 'week(s)' },
+    recentWorse: clinical.recentWorse ? { ...clinical.recentWorse } : { value: '1', unit: 'week(s)' },
     age: patient.age,
     gender: patient.gender,
     medicalHistory: history,

@@ -677,8 +677,11 @@ export function generateSubjective(context: GenerationContext): string {
   let subjective = `${noteType}\n\n`
 
   // 加重/缓解因素 - 根据身体部位选择
-  const exacerbatingFactors = EXACERBATING_FACTORS_MAP[bp] || EXACERBATING_FACTORS_MAP['LBP']
-  const adlActivities = ADL_MAP[bp] || ADL_MAP['LBP']
+  const exacerbatingFactors = (context.exacerbatingFactors && context.exacerbatingFactors.length > 0)
+    ? context.exacerbatingFactors
+    : (EXACERBATING_FACTORS_MAP[bp] || EXACERBATING_FACTORS_MAP['LBP'])
+  const rawAdl = ADL_MAP[bp] || ADL_MAP['LBP']
+  const adlActivities = filterADLByDemographics(rawAdl, context.age, context.gender)
   const weightedAdl = calculateWeights('subjective.adl', adlActivities, weightContext)
 
   if (bp === 'SHOULDER') {
