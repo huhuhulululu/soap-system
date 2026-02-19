@@ -932,52 +932,64 @@ function isLongField(path) {
             <span class="text-blue-400 ml-2">R</span> 引擎推导（可改）
           </p>
           <!-- Pain Scale W/B/C -->
-          <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">疼痛评分 <span class="text-red-500">*</span></label>
-            <span class="text-[10px] text-ink-400">最痛</span>
-            <select v-model="fields['subjective.painScale.worst']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-            <span class="text-[10px] text-ink-400">最轻</span>
-            <select v-model="fields['subjective.painScale.best']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-            <span class="text-[10px] text-ink-400">当前</span>
-            <select v-model="fields['subjective.painScale.current']" class="w-14 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
+          <div>
+            <label class="text-xs text-ink-500 mb-1 block">疼痛评分 <span class="text-red-500">*</span></label>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <span class="text-[10px] text-ink-400 block mb-0.5">最痛</span>
+                <select v-model="fields['subjective.painScale.worst']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                  <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+              </div>
+              <div>
+                <span class="text-[10px] text-ink-400 block mb-0.5">最轻</span>
+                <select v-model="fields['subjective.painScale.best']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                  <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+              </div>
+              <div>
+                <span class="text-[10px] text-ink-400 block mb-0.5">当前</span>
+                <select v-model="fields['subjective.painScale.current']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                  <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+              </div>
+            </div>
           </div>
           <!-- Duration value + unit -->
-          <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">病程时长 <span class="text-red-500">*</span></label>
-            <select v-model="fields['subjective.symptomDuration.value']" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-            <select v-model="fields['subjective.symptomDuration.unit']" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
-              <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
+          <div>
+            <label class="text-xs text-ink-500 mb-1 block">病程时长 <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <select v-model="fields['subjective.symptomDuration.value']" class="flex-1 px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+              <select v-model="fields['subjective.symptomDuration.unit']" class="flex-[2] px-1 py-1.5 border border-ink-200 rounded text-xs">
+                <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+            </div>
           </div>
           <!-- 近期加重时长 -->
-          <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">近期加重 <span class="text-red-500">*</span></label>
-            <select v-model="recentWorseValue" class="w-16 px-1 py-1 border border-ink-200 rounded text-xs text-center">
-              <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-            <select v-model="recentWorseUnit" class="w-28 px-1 py-1 border border-ink-200 rounded text-xs">
-              <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
+          <div>
+            <label class="text-xs text-ink-500 mb-1 block">近期加重 <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <select v-model="recentWorseValue" class="flex-1 px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+              <select v-model="recentWorseUnit" class="flex-[2] px-1 py-1.5 border border-ink-200 rounded text-xs">
+                <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+            </div>
           </div>
           <!-- 症状量表 -->
-          <div class="flex items-center gap-1.5">
-            <label class="text-xs text-ink-500 w-20 flex-shrink-0">症状量表 <span class="text-red-500">*</span></label>
-            <select v-model="fields['subjective.symptomScale']" class="w-24 px-1 py-1 border border-ink-200 rounded text-xs">
+          <div>
+            <label class="text-xs text-ink-500 mb-1 block">症状量表 <span class="text-red-500">*</span></label>
+            <select v-model="fields['subjective.symptomScale']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs">
               <option v-for="opt in [...whitelist['subjective.symptomScale']].reverse()" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
           <!-- 疼痛频率：四个平行按钮 -->
           <div class="space-y-1">
             <label class="text-xs text-ink-500">疼痛频率 <span class="text-red-500">*</span></label>
-            <div class="grid grid-cols-4 gap-1">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1">
               <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
                 @click="fields['subjective.painFrequency'] = opt"
                 class="py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"

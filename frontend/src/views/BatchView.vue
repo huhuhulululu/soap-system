@@ -51,6 +51,87 @@ const CAUSATIVE_OPTS = ['age related/degenerative changes', 'weather change', 'p
 const RELIEVING_OPTS = ['Changing positions', 'Stretching', 'Resting', 'Lying down', 'Applying heating pad', 'Massage', 'Medications']
 const SCALE_OPTS = ['90%-100%', '80%-90%', '70%-80%', '60%-70%', '50%-60%', '40%-50%', '30%-40%']
 
+// ICD-10 catalog (from WriterPanel)
+const ICD_CATALOG = [
+  { icd10: 'M54.50', desc: 'Low back pain, unspecified', bodyPart: 'LBP' },
+  { icd10: 'M54.51', desc: 'Vertebrogenic low back pain', bodyPart: 'LBP' },
+  { icd10: 'M54.59', desc: 'Other low back pain', bodyPart: 'LBP' },
+  { icd10: 'M54.41', desc: 'Lumbago with sciatica, right', bodyPart: 'LBP' },
+  { icd10: 'M54.42', desc: 'Lumbago with sciatica, left', bodyPart: 'LBP' },
+  { icd10: 'M54.31', desc: 'Sciatica, right side', bodyPart: 'LBP' },
+  { icd10: 'M54.32', desc: 'Sciatica, left side', bodyPart: 'LBP' },
+  { icd10: 'M47.816', desc: 'Spondylosis w/o myelopathy, lumbar', bodyPart: 'LBP' },
+  { icd10: 'M47.817', desc: 'Spondylosis w/o myelopathy, lumbosacral', bodyPart: 'LBP' },
+  { icd10: 'M51.16', desc: 'IVD disorder w/ radiculopathy, lumbar', bodyPart: 'LBP' },
+  { icd10: 'M51.17', desc: 'IVD disorder w/ radiculopathy, lumbosacral', bodyPart: 'LBP' },
+  { icd10: 'M54.2', desc: 'Cervicalgia', bodyPart: 'NECK' },
+  { icd10: 'M47.812', desc: 'Spondylosis w/o myelopathy, cervical', bodyPart: 'NECK' },
+  { icd10: 'M47.813', desc: 'Spondylosis w/o myelopathy, cervicothoracic', bodyPart: 'NECK' },
+  { icd10: 'M50.30', desc: 'Other cervical disc degeneration, unspecified', bodyPart: 'NECK' },
+  { icd10: 'M50.320', desc: 'Other cervical disc degeneration, mid-cervical', bodyPart: 'NECK' },
+  { icd10: 'M54.6', desc: 'Pain in thoracic spine', bodyPart: 'MIDDLE_BACK' },
+  { icd10: 'M54.5', desc: 'Low back pain', bodyPart: 'MID_LOW_BACK' },
+  { icd10: 'M25.511', desc: 'Pain in right shoulder', bodyPart: 'SHOULDER' },
+  { icd10: 'M25.512', desc: 'Pain in left shoulder', bodyPart: 'SHOULDER' },
+  { icd10: 'M25.519', desc: 'Pain in unspecified shoulder', bodyPart: 'SHOULDER' },
+  { icd10: 'M75.10', desc: 'Rotator cuff syndrome, unspecified', bodyPart: 'SHOULDER' },
+  { icd10: 'M75.11', desc: 'Rotator cuff syndrome, right', bodyPart: 'SHOULDER' },
+  { icd10: 'M75.12', desc: 'Rotator cuff syndrome, left', bodyPart: 'SHOULDER' },
+  { icd10: 'M75.01', desc: 'Adhesive capsulitis, right shoulder', bodyPart: 'SHOULDER' },
+  { icd10: 'M75.02', desc: 'Adhesive capsulitis, left shoulder', bodyPart: 'SHOULDER' },
+  { icd10: 'M25.521', desc: 'Pain in right elbow', bodyPart: 'ELBOW' },
+  { icd10: 'M25.522', desc: 'Pain in left elbow', bodyPart: 'ELBOW' },
+  { icd10: 'M25.529', desc: 'Pain in unspecified elbow', bodyPart: 'ELBOW' },
+  { icd10: 'M77.01', desc: 'Medial epicondylitis, right', bodyPart: 'ELBOW' },
+  { icd10: 'M77.02', desc: 'Medial epicondylitis, left', bodyPart: 'ELBOW' },
+  { icd10: 'M77.11', desc: 'Lateral epicondylitis, right', bodyPart: 'ELBOW' },
+  { icd10: 'M77.12', desc: 'Lateral epicondylitis, left', bodyPart: 'ELBOW' },
+  { icd10: 'M25.561', desc: 'Pain in right knee', bodyPart: 'KNEE' },
+  { icd10: 'M25.562', desc: 'Pain in left knee', bodyPart: 'KNEE' },
+  { icd10: 'M25.569', desc: 'Pain in unspecified knee', bodyPart: 'KNEE' },
+  { icd10: 'M17.0', desc: 'Bilateral primary osteoarthritis of knee', bodyPart: 'KNEE' },
+  { icd10: 'M17.11', desc: 'Primary osteoarthritis, right knee', bodyPart: 'KNEE' },
+  { icd10: 'M17.12', desc: 'Primary osteoarthritis, left knee', bodyPart: 'KNEE' },
+  { icd10: 'G89.29', desc: 'Other chronic pain', bodyPart: null },
+  { icd10: 'S39.012A', desc: 'Strain of muscle of lower back, initial', bodyPart: 'LBP' },
+  { icd10: 'M62.830', desc: 'Muscle spasm of back', bodyPart: 'LBP' },
+]
+
+const icdSearch = ref('')
+const icdDropdownOpen = ref(false)
+
+const filteredIcdOptions = computed(() => {
+  const bp = activeDraft.value?.bodyPart
+  const selected = new Set((activeDraft.value?.icd || '').split(',').map(s => s.trim()).filter(Boolean))
+  const available = ICD_CATALOG.filter(item => !selected.has(item.icd10) && (item.bodyPart === null || item.bodyPart === bp))
+  if (!icdSearch.value.trim()) return available
+  const q = icdSearch.value.toLowerCase()
+  return available.filter(item => item.icd10.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q))
+})
+
+function selectIcd(item) {
+  const cur = (activeDraft.value.icd || '').split(',').map(s => s.trim()).filter(Boolean)
+  if (cur.length >= 4) return
+  updateField('icd', [...cur, item.icd10].join(','))
+  icdSearch.value = ''
+  icdDropdownOpen.value = false
+}
+
+function removeIcd(code) {
+  const cur = (activeDraft.value.icd || '').split(',').map(s => s.trim()).filter(Boolean)
+  updateField('icd', cur.filter(c => c !== code).join(','))
+}
+
+// CPT presets
+const CPT_PRESETS = [
+  { label: '针灸30min', value: '97810,97811x1' },
+  { label: '针灸45min', value: '97810,97811x2' },
+  { label: '针灸60min', value: '97810,97811x3' },
+  { label: '针灸+电针30min', value: '97810,97813' },
+  { label: '针灸+电针45min', value: '97810,97811x1,97813' },
+  { label: '针灸+电针60min', value: '97810,97811x2,97813' },
+]
+
 const MEDICAL_HISTORY_GROUPS = [
   { label: '心血管', items: ['Hypertension', 'Heart Disease', 'Heart Murmur', 'Pacemaker', 'Stroke', 'Cholesterol', 'Hyperlipidemia'] },
   { label: '代谢/内科', items: ['Diabetes', 'Thyroid', 'Liver Disease', 'Kidney Disease', 'Anemia', 'Asthma', 'Lung Disease', 'stomach trouble', 'Prostate'] },
@@ -800,11 +881,34 @@ onUnmounted(() => {
               </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">ICD{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
-                <input :value="activeDraft.icd" @input="updateField('icd', $event.target.value)" placeholder="M54.50,M54.41" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                <div class="flex flex-wrap gap-1 mb-1" v-if="activeDraft.icd">
+                  <span v-for="code in activeDraft.icd.split(',').filter(Boolean)" :key="code"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded-full bg-ink-800 text-white">
+                    {{ code.trim() }}
+                    <button @click="removeIcd(code.trim())" type="button" class="hover:text-red-300">&times;</button>
+                  </span>
+                </div>
+                <div v-if="(activeDraft.icd || '').split(',').filter(Boolean).length < 4" class="relative">
+                  <input v-model="icdSearch" @focus="icdDropdownOpen = true" @blur="icdDropdownOpen = false"
+                    placeholder="搜索 ICD-10..."
+                    class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                  <div v-if="icdDropdownOpen && filteredIcdOptions.length"
+                    class="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-ink-200 rounded-lg shadow-lg">
+                    <button v-for="item in filteredIcdOptions" :key="item.icd10"
+                      @mousedown.prevent="selectIcd(item)"
+                      class="w-full px-2 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between">
+                      <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
+                      <span class="text-ink-400 truncate ml-2 text-xs">{{ item.desc }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">CPT</label>
-                <input :value="activeDraft.cpt" @input="updateField('cpt', $event.target.value)" placeholder="97810,97811x3" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                <select :value="activeDraft.cpt" @change="updateField('cpt', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                  <option value="">无</option>
+                  <option v-for="p in CPT_PRESETS" :key="p.value" :value="p.value">{{ p.label }}</option>
+                </select>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Chronicity</label>
