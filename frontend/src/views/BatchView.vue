@@ -19,7 +19,7 @@ const inputMode = ref('editor') // 'editor' | 'excel'
 const STORAGE_KEY = 'soap-batch-drafts'
 const EMPTY_ROW = () => ({
   patient: '', gender: 'F', insurance: 'HF', bodyPart: 'LBP', laterality: 'B',
-  icd: '', cpt: '', totalVisits: 12, age: 55,
+  icd: '', cpt: '', totalVisits: 12,
   painWorst: '8', painBest: '3', painCurrent: '6',
   symptomDuration: '3 year(s)', painRadiation: 'without radiation',
   painTypes: 'Dull,Aching', associatedSymptoms: 'soreness',
@@ -122,32 +122,13 @@ function removeIcd(code) {
   updateField('icd', cur.filter(c => c !== code).join(','))
 }
 
-// CPT builder: insurance-aware
-// HF/OPTUM/ELDERPLAN/NONE: 97810 + 97811xN + optional 97813
-// WC/VC: 97813 + 97814xN + 97811xN
-function isEstimIns(ins) { return ins === 'WC' || ins === 'VC' }
+// CPT: fixed per insurance (from cpt-catalog INSURANCE_DEFAULT_CPT)
+const INS_CPT = { HF: '97810', OPTUM: '97810', WC: '97813,97814x2,97811', VC: '97813,97814,97811x2', ELDERPLAN: '97810', NONE: '97810' }
 function is99203Ins(ins) { return ins === 'HF' || ins === 'VC' }
-
-function buildCpt(ins, { units811 = 0, units814 = 0, estim = false, has99203 = false } = {}) {
-  if (isEstimIns(ins)) {
-    const parts = ['97813']
-    if (units814 > 0) parts.push(`97814x${units814}`)
-    if (units811 > 0) parts.push(`97811x${units811}`)
-    if (has99203) parts.push('99203')
-    return parts.join(',')
-  }
-  const parts = ['97810']
-  if (units811 > 0) parts.push(`97811x${units811}`)
-  if (estim) parts.push('97813')
-  if (has99203) parts.push('99203')
-  return parts.join(',')
-}
-
-function parseCpt(cpt) {
-  const s = cpt || ''
-  const m811 = s.match(/97811x(\d+)/)
-  const m814 = s.match(/97814x(\d+)/)
-  return { units811: m811 ? parseInt(m811[1]) : 0, units814: m814 ? parseInt(m814[1]) : 0, estim: s.includes('97813'), has99203: s.includes('99203') }
+function defaultCptStr(ins) { return INS_CPT[ins] || '97810' }
+function toggle99203(cpt, ins) {
+  const base = defaultCptStr(ins)
+  return cpt.includes('99203') ? base : base + ',99203'
 }
 
 const MEDICAL_HISTORY_GROUPS = [
@@ -225,9 +206,12 @@ function movePatient(i, dir) {
 }
 
 function updateField(key, value) {
-  drafts.value = drafts.value.map((d, i) =>
-    i === activeIndex.value ? { ...d, [key]: value } : d
-  )
+  drafts.value = drafts.value.map((d, i) => {
+    if (i !== activeIndex.value) return d
+    const updated = { ...d, [key]: value }
+    if (key === 'insurance') updated.cpt = defaultCptStr(value)
+    return updated
+  })
 }
 
 function saveAndNext() {
@@ -923,31 +907,13 @@ onUnmounted(() => {
               </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">CPT{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
-                <!-- WC/VC: 97813 base + 97814 units + 97811 units -->
-                <div v-if="isEstimIns(activeDraft.insurance)" class="flex items-center gap-2">
-                  <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-ink-400">97814</span>
-                    <input type="number" :value="parseCpt(activeDraft.cpt).units814" @input="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), units814: parseInt($event.target.value) || 0 }))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-ink-400">97811</span>
-                    <input type="number" :value="parseCpt(activeDraft.cpt).units811" @input="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), units811: parseInt($event.target.value) || 0 }))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
-                  </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-ink-600 font-mono">{{ activeDraft.cpt || defaultCptStr(activeDraft.insurance) }}</span>
+                  <button v-if="is99203Ins(activeDraft.insurance)" type="button"
+                    @click="updateField('cpt', toggle99203(activeDraft.cpt || defaultCptStr(activeDraft.insurance), activeDraft.insurance))"
+                    class="px-2 py-1 text-xs rounded-lg border transition-colors"
+                    :class="(activeDraft.cpt || '').includes('99203') ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">首诊 99203</button>
                 </div>
-                <!-- Others: 97810 base + 97811 units + 97813 toggle -->
-                <div v-else class="flex items-center gap-2">
-                  <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-ink-400">97811</span>
-                    <input type="number" :value="parseCpt(activeDraft.cpt).units811" @input="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), units811: parseInt($event.target.value) || 0 }))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
-                  </div>
-                  <button type="button" @click="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), estim: !parseCpt(activeDraft.cpt).estim }))"
-                    class="px-2 py-1.5 text-xs rounded-lg border transition-colors"
-                    :class="parseCpt(activeDraft.cpt).estim ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">97813</button>
-                </div>
-                <button v-if="is99203Ins(activeDraft.insurance)" type="button"
-                  @click="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), has99203: !parseCpt(activeDraft.cpt).has99203 }))"
-                  class="mt-1 px-2 py-1 text-xs rounded-lg border transition-colors"
-                  :class="parseCpt(activeDraft.cpt).has99203 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">99203</button>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Chronicity</label>
@@ -1018,10 +984,6 @@ onUnmounted(() => {
                 <select :value="activeDraft.recentWorse" @change="updateField('recentWorse', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="w in ['1 week(s)','2 week(s)','1 month(s)','2 month(s)','3 month(s)','6 month(s)']" :key="w" :value="w">{{ w }}</option>
                 </select>
-              </div>
-              <div>
-                <label class="text-xs text-ink-500 mb-0.5 block">Age</label>
-                <input type="number" :value="activeDraft.age" @input="updateField('age', parseInt($event.target.value) || 55)" min="1" max="120" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
             </div>
 
