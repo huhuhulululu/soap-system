@@ -125,11 +125,11 @@ function removeIcd(code) {
 // CPT builder: insurance-aware
 // HF/OPTUM/ELDERPLAN/NONE: 97810 + 97811xN + optional 97813
 // WC/VC: 97813 + 97814xN + 97811xN
-const ESTIM_INSURANCES = new Set(['WC', 'VC'])
-const IE_99203_INSURANCES = new Set(['HF', 'VC'])
+function isEstimIns(ins) { return ins === 'WC' || ins === 'VC' }
+function is99203Ins(ins) { return ins === 'HF' || ins === 'VC' }
 
 function buildCpt(ins, { units811 = 0, units814 = 0, estim = false, has99203 = false } = {}) {
-  if (ESTIM_INSURANCES.has(ins)) {
+  if (isEstimIns(ins)) {
     const parts = ['97813']
     if (units814 > 0) parts.push(`97814x${units814}`)
     if (units811 > 0) parts.push(`97811x${units811}`)
@@ -924,27 +924,27 @@ onUnmounted(() => {
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">CPT{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
                 <!-- WC/VC: 97813 base + 97814 units + 97811 units -->
-                <div v-if="ESTIM_INSURANCES.has(activeDraft.insurance)" class="flex items-center gap-2">
+                <div v-if="isEstimIns(activeDraft.insurance)" class="flex items-center gap-2">
                   <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-ink-400">电针</span>
+                    <span class="text-[10px] text-ink-400">97814</span>
                     <input type="number" :value="parseCpt(activeDraft.cpt).units814" @input="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), units814: parseInt($event.target.value) || 0 }))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
                   </div>
                   <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-ink-400">普通</span>
+                    <span class="text-[10px] text-ink-400">97811</span>
                     <input type="number" :value="parseCpt(activeDraft.cpt).units811" @input="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), units811: parseInt($event.target.value) || 0 }))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
                   </div>
                 </div>
                 <!-- Others: 97810 base + 97811 units + 97813 toggle -->
                 <div v-else class="flex items-center gap-2">
                   <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-ink-400">次数</span>
+                    <span class="text-[10px] text-ink-400">97811</span>
                     <input type="number" :value="parseCpt(activeDraft.cpt).units811" @input="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), units811: parseInt($event.target.value) || 0 }))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
                   </div>
                   <button type="button" @click="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), estim: !parseCpt(activeDraft.cpt).estim }))"
                     class="px-2 py-1.5 text-xs rounded-lg border transition-colors"
-                    :class="parseCpt(activeDraft.cpt).estim ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">电针</button>
+                    :class="parseCpt(activeDraft.cpt).estim ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">97813</button>
                 </div>
-                <button v-if="IE_99203_INSURANCES.has(activeDraft.insurance)" type="button"
+                <button v-if="is99203Ins(activeDraft.insurance)" type="button"
                   @click="updateField('cpt', buildCpt(activeDraft.insurance, { ...parseCpt(activeDraft.cpt), has99203: !parseCpt(activeDraft.cpt).has99203 }))"
                   class="mt-1 px-2 py-1 text-xs rounded-lg border transition-colors"
                   :class="parseCpt(activeDraft.cpt).has99203 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">99203</button>
