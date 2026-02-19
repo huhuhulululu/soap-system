@@ -84,16 +84,13 @@ class MDLandScraper {
     this.context = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     this.page = await this.context.newPage()
     this.page.setDefaultTimeout(15000)
-    // Auto-accept all dialogs (including from iframes)
+    // Auto-accept all native browser dialogs (alert/confirm/prompt)
     this.page.on('dialog', async d => {
       log(`      [dialog-auto] ${d.type()}: ${d.message().slice(0, 80)}`)
       try { await d.accept() } catch { /* already handled */ }
     })
-    // Override confirm/alert in all frames to prevent blocking
     await this.page.addInitScript(() => {
       (window as any).__name = (fn: any) => fn
-      window.confirm = () => true
-      window.alert = () => {}
     })
   }
 
@@ -353,41 +350,57 @@ class MDLandScraper {
     return { icd: parseLines(codes.icd), cpt: parseLines(codes.cpt) }
   }
 
-  /** Click PT Note in MenuFrame (reliable method from debug-visit-switch) */
+  /** Load PT Note by calling JS directly in workarea0 (proven method from debug-ptnote3) */
   private async loadPTNoteViaMenu(): Promise<boolean> {
-    log('      [pt] clicking menu...')
+    log('      [pt] loading via JS...')
     try {
-      await Promise.race([
-        this.page.evaluate(() => {
-          const wa = document.querySelector('iframe[name="workarea0"]') as HTMLIFrameElement
-          if (!wa?.contentDocument) return
-          const menu = wa.contentDocument.querySelector('iframe[name="MenuFrame"]') as HTMLIFrameElement
-          if (!menu?.contentDocument) return
-          const cells = menu.contentDocument.querySelectorAll('td')
-          for (const c of cells) {
-            if ((c as HTMLElement).innerText?.trim() === 'PT Note') {
-              (c as HTMLElement).click()
-              return
-            }
-          }
-        }),
-        sleep(5000),
-      ])
-    } catch {
-      log('      [pt] menu click failed')
+      const result = await withTimeout(this.page.evaluate(() => {
+        const wa = document.querySelector('iframe[name="workarea0"]') as HTMLIFrameElement
+        if (!wa?.contentWindow) return 'no-workarea'
+        try {
+          const win = wa.contentWindow as any
+          win.MustReturnPage = 1
+          win.select_ovpage(4)
+          win.select_page(4, 7)
+          win.Relocal('ptnote', true)
+          return 'ok'
+        } catch (e) {
+          return 'error: ' + String(e)
+        }
+      }), 8000, 'pt-js')
+      if (result !== 'ok') {
+        log(`      [pt] JS failed: ${result}`)
+        return false
+      }
+    } catch (err) {
+      log(`      [pt] JS timeout: ${err instanceof Error ? err.message : err}`)
       return false
     }
-    await sleep(1000)
 
-    // Handle dialogs — click Yes for up to 3 rounds with timeout protection
+    // Handle dialogs in waittinglistFrame — keep clicking Yes until no more
     log('      [pt] handling dialogs...')
-    for (let d = 0; d < 3; d++) {
-      await sleep(600)
+    for (let d = 0; d < 10; d++) {
+      await sleep(1000)
       try {
-        const clicked = await withTimeout(this.clickDialogButton('Yes'), 5000, `dialog-${d}`)
-        if (clicked) {
+        const clicked = await withTimeout(this.page.evaluate(() => {
+          const wl = document.querySelector('iframe[name="waittinglistframe"]') as HTMLIFrameElement
+          if (!wl?.contentDocument) return 'no-wl'
+          const inner = wl.contentDocument.querySelector('iframe[name="waittinglistFrame"]') as HTMLIFrameElement
+          if (!inner?.contentDocument) return 'no-inner'
+          const cells = inner.contentDocument.querySelectorAll('td')
+          for (const c of cells) {
+            if ((c as HTMLElement).innerText?.trim() === 'Yes') {
+              (c as HTMLElement).click()
+              return 'yes'
+            }
+          }
+          return 'none'
+        }), 5000, `pt-dialog-${d}`)
+
+        if (clicked === 'yes') {
           log(`      [pt] dialog ${d}: Yes`)
         } else {
+          log(`      [pt] dialog ${d}: no more`)
           break
         }
       } catch {
@@ -397,7 +410,6 @@ class MDLandScraper {
     }
 
     // Wait for ptnote frame to have content (up to 10s)
-    // Check multiple signals: sub-iframes (TinyMCE), body text, or SOAP labels
     log('      [pt] waiting for load...')
     for (let w = 0; w < 10; w++) {
       try {
@@ -408,16 +420,10 @@ class MDLandScraper {
             const ptnote = wa.contentDocument.querySelector('iframe[name="ptnote"]') as HTMLIFrameElement
             if (!ptnote?.contentDocument) return 'no-ptnote'
             const ptDoc = ptnote.contentDocument
-            // Signal 1: TinyMCE iframes present
             const iframes = ptDoc.querySelectorAll('iframe')
-            if (iframes.length > 0) return 'loaded-iframes'
-            // Signal 2: Body has SOAP-related text
-            const bodyText = ptDoc.body?.innerText || ''
-            if (bodyText.includes('Subjective') || bodyText.includes('SOAP') || bodyText.includes('Assessment')) return 'loaded-text'
-            // Signal 3: Any textarea or input (fallback form)
-            if (ptDoc.querySelectorAll('textarea').length > 0) return 'loaded-textarea'
-            // Signal 4: Body has substantial content
-            if (bodyText.trim().length > 100) return 'loaded-content'
+            if (iframes.length > 0) return 'loaded-iframes-' + iframes.length
+            const bodyLen = ptDoc.body?.innerText?.trim().length || 0
+            if (bodyLen > 100) return 'loaded-body-' + bodyLen
             return 'empty'
           }),
           sleep(2000).then(() => 'timeout' as string),
@@ -426,13 +432,7 @@ class MDLandScraper {
           log(`      [pt] loaded at ${w}s (${status})`)
           return true
         }
-        if (status === 'no-workarea' || status === 'no-ptnote') {
-          // Frame not ready yet, also try clicking Yes again in case dialog appeared late
-          await this.clickDialogButton('Yes').catch(() => false)
-        }
-      } catch {
-        // evaluate failed, keep trying
-      }
+      } catch {}
       await sleep(1000)
     }
     log('      [pt] timeout — not loaded')
@@ -529,6 +529,20 @@ class MDLandScraper {
         icd = ptNoteCodes.icd
         cpt = ptNoteCodes.cpt
       }
+
+      // Return from PT Note to visit page before closing
+      try {
+        await withTimeout(this.page.evaluate(() => {
+          const wa = document.querySelector('iframe[name="workarea0"]') as HTMLIFrameElement
+          if (!wa?.contentWindow) return
+          const win = wa.contentWindow as any
+          // Navigate back to the visit/diagnose page
+          if (typeof win.select_ovpage === 'function') {
+            win.select_ovpage(0)
+          }
+        }), 5000, 'returnFromPT')
+        await sleep(1000)
+      } catch {}
     }
 
     return { soap, icd, cpt, opened: ptNoteLoaded }
