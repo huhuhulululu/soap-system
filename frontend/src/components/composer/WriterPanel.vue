@@ -1168,13 +1168,15 @@ function isLongField(path) {
               </div>
               <label class="flex items-center gap-2 cursor-pointer select-none">
                 <button @click="realisticPatch = !realisticPatch" type="button"
-                  class="relative w-8 h-4.5 rounded-full transition-colors duration-200 flex-shrink-0"
-                  :class="realisticPatch ? 'bg-green-500' : 'bg-ink-300'"
+                  class="relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ring-2"
+                  :class="realisticPatch ? 'bg-green-500 ring-green-300' : 'bg-red-400 ring-red-200'"
                   role="switch" :aria-checked="realisticPatch">
-                  <span class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200"
-                    :class="realisticPatch ? 'translate-x-3.5' : ''"></span>
+                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                    :class="realisticPatch ? 'translate-x-4' : ''"></span>
                 </button>
-                <span class="text-ink-500">Realistic ROM/Strength</span>
+                <span class="text-xs font-medium" :class="realisticPatch ? 'text-green-600' : 'text-red-500'">
+                  {{ realisticPatch ? '✓ Realistic' : '✗ Original' }}
+                </span>
               </label>
             </div>
           </details>
