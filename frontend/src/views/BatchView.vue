@@ -26,7 +26,7 @@ const EMPTY_ROW = () => ({
   causativeFactors: '', relievingFactors: 'Changing positions,Resting',
   symptomScale: '70%-80%', painFrequency: 'Constant',
   secondaryParts: '', history: '', soapText: '',
-  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: '',
+  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: 'full',
 })
 
 // Body parts matching Writer page (supported by IE+TX templates)
@@ -836,12 +836,12 @@ onUnmounted(() => {
         <div v-if="activeDraft" class="card p-4 space-y-3 ring-2 ring-ink-300">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs font-bold text-ink-500">Patient {{ activeIndex + 1 }} / {{ drafts.length }}</span>
-            <select :value="activeDraft.mode || ''" @change="updateField('mode', $event.target.value)" class="px-2 py-1 text-xs border rounded-lg" :class="activeDraft.mode === 'continue' ? 'bg-teal-50 border-teal-300 text-teal-700' : activeDraft.mode === 'soap-only' ? 'bg-purple-50 border-purple-300 text-purple-700' : 'border-ink-200 text-ink-500'">
-              <option value="">Default Mode</option>
-              <option value="full">Full</option>
-              <option value="soap-only">SOAP Only</option>
-              <option value="continue">Continue</option>
-            </select>
+            <div class="flex gap-1">
+              <button v-for="m in [{k:'full',l:'Full'},{k:'soap-only',l:'SOAP'},{k:'continue',l:'Continue'}]" :key="m.k"
+                @click="updateField('mode', m.k)" type="button"
+                class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                :class="(activeDraft.mode || batchMode) === m.k ? 'bg-ink-800 text-white border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ m.l }}</button>
+            </div>
           </div>
 
             <!-- Row 1: Identity -->
@@ -879,7 +879,7 @@ onUnmounted(() => {
             <!-- Row 2: Visits + Diagnosis + Chronicity -->
             <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <div>
-                <label class="text-xs text-ink-500 mb-0.5 block">Visits *</label>
+                <label class="text-xs text-ink-500 mb-0.5 block">预约次数 *</label>
                 <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
               <div class="col-span-2">
