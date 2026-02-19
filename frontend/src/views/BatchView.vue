@@ -122,15 +122,18 @@ function removeIcd(code) {
   updateField('icd', cur.filter(c => c !== code).join(','))
 }
 
-// CPT presets
-const CPT_PRESETS = [
-  { label: '针灸30min', value: '97810,97811x1' },
-  { label: '针灸45min', value: '97810,97811x2' },
-  { label: '针灸60min', value: '97810,97811x3' },
-  { label: '针灸+电针30min', value: '97810,97813' },
-  { label: '针灸+电针45min', value: '97810,97811x1,97813' },
-  { label: '针灸+电针60min', value: '97810,97811x2,97813' },
-]
+// CPT builder: 97810 (base) + 97811xN (additional units) + optional 97813 (estim)
+function buildCpt(units, estim) {
+  const parts = ['97810']
+  if (units > 0) parts.push(`97811x${units}`)
+  if (estim) parts.push('97813')
+  return parts.join(',')
+}
+function parseCpt(cpt) {
+  const s = cpt || ''
+  const m = s.match(/97811x(\d+)/)
+  return { units: m ? parseInt(m[1]) : 0, estim: s.includes('97813') }
+}
 
 const MEDICAL_HISTORY_GROUPS = [
   { label: '心血管', items: ['Hypertension', 'Heart Disease', 'Heart Murmur', 'Pacemaker', 'Stroke', 'Cholesterol', 'Hyperlipidemia'] },
@@ -905,10 +908,15 @@ onUnmounted(() => {
               </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">CPT</label>
-                <select :value="activeDraft.cpt" @change="updateField('cpt', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
-                  <option value="">无</option>
-                  <option v-for="p in CPT_PRESETS" :key="p.value" :value="p.value">{{ p.label }}</option>
-                </select>
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-ink-400">次数</span>
+                    <input type="number" :value="parseCpt(activeDraft.cpt).units" @input="updateField('cpt', buildCpt(parseInt($event.target.value) || 0, parseCpt(activeDraft.cpt).estim))" min="0" max="10" class="w-14 px-1 py-1.5 text-sm border border-ink-200 rounded-lg text-center focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                  </div>
+                  <button type="button" @click="updateField('cpt', buildCpt(parseCpt(activeDraft.cpt).units, !parseCpt(activeDraft.cpt).estim))"
+                    class="px-2 py-1.5 text-xs rounded-lg border transition-colors"
+                    :class="parseCpt(activeDraft.cpt).estim ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">电针</button>
+                </div>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Chronicity</label>
