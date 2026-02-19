@@ -12,6 +12,9 @@ const error = ref('')
 // Mode
 const batchMode = ref('full') // 'full' | 'soap-only' | 'continue'
 
+// Realistic Patch toggle (corrected ROM/Strength scores)
+const realisticPatch = ref(true)
+
 // Input mode
 const inputMode = ref('editor') // 'editor' | 'excel'
 
@@ -246,7 +249,7 @@ async function submitDrafts() {
     const res = await fetch(`${API_BASE}/batch/json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: drafts.value, mode: batchMode.value }),
+      body: JSON.stringify({ rows: drafts.value, mode: batchMode.value, realisticPatch: realisticPatch.value }),
     })
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
@@ -361,6 +364,7 @@ async function uploadFile() {
     const formData = new FormData()
     formData.append('file', selectedFile.value)
     formData.append('mode', batchMode.value)
+    formData.append('realisticPatch', String(realisticPatch.value))
 
     const res = await fetch(`${API_BASE}/batch`, {
       method: 'POST',
@@ -450,7 +454,7 @@ async function regenerateVisit(pi, vi) {
   try {
     const res = await fetch(
       `${API_BASE}/batch/${batchId.value}/visit/${pi}/${vi}`,
-      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }
+      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ realisticPatch: realisticPatch.value }) }
     )
     const json = await res.json()
     if (!json.success) {
@@ -495,6 +499,8 @@ async function generateAll() {
   try {
     const res = await fetch(`${API_BASE}/batch/${batchId.value}/generate`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ realisticPatch: realisticPatch.value }),
     })
     const json = await res.json()
     if (!json.success) {
@@ -799,6 +805,17 @@ onUnmounted(() => {
           <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
             <button v-for="m in [{k:'full',l:'Full'},{k:'soap-only',l:'SOAP Only'},{k:'continue',l:'Continue'}]" :key="m.k" @click="batchMode = m.k" class="px-3 py-1.5 font-medium transition-colors" :class="batchMode === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">{{ m.l }}</button>
           </div>
+          <span class="text-ink-200">|</span>
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
+            <span class="text-xs text-ink-500">Realistic</span>
+            <button @click="realisticPatch = !realisticPatch" type="button"
+              class="relative w-8 h-4.5 rounded-full transition-colors duration-200"
+              :class="realisticPatch ? 'bg-green-500' : 'bg-ink-300'"
+              role="switch" :aria-checked="realisticPatch">
+              <span class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200"
+                :class="realisticPatch ? 'translate-x-3.5' : ''"></span>
+            </button>
+          </label>
           <span class="text-ink-200">|</span>
           <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
             <button @click="inputMode = 'editor'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800' : 'text-ink-400 hover:text-ink-600'">Editor</button>

@@ -11,6 +11,7 @@
 import type { GenerationContext } from '../../src/types'
 import type { TXSequenceOptions } from '../../src/generator/tx-sequence-engine'
 import { exportSOAPAsText, exportTXSeriesAsText } from '../../src/generator/soap-generator'
+import { patchSOAPText } from '../../src/generator/objective-patch'
 import { inferLocalPatterns, inferSystemicPatterns } from '../../src/knowledge/medical-history-engine'
 import { extractStateFromTX, buildContextFromExtracted, buildInitialStateFromExtracted } from '../../src/parser/tx-extractor'
 import { splitSOAPText } from './text-to-html'
@@ -79,12 +80,14 @@ function buildContext(
 function generateSingleVisit(
   patient: BatchPatient,
   visit: BatchVisit,
-  seed?: number
+  seed?: number,
+  realisticPatch?: boolean,
 ): BatchVisit {
   const context = buildContext(patient, visit)
   const actualSeed = seed ?? Math.floor(Math.random() * 100000)
 
-  const fullText = exportSOAPAsText(context)
+  let fullText = exportSOAPAsText(context)
+  if (realisticPatch) fullText = patchSOAPText(fullText, context)
   const soap = splitSOAPText(fullText)
 
   return {
@@ -105,7 +108,8 @@ function generateSingleVisit(
 function generateTXSeries(
   patient: BatchPatient,
   txVisits: readonly BatchVisit[],
-  _ieVisit: BatchVisit | undefined
+  _ieVisit: BatchVisit | undefined,
+  realisticPatch?: boolean,
 ): BatchVisit[] {
   if (txVisits.length === 0) return []
 
@@ -151,12 +155,13 @@ function generateTXSeries(
       }
     }
 
-    const soap = splitSOAPText(result.text)
+    const patchedText = realisticPatch ? patchSOAPText(result.text, context, result.state) : result.text
+    const soap = splitSOAPText(patchedText)
     return {
       ...visit,
       generated: {
         soap,
-        fullText: result.text,
+        fullText: patchedText,
         seed: options.seed ?? 0,
       },
       status: 'done' as const,
@@ -178,7 +183,7 @@ export interface BatchGenerationResult {
  * 1. 先生成 IE/RE (独立生成)
  * 2. 再生成 TX 序列 (使用 TX Sequence Engine 保持连续性)
  */
-export function generateBatch(batch: BatchData): BatchGenerationResult {
+export function generateBatch(batch: BatchData, realisticPatch?: boolean): BatchGenerationResult {
   let totalGenerated = 0
   let totalFailed = 0
 
@@ -190,14 +195,14 @@ export function generateBatch(batch: BatchData): BatchGenerationResult {
 
     // 1. 生成 IE
     const generatedIE = ieVisit
-      ? generateSingleVisit(patient, ieVisit)
+      ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch)
       : undefined
 
     // 2. 生成 RE
-    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v))
+    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch))
 
     // 3. 生成 TX 序列
-    const generatedTX = generateTXSeries(patient, txVisits, generatedIE)
+    const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch)
 
     // 重新组装 visits (保持原始顺序)
     const updatedVisits = patient.visits.map(originalVisit => {
@@ -234,7 +239,7 @@ export function generateBatch(batch: BatchData): BatchGenerationResult {
 /**
  * Continue 模式：从 TX SOAP 文本提取状态并续写
  */
-export function generateContinueBatch(batch: BatchData): BatchGenerationResult {
+export function generateContinueBatch(batch: BatchData, realisticPatch?: boolean): BatchGenerationResult {
   let totalGenerated = 0
   let totalFailed = 0
 
@@ -272,10 +277,11 @@ export function generateContinueBatch(batch: BatchData): BatchGenerationResult {
         return { ...visit, status: 'failed' as const }
       }
       totalGenerated++
-      const soap = splitSOAPText(result.text)
+      const patchedText = realisticPatch ? patchSOAPText(result.text, context, result.state) : result.text
+      const soap = splitSOAPText(patchedText)
       return {
         ...visit,
-        generated: { soap, fullText: result.text, seed: options.seed ?? 0 },
+        generated: { soap, fullText: patchedText, seed: options.seed ?? 0 },
         status: 'done' as const,
       }
     })
@@ -294,7 +300,7 @@ export function generateContinueBatch(batch: BatchData): BatchGenerationResult {
 /**
  * Mixed mode: generate each patient according to its own mode field
  */
-export function generateMixedBatch(batch: BatchData): BatchGenerationResult {
+export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean): BatchGenerationResult {
   let totalGenerated = 0
   let totalFailed = 0
 
@@ -328,7 +334,8 @@ export function generateMixedBatch(batch: BatchData): BatchGenerationResult {
         const result = results[i]
         if (!result) { totalFailed++; return { ...visit, status: 'failed' as const } }
         totalGenerated++
-        return { ...visit, generated: { soap: splitSOAPText(result.text), fullText: result.text, seed: options.seed ?? 0 }, status: 'done' as const }
+        const patchedText = realisticPatch ? patchSOAPText(result.text, context, result.state) : result.text
+        return { ...visit, generated: { soap: splitSOAPText(patchedText), fullText: patchedText, seed: options.seed ?? 0 }, status: 'done' as const }
       })
       const updatedVisits = patient.visits.map(v => generatedTX.find(g => g.index === v.index) ?? v)
       return { ...patient, visits: updatedVisits }
@@ -338,9 +345,9 @@ export function generateMixedBatch(batch: BatchData): BatchGenerationResult {
     const ieVisit = patient.visits.find(v => v.noteType === 'IE')
     const reVisits = patient.visits.filter(v => v.noteType === 'RE')
     const txVisits = patient.visits.filter(v => v.noteType === 'TX')
-    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit) : undefined
-    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v))
-    const generatedTX = generateTXSeries(patient, txVisits, generatedIE)
+    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch) : undefined
+    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch))
+    const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch)
 
     const updatedVisits = patient.visits.map(v => {
       if (v.noteType === 'IE' && generatedIE) return generatedIE
@@ -364,7 +371,8 @@ export function generateMixedBatch(batch: BatchData): BatchGenerationResult {
 export function regenerateVisit(
   patient: BatchPatient,
   visit: BatchVisit,
-  seed?: number
+  seed?: number,
+  realisticPatch?: boolean,
 ): BatchVisit {
-  return generateSingleVisit(patient, visit, seed)
+  return generateSingleVisit(patient, visit, seed, realisticPatch)
 }

@@ -44,9 +44,10 @@ export function createBatchRouter(): Router {
         return
       }
 
-      // 1. 读取 mode
+      // 1. 读取 mode + realisticPatch
       const rawMode = req.body?.mode as string
       const mode: BatchMode = rawMode === 'soap-only' ? 'soap-only' : rawMode === 'continue' ? 'continue' : 'full'
+      const realisticPatch = req.body?.realisticPatch === true || req.body?.realisticPatch === 'true'
 
       // 2. 解析 Excel
       const rows = await parseExcelBuffer(req.file.buffer)
@@ -66,7 +67,7 @@ export function createBatchRouter(): Router {
       }
 
       // 5. Generate via mixed handler (supports per-patient modes)
-      const result = generateMixedBatch(batchData)
+      const result = generateMixedBatch(batchData, realisticPatch)
       saveBatch({ ...batchData, patients: result.patients })
 
       res.json({
@@ -91,13 +92,14 @@ export function createBatchRouter(): Router {
    */
   router.post('/json', async (req: Request, res: Response) => {
     try {
-      const { rows, mode: rawMode } = req.body ?? {}
+      const { rows, mode: rawMode, realisticPatch: rawPatch } = req.body ?? {}
       if (!Array.isArray(rows) || rows.length === 0) {
         res.status(400).json({ success: false, error: 'rows[] is required' })
         return
       }
 
       const mode: BatchMode = rawMode === 'soap-only' ? 'soap-only' : rawMode === 'continue' ? 'continue' : 'full'
+      const realisticPatch = rawPatch === true || rawPatch === 'true'
       const { patients, summary } = buildPatientsFromRows(rows, mode)
 
       const batchId = generateBatchId()
@@ -111,7 +113,7 @@ export function createBatchRouter(): Router {
       }
 
       // Always generate via mixed handler (supports per-patient modes)
-      const result = generateMixedBatch(batchData)
+      const result = generateMixedBatch(batchData, realisticPatch)
       saveBatch({ ...batchData, patients: result.patients })
       res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: result.totalGenerated, totalFailed: result.totalFailed, byType: summary.byType } })
     } catch (error) {
@@ -171,7 +173,8 @@ export function createBatchRouter(): Router {
       }
 
       const seed = req.body?.seed as number | undefined
-      const regenerated = regenerateVisit(patient, visit, seed)
+      const realisticPatchFlag = req.body?.realisticPatch === true || req.body?.realisticPatch === 'true'
+      const regenerated = regenerateVisit(patient, visit, seed, realisticPatchFlag)
 
       // 更新 batch (immutable pattern)
       const updatedVisits = patient.visits.map((v, i) =>
@@ -208,7 +211,8 @@ export function createBatchRouter(): Router {
         return
       }
 
-      const result = generateMixedBatch(batch)
+      const realisticPatchGen = req.body?.realisticPatch === true || req.body?.realisticPatch === 'true'
+      const result = generateMixedBatch(batch, realisticPatchGen)
       const updatedBatch: BatchData = { ...batch, patients: result.patients }
       saveBatch(updatedBatch)
 

@@ -5,6 +5,7 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
+import { patchSOAPText } from '../../../src/generator/objective-patch.ts'
 import {
   validateGeneratedSequence,
   visitStateToSnapshot,
@@ -30,6 +31,8 @@ export interface UseSOAPGenerationOptions {
   ieTxCount?: Ref<number>
   derivedSeverity: ComputedRef<string>
   currentPain: ComputedRef<number>
+  /** 是否启用 Objective 补丁（更真实的 Strength/ROM 评分） */
+  realisticPatch?: Ref<boolean>
 }
 
 export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
@@ -51,6 +54,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     currentPain,
   } = options
   const ieTxCount = options.ieTxCount
+  const realisticPatch = options.realisticPatch
 
   const generationContext = computed(() => ({
     noteType: noteType.value,
@@ -109,6 +113,9 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     try {
       const ctx = generationContext.value
       const txCtx = { ...ctx, noteType: 'TX' }
+      const usePatch = realisticPatch?.value ?? false
+      const mayPatch = (text: string, c: typeof ctx, vs?: any) =>
+        usePatch ? patchSOAPText(text, c as any, vs) : text
       const seed =
         useSeed != null
           ? useSeed
@@ -136,7 +143,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
       }
 
       if (noteType.value === 'IE') {
-        const ieText = exportSOAPAsText(ctx, {})
+        const ieText = mayPatch(exportSOAPAsText(ctx, {}), ctx)
         const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
           txCount: ieTxCount ? ieTxCount.value : 11,
           startVisitIndex: 1,
@@ -148,7 +155,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
           { visitIndex: 0, text: ieText, type: 'IE', state: null, _open: false },
           ...states.map(state => ({
             visitIndex: state.visitIndex,
-            text: exportSOAPAsText(txCtx, state),
+            text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
             type: 'TX',
             state,
             _open: false,
@@ -165,7 +172,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
         currentSeed.value = actualSeed
         generatedNotes.value = states.map(state => ({
           visitIndex: state.visitIndex,
-          text: exportSOAPAsText(txCtx, state),
+          text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
           type: 'TX',
           state,
           _open: false,

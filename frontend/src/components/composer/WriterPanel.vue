@@ -404,6 +404,7 @@ const soapGen = useSOAPGeneration({
   ieTxCount,
   derivedSeverity,
   currentPain,
+  realisticPatch,
 })
 const {
   generationContext,
@@ -644,6 +645,9 @@ function showValidation(msg) {
 
 // 生成中状态
 const isGenerating = ref(false)
+
+// Realistic Patch toggle (corrected ROM/Strength scores)
+const realisticPatch = ref(true)
 
 // 多选面板展开状态
 const expandedPanels = reactive({})
@@ -1156,10 +1160,22 @@ function isLongField(path) {
           <!-- 高级选项 (折叠) -->
           <details class="text-xs">
             <summary class="text-ink-400 hover:text-ink-600 cursor-pointer py-1 select-none">高级选项</summary>
-            <div class="flex items-center gap-2 mt-1.5">
-              <input v-model="seedInput" type="text" placeholder="Seed (留空随机)"
-                aria-label="随机种子"
-                class="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+            <div class="space-y-2 mt-1.5">
+              <div class="flex items-center gap-2">
+                <input v-model="seedInput" type="text" placeholder="Seed (留空随机)"
+                  aria-label="随机种子"
+                  class="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+              </div>
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <button @click="realisticPatch = !realisticPatch" type="button"
+                  class="relative w-8 h-4.5 rounded-full transition-colors duration-200 flex-shrink-0"
+                  :class="realisticPatch ? 'bg-green-500' : 'bg-ink-300'"
+                  role="switch" :aria-checked="realisticPatch">
+                  <span class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200"
+                    :class="realisticPatch ? 'translate-x-3.5' : ''"></span>
+                </button>
+                <span class="text-ink-500">Realistic ROM/Strength</span>
+              </label>
             </div>
           </details>
         </div>
