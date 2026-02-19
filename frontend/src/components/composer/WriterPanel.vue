@@ -387,6 +387,9 @@ function parsePainValue(raw) {
 const currentPain = computed(() => parsePainValue(fields['subjective.painScale.current']))
 const derivedSeverity = computed(() => severityFromPain(currentPain.value))
 
+// Realistic Patch toggle (corrected ROM/Strength scores)
+const realisticPatch = ref(true)
+
 const soapGen = useSOAPGeneration({
   fields,
   noteType,
@@ -645,9 +648,6 @@ function showValidation(msg) {
 
 // 生成中状态
 const isGenerating = ref(false)
-
-// Realistic Patch toggle (corrected ROM/Strength scores)
-const realisticPatch = ref(true)
 
 // 多选面板展开状态
 const expandedPanels = reactive({})
