@@ -23,7 +23,8 @@ services:
       - DATA_DIR=/app/data
       - API_KEY=${API_KEY:-}
       - COOKIE_ENCRYPTION_KEY=${COOKIE_ENCRYPTION_KEY:-}
-      - CORS_ORIGIN=https://ac.aanao.cc
+      - CORS_ORIGIN=https://rbmeds.com
+      - SHARED_JWT_SECRET=${SHARED_JWT_SECRET:-}
     restart: unless-stopped
 
 volumes:

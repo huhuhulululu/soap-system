@@ -6,6 +6,8 @@
 
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
+import jwt from 'jsonwebtoken'
 import rateLimit from 'express-rate-limit'
 import { createBatchRouter } from './routes/batch'
 import { createAutomateRouter } from './routes/automate'
@@ -13,6 +15,27 @@ import { createAutomateRouter } from './routes/automate'
 // ── Auth Middleware ──────────────────────────────
 
 function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  // 1. Try JWT cookie (shared with PT system)
+  const token = req.cookies?.rbmeds_token
+  if (token) {
+    const secret = process.env.SHARED_JWT_SECRET
+    if (secret) {
+      try {
+        const payload = jwt.verify(token, secret) as Record<string, unknown>
+        if (!payload.ac_access) {
+          res.status(403).json({ success: false, error: 'No AC system access' })
+          return
+        }
+        ;(req as any).user = payload
+        next()
+        return
+      } catch {
+        // JWT invalid, fall through to x-api-key
+      }
+    }
+  }
+
+  // 2. Fallback: x-api-key (backward compatible)
   const apiKey = process.env.API_KEY
   if (!apiKey) {
     next()
@@ -35,9 +58,11 @@ export function createApp(): express.Application {
   app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:9090',
     methods: ['GET', 'POST', 'PUT'],
+    credentials: true,
   }))
 
   app.use(express.json({ limit: '1mb' }))
+  app.use(cookieParser())
 
   // S5: Rate limiting
   const apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false })
@@ -49,6 +74,22 @@ export function createApp(): express.Application {
   // 健康检查 (无需认证)
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  })
+
+  // Auth check endpoint (无需认证)
+  app.get('/api/auth/me', (req, res) => {
+    const token = req.cookies?.rbmeds_token
+    const secret = process.env.SHARED_JWT_SECRET
+    if (!token || !secret) {
+      res.json({ authenticated: false })
+      return
+    }
+    try {
+      const payload = jwt.verify(token, secret) as Record<string, unknown>
+      res.json({ authenticated: true, user: { username: payload.username, role: payload.role, ac_access: payload.ac_access } })
+    } catch {
+      res.json({ authenticated: false })
+    }
   })
 
   // S3: Protected routes
