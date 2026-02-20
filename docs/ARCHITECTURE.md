@@ -1,9 +1,9 @@
-# SOAP System 系统架构手册 v2.2.0
+# SOAP System 系统架构手册 v2.3.0
 
 > 本文档是 SOAP System 的唯一正确数据参考源（Single Source of Truth）。
 > 所有系统优化、检修、重建、AI Agent 训练均以本文档为准。
 >
-> 最后更新: 2026-02-15 | 分支: clean-release
+> 最后更新: 2026-02-20 | 分支: clean-release
 
 ---
 
@@ -66,4 +66,46 @@ SOAP System 是一个针灸诊所 SOAP 医疗笔记的自动化工具，核心�
 - 服务器: `ubuntu@150.136.150.184`
 - 项目路径: `/home/ubuntu/soap-system`
 - 部署命令: `ssh ubuntu@150.136.150.184 "cd /home/ubuntu/soap-system && git pull origin clean-release && docker compose up -d --build"`
-- 端口映射: 9090 → 80 (nginx)
+- 端口映射: 9090 → 8080 (nginx)
+- Nginx 路由: `https://rbmeds.com/ac/` → `localhost:9090`（strip `/ac/`）
+
+### 1.4 认证架构
+
+AC 系统通过与 PT 系统共享 JWT Cookie 实现统一认证，无需独立用户系统。
+
+```
+用户登录 PT (/pt/api/auth/login)
+    │
+    ▼
+PT 签发 JWT Cookie (rbmeds_token)
+    │  payload: { user_id, username, role, ac_access, exp }
+    │  httponly, secure, samesite=Lax, path=/
+    │
+    ▼
+用户访问 AC (/ac/)
+    │
+    ▼
+AC 后端 requireAuth 中间件
+    ├── 1. 读取 req.cookies.rbmeds_token
+    ├── 2. jwt.verify(token, SHARED_JWT_SECRET)
+    ├── 3. 检查 payload.ac_access === true
+    ├── ✅ 通过 → req.user = payload → next()
+    └── ❌ 失败 → 回退 x-api-key 验证（向后兼容）
+```
+
+关键配置:
+- `SHARED_JWT_SECRET`: 必须与 PT 的 `SECRET_KEY` 相同
+- `CORS_ORIGIN`: `https://rbmeds.com`（含 `credentials: true`）
+- `cookie-parser`: 解析请求中的 cookie
+- `/api/auth/me`: 返回当前 JWT 用户信息（username, role, ac_access）
+
+用户 AC 访问权限由 PT Settings → 用户管理中的「AC 系统」开关控制（`ac_access` 字段）。
+
+---
+
+## 变更记录 (Changelog)
+
+| 版本 | 日期 | 变更内容 |
+|------|------|----------|
+| v2.3.0 | 2026-02-20 | **JWT Cookie 共享认证**: (1) `requireAuth` 中间件新增 JWT cookie 验证（优先级高于 x-api-key），验证 `rbmeds_token` cookie 中的 `ac_access` 声明；(2) 新增 `cookie-parser` + `jsonwebtoken` 依赖；(3) 新增 `/api/auth/me` 端点；(4) CORS 从 `ac.aanao.cc` 改为 `https://rbmeds.com`，启用 `credentials: true`；(5) docker-compose.yml 新增 `SHARED_JWT_SECRET` 环境变量。 |
+| v2.2.0 | 2026-02-15 | 初始架构文档 |
