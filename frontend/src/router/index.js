@@ -1,4 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
+
+let authChecked = false
+let isAuthenticated = false
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -21,6 +25,27 @@ const router = createRouter({
     },
     { path: '/history', redirect: '/' }
   ]
+})
+
+router.beforeEach(async (to, from, next) => {
+  if (!authChecked) {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' })
+      const data = await res.json()
+      isAuthenticated = data.authenticated === true
+    } catch {
+      isAuthenticated = false
+    }
+    authChecked = true
+  }
+
+  if (!isAuthenticated) {
+    const ptLoginUrl = '/pt/login?redirect=' + encodeURIComponent('/ac' + to.fullPath)
+    window.location.href = ptLoginUrl
+    return
+  }
+
+  next()
 })
 
 export default router
