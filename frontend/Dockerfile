@@ -9,10 +9,7 @@ RUN npm ci
 RUN npm run build
 
 FROM nginx:alpine
-# AChecker Vue SPA
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
-# 公司主页 + Portal 静态页面
-COPY company-site/ /usr/share/nginx/html/site/
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx \
     && touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
