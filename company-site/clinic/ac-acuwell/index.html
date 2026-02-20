@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AcuWell Clinic · RBMS Client Portal</title>
+  <meta name="description" content="AcuWell Clinic — Access your SOAP note management, billing automation, and practice tools powered by RBMS.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232b3c36'/%3E%3Cpath d='M10 16l4 4 8-8' stroke='%23fbf9f5' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: { 50:'#f4f7f6',100:'#e3ebe8',200:'#c7d7d1',300:'#a3bdb3',400:'#7a9e91',500:'#5a8274',600:'#47695d',700:'#3b564d',800:'#324740',900:'#2b3c36',950:'#16211e' },
+            paper: { 50:'#fefdfb',100:'#fbf9f5',200:'#f7f3eb',300:'#f0e9dc',400:'#e5d9c5' },
+          },
+          fontFamily: {
+            display: ['Playfair Display','Georgia','serif'],
+            sans: ['IBM Plex Sans','system-ui','sans-serif'],
+            mono: ['IBM Plex Mono','monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+    .reveal { opacity:0; transform:translateY(24px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
+    .reveal.v { opacity:1; transform:translateY(0); }
+    .rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}
+    .grain::after { content:''; position:fixed; inset:0; z-index:9999; pointer-events:none; opacity:.018; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    .login-btn { transition: transform .3s ease, box-shadow .3s ease; }
+    .login-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px -4px rgba(22,33,30,.2); }
+  </style>
+</head>
+<body class="grain bg-paper-50 text-ink-800 antialiased min-h-screen flex flex-col">
+
+  <!-- NAV -->
+  <nav class="border-b border-ink-100/60 bg-paper-50/90 backdrop-blur-xl sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="/" class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-ink-800 flex items-center justify-center">
+            <svg class="w-4 h-4 text-paper-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-display text-base font-semibold text-ink-900">RBMS</span>
+            <span class="text-ink-300">·</span>
+            <span class="text-xs text-ink-400 font-mono">Client Portal</span>
+          </div>
+        </a>
+        <a href="/portal/ac/" class="text-xs text-ink-400 hover:text-ink-700 transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          All Clinics 返回诊所列表
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="flex-1 flex items-center justify-center py-12 lg:py-20">
+    <div class="max-w-lg mx-auto px-6 w-full">
+
+      <!-- Clinic Card -->
+      <div class="reveal bg-white rounded-2xl border border-ink-100 p-8 lg:p-10 text-center">
+
+        <!-- Clinic Identity -->
+        <div class="reveal rd1 mb-6">
+          <div class="w-16 h-16 rounded-2xl bg-ink-900 flex items-center justify-center mx-auto mb-5">
+            <svg class="w-8 h-8 text-paper-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z"/>
+            </svg>
+          </div>
+          <h1 class="font-display text-2xl lg:text-3xl font-semibold text-ink-900 mb-1">AcuWell Clinic</h1>
+          <p class="text-sm text-ink-400 font-display">法拉盛针灸诊所</p>
+        </div>
+
+        <!-- Clinic Info -->
+        <div class="reveal rd2 mb-8">
+          <div class="flex items-center justify-center gap-4 text-xs text-ink-400 mb-4">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+              Flushing, NY
+            </span>
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/></svg>
+              Acupuncture
+            </span>
+          </div>
+          <div class="h-px bg-ink-100 mb-4"></div>
+          <div class="flex flex-wrap justify-center gap-2">
+            <span class="px-2.5 py-1 text-[10px] font-mono font-medium text-ink-500 bg-ink-50 rounded">SOAP Notes</span>
+            <span class="px-2.5 py-1 text-[10px] font-mono font-medium text-ink-500 bg-ink-50 rounded">Billing</span>
+            <span class="px-2.5 py-1 text-[10px] font-mono font-medium text-ink-500 bg-ink-50 rounded">EHR Integration</span>
+            <span class="px-2.5 py-1 text-[10px] font-mono font-medium text-ink-500 bg-ink-50 rounded">MDLand</span>
+          </div>
+        </div>
+
+        <!-- Login Button -->
+        <div class="reveal rd3">
+          <a href="https://rbmeds.com/ac/" class="login-btn block w-full px-6 py-4 text-sm font-semibold text-paper-50 bg-ink-800 rounded-xl hover:bg-ink-700 transition-colors">
+            Log In to SOAP System 登录SOAP系统 →
+          </a>
+          <p class="text-xs text-ink-300 mt-4">Powered by RBMS · Secure Connection</p>
+        </div>
+      </div>
+
+      <!-- Help -->
+      <div class="reveal rd4 text-center mt-6">
+        <p class="text-xs text-ink-400">Need help? <a href="/#contact" class="text-ink-600 hover:underline">Contact RBMS Support</a> · 需要帮助？<a href="/#contact" class="text-ink-600 hover:underline">联系客服</a></p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-ink-100 py-6">
+    <div class="max-w-4xl mx-auto px-6 lg:px-8 flex items-center justify-between">
+      <p class="text-xs text-ink-400">&copy; 2026 RBMS</p>
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">Home</a>
+        <a href="/portal/ac/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">AC Portal</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('v'); });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
