@@ -356,7 +356,7 @@
               Multi-payer insurance compliance<br><span class="text-xs text-ink-400">多付款方保险合规</span>
             </li>
           </ul>
-          <a href="/portal/ac/" class="block w-full text-center px-6 py-3.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">
+          <a href="/site/portal/ac/" class="block w-full text-center px-6 py-3.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">
             Enter AC Portal 进入针灸系统 →
           </a>
         </div>
@@ -392,9 +392,36 @@
               Cross-system data reconciliation<br><span class="text-xs text-ink-400">跨系统数据对账</span>
             </li>
           </ul>
-          <a href="/portal/pt/" class="block w-full text-center px-6 py-3.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">
+          <a href="/site/portal/pt/" class="block w-full text-center px-6 py-3.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">
             Enter PT Portal 进入PT系统 →
           </a>
+        </div>
+      </div>
+
+      <!-- Management Dashboard — 统一管理入口 -->
+      <div class="reveal rd2 mt-8 max-w-4xl mx-auto">
+        <div class="portal-card card-lift bg-ink-900 rounded-2xl p-8 lg:p-10 text-paper-50">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-xl bg-paper-50/10 flex items-center justify-center">
+                <svg class="w-7 h-7 text-paper-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="font-display text-xl font-semibold">Management Dashboard</h3>
+                <p class="text-xs text-paper-100/60 font-mono">统一管理面板 · RBAC Permission Control</p>
+              </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <a href="https://tf.rbmeds.com/dashboard" class="px-6 py-3 text-sm font-semibold text-ink-900 bg-paper-50 rounded-lg hover:bg-paper-100 transition-colors text-center">
+                PT Dashboard →
+              </a>
+              <a href="https://ac.rbmeds.com/" class="px-6 py-3 text-sm font-semibold text-paper-50 bg-paper-50/10 border border-paper-50/20 rounded-lg hover:bg-paper-50/20 transition-colors text-center">
+                AC Dashboard →
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -684,8 +711,10 @@
         <div>
           <h4 class="text-xs font-mono font-medium text-ink-400 uppercase tracking-widest mb-4">Client Portal 客户入口</h4>
           <ul class="space-y-2.5">
-            <li><a href="/portal/ac/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">AC Portal</a></li>
-            <li><a href="/portal/pt/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">PT Portal</a></li>
+            <li><a href="/site/portal/ac/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">AC Portal</a></li>
+            <li><a href="/site/portal/pt/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">PT Portal</a></li>
+            <li><a href="https://tf.rbmeds.com/dashboard" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">PT Dashboard</a></li>
+            <li><a href="https://ac.rbmeds.com/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">AC Dashboard</a></li>
           </ul>
           <h4 class="text-xs font-mono font-medium text-ink-400 uppercase tracking-widest mt-8 mb-4">Company 公司</h4>
           <ul class="space-y-2.5">

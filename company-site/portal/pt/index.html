@@ -47,7 +47,7 @@
   <nav class="border-b border-ink-100/60 bg-paper-50/90 backdrop-blur-xl sticky top-0 z-50">
     <div class="max-w-4xl mx-auto px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
-        <a href="/" class="flex items-center gap-3">
+        <a href="/site/" class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-ink-800 flex items-center justify-center">
             <svg class="w-4 h-4 text-paper-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -59,7 +59,7 @@
             <span class="text-xs text-ink-400 font-mono">Physical Therapy Portal</span>
           </div>
         </a>
-        <a href="/" class="text-xs text-ink-400 hover:text-ink-700 transition-colors flex items-center gap-1.5">
+        <a href="/site/" class="text-xs text-ink-400 hover:text-ink-700 transition-colors flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
           Back to Home 返回首页
         </a>
@@ -124,7 +124,7 @@
 
       <!-- Help -->
       <div class="reveal rd4 text-center mt-6">
-        <p class="text-xs text-ink-400">Need help? <a href="/#contact" class="text-ink-600 hover:underline">Contact RBMS Support</a> · 需要帮助？<a href="/#contact" class="text-ink-600 hover:underline">联系客服</a></p>
+        <p class="text-xs text-ink-400">Need help? <a href="/site/#contact" class="text-ink-600 hover:underline">Contact RBMS Support</a> · 需要帮助？<a href="/site/#contact" class="text-ink-600 hover:underline">联系客服</a></p>
       </div>
 
     </div>
@@ -135,8 +135,8 @@
     <div class="max-w-4xl mx-auto px-6 lg:px-8 flex items-center justify-between">
       <p class="text-xs text-ink-400">&copy; 2026 RBMS</p>
       <div class="flex items-center gap-4">
-        <a href="/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">Home 首页</a>
-        <a href="/portal/ac/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">AC Portal</a>
+        <a href="/site/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">Home 首页</a>
+        <a href="/site/portal/ac/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">AC Portal</a>
       </div>
     </div>
   </footer>
@@ -154,7 +154,12 @@
       pw.type = pw.type === 'password' ? 'text' : 'password';
     });
 
-    // Login form — directly authenticate with Tenfu system
+    // PT Portal 登录 — 认证后直接跳转到 Tenfu Dashboard
+    // 当 tenfu-clean RBAC 部署后，此处将对接真正的认证 API
+    const PT_BACKEND = window.location.hostname === 'localhost'
+      ? ''  // 本地开发
+      : 'https://tf.rbmeds.com';
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
@@ -167,7 +172,7 @@
       btn.textContent = 'Signing in... 登录中...';
 
       try {
-        const res = await fetch('/pt/tf/api/auth/login', {
+        const res = await fetch(PT_BACKEND + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -176,7 +181,8 @@
         const data = await res.json();
 
         if (data.success) {
-          window.location.href = '/pt/tf/dashboard';
+          // 登录成功，直接跳转到 Tenfu Dashboard
+          window.location.href = PT_BACKEND + '/dashboard';
         } else {
           errEl.textContent = data.message || 'Login failed 登录失败';
           errEl.classList.remove('hidden');
