@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PT Portal · RBMS | Select Your Clinic 选择诊所</title>
+  <meta name="description" content="RBMS Physical Therapy Portal — Select your clinic to access claims management, payment tracking, and practice analytics.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232b3c36'/%3E%3Cpath d='M10 16l4 4 8-8' stroke='%23fbf9f5' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: { 50:'#f4f7f6',100:'#e3ebe8',200:'#c7d7d1',300:'#a3bdb3',400:'#7a9e91',500:'#5a8274',600:'#47695d',700:'#3b564d',800:'#324740',900:'#2b3c36',950:'#16211e' },
+            paper: { 50:'#fefdfb',100:'#fbf9f5',200:'#f7f3eb',300:'#f0e9dc',400:'#e5d9c5' },
+          },
+          fontFamily: {
+            display: ['Playfair Display','Georgia','serif'],
+            sans: ['IBM Plex Sans','system-ui','sans-serif'],
+            mono: ['IBM Plex Mono','monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+    .reveal { opacity:0; transform:translateY(24px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
+    .reveal.v { opacity:1; transform:translateY(0); }
+    .rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}.rd5{transition-delay:.5s}.rd6{transition-delay:.6s}
+    .grain::after { content:''; position:fixed; inset:0; z-index:9999; pointer-events:none; opacity:.018; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    .clinic-card { transition: transform .4s cubic-bezier(.16,1,.3,1), box-shadow .4s ease, border-color .3s ease; }
+    .clinic-card:hover { transform:translateY(-4px); box-shadow:0 16px 32px -8px rgba(22,33,30,.12); border-color:#a3bdb3; }
+    .clinic-card .arrow { transition: transform .3s ease, opacity .3s ease; opacity:0.4; }
+    .clinic-card:hover .arrow { transform:translateX(4px); opacity:1; }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:.4} 50%{opacity:1} }
+  </style>
+</head>
+<body class="grain bg-paper-50 text-ink-800 antialiased min-h-screen flex flex-col">
+
+  <!-- NAV -->
+  <nav class="border-b border-ink-100/60 bg-paper-50/90 backdrop-blur-xl sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="w-8 h-8 rounded-lg bg-ink-800 flex items-center justify-center">
+            <svg class="w-4 h-4 text-paper-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-display text-base font-semibold text-ink-900">RBMS</span>
+            <span class="text-ink-300">·</span>
+            <span class="text-xs text-ink-400 font-mono">Physical Therapy Portal</span>
+          </div>
+        </a>
+        <a href="/" class="text-xs text-ink-400 hover:text-ink-700 transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Back to Home 返回首页
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="flex-1 py-12 lg:py-20">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+
+      <!-- Header -->
+      <div class="text-center mb-12 lg:mb-16">
+        <div class="reveal flex items-center justify-center gap-2 mb-4">
+          <span class="w-8 h-px bg-ink-300"></span>
+          <span class="text-xs font-mono font-medium text-ink-400 uppercase tracking-widest">Physical Therapy Portal · 物理治疗诊所入口</span>
+          <span class="w-8 h-px bg-ink-300"></span>
+        </div>
+        <h1 class="reveal rd1 font-display text-3xl lg:text-4xl font-semibold text-ink-900 leading-tight mb-2">Select Your Clinic</h1>
+        <p class="reveal rd1 text-lg text-ink-400 font-display mb-4">选择您的诊所</p>
+        <p class="reveal rd2 text-ink-500 leading-relaxed max-w-xl mx-auto">Choose your practice below to access claims management, payment tracking, and your dedicated dashboard.</p>
+        <p class="reveal rd2 text-sm text-ink-400 mt-1.5">请选择您的诊所，进入索赔管理、付款追踪和专属仪表盘。</p>
+      </div>
+
+      <!-- Clinic Grid -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-16">
+
+        <!-- Clinic 1: Tenfu - Active -->
+        <a href="/pt/" class="reveal rd2 clinic-card block bg-white rounded-xl border border-ink-100 p-6 lg:p-7 group">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-11 h-11 rounded-lg bg-ink-900 flex items-center justify-center">
+              <svg class="w-5 h-5 text-paper-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>
+              </svg>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+              <span class="text-[10px] font-mono text-emerald-600 font-medium">ACTIVE</span>
+            </div>
+          </div>
+          <h3 class="font-semibold text-ink-900 mb-0.5">Tenfu Physical Therapy</h3>
+          <p class="text-xs text-ink-400 mb-3">Brooklyn, NY · 布鲁克林</p>
+          <p class="text-xs text-ink-400 leading-relaxed mb-4">Claims · Payments · Dashboard · Analytics</p>
+          <div class="flex items-center justify-between">
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 text-[10px] font-mono text-ink-500 bg-ink-50 rounded">WebPT</span>
+              <span class="px-2 py-0.5 text-[10px] font-mono text-ink-500 bg-ink-50 rounded">ClaimMD</span>
+            </div>
+            <div class="arrow text-ink-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+            </div>
+          </div>
+        </a>
+
+        <!-- Clinic 2: Onboarding -->
+        <div class="reveal rd3 clinic-card block bg-white rounded-xl border border-ink-100 p-6 lg:p-7 opacity-50 cursor-default">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-11 h-11 rounded-lg bg-ink-200 flex items-center justify-center">
+              <svg class="w-5 h-5 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>
+              </svg>
+            </div>
+            <span class="text-[10px] font-mono text-ink-300 font-medium">ONBOARDING</span>
+          </div>
+          <h3 class="font-semibold text-ink-400 mb-0.5">Summit Rehab Center</h3>
+          <p class="text-xs text-ink-300 mb-3">Queens, NY · 皇后区</p>
+          <p class="text-xs text-ink-300 leading-relaxed mb-4">System setup in progress</p>
+          <div class="flex items-center justify-between">
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 text-[10px] font-mono text-ink-300 bg-ink-50 rounded">Coming Soon</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clinic 3: Placeholder -->
+        <div class="reveal rd4 clinic-card block bg-white rounded-xl border border-ink-100 border-dashed p-6 lg:p-7 opacity-40 cursor-default">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-11 h-11 rounded-lg bg-ink-50 flex items-center justify-center">
+              <svg class="w-5 h-5 text-ink-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            </div>
+          </div>
+          <h3 class="font-semibold text-ink-300 mb-0.5">Your Clinic Here</h3>
+          <p class="text-xs text-ink-200 mb-3">您的诊所</p>
+          <p class="text-xs text-ink-200 leading-relaxed mb-4">Contact us to get started</p>
+          <a href="/#contact" class="text-xs text-ink-400 hover:text-ink-600 transition-colors underline underline-offset-2">Get in Touch 联系我们 →</a>
+        </div>
+
+      </div>
+
+      <!-- Info -->
+      <div class="reveal rd5 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ink-50 border border-ink-100">
+          <svg class="w-4 h-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/></svg>
+          <span class="text-xs text-ink-500">Don't see your clinic? <a href="/#contact" class="text-ink-700 font-medium hover:underline">Contact us</a> to set up your account. 没有找到您的诊所？<a href="/#contact" class="text-ink-700 font-medium hover:underline">联系我们</a>开通账户。</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-ink-100 py-8">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-xs text-ink-400">&copy; 2026 Royal Billing Management Service</p>
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">Home 首页</a>
+        <a href="/#contact" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">Contact 联系</a>
+        <a href="/portal/ac/" class="text-xs text-ink-400 hover:text-ink-600 transition-colors">AC Portal</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('v'); });
+    }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
