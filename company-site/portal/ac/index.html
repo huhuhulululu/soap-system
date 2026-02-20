@@ -175,7 +175,6 @@
         const data = await res.json();
 
         if (data.success) {
-          btn.textContent = 'Redirecting... 跳转中...';
           window.location.href = data.redirect_url;
         } else {
           errEl.textContent = data.error || 'Login failed 登录失败';
