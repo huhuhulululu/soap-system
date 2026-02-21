@@ -103,7 +103,7 @@ AC 后端 requireAuth 中间件
     ├── 2. jwt.verify(token, SHARED_JWT_SECRET)
     ├── 3. 检查 payload.ac_access === true
     ├── ✅ 通过 → req.user = payload → next()
-    └── ❌ 失败 → 回退 x-api-key 验证（向后兼容）
+    └── ❌ 失败 → 回退 x-api-key 验证（向后兼容；API_KEY 未设置时直接放行）
 ```
 
 关键配置:
@@ -171,13 +171,12 @@ AC 后端 requireAuth 中间件
 ### 3.1 模块依赖图
 
 ```
-types ─────────────────────────────────┐
-  │                                    │
-  ├──→ shared                          │
-  │                                    │
-  ├──→ knowledge (← types)             │
-  │         │                          │
-  │         ▼                          ▼
+types
+  │
+  ├──→ knowledge (← types)
+  │         │
+  ├──→ shared (← types + knowledge)  ← tcm-mappings 引用 knowledge
+  │       │
   ├──→ parser (← types + knowledge + shared)
   │       │
   ▼       ▼
@@ -247,7 +246,7 @@ stores/         — Pinia store (files.js)
 | 模式 | 说明 |
 |------|------|
 | `full` | 解析 Excel + 生成完整 SOAP（默认） |
-| `soap-only` | 生成时仅填充 Subjective/Objective，跳过 Assessment/Plan（模式区别在 `generateMixedBatch` 内部处理） |
+| `soap-only` | 与 full 相同生成路径（SOAP 四节全生成），区别在 Excel 解析层放宽校验（如无 IE 时允许空 ICD/CPT） |
 | `continue` | 基于已有 IE+TX 续写后续 TX |
 
 ### 5.3 批量处理流程
