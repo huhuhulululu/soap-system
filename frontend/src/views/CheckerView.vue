@@ -91,7 +91,7 @@ const STATUS_BADGE = {
       <div v-if="historyRecords.length > 0">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-sm font-semibold text-ink-700">历史记录</h2>
-          <button @click="clearAllHistory" class="text-xs text-ink-400 hover:text-red-500 transition-colors">清空</button>
+          <button @click="clearAllHistory" class="text-xs text-ink-600 hover:text-red-500 transition-colors">清空</button>
         </div>
         <div class="card overflow-hidden">
           <table class="w-full">
@@ -227,11 +227,11 @@ const STATUS_BADGE = {
           <div class="text-xs text-ink-700 font-mono whitespace-pre-wrap leading-relaxed">
             <template v-for="(text, i) in (previewFile.report?.visitTexts || [])" :key="i">
               <div class="mb-4 p-3 bg-paper-50 border border-ink-100 rounded">
-                <p class="text-[10px] text-ink-400 mb-2 font-sans">Visit {{ i + 1 }}</p>
+                <p class="text-[11px] text-ink-600 mb-2 font-sans">Visit {{ i + 1 }}</p>
                 {{ text }}
               </div>
             </template>
-            <p v-if="!(previewFile.report?.visitTexts?.length)" class="text-ink-400 text-sm font-sans">
+            <p v-if="!(previewFile.report?.visitTexts?.length)" class="text-ink-600 text-sm font-sans">
               无原文数据
             </p>
           </div>

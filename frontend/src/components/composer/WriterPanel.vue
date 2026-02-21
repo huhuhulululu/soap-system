@@ -523,8 +523,8 @@ function isLongField(path) {
         <div data-step1 class="space-y-3 mt-6">
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">1</span>
-            填写必填项 <span class="text-red-500 text-[10px] font-normal">*</span>
-            <span class="ml-auto text-[10px] font-normal" :class="requiredProgress.pct === 100 ? 'text-green-600' : 'text-ink-400'">
+            填写必填项 <span class="text-red-500 text-[11px] font-normal">*</span>
+            <span class="ml-auto text-[10px] font-normal" :class="requiredProgress.pct === 100 ? 'text-green-600' : 'text-ink-600'">
               {{ requiredProgress.filled }}/{{ requiredProgress.total }}
             </span>
           </h2>
@@ -543,12 +543,12 @@ function isLongField(path) {
               <!-- 模式切换 -->
               <div class="flex gap-1 mb-1.5">
                 <button @click="selectionMode = 'bodypart'"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  class="flex-1 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
                   :class="selectionMode === 'bodypart' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                   直选
                 </button>
                 <button @click="selectionMode = 'icd10'"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  class="flex-1 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
                   :class="selectionMode === 'icd10' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                   ICD-10
                 </button>
@@ -562,7 +562,7 @@ function isLongField(path) {
                 <!-- 已选标签 -->
                 <div v-if="selectedIcds.length" class="flex flex-wrap gap-1 mb-1.5">
                   <span v-for="(item, idx) in selectedIcds" :key="item.icd10"
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
                     :class="item.bodyPart ? 'bg-ink-800 text-paper-50' : 'bg-ink-100 text-ink-600'">
                     {{ item.icd10 }}
                     <button @click="removeIcdCode(idx)" class="hover:text-red-400 cursor-pointer">&times;</button>
@@ -588,7 +588,7 @@ function isLongField(path) {
               <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
                 <button v-for="opt in lateralityOptions" :key="opt.value"
                   @click="laterality = opt.value"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  class="flex-1 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
                   :class="laterality === opt.value
                     ? 'bg-ink-800 text-paper-50 border-ink-800'
                     : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -635,24 +635,24 @@ function isLongField(path) {
           </div>
           <!-- 次要部位 -->
           <div>
-            <label class="text-xs text-ink-500 mb-1 block">次要部位 <span class="text-ink-300">(可选)</span></label>
+            <label class="text-xs text-ink-500 mb-1 block">次要部位 <span class="text-ink-500">(可选)</span></label>
             <div class="flex flex-wrap gap-1">
               <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
                 @click="toggleSecondaryPart(bp)"
-                class="px-2.5 py-1 text-[11px] rounded-md border transition-colors cursor-pointer"
+                class="px-2.5 py-1 text-xs rounded-md border transition-colors cursor-pointer"
                 :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
                 {{ bodyPartLabel(bp) }}
               </button>
             </div>
             <!-- 已选次要部位的侧别选择 -->
             <div v-for="bp in secondaryBodyParts.filter(b => LATERALITY_MAP[b])" :key="'lat-'+bp" class="flex items-center gap-1.5 mt-1.5">
-              <span class="text-[11px] text-ink-400 w-16 flex-shrink-0">{{ bp }}</span>
+              <span class="text-xs text-ink-600 w-16 flex-shrink-0">{{ bp }}</span>
               <button v-for="opt in LATERALITY_MAP[bp]" :key="opt.value"
                 @click="secondaryLaterality[bp] = opt.value"
-                class="px-2 py-0.5 text-[10px] font-medium rounded border transition-colors cursor-pointer"
+                class="px-2 py-0.5 text-xs font-medium rounded border transition-colors cursor-pointer"
                 :class="secondaryLaterality[bp] === opt.value
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
-                  : 'border-ink-200 text-ink-400 hover:border-ink-400'">
+                  : 'border-ink-200 text-ink-600 hover:border-ink-400'">
                 {{ opt.label }}
               </button>
             </div>
@@ -660,17 +660,17 @@ function isLongField(path) {
           <!-- 病史 (折叠面板, 分组) -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
-              <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.length || '无' }})</span></label>
-              <button @click="togglePanel('medicalHistory')" class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]"
+              <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-500 font-normal">({{ medicalHistory.length || '无' }})</span></label>
+              <button @click="togglePanel('medicalHistory')" class="text-xs text-ink-600 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]"
                 :aria-expanded="!!expandedPanels['medicalHistory']" aria-controls="panel-medicalHistory">
                 {{ expandedPanels['medicalHistory'] ? '收起' : '编辑' }}
               </button>
             </div>
             <!-- 已选标签 -->
             <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
-              <span v-if="medicalHistory.length === 0" class="text-[10px] text-ink-300 italic py-0.5">无病史</span>
+              <span v-if="medicalHistory.length === 0" class="text-[11px] text-ink-500 italic py-0.5">无病史</span>
               <span v-for="h in medicalHistory" :key="h"
-                class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
+                class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
                 {{ h }}
                 <button @click="safeRemove(medicalHistory, h)"
                   class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
@@ -681,18 +681,18 @@ function isLongField(path) {
             <!-- 展开面板 (分组) -->
             <div v-show="expandedPanels['medicalHistory']" id="panel-medicalHistory" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
               <div v-for="group in MEDICAL_HISTORY_GROUPS" :key="group.label">
-                <p class="text-[10px] text-ink-400 font-medium mb-1">{{ group.label }}</p>
+                <p class="text-[11px] text-ink-600 font-medium mb-1">{{ group.label }}</p>
                 <div class="flex flex-wrap gap-1">
                   <button v-for="h in group.items" :key="h"
                     @click="safeToggle(medicalHistory, h)"
-                    class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
+                    class="text-xs px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
                     :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'">
                     {{ h }}
                   </button>
                 </div>
               </div>
               <button v-if="medicalHistory.length > 0" @click="medicalHistory.splice(0)"
-                class="text-[10px] text-ink-400 hover:text-red-500 transition-colors cursor-pointer mt-1">
+                class="text-[11px] text-ink-600 hover:text-red-500 transition-colors cursor-pointer mt-1">
                 清空全部
               </button>
             </div>
@@ -703,7 +703,7 @@ function isLongField(path) {
             <div class="grid grid-cols-3 gap-1">
               <button v-for="opt in whitelist['subjective.chronicityLevel']" :key="opt"
                 @click="fields['subjective.chronicityLevel'] = opt"
-                class="py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
+                class="py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
                 :class="fields['subjective.chronicityLevel'] === opt
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
                   : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -712,17 +712,17 @@ function isLongField(path) {
             </div>
           </div>
           <!-- Severity 显示 (从 Pain 推导) -->
-          <div class="flex items-center gap-2 text-xs text-ink-400 bg-paper-50 rounded-lg px-3 py-2">
+          <div class="flex items-center gap-2 text-xs text-ink-600 bg-paper-50 rounded-lg px-3 py-2">
             <span>Severity:</span>
             <span class="font-medium text-ink-600">{{ derivedSeverity }}</span>
-            <span class="text-ink-300">(Pain {{ currentPain }} 推导)</span>
+            <span class="text-ink-500">(Pain {{ currentPain }} 推导)</span>
           </div>
         </div>
 
         <!-- 评估参数 -->
         <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
           <h3 class="text-xs font-medium text-ink-600">评估参数</h3>
-          <p class="text-[10px] text-ink-400">
+          <p class="text-[11px] text-ink-600">
             <span class="text-red-500">*</span> 用户必填
             <span class="text-blue-400 ml-2">R</span> 引擎推导（可改）
           </p>
@@ -731,19 +731,19 @@ function isLongField(path) {
             <label class="text-xs text-ink-500 mb-1 block">疼痛评分 <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-3 gap-2">
               <div>
-                <span class="text-[10px] text-ink-400 block mb-0.5">最痛</span>
+                <span class="text-[11px] text-ink-600 block mb-0.5">最痛</span>
                 <select v-model="fields['subjective.painScale.worst']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
               <div>
-                <span class="text-[10px] text-ink-400 block mb-0.5">最轻</span>
+                <span class="text-[11px] text-ink-600 block mb-0.5">最轻</span>
                 <select v-model="fields['subjective.painScale.best']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
               <div>
-                <span class="text-[10px] text-ink-400 block mb-0.5">当前</span>
+                <span class="text-[11px] text-ink-600 block mb-0.5">当前</span>
                 <select v-model="fields['subjective.painScale.current']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
@@ -785,7 +785,7 @@ function isLongField(path) {
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-1">
               <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
                 @click="fields['subjective.painFrequency'] = opt"
-                class="py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
+                class="py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
                 :class="fields['subjective.painFrequency'] === opt
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
                   : 'border-ink-200 text-ink-500 hover:border-ink-400'"
@@ -806,7 +806,7 @@ function isLongField(path) {
               <div class="flex flex-wrap gap-1.5">
                 <button v-for="opt in whitelist[fieldPath]" :key="opt"
                   @click="toggleOption(fieldPath, opt)"
-                  class="px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  class="px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
                   :class="fields[fieldPath].includes(opt)
                     ? 'bg-ink-800 text-paper-50 border-ink-800'
                     : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -817,21 +817,21 @@ function isLongField(path) {
             <template v-else-if="MULTI_SELECT_FIELDS.has(fieldPath)">
               <div class="flex items-center justify-between">
                 <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
-                <button @click="togglePanel(fieldPath)" class="text-[11px] text-ink-400 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
+                <button @click="togglePanel(fieldPath)" class="text-xs text-ink-600 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
               </div>
               <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
-                <span v-for="opt in fields[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
+                <span v-for="opt in fields[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
                   {{ shortLabel(opt, 28) }}
                   <button @click="removeOption(fieldPath, opt)" class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
                     <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </span>
-                <span v-if="fields[fieldPath].length === 0" class="text-[10px] text-ink-300 italic py-0.5">未选择</span>
+                <span v-if="fields[fieldPath].length === 0" class="text-[11px] text-ink-500 italic py-0.5">未选择</span>
               </div>
               <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
                 <div class="flex flex-wrap gap-1">
                   <button v-for="opt in whitelist[fieldPath]" :key="opt" @click="toggleOption(fieldPath, opt)"
-                    class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
+                    class="text-xs px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
                     :class="fields[fieldPath].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
                     :title="opt">{{ shortLabel(opt) }}</button>
                 </div>
@@ -860,10 +860,10 @@ function isLongField(path) {
         <div class="space-y-3 mt-6">
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">2</span>
-            审核 R 项 <span class="text-blue-400 text-[10px] font-normal">R 引擎推导，可点「改」修改</span>
+            审核 R 项 <span class="text-blue-400 text-[11px] font-normal">R 引擎推导，可点「改」修改</span>
           </h2>
           <div v-for="group in step2Groups" :key="group.key" class="bg-white rounded-xl border border-ink-200 p-4">
-            <h4 class="text-[10px] font-medium text-ink-400 uppercase tracking-wide mb-2">{{ group.label }}</h4>
+            <h4 class="text-[11px] font-medium text-ink-600 uppercase tracking-wide mb-2">{{ group.label }}</h4>
             <div v-for="item in group.resolvedItems" :key="item.path"
               class="flex gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
               :class="[item.readOnly ? 'bg-paper-50' : '', isLongField(item.path) ? 'flex-wrap items-start' : 'items-center']">
@@ -876,7 +876,7 @@ function isLongField(path) {
                   <div class="flex-1 flex flex-wrap gap-1">
                     <button v-for="opt in item.options" :key="opt"
                       @click="fields[item.path].includes(opt) ? removeOption(item.path, opt) : toggleOption(item.path, opt)"
-                      class="text-[11px] px-2 py-1 rounded-md border cursor-pointer"
+                      class="text-xs px-2 py-1 rounded-md border cursor-pointer"
                       :class="fields[item.path].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ shortLabel(opt) }}</button>
                   </div>
                 </template>
@@ -884,12 +884,12 @@ function isLongField(path) {
                   <select v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                     <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt }}</option>
                   </select>
-                  <button @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
+                  <button @click="derivedEditing = ''" class="text-xs text-ink-600 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
                 </div>
                 <select v-else v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                   <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
-                <button v-if="!isLongField(item.path)" @click="derivedEditing = ''" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
+                <button v-if="!isLongField(item.path)" @click="derivedEditing = ''" class="text-xs text-ink-600 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
               </template>
               <template v-else>
                 <span class="font-medium text-ink-700 flex-1 min-w-0"
@@ -901,15 +901,15 @@ function isLongField(path) {
                       : '未选择')
                     : (isLongField(item.path) ? String(item.value || '') : shortLabel(String(item.value || ''), 35)) }}
                 </span>
-                <button @click="toggleDerivedEdit(item.path)" class="text-[11px] text-ink-400 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">改</button>
+                <button @click="toggleDerivedEdit(item.path)" class="text-xs text-ink-600 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">改</button>
               </template>
             </div>
             <!-- 病史推荐证型 (仅中医组显示) -->
             <div v-if="group.key === 'tcm' && recommendedPatterns.length > 0" class="border-t border-ink-100 pt-2 mt-2">
-              <p class="text-[10px] text-ink-400 mb-1">病史推荐整体证型:</p>
-              <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[10px] text-ink-500">
+              <p class="text-[11px] text-ink-600 mb-1">病史推荐整体证型:</p>
+              <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[11px] text-ink-500">
                 <span class="font-mono text-ink-600">{{ rec.pattern }}</span>
-                <span class="text-ink-300 ml-1">(+{{ rec.weight }})</span>
+                <span class="text-ink-500 ml-1">(+{{ rec.weight }})</span>
               </div>
             </div>
           </div>
@@ -948,12 +948,12 @@ function isLongField(path) {
           </button>
           <!-- 高级选项 (折叠) -->
           <details class="text-xs">
-            <summary class="text-ink-400 hover:text-ink-600 cursor-pointer py-1 select-none">高级选项</summary>
+            <summary class="text-ink-600 hover:text-ink-600 cursor-pointer py-1 select-none">高级选项</summary>
             <div class="space-y-2 mt-1.5">
               <div class="flex items-center gap-2">
                 <input v-model="seedInput" type="text" placeholder="Seed (留空随机)"
                   aria-label="随机种子"
-                  class="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+                  class="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-500" />
               </div>
               <label class="flex items-center gap-2 cursor-pointer select-none">
                 <button @click="realisticPatch = !realisticPatch" type="button"
@@ -978,20 +978,20 @@ function isLongField(path) {
           <svg class="w-12 h-12 mx-auto text-ink-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
           </svg>
-          <p class="text-sm text-ink-400">选择参数并点击生成</p>
-          <p class="text-[11px] text-ink-300 mt-1">完成左侧三步后即可生成 SOAP 笔记</p>
+          <p class="text-sm text-ink-600">选择参数并点击生成</p>
+          <p class="text-[11px] text-ink-500 mt-1">完成左侧三步后即可生成 SOAP 笔记</p>
         </div>
         <div v-else>
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
               <h2 class="text-sm font-semibold text-ink-700">生成结果 ({{ generatedNotes.length }})</h2>
               <div v-if="currentSeed != null" class="flex items-center gap-1.5">
-                <span class="text-[10px] font-mono text-ink-400">seed:{{ currentSeed }}</span>
-                <button @click="copySeed" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors"
+                <span class="text-[11px] font-mono text-ink-600">seed:{{ currentSeed }}</span>
+                <button @click="copySeed" class="text-[11px] text-ink-600 hover:text-ink-600 transition-colors"
                   :title="'复制 seed 用于复现'">
                   {{ seedCopied ? '✓' : '复制' }}
                 </button>
-                <button @click="regenerate" class="text-[10px] text-ink-400 hover:text-ink-600 transition-colors"
+                <button @click="regenerate" class="text-[11px] text-ink-600 hover:text-ink-600 transition-colors"
                   title="用相同 seed 重新生成">
                   重跑
                 </button>
@@ -1008,11 +1008,11 @@ function isLongField(path) {
               : 'bg-red-50 border border-red-200 text-red-700'">
             <span class="font-semibold">{{ validationResult.grade === 'PASS' ? 'PASS' : validationResult.grade === 'WARNING' ? 'WARNING' : 'FAIL' }}</span>
             <span class="font-mono">{{ validationResult.score }}/100</span>
-            <span class="text-[10px] opacity-75">
+            <span class="text-[11px] opacity-75">
               ({{ validationResult.criticalCount }}C / {{ validationResult.highCount }}H / {{ validationResult.mediumCount }}M)
             </span>
             <button v-if="validationResult.errors.length > 0" @click="showValidationDetails = !showValidationDetails"
-              class="ml-auto text-[10px] underline underline-offset-2 cursor-pointer opacity-75 hover:opacity-100">
+              class="ml-auto text-[11px] underline underline-offset-2 cursor-pointer opacity-75 hover:opacity-100">
               {{ showValidationDetails ? '收起' : '详情' }}
             </button>
           </div>
@@ -1020,14 +1020,14 @@ function isLongField(path) {
           <div v-if="showValidationDetails && validationResult && validationResult.errors.length > 0"
             class="mb-2 rounded-lg border border-ink-200 bg-white overflow-hidden">
             <div v-for="(ve, vi) in validationResult.errors" :key="vi"
-              class="flex items-start gap-2 px-3 py-1.5 text-[11px] border-b border-ink-50 last:border-b-0">
+              class="flex items-start gap-2 px-3 py-1.5 text-xs border-b border-ink-50 last:border-b-0">
               <span class="font-mono flex-shrink-0 px-1 rounded"
                 :class="ve.severity === 'CRITICAL' ? 'bg-red-100 text-red-700'
                   : ve.severity === 'HIGH' ? 'bg-amber-100 text-amber-700'
                   : 'bg-blue-100 text-blue-700'">{{ ve.ruleId }}</span>
               <span class="text-ink-500">TX{{ ve.visitIndex }}</span>
               <span class="text-ink-700 flex-1">{{ ve.message }}</span>
-              <span class="text-ink-400 flex-shrink-0">{{ ve.expected }}</span>
+              <span class="text-ink-600 flex-shrink-0">{{ ve.expected }}</span>
             </div>
           </div>
           <div v-for="(note, idx) in generatedNotes" :key="idx" class="bg-white rounded-xl border border-ink-200 mb-3">
@@ -1041,15 +1041,15 @@ function isLongField(path) {
                   <div v-if="getNoteSummary(note, idx)" class="flex items-center gap-x-2 gap-y-0.5 flex-wrap min-w-0">
                     <!-- 数值变化 -->
                     <span v-for="item in getNoteSummary(note, idx).values" :key="'v-'+item.label"
-                      class="text-[10px] font-mono whitespace-nowrap">
-                      <span class="text-ink-400">{{ item.label }}</span>
+                      class="text-[11px] font-mono whitespace-nowrap">
+                      <span class="text-ink-600">{{ item.label }}</span>
                       <span class="text-ink-300 mx-px">{{ item.from }}</span>
                       <span class="text-ink-300">&rarr;</span>
-                      <span class="font-medium" :class="item.from !== item.to ? 'text-green-600' : 'text-ink-400'">{{ item.to }}</span>
+                      <span class="font-medium" :class="item.from !== item.to ? 'text-green-600' : 'text-ink-600'">{{ item.to }}</span>
                     </span>
                     <!-- 趋势标签 -->
                     <span v-for="item in getNoteSummary(note, idx).trends" :key="'t-'+item.label"
-                      class="text-[9px] px-1.5 py-px rounded-full whitespace-nowrap"
+                      class="text-[11px] px-1.5 py-px rounded-full whitespace-nowrap"
                       :class="item.trend.includes('improved') || item.trend.includes('reduced')
                         ? 'bg-green-50 text-green-600'
                         : 'bg-amber-50 text-amber-600'">
@@ -1057,7 +1057,7 @@ function isLongField(path) {
                     </span>
                   </div>
                 </div>
-                <svg class="w-4 h-4 text-ink-400 transition-transform flex-shrink-0" :class="{ 'rotate-180': openNotes.has(idx) }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-4 h-4 text-ink-600 transition-transform flex-shrink-0" :class="{ 'rotate-180': openNotes.has(idx) }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
@@ -1068,7 +1068,7 @@ function isLongField(path) {
               <div class="flex items-center gap-1.5 mb-3">
                 <button v-for="sec in ['S','O','A','P']" :key="sec"
                   @click="copySection(idx, sec)"
-                  class="px-2.5 py-1 text-[11px] font-mono font-medium border rounded-md transition-colors duration-150 cursor-pointer"
+                  class="px-2.5 py-1 text-xs font-mono font-medium border rounded-md transition-colors duration-150 cursor-pointer"
                   :class="isCopied(idx, sec)
                     ? 'bg-green-50 border-green-300 text-green-600'
                     : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
@@ -1076,7 +1076,7 @@ function isLongField(path) {
                 </button>
                 <div class="w-px h-4 bg-ink-150 mx-1"></div>
                 <button @click="copyNote(idx)"
-                  class="px-2.5 py-1 text-[11px] border rounded-md transition-colors duration-150 cursor-pointer"
+                  class="px-2.5 py-1 text-xs border rounded-md transition-colors duration-150 cursor-pointer"
                   :class="copiedIndex === idx
                     ? 'bg-green-50 border-green-300 text-green-600'
                     : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">

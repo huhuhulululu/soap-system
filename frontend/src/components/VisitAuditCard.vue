@@ -291,7 +291,7 @@ const errorCount = computed(() => props.errors.length)
         <!-- Consistency Badge -->
         <span
           v-if="isConsistencyMode"
-          class="px-2 py-0.5 text-[10px] font-medium rounded shrink-0 bg-red-50 text-red-600 border border-red-200"
+          class="px-2 py-0.5 text-[11px] font-medium rounded shrink-0 bg-red-50 text-red-600 border border-red-200"
         >IE-TX</span>
 
         <!-- Error Count Badge -->
@@ -306,12 +306,12 @@ const errorCount = computed(() => props.errors.length)
         <span
           v-for="icd in icdCodes"
           :key="icd"
-          class="px-1.5 py-0.5 text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200 rounded"
+          class="px-1.5 py-0.5 text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 rounded"
         >{{ icd }}</span>
         <span
           v-for="cpt in cptCodes"
           :key="cpt"
-          class="px-1.5 py-0.5 text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 rounded"
+          class="px-1.5 py-0.5 text-[11px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 rounded"
         >{{ cpt }}</span>
       </div>
     </button>
@@ -319,7 +319,7 @@ const errorCount = computed(() => props.errors.length)
     <!-- Expanded Content: SOAP Text -->
     <div v-show="isExpanded" class="p-4 border-t border-ink-100">
       <!-- Legend -->
-      <div v-if="isConsistencyMode" class="mb-3 flex items-center gap-4 text-[10px] text-ink-500">
+      <div v-if="isConsistencyMode" class="mb-3 flex items-center gap-4 text-[11px] text-ink-500">
         <span class="flex items-center gap-1.5">
           <span class="inline-block w-3 h-2.5 bg-red-200/60 rounded-sm border border-red-300/50"></span>
           IE-TX 一致

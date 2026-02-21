@@ -840,8 +840,8 @@ onUnmounted(() => {
           </label>
           <span class="text-ink-200">|</span>
           <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
-            <button @click="inputMode = 'editor'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800' : 'text-ink-400 hover:text-ink-600'">Editor</button>
-            <button @click="inputMode = 'excel'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'excel' ? 'bg-ink-100 text-ink-800' : 'text-ink-400 hover:text-ink-600'">Excel</button>
+            <button @click="inputMode = 'editor'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800' : 'text-ink-600 hover:text-ink-600'">Editor</button>
+            <button @click="inputMode = 'excel'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'excel' ? 'bg-ink-100 text-ink-800' : 'text-ink-600 hover:text-ink-600'">Excel</button>
           </div>
         </div>
       </div>
@@ -889,7 +889,7 @@ onUnmounted(() => {
                   <span class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200"
                     :class="activeDraft.includeIE ? 'translate-x-3.5' : ''"></span>
                 </button>
-                <span class="text-[11px] font-medium" :class="activeDraft.includeIE ? 'text-green-600' : 'text-ink-400'">含 IE</span>
+                <span class="text-[11px] font-medium" :class="activeDraft.includeIE ? 'text-green-600' : 'text-ink-600'">含 IE</span>
               </label>
             </div>
           </div>
@@ -951,7 +951,7 @@ onUnmounted(() => {
                       @mousedown.prevent="selectIcd(item)"
                       class="w-full px-2 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between">
                       <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
-                      <span class="text-ink-400 truncate ml-2 text-xs">{{ item.desc }}</span>
+                      <span class="text-ink-600 truncate ml-2 text-xs">{{ item.desc }}</span>
                     </button>
                   </div>
                 </div>
@@ -1082,10 +1082,10 @@ onUnmounted(() => {
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="text-xs text-ink-500">History ({{ (activeDraft.history || '').split(',').filter(Boolean).length || 0 }})</label>
-                <button @click="historyPanelOpen = !historyPanelOpen" type="button" class="text-xs text-ink-400 hover:text-ink-600">{{ historyPanelOpen ? 'Close' : 'Edit' }}</button>
+                <button @click="historyPanelOpen = !historyPanelOpen" type="button" class="text-xs text-ink-600 hover:text-ink-600">{{ historyPanelOpen ? 'Close' : 'Edit' }}</button>
               </div>
               <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
-                <span v-if="!activeDraft.history" class="text-xs text-ink-300 italic">None</span>
+                <span v-if="!activeDraft.history" class="text-xs text-ink-500 italic">None</span>
                 <span v-for="h in (activeDraft.history || '').split(',').filter(Boolean)" :key="h"
                   class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs rounded-full bg-ink-800 text-white">
                   {{ h.trim() }}
@@ -1094,7 +1094,7 @@ onUnmounted(() => {
               </div>
               <div v-if="historyPanelOpen" class="mt-1 border border-ink-200 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
                 <div v-for="group in MEDICAL_HISTORY_GROUPS" :key="group.label">
-                  <p class="text-[10px] text-ink-400 font-medium mb-1">{{ group.label }}</p>
+                  <p class="text-[11px] text-ink-600 font-medium mb-1">{{ group.label }}</p>
                   <div class="flex flex-wrap gap-1">
                     <button v-for="h in group.items" :key="h" @click="toggleCSV('history', h)" type="button"
                       class="px-3 py-1.5 sm:px-2 sm:py-0.5 text-sm sm:text-xs rounded-full border transition-colors"
@@ -1124,12 +1124,12 @@ onUnmounted(() => {
               :class="i === activeIndex ? 'bg-ink-100 ring-1 ring-ink-300' : 'hover:bg-paper-100'">
               <div class="flex-1 min-w-0">
                 <span class="font-medium text-ink-700">{{ patientLabel(d, i) }}</span>
-                <span class="ml-2 text-xs text-ink-400">{{ patientSummary(d) }}</span>
+                <span class="ml-2 text-xs text-ink-600">{{ patientSummary(d) }}</span>
               </div>
               <div class="flex items-center gap-1 ml-2">
-                <button @click.stop="movePatient(i, -1)" :disabled="i === 0" class="p-0.5 text-ink-300 hover:text-ink-600 disabled:opacity-30" title="Move up">&#9650;</button>
-                <button @click.stop="movePatient(i, 1)" :disabled="i === drafts.length - 1" class="p-0.5 text-ink-300 hover:text-ink-600 disabled:opacity-30" title="Move down">&#9660;</button>
-                <button @click.stop="duplicatePatient(i)" class="p-0.5 text-ink-300 hover:text-ink-600" title="Duplicate">&#9851;</button>
+                <button @click.stop="movePatient(i, -1)" :disabled="i === 0" class="p-0.5 text-ink-500 hover:text-ink-600 disabled:opacity-30" title="Move up">&#9650;</button>
+                <button @click.stop="movePatient(i, 1)" :disabled="i === drafts.length - 1" class="p-0.5 text-ink-500 hover:text-ink-600 disabled:opacity-30" title="Move down">&#9660;</button>
+                <button @click.stop="duplicatePatient(i)" class="p-0.5 text-ink-500 hover:text-ink-600" title="Duplicate">&#9851;</button>
                 <button @click.stop="removePatient(i)" :disabled="drafts.length <= 1" class="p-0.5 text-red-300 hover:text-red-600 disabled:opacity-30" title="Remove">&#10005;</button>
               </div>
             </div>
@@ -1138,9 +1138,9 @@ onUnmounted(() => {
 
         <!-- Submit Bar -->
         <div class="mt-3 flex items-center justify-between">
-          <div class="text-sm text-ink-400">{{ drafts.length }} patient{{ drafts.length > 1 ? 's' : '' }}</div>
+          <div class="text-sm text-ink-600">{{ drafts.length }} patient{{ drafts.length > 1 ? 's' : '' }}</div>
           <div class="flex gap-2">
-            <button @click="clearDrafts" class="text-xs px-3 py-2 rounded-lg text-ink-400 hover:text-ink-600 hover:bg-ink-100 transition-colors">Clear All</button>
+            <button @click="clearDrafts" class="text-xs px-3 py-2 rounded-lg text-ink-600 hover:text-ink-600 hover:bg-ink-100 transition-colors">Clear All</button>
             <button @click="saveAndNext" class="btn-secondary text-sm">Save & Next</button>
             <button
               @click="submitDrafts"
@@ -1171,7 +1171,7 @@ onUnmounted(() => {
         >
           <div class="mb-6">
             <div class="w-20 h-20 mx-auto bg-paper-200 rounded-2xl flex items-center justify-center">
-              <svg class="w-10 h-10 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="w-10 h-10 text-ink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                       d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -1193,7 +1193,7 @@ onUnmounted(() => {
             <span>Select .xlsx File</span>
           </button>
 
-          <p class="mt-6 text-xs text-ink-400">
+          <p class="mt-6 text-xs text-ink-600">
             .xlsx or .xls format only
           </p>
         </div>
@@ -1211,12 +1211,12 @@ onUnmounted(() => {
             <!-- Info -->
             <div class="flex-1 min-w-0">
               <p class="font-medium text-ink-800 truncate">{{ selectedFile.name }}</p>
-              <p class="text-sm text-ink-400">{{ formatFileSize(selectedFile.size) }}</p>
+              <p class="text-sm text-ink-600">{{ formatFileSize(selectedFile.size) }}</p>
             </div>
             <!-- Remove -->
             <button
               @click="clearFile"
-              class="p-2 text-ink-400 hover:text-ink-600 transition-colors rounded-lg hover:bg-ink-100"
+              class="p-2 text-ink-600 hover:text-ink-600 transition-colors rounded-lg hover:bg-ink-100"
             >
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1268,7 +1268,7 @@ onUnmounted(() => {
           <h1 class="font-display text-2xl font-bold text-ink-800">
             Batch Review
           </h1>
-          <p class="text-sm text-ink-400 mt-1">
+          <p class="text-sm text-ink-600 mt-1">
             Batch ID: {{ batchId }}
             <span
               class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -1306,19 +1306,19 @@ onUnmounted(() => {
       <div v-if="uploadSummary" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="card p-4 text-center">
           <p class="text-2xl font-bold text-ink-800">{{ uploadSummary.totalPatients }}</p>
-          <p class="text-xs text-ink-400 mt-1">Patients</p>
+          <p class="text-xs text-ink-600 mt-1">Patients</p>
         </div>
         <div class="card p-4 text-center">
           <p class="text-2xl font-bold text-ink-800">{{ uploadSummary.totalVisits }}</p>
-          <p class="text-xs text-ink-400 mt-1">Total Visits</p>
+          <p class="text-xs text-ink-600 mt-1">Total Visits</p>
         </div>
         <div class="card p-4 text-center">
           <p class="text-2xl font-bold text-blue-600">{{ uploadSummary.byType?.IE || 0 }}</p>
-          <p class="text-xs text-ink-400 mt-1">IE Notes</p>
+          <p class="text-xs text-ink-600 mt-1">IE Notes</p>
         </div>
         <div class="card p-4 text-center">
           <p class="text-2xl font-bold text-amber-600">{{ uploadSummary.byType?.TX || 0 }}</p>
-          <p class="text-xs text-ink-400 mt-1">TX Notes</p>
+          <p class="text-xs text-ink-600 mt-1">TX Notes</p>
         </div>
       </div>
 
@@ -1341,7 +1341,7 @@ onUnmounted(() => {
               </div>
               <div>
                 <p class="font-semibold text-ink-800">{{ patient.name }}</p>
-                <p class="text-xs text-ink-400">
+                <p class="text-xs text-ink-600">
                   {{ patient.age }}y {{ patient.gender }} &middot;
                   DOB: {{ patient.dob }} &middot;
                   {{ patient.insurance }} &middot;
@@ -1351,7 +1351,7 @@ onUnmounted(() => {
             </div>
             <!-- Chevron -->
             <svg
-              class="w-5 h-5 text-ink-400 transition-transform duration-200"
+              class="w-5 h-5 text-ink-600 transition-transform duration-200"
               :class="{ 'rotate-180': expandedPatients.has(pi) }"
               fill="none" viewBox="0 0 24 24" stroke="currentColor"
             >
@@ -1386,13 +1386,13 @@ onUnmounted(() => {
                     </span>
                     <!-- Body part -->
                     <span class="text-sm text-ink-600">{{ visit.bodyPart }}</span>
-                    <span class="text-xs text-ink-400">{{ visit.laterality }}</span>
+                    <span class="text-xs text-ink-600">{{ visit.laterality }}</span>
                     <!-- ICD codes -->
                     <span
                       v-if="!isSoapOnly"
                       v-for="icd in visit.icdCodes"
                       :key="icd.code"
-                      class="text-xs text-ink-400 bg-ink-50 px-1.5 py-0.5 rounded"
+                      class="text-xs text-ink-600 bg-ink-50 px-1.5 py-0.5 rounded"
                     >
                       {{ icd.code }}
                     </span>
@@ -1414,7 +1414,7 @@ onUnmounted(() => {
                   <button
                     @click.stop="regenerateVisit(pi, vi)"
                     :disabled="regeneratingVisits.has(visitKey(pi, vi))"
-                    class="p-1.5 text-ink-400 hover:text-ink-600 hover:bg-ink-100 rounded-lg transition-colors"
+                    class="p-1.5 text-ink-600 hover:text-ink-600 hover:bg-ink-100 rounded-lg transition-colors"
                     :class="{ 'animate-spin': regeneratingVisits.has(visitKey(pi, vi)) }"
                     title="Regenerate"
                   >
@@ -1427,7 +1427,7 @@ onUnmounted(() => {
                   <button
                     v-if="visit.generated"
                     @click.stop="copySOAP(pi, vi)"
-                    class="p-1.5 text-ink-400 hover:text-ink-600 hover:bg-ink-100 rounded-lg transition-colors"
+                    class="p-1.5 text-ink-600 hover:text-ink-600 hover:bg-ink-100 rounded-lg transition-colors"
                     :title="copiedKey === visitKey(pi, vi) ? 'Copied!' : 'Copy SOAP'"
                   >
                     <svg v-if="copiedKey === visitKey(pi, vi)" class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1466,7 +1466,7 @@ onUnmounted(() => {
 
               <!-- Not generated message -->
               <div v-if="expandedVisits.has(visitKey(pi, vi)) && !visit.generated" class="px-4 py-6 bg-white text-center">
-                <p class="text-sm text-ink-400">SOAP not generated. Click regenerate to try again.</p>
+                <p class="text-sm text-ink-600">SOAP not generated. Click regenerate to try again.</p>
               </div>
             </div>
           </div>
@@ -1475,7 +1475,7 @@ onUnmounted(() => {
 
       <!-- Back button -->
       <div class="mt-6 text-center">
-        <button @click="resetAll" class="text-sm text-ink-400 hover:text-ink-600 transition-colors">
+        <button @click="resetAll" class="text-sm text-ink-600 hover:text-ink-600 transition-colors">
           &larr; Start New Batch
         </button>
       </div>
@@ -1495,7 +1495,7 @@ onUnmounted(() => {
         <p class="text-ink-500">
           {{ uploadSummary?.totalPatients }} patients, {{ uploadSummary?.totalVisits }} visits
         </p>
-        <p class="text-xs text-ink-400 mt-1">Batch ID: {{ batchId }}</p>
+        <p class="text-xs text-ink-600 mt-1">Batch ID: {{ batchId }}</p>
       </div>
 
       <!-- Quick Actions -->
@@ -1551,7 +1551,7 @@ onUnmounted(() => {
 
           <!-- Cookie Upload -->
           <div v-if="!cookiesInfo.exists" class="space-y-3">
-            <p class="text-xs text-ink-400 mb-2">
+            <p class="text-xs text-ink-600 mb-2">
               Paste cookies JSON or upload a file.
             </p>
             <textarea
@@ -1593,7 +1593,7 @@ onUnmounted(() => {
         <!-- Step 2: Start Automation -->
         <div class="mb-6">
           <p class="text-sm font-medium text-ink-700 mb-2">2. Run Automation</p>
-          <p class="text-xs text-ink-400 mb-3">
+          <p class="text-xs text-ink-600 mb-3">
             Headless Chromium will fill SOAP, ICD/CPT, and generate billing in MDLand.
           </p>
 
@@ -1654,7 +1654,7 @@ onUnmounted(() => {
 
         <!-- Logs -->
         <div v-if="automationLogs.length > 0" class="bg-ink-900 rounded-lg p-4 max-h-80 overflow-y-auto">
-          <p class="text-xs text-ink-400 mb-2 font-semibold uppercase tracking-wider">Logs</p>
+          <p class="text-xs text-ink-600 mb-2 font-semibold uppercase tracking-wider">Logs</p>
           <div class="space-y-0.5">
             <p
               v-for="(log, i) in automationLogs"
