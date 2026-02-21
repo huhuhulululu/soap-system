@@ -883,13 +883,15 @@ onUnmounted(() => {
               </div>
               <label class="flex items-center gap-1.5 cursor-pointer select-none">
                 <button @click="updateField('includeIE', !activeDraft.includeIE)" type="button"
-                  class="relative w-8 h-4.5 rounded-full transition-colors duration-200 flex-shrink-0"
-                  :class="activeDraft.includeIE ? 'bg-green-500' : 'bg-ink-300'"
+                  class="relative w-9 h-5 rounded-full transition-colors duration-200 ring-2"
+                  :class="activeDraft.includeIE ? 'bg-green-500 ring-green-300' : 'bg-red-400 ring-red-200'"
                   role="switch" :aria-checked="activeDraft.includeIE">
-                  <span class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200"
-                    :class="activeDraft.includeIE ? 'translate-x-3.5' : ''"></span>
+                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                    :class="activeDraft.includeIE ? 'translate-x-4' : ''"></span>
                 </button>
-                <span class="text-[11px] font-medium" :class="activeDraft.includeIE ? 'text-green-600' : 'text-ink-400'">含 IE</span>
+                <span class="text-xs font-medium" :class="activeDraft.includeIE ? 'text-green-600' : 'text-red-500'">
+                  {{ activeDraft.includeIE ? '✓ 含 IE' : '✗ 无 IE' }}
+                </span>
               </label>
             </div>
           </div>
@@ -1002,9 +1004,10 @@ onUnmounted(() => {
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Duration</label>
-                <select :value="activeDraft.symptomDuration" @change="updateField('symptomDuration', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
-                  <option v-for="d in ['1 month(s)','2 month(s)','3 month(s)','6 month(s)','1 year(s)','2 year(s)','3 year(s)','5 year(s)','10 year(s)']" :key="d" :value="d">{{ d }}</option>
-                </select>
+                <input type="text" :value="activeDraft.symptomDuration" @input="updateField('symptomDuration', $event.target.value)" placeholder="e.g. 3 year(s), several months" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" list="duration-suggestions">
+                <datalist id="duration-suggestions">
+                  <option v-for="d in ['1 month(s)','2 month(s)','3 month(s)','6 month(s)','1 year(s)','2 year(s)','3 year(s)','5 year(s)','10 year(s)','several months','several years']" :key="d" :value="d"></option>
+                </datalist>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Scale</label>
@@ -1032,9 +1035,10 @@ onUnmounted(() => {
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">RecentWorse</label>
-                <select :value="activeDraft.recentWorse" @change="updateField('recentWorse', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
-                  <option v-for="w in ['1 week(s)','2 week(s)','1 month(s)','2 month(s)','3 month(s)','6 month(s)']" :key="w" :value="w">{{ w }}</option>
-                </select>
+                <input type="text" :value="activeDraft.recentWorse" @input="updateField('recentWorse', $event.target.value)" placeholder="e.g. 1 week(s), several days" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" list="worse-suggestions">
+                <datalist id="worse-suggestions">
+                  <option v-for="w in ['1 week(s)','2 week(s)','1 month(s)','2 month(s)','3 month(s)','6 month(s)','several days','several weeks']" :key="w" :value="w"></option>
+                </datalist>
               </div>
             </div>
 
