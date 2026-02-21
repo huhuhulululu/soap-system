@@ -1,6 +1,6 @@
 {
   "name": "soap-system",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "SOAP Medical Notes Validation System",
   "main": "src/index.ts",
   "scripts": {
