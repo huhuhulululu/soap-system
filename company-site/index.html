@@ -65,16 +65,8 @@
     .mobile-nav { transform:translateX(100%); transition:transform .35s cubic-bezier(.16,1,.3,1); }
     .mobile-nav.open { transform:translateX(0); }
     .grain::after { content:''; position:fixed; inset:0; z-index:9999; pointer-events:none; opacity:.018; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-    .portal-card { position:relative; overflow:hidden; }
-    .portal-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity .4s ease; pointer-events:none; z-index:0; }
-    .portal-card a { position:relative; z-index:1; }
-    .portal-card:hover::before { opacity:1; }
-    .portal-card.ac::before { background:linear-gradient(135deg, rgba(90,130,116,.06), transparent 60%); }
-    .portal-card.pt::before { background:linear-gradient(135deg, rgba(50,71,64,.06), transparent 60%); }
     section[id] { scroll-margin-top: 80px; }
     @media (min-width: 1024px) { section[id] { scroll-margin-top: 88px; } }
-    #portal-cards { scroll-margin-top: 100px; }
-    @media (min-width: 1024px) { #portal-cards { scroll-margin-top: 110px; } }
   </style>
 </head>
 <body class="grain bg-paper-50 text-ink-800 antialiased">
@@ -97,7 +89,6 @@
         <div class="hidden md:flex items-center gap-8">
           <a href="#about" class="nav-link text-sm text-ink-700 hover:text-ink-800 transition-colors font-medium">About 关于</a>
           <a href="#services" class="nav-link text-sm text-ink-700 hover:text-ink-800 transition-colors font-medium">Services 服务</a>
-          <a href="#portal-cards" class="nav-link text-sm text-ink-700 hover:text-ink-800 transition-colors font-medium">Portal 入口</a>
           <a href="#why-us" class="nav-link text-sm text-ink-700 hover:text-ink-800 transition-colors font-medium">Why Us 优势</a>
           <a href="#contact" class="ml-2 px-5 py-2.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">Get Started 开始</a>
         </div>
@@ -114,7 +105,6 @@
     </button>
     <a href="#about" onclick="document.getElementById('mn').classList.remove('open')" class="text-ink-600 hover:text-ink-900 font-medium">About 关于</a>
     <a href="#services" onclick="document.getElementById('mn').classList.remove('open')" class="text-ink-600 hover:text-ink-900 font-medium">Services 服务</a>
-    <a href="#portal-cards" onclick="document.getElementById('mn').classList.remove('open')" class="text-ink-600 hover:text-ink-900 font-medium">Portal 入口</a>
     <a href="#why-us" onclick="document.getElementById('mn').classList.remove('open')" class="text-ink-600 hover:text-ink-900 font-medium">Why Us 优势</a>
     <a href="#contact" onclick="document.getElementById('mn').classList.remove('open')" class="px-5 py-2.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg text-center">Get Started 开始</a>
   </div>
@@ -307,126 +297,6 @@
       </div>
     </div>
   </section>
-  <div class="divider max-w-6xl mx-auto"></div>
-
-  <!-- CLIENT PORTAL -->
-  <section id="portals" class="py-20 lg:py-28">
-    <div class="max-w-6xl mx-auto px-6 lg:px-8">
-      <div class="text-center max-w-2xl mx-auto mb-16">
-        <div class="reveal flex items-center justify-center gap-2 mb-4">
-          <span class="w-8 h-px bg-ink-300"></span>
-          <span class="text-xs font-mono font-medium text-ink-600 uppercase tracking-widest">Client Portal · 客户入口</span>
-          <span class="w-8 h-px bg-ink-300"></span>
-        </div>
-        <h2 class="reveal rd1 font-display text-3xl lg:text-4xl font-semibold text-ink-900 leading-tight mb-2">Access Your Platform</h2>
-        <p class="reveal rd1 text-lg text-ink-600 font-display mb-4">登录您的专属平台</p>
-        <p class="reveal rd2 text-ink-700 leading-relaxed">Log in to your dedicated management system. Each platform is tailored to your practice type with specialized tools and workflows.</p>
-        <p class="reveal rd2 text-sm text-ink-700 mt-2">登录您的专属管理系统。每个平台都根据您的诊所类型量身定制，提供专业的工具和工作流程。</p>
-      </div>
-
-      <div id="portal-cards" class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        <!-- AC Portal -->
-        <div class="reveal portal-card ac card-lift bg-white rounded-2xl border border-ink-100 p-8 lg:p-10 flex flex-col">
-          <div class="flex items-center gap-4 mb-6">
-            <div class="w-14 h-14 rounded-xl bg-ink-900 flex items-center justify-center">
-              <svg class="w-7 h-7 text-paper-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z"/>
-              </svg>
-            </div>
-            <div>
-              <h3 class="font-display text-xl font-semibold text-ink-900">Acupuncture Portal</h3>
-              <p class="text-xs text-ink-600 font-mono">针灸诊所 · SOAP Note Management System</p>
-            </div>
-          </div>
-          <ul class="space-y-3 mb-8 flex-1">
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              SOAP note generation & quality validation<br><span class="text-sm text-ink-700">SOAP病历生成与质量验证</span>
-            </li>
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              Batch processing with Excel upload<br><span class="text-sm text-ink-700">Excel上传批量处理</span>
-            </li>
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              EHR auto-fill integration<br><span class="text-sm text-ink-700">EHR自动填充集成</span>
-            </li>
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              Multi-payer insurance compliance<br><span class="text-sm text-ink-700">多付款方保险合规</span>
-            </li>
-          </ul>
-          <a href="/ac/" class="block w-full text-center px-6 py-3.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">
-            Enter AC System 进入针灸系统 →
-          </a>
-        </div>
-
-        <!-- PT Portal -->
-        <div class="reveal rd1 portal-card pt card-lift bg-white rounded-2xl border border-ink-100 p-8 lg:p-10 flex flex-col">
-          <div class="flex items-center gap-4 mb-6">
-            <div class="w-14 h-14 rounded-xl bg-ink-900 flex items-center justify-center">
-              <svg class="w-7 h-7 text-paper-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>
-              </svg>
-            </div>
-            <div>
-              <h3 class="font-display text-xl font-semibold text-ink-900">Physical Therapy Portal</h3>
-              <p class="text-xs text-ink-600 font-mono">物理治疗诊所 · Claims Lifecycle System</p>
-            </div>
-          </div>
-          <ul class="space-y-3 mb-8 flex-1">
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              Automated claim submission & tracking<br><span class="text-sm text-ink-700">自动化索赔提交与跟踪</span>
-            </li>
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              ERA/EOB payment processing<br><span class="text-sm text-ink-700">ERA/EOB付款处理</span>
-            </li>
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              Real-time dashboard & KPI analytics<br><span class="text-sm text-ink-700">实时仪表盘与KPI分析</span>
-            </li>
-            <li class="flex items-start gap-2.5 text-sm text-ink-700">
-              <svg class="w-4 h-4 text-ink-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              Cross-system data reconciliation<br><span class="text-sm text-ink-700">跨系统数据对账</span>
-            </li>
-          </ul>
-          <a href="/pt/login" class="block w-full text-center px-6 py-3.5 text-sm font-semibold text-paper-50 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors">
-            Enter PT System 进入PT系统 →
-          </a>
-        </div>
-      </div>
-
-      <!-- Management Dashboard — 统一管理入口 -->
-      <div class="reveal rd2 mt-8 max-w-4xl mx-auto">
-        <div class="portal-card card-lift bg-ink-900 rounded-2xl p-8 lg:p-10 text-paper-50">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div class="flex items-center gap-4">
-              <div class="w-14 h-14 rounded-xl bg-paper-50/10 flex items-center justify-center">
-                <svg class="w-7 h-7 text-paper-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/>
-                </svg>
-              </div>
-              <div>
-                <h3 class="font-display text-xl font-semibold">Management Dashboard</h3>
-                <p class="text-xs text-paper-100/60 font-mono">统一管理面板 · RBAC Permission Control</p>
-              </div>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <a href="/pt/dashboard" class="px-6 py-3 text-sm font-semibold text-ink-900 bg-paper-50 rounded-lg hover:bg-paper-100 transition-colors text-center">
-                PT Dashboard →
-              </a>
-              <a href="/ac/" class="px-6 py-3 text-sm font-semibold text-paper-50 bg-paper-50/10 border border-paper-50/20 rounded-lg hover:bg-paper-50/20 transition-colors text-center">
-                AC Dashboard →
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-  <div class="divider max-w-6xl mx-auto"></div>
 
   <!-- HOW IT WORKS -->
   <section class="py-20 lg:py-28 bg-ink-950">
@@ -713,8 +583,6 @@
           <ul class="space-y-2.5">
             <li><a href="/ac/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">AC System</a></li>
             <li><a href="/pt/login" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">PT System</a></li>
-            <li><a href="/pt/dashboard" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">PT Dashboard</a></li>
-            <li><a href="/ac/" class="text-sm text-ink-400 hover:text-paper-200 transition-colors">AC Dashboard</a></li>
           </ul>
           <h4 class="text-xs font-mono font-medium text-ink-400 uppercase tracking-widest mt-8 mb-4">Company 公司</h4>
           <ul class="space-y-2.5">
