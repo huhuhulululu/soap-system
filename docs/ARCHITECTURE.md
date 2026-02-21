@@ -191,7 +191,7 @@ validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 | types | `src/types/index.ts` | 核心类型定义（SOAPNote, NoteHeader, GenerationContext, BodyPart 等） |
 | knowledge | `src/knowledge/` | 医学知识库：TCM 模式 (`tcm-patterns.ts`)、病史引擎 (`medical-history-engine.ts`) |
 | shared | `src/shared/` | 共享常量/映射：ICD 目录、CPT 目录、ADL 映射、体部位常量、严重度、SOAP 约束、TCM 映射 (`tcm-mappings.ts`)、字段解析 (`field-parsers.ts`) |
-| parser | `src/parser/` | 规则引擎：下拉解析、逻辑规则 (`rule-engine.ts`, `template-logic-rules.ts`)、TX 提取、权重系统、模板白名单 (`template-rule-whitelist.browser.ts`) |
+| parser | `src/parser/` | 规则引擎：下拉解析、逻辑规则 (`rule-engine.ts`, `logic-rules.ts`, `template-logic-rules.ts`)、TX 提取、权重系统、模板白名单 (`template-rule-whitelist.ts`, `template-rule-whitelist.browser.ts`) |
 | generator | `src/generator/` | SOAP 生成：主入口 (`soap-generator.ts`)、目标计算、客观补丁、TX 序列引擎、权重整合 |
 | auditor | `src/auditor/` | 三层审计：Layer1 基础校验 → Layer2 逻辑一致性 → Layer3 高级规则 |
 | validator | `src/validator/` | 输出验证：`output-validator.ts` 最终校验生成结果 |
