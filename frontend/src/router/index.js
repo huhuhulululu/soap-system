@@ -30,7 +30,7 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   if (!authChecked) {
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' })
+      const res = await fetch('/ac/api/auth/me', { credentials: 'include' })
       const data = await res.json()
       isAuthenticated = data.authenticated === true
     } catch {
@@ -40,8 +40,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (!isAuthenticated) {
-    const ptLoginUrl = '/pt/login?redirect=' + encodeURIComponent('/ac' + to.fullPath)
-    window.location.href = ptLoginUrl
+    window.location.href = '/portal/'
     return
   }
 
