@@ -33,7 +33,7 @@ SOAP System 是一个针灸诊所 SOAP 医疗笔记的自动化工具，核心�
 | 笔记生成 (Composer) | 根据参数自动生成符合保险规范的 SOAP 笔记（Writer + Continue 模式） |
 | 批量处理 (Batch) | Excel 上传 / JSON 提交 → 批量生成 SOAP，支持 full/soap-only/continue 三种模式 |
 | MDLand 自动化 (Automate) | Playwright 无头浏览器自动将 SOAP 笔记填入 MDLand EHR 系统 |
-| 批量导出 (Batch Export) | 将多份笔记打包为 ZIP 下载 |
+| 批量导出 (Batch Export) | 将多份笔记导出为 CSV 下载 |
 
 ### 1.2 技术栈
 
@@ -171,18 +171,28 @@ AC 后端 requireAuth 中间件
 ### 3.1 模块依赖图
 
 ```
-types → knowledge → shared → parser → generator → auditor → validator
+types ──→ knowledge ──→ shared (tcm-mappings)
+  │            │
+  ├──→ shared  │
+  │            ▼
+  ├──→ parser ←┘
+  │       │
+  ▼       ▼
+generator (← types + knowledge + parser + shared)
+
+auditor (独立，无 src/ 外部依赖)
+validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 ```
 
 ### 3.2 模块职责
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
-| types | `src/types/index.ts` | 核心类型定义（Patient, Visit, SOAPNote 等） |
+| types | `src/types/index.ts` | 核心类型定义（SOAPNote, NoteHeader, GenerationContext, BodyPart 等） |
 | knowledge | `src/knowledge/` | 医学知识库：TCM 模式 (`tcm-patterns.ts`)、病史引擎 (`medical-history-engine.ts`) |
-| shared | `src/shared/` | 共享常量/映射：ICD 目录、CPT 目录、ADL 映射、体部位常量、严重度、SOAP 约束 |
-| parser | `src/parser/` | 规则引擎：下拉解析、逻辑规则、TX 提取、权重系统、模板白名单 |
-| generator | `src/generator/` | SOAP 生成：目标计算、客观补丁、TX 序列引擎、权重整合 |
+| shared | `src/shared/` | 共享常量/映射：ICD 目录、CPT 目录、ADL 映射、体部位常量、严重度、SOAP 约束、TCM 映射 (`tcm-mappings.ts`)、字段解析 (`field-parsers.ts`) |
+| parser | `src/parser/` | 规则引擎：下拉解析、逻辑规则 (`rule-engine.ts`, `template-logic-rules.ts`)、TX 提取、权重系统、模板白名单 (`template-rule-whitelist.browser.ts`) |
+| generator | `src/generator/` | SOAP 生成：主入口 (`soap-generator.ts`)、目标计算、客观补丁、TX 序列引擎、权重整合 |
 | auditor | `src/auditor/` | 三层审计：Layer1 基础校验 → Layer2 逻辑一致性 → Layer3 高级规则 |
 | validator | `src/validator/` | 输出验证：`output-validator.ts` 最终校验生成结果 |
 
@@ -209,7 +219,7 @@ types → knowledge → shared → parser → generator → auditor → validato
 ### 4.3 前端分层
 
 ```
-views/          — 3 个页面视图 (Checker, Composer, Batch)
+views/          — 3 个活跃视图 (Checker, Composer, Batch) + 1 个遗留 (HistoryView)
 components/     — 13 个通用组件 + composer/ 子目录 (WriterPanel, ContinuePanel)
 services/       — 6 个服务 (checker, generator, normalizer, pdf-extractor, exporter, batch-exporter)
 composables/    — 5 个组合函数 (useHistory, useKeyboardNav, useSOAPGeneration, useWriterFields, useDiffHighlight)
@@ -224,8 +234,8 @@ stores/         — Pinia store (files.js)
 
 双层存储: LRU 内存缓存 + JSON 文件持久化
 
-- 内存缓存: `Map<string, BatchData>`，最大 50 条 (`MAX_CACHE_SIZE=50`)，FIFO 淘汰
-- 文件持久化: `DATA_DIR/batches/{batchId}.json`（`DATA_DIR` 环境变量，默认 `/app/data`）
+- 内存缓存: `Map<string, BatchData>`，最大 50 条 (`MAX_CACHE_SIZE=50`)，LRU 淘汰
+- 文件持久化: `DATA_DIR/batches/{batchId}.json`（`DATA_DIR` 环境变量，Docker 默认 `/app/data`，本地默认 `.batch-data`）
 - 读取策略: 先查缓存 → 缓存未命中则读文件 → 回填缓存
 - Batch ID 格式: `batch_YYYYMMDD_HHmmss`
 
@@ -289,6 +299,10 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 | `API_KEY` | x-api-key 认证（向后兼容） |
 | `COOKIE_ENCRYPTION_KEY` | AES-256-GCM 密钥（hex） |
 | `SHARED_JWT_SECRET` | JWT 共享密钥（与 PT 系统相同） |
+| `PORT` | 后端监听端口（docker-compose 硬编码 `3001`） |
+| `NODE_ENV` | 运行环境（docker-compose 硬编码 `production`） |
+| `DATA_DIR` | 批量数据存储目录（docker-compose 硬编码 `/app/data`） |
+| `CORS_ORIGIN` | CORS 允许源（docker-compose 硬编码 `https://rbmeds.com`） |
 
 ---
 
@@ -296,7 +310,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 | 框架 | 范围 | 配置 |
 |------|------|------|
-| Jest (ts-jest) | `src/`, `parsers/`, `server/`, `tests/` | `package.json` jest 配置，coverage threshold 70% |
+| Jest (ts-jest) | `src/`, `parsers/`, `tests/`, `server/` | `package.json` jest 配置，coverage threshold 70% |
 | Vitest | `frontend/` | `frontend/package.json`，Vue 组件 + 服务测试 |
 
 运行命令:
