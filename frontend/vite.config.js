@@ -31,6 +31,7 @@ function whitelistBrowserPlugin() {
 }
 
 export default defineConfig({
+  base: "/ac/",
   plugins: [vue(), whitelistBrowserPlugin()],
   server: {
     fs: {
