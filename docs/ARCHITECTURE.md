@@ -129,7 +129,7 @@ AC 后端 requireAuth 中间件
 | 规则 | 窗口 | 上限 | 路径 |
 |------|------|------|------|
 | API 通用 | 60s | 60 次 | `/api/*` |
-| 登录限流 | 15min | 5 次 | `/api/automate/login` |
+| 登录限流 | 15min | 5 次 | `/api/automate/login`（残留配置，该路由已移除） |
 
 ### 2.3 API 端点
 
@@ -171,16 +171,19 @@ AC 后端 requireAuth 中间件
 ### 3.1 模块依赖图
 
 ```
-types ──→ knowledge ──→ shared (tcm-mappings)
-  │            │
-  ├──→ shared  │
-  │            ▼
-  ├──→ parser ←┘
+types ─────────────────────────────────┐
+  │                                    │
+  ├──→ shared                          │
+  │                                    │
+  ├──→ knowledge (← types)             │
+  │         │                          │
+  │         ▼                          ▼
+  ├──→ parser (← types + knowledge + shared)
   │       │
   ▼       ▼
 generator (← types + knowledge + parser + shared)
 
-auditor (独立，无 src/ 外部依赖)
+auditor   (独立，无 src/ 外部依赖)
 validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 ```
 
@@ -244,7 +247,7 @@ stores/         — Pinia store (files.js)
 | 模式 | 说明 |
 |------|------|
 | `full` | 解析 Excel + 生成完整 SOAP（默认） |
-| `soap-only` | 仅解析，稍后手动触发生成 |
+| `soap-only` | 生成时仅填充 Subjective/Objective，跳过 Assessment/Plan（模式区别在 `generateMixedBatch` 内部处理） |
 | `continue` | 基于已有 IE+TX 续写后续 TX |
 
 ### 5.3 批量处理流程
