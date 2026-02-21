@@ -15,6 +15,8 @@ function makeClinical(overrides: Partial<BatchPatientClinical> = {}): BatchPatie
     relievingFactors: ['Changing positions', 'Resting', 'Massage'],
     symptomScale: '70%-80%',
     painFrequency: 'Constant (symptoms occur between 76% and 100% of the time)',
+    chronicityLevel: 'Chronic',
+    recentWorse: { value: '1', unit: 'week(s)' },
     ...overrides,
   }
 }

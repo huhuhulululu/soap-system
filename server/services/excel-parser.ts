@@ -73,7 +73,7 @@ function calculateAge(dob: string): number {
  */
 function parseSymptomDuration(raw: string): { value: string; unit: string } {
   if (!raw.trim()) return { value: '3', unit: 'year(s)' }
-  const match = raw.trim().match(/^(\d+|more than \d+|many)\s*(year|month|week|day)\(?s?\)?$/i)
+  const match = raw.trim().match(/^([\d.]+|more than [\d.]+|many|several)\s*(year|month|week|day)\(?s?\)?$/i)
   if (match) {
     const unit = match[2].toLowerCase()
     return { value: match[1], unit: `${unit}(s)` }
@@ -103,9 +103,20 @@ function parseChronicityLevel(raw: string): 'Acute' | 'Sub Acute' | 'Chronic' {
 
 function parseRecentWorse(raw: string): { value: string; unit: string } {
   if (!raw.trim()) return { value: '1', unit: 'week(s)' }
-  const match = raw.trim().match(/^(\d+|more than \d+)\s*(year|month|week|day)\(?s?\)?$/i)
+  const match = raw.trim().match(/^([\d.]+|more than [\d.]+)\s*(year|month|week|day)\(?s?\)?$/i)
   if (match) return { value: match[1], unit: `${match[2].toLowerCase()}(s)` }
   return { value: '1', unit: 'week(s)' }
+}
+
+/**
+ * 解析 includeIE 字段 (支持 boolean / string / undefined)
+ * 默认: full 模式 → true, 其他模式 → false
+ */
+function parseIncludeIE(raw: boolean | string | undefined, fallbackMode: BatchMode): boolean {
+  if (raw === true || raw === 'true' || raw === '1') return true
+  if (raw === false || raw === 'false' || raw === '0') return false
+  // 未指定时按模式决定
+  return fallbackMode === 'full'
 }
 
 /**
@@ -241,6 +252,7 @@ function buildRowsFromRecords(records: Record<string, string>[]): ExcelRow[] {
       chronicityLevel: getString(['ChronicityLevel', 'chronicityLevel', 'Chronicity', 'W']),
       recentWorse: getString(['RecentWorse', 'recentWorse', 'X']),
       mode: getString(['Mode', 'mode', 'Y']),
+      includeIE: record['includeIE'] ?? record['IncludeIE'] ?? getString(['IncludeIE', 'includeIE', 'Z']),
     }
   })
 }
@@ -269,7 +281,8 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     if (!row.patient) errors.push(`Row ${rowNum}: Patient is required`)
     if (!row.gender || !['M', 'F'].includes(row.gender)) errors.push(`Row ${rowNum}: Gender must be M or F`)
     if (!VALID_INSURANCE.has(row.insurance)) errors.push(`Row ${rowNum}: Invalid insurance "${row.insurance}"`)
-    if (rowMode === 'full' && !row.icd) errors.push(`Row ${rowNum}: ICD codes are required`)
+    const rowIncludeIE = parseIncludeIE(row.includeIE, rowMode)
+    if (rowIncludeIE && !row.icd) errors.push(`Row ${rowNum}: ICD codes are required when IE is included`)
     if (rowMode === 'continue' && !row.soapText) errors.push(`Row ${rowNum}: SoapText is required for continue mode`)
     if (row.totalVisits < 1) errors.push(`Row ${rowNum}: TotalVisits must be at least 1`)
   }
@@ -402,11 +415,14 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       ? row.history.split(',').map(h => h.trim()).filter(h => h && h.toUpperCase() !== 'N/A')
       : []
 
-    // Build visits based on rowMode
+    // Build visits based on rowMode + includeIE
     const totalVisits = row.totalVisits
     const visits: BatchVisit[] = []
 
-    if (rowMode === 'full') {
+    // Determine whether to include IE visit (user-controlled, fallback: full=true, others=false)
+    const includeIE = parseIncludeIE(row.includeIE, rowMode)
+
+    if (includeIE) {
       // IE visit (dos=1) — includes 99203 if present
       const ieCPT: CPTWithUnits[] = row.cpt.trim()
         ? parseCPTString(row.cpt)
@@ -430,13 +446,13 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     }
 
     // TX visits
-    const txCount = rowMode === 'full' ? totalVisits - 1 : totalVisits
+    const txCount = includeIE ? totalVisits - 1 : totalVisits
     for (let txIdx = 0; txIdx < txCount; txIdx++) {
       const txCPT: CPTWithUnits[] = row.cpt.trim()
         ? parseCPTString(row.cpt).filter(c => c.code !== '99203')
         : [...getDefaultTXCPT(insurance)]
 
-      const offset = rowMode === 'full' ? 1 : 0
+      const offset = includeIE ? 1 : 0
       visits.push({
         index: txIdx + offset,
         dos: txIdx + offset + 1,

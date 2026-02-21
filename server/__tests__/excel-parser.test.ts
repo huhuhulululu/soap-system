@@ -25,6 +25,10 @@ function makeRow(overrides: Partial<ExcelRow> = {}): ExcelRow {
     secondaryParts: '',
     history: '',
     soapText: '',
+    chronicityLevel: 'Chronic',
+    recentWorse: '1 week(s)',
+    mode: '',
+    includeIE: true,
     ...overrides,
   }
 }
@@ -124,12 +128,12 @@ describe('excel-parser - buildPatientsFromRows', () => {
     expect(result.summary.byType).toEqual({ IE: 1, TX: 2 })
   })
 
-  it('throws if ICD missing in full mode', () => {
-    expect(() => buildPatientsFromRows([makeRow({ icd: '' })], 'full')).toThrow()
+  it('throws if ICD missing when IE is included', () => {
+    expect(() => buildPatientsFromRows([makeRow({ icd: '' })], 'full')).toThrow('ICD codes are required')
   })
 
-  it('allows empty ICD in soap-only mode', () => {
-    const result = buildPatientsFromRows([makeRow({ icd: '', cpt: '' })], 'soap-only')
+  it('allows empty ICD in soap-only mode without IE', () => {
+    const result = buildPatientsFromRows([makeRow({ icd: '', cpt: '', includeIE: false })], 'soap-only')
     expect(result.patients).toHaveLength(1)
   })
 

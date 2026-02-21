@@ -136,12 +136,14 @@ export function inferFieldPath(context: string, options: string[]): string {
     return 'objective.muscleTesting.tenderness.gradingScale'
   }
 
-  // 疼痛相关
-  if (contextLower.includes('pain scale') || contextLower.includes('worst') || contextLower.includes('best') || contextLower.includes('current')) {
-    if (contextLower.includes('worst')) return 'subjective.painScale.worst'
-    if (contextLower.includes('best')) return 'subjective.painScale.best'
-    if (contextLower.includes('current')) return 'subjective.painScale.current'
-    return 'subjective.painScale'
+  // 疼痛相关 — 必须同时包含数字选项才算 pain scale（避免 "current condition" 等误匹配）
+  if (options.some(o => /^\d+(-\d+)?$/.test(o))) {
+    if (contextLower.includes('pain scale') || contextLower.includes('worst') || contextLower.includes('best') || contextLower.includes('current:')) {
+      if (contextLower.includes('worst')) return 'subjective.painScale.worst'
+      if (contextLower.includes('best')) return 'subjective.painScale.best'
+      if (contextLower.includes('current')) return 'subjective.painScale.current'
+      return 'subjective.painScale'
+    }
   }
 
   // 慢性程度
@@ -274,23 +276,24 @@ export function inferFieldPath(context: string, options: string[]): string {
     return 'assessment.tcmDiagnosis.systemicPattern'
   }
 
-  // 舌象/脉象（tone模板）
+  // 治则（必须在 tongue/pulse 之前，避免 'reduced' 等被 tongue 正则误匹配）
+  if (options.includes('moving qi') || options.includes('regulates qi')) {
+    return 'assessment.treatmentPrinciples.focusOn'
+  }
+
+  // 舌象（tone模板）— 使用词边界避免 'reduced' 匹配 'red'
   if (
     contextLower.includes('tongue') ||
-    options.some(o => /coat|purple|pale|red|yellow|spots|tooth marks/i.test(o))
+    options.some(o => /\bcoat\b|\bpurple\b|\bpale\b|\bred\b|\byellow\b|\bspots\b|tooth marks|\bcracked\b|\bdelicate\b|\bswollen\b|\bdusk\b|\brootless\b|\bfurless\b/i.test(o))
   ) {
     return 'objective.tonguePulse.tongue'
   }
+  // 脉象（tone模板）— 使用词边界避免 'Hamstrings' 匹配 'string'
   if (
     contextLower.includes('pulse') ||
-    options.some(o => /deep|rapid|thready|slippery|string|choppy|hesitant|floating|tight/i.test(o))
+    options.some(o => /\bdeep\b|\brapid\b|\bthready\b|\bslippery\b|\bstring-taut\b|\bchoppy\b|\bhesitant\b|\bfloating\b|\btight\b|\bweak\b|\bslow\b|\bwiry\b|\btense\b|\brolling\b|\bforceful\b|\bforceless\b/i.test(o))
   ) {
     return 'objective.tonguePulse.pulse'
-  }
-
-  // 治则
-  if (options.includes('moving qi') || options.includes('regulates qi')) {
-    return 'assessment.treatmentPrinciples.focusOn'
   }
 
   // 治则动词（focus/emphasize/promote...）

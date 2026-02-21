@@ -99,4 +99,5 @@ export interface ExcelRow {
   readonly chronicityLevel: string
   readonly recentWorse: string
   readonly mode?: string
+  readonly includeIE?: boolean | string
 }

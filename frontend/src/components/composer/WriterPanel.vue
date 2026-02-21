@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import whitelist from '../../data/whitelist.json'
 import { setWhitelist } from '../../../../src/parser/template-rule-whitelist.browser.ts'
 import { inferSystemicPatterns, inferLocalPatterns } from '../../../../src/knowledge/medical-history-engine.ts'
@@ -9,6 +9,11 @@ import { useDiffHighlight } from '../../composables/useDiffHighlight'
 import { isPainTypeConsistentWithPattern } from '../../../../src/shared/tcm-mappings'
 import { isAdlConsistentWithBodyPart } from '../../../../src/shared/adl-mappings'
 import { BODY_PART_ADL } from '../../../../src/shared/body-part-constants'
+import {
+  INSURANCE_OPTIONS, BODY_PARTS, SUPPORTED_IE_PARTS, SUPPORTED_TX_PARTS,
+  GENDER_OPTIONS, bodyPartLabel, ICD_CATALOG, MEDICAL_HISTORY_GROUPS,
+  ALL_MEDICAL_HISTORY_OPTIONS, RADIATION_MAP, LATERALITY_MAP,
+} from '../../data/writer-constants'
 
 setWhitelist(whitelist)
 
@@ -23,7 +28,6 @@ const {
   MULTI_SELECT_FIELDS,
   fieldTag,
   fieldLabel,
-  getRecommendedOptions,
 } = useWriterFields(whitelist)
 
 // 选择器
@@ -47,99 +51,7 @@ const icdSearch = ref('')
 const icdDropdownOpen = ref(false)
 const selectedIcds = ref([])           // [{ icd10, desc, bodyPart, laterality }] max 4
 
-const INSURANCE_OPTIONS = [
-  { value: 'OPTUM', label: 'Optum' },
-  { value: 'HF', label: 'HealthFirst' },
-  { value: 'WC', label: 'WellCare' },
-  { value: 'VC', label: 'VillageCare Max' },
-  { value: 'ELDERPLAN', label: 'ElderPlan' },
-  { value: 'NONE', label: 'None / Self-pay' },
-]
-const BODY_PARTS = [
-  'LBP', 'NECK', 'UPPER_BACK', 'MIDDLE_BACK', 'MID_LOW_BACK',
-  'SHOULDER', 'ELBOW', 'WRIST', 'HAND',
-  'HIP', 'KNEE', 'ANKLE', 'FOOT',
-  'THIGH', 'CALF', 'ARM', 'FOREARM',
-]
-const SUPPORTED_IE_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MID_LOW_BACK', 'NECK', 'SHOULDER'])
-const SUPPORTED_TX_PARTS = new Set(['ELBOW', 'KNEE', 'LBP', 'MID_LOW_BACK', 'MIDDLE_BACK', 'NECK', 'SHOULDER'])
-const GENDER_OPTIONS = ['Male', 'Female']
-
-// 部位显示名映射 (用于 UI 下拉框)
-const BODY_PART_DISPLAY = {
-  'MID_LOW_BACK': 'M&L (Mid+Low Back)',
-}
-function bodyPartLabel(bp) {
-  return BODY_PART_DISPLAY[bp] || bp
-}
-
-// ICD-10 码表 — 基于 src/shared/body-part-constants.ts ICD_BODY_MAP 展开
-const ICD_CATALOG = [
-  // ── LBP (M54.5, M54.4, M54.3, M47.8, M51) ──
-  { icd10: 'M54.50', desc: 'Low back pain, unspecified', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M54.51', desc: 'Vertebrogenic low back pain', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M54.59', desc: 'Other low back pain', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M54.41', desc: 'Lumbago with sciatica, right', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M54.42', desc: 'Lumbago with sciatica, left', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M54.31', desc: 'Sciatica, right side', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M54.32', desc: 'Sciatica, left side', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M47.816', desc: 'Spondylosis w/o myelopathy, lumbar', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M47.817', desc: 'Spondylosis w/o myelopathy, lumbosacral', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M51.16', desc: 'IVD disorder w/ radiculopathy, lumbar', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M51.17', desc: 'IVD disorder w/ radiculopathy, lumbosacral', bodyPart: 'LBP', laterality: 'bilateral' },
-  // ── NECK (M54.2, M47.81, M50) ──
-  { icd10: 'M54.2', desc: 'Cervicalgia', bodyPart: 'NECK', laterality: 'bilateral' },
-  { icd10: 'M47.812', desc: 'Spondylosis w/o myelopathy, cervical', bodyPart: 'NECK', laterality: 'bilateral' },
-  { icd10: 'M47.813', desc: 'Spondylosis w/o myelopathy, cervicothoracic', bodyPart: 'NECK', laterality: 'bilateral' },
-  { icd10: 'M50.30', desc: 'Other cervical disc degeneration, unspecified', bodyPart: 'NECK', laterality: 'bilateral' },
-  { icd10: 'M50.320', desc: 'Other cervical disc degeneration, mid-cervical', bodyPart: 'NECK', laterality: 'bilateral' },
-  // ── UPPER_BACK / MIDDLE_BACK (M54.6) ──
-  { icd10: 'M54.6', desc: 'Pain in thoracic spine', bodyPart: 'MIDDLE_BACK', laterality: 'bilateral' },
-  // ── MID_LOW_BACK (M54.5 + M54.6 组合) ──
-  { icd10: 'M54.5', desc: 'Low back pain', bodyPart: 'MID_LOW_BACK', laterality: 'bilateral' },
-  // ── SHOULDER (M25.51, M75, M79.61) ──
-  { icd10: 'M25.511', desc: 'Pain in right shoulder', bodyPart: 'SHOULDER', laterality: 'right' },
-  { icd10: 'M25.512', desc: 'Pain in left shoulder', bodyPart: 'SHOULDER', laterality: 'left' },
-  { icd10: 'M25.519', desc: 'Pain in unspecified shoulder', bodyPart: 'SHOULDER', laterality: 'bilateral' },
-  { icd10: 'M75.10', desc: 'Rotator cuff syndrome, unspecified', bodyPart: 'SHOULDER', laterality: 'bilateral' },
-  { icd10: 'M75.11', desc: 'Rotator cuff syndrome, right', bodyPart: 'SHOULDER', laterality: 'right' },
-  { icd10: 'M75.12', desc: 'Rotator cuff syndrome, left', bodyPart: 'SHOULDER', laterality: 'left' },
-  { icd10: 'M75.01', desc: 'Adhesive capsulitis, right shoulder', bodyPart: 'SHOULDER', laterality: 'right' },
-  { icd10: 'M75.02', desc: 'Adhesive capsulitis, left shoulder', bodyPart: 'SHOULDER', laterality: 'left' },
-  { icd10: 'M79.611', desc: 'Pain in right upper arm', bodyPart: 'SHOULDER', laterality: 'right' },
-  { icd10: 'M79.612', desc: 'Pain in left upper arm', bodyPart: 'SHOULDER', laterality: 'left' },
-  // ── ELBOW (M25.52, M77.0, M77.1) ──
-  { icd10: 'M25.521', desc: 'Pain in right elbow', bodyPart: 'ELBOW', laterality: 'right' },
-  { icd10: 'M25.522', desc: 'Pain in left elbow', bodyPart: 'ELBOW', laterality: 'left' },
-  { icd10: 'M25.529', desc: 'Pain in unspecified elbow', bodyPart: 'ELBOW', laterality: 'bilateral' },
-  { icd10: 'M77.01', desc: 'Medial epicondylitis, right', bodyPart: 'ELBOW', laterality: 'right' },
-  { icd10: 'M77.02', desc: 'Medial epicondylitis, left', bodyPart: 'ELBOW', laterality: 'left' },
-  { icd10: 'M77.11', desc: 'Lateral epicondylitis, right', bodyPart: 'ELBOW', laterality: 'right' },
-  { icd10: 'M77.12', desc: 'Lateral epicondylitis, left', bodyPart: 'ELBOW', laterality: 'left' },
-  // ── KNEE (M17, M25.56, M25.46, M25.36, M76.5, M23, M22) ──
-  { icd10: 'M25.561', desc: 'Pain in right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M25.562', desc: 'Pain in left knee', bodyPart: 'KNEE', laterality: 'left' },
-  { icd10: 'M25.569', desc: 'Pain in unspecified knee', bodyPart: 'KNEE', laterality: 'bilateral' },
-  { icd10: 'M17.0', desc: 'Bilateral primary osteoarthritis of knee', bodyPart: 'KNEE', laterality: 'bilateral' },
-  { icd10: 'M17.11', desc: 'Primary osteoarthritis, right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M17.12', desc: 'Primary osteoarthritis, left knee', bodyPart: 'KNEE', laterality: 'left' },
-  { icd10: 'M25.461', desc: 'Stiffness of right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M25.462', desc: 'Stiffness of left knee', bodyPart: 'KNEE', laterality: 'left' },
-  { icd10: 'M25.361', desc: 'Other instability, right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M25.362', desc: 'Other instability, left knee', bodyPart: 'KNEE', laterality: 'left' },
-  { icd10: 'M76.51', desc: 'Patellar tendinitis, right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M76.52', desc: 'Patellar tendinitis, left knee', bodyPart: 'KNEE', laterality: 'left' },
-  { icd10: 'M22.41', desc: 'Chondromalacia patellae, right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M22.42', desc: 'Chondromalacia patellae, left knee', bodyPart: 'KNEE', laterality: 'left' },
-  { icd10: 'M23.91', desc: 'Internal derangement, right knee', bodyPart: 'KNEE', laterality: 'right' },
-  { icd10: 'M23.92', desc: 'Internal derangement, left knee', bodyPart: 'KNEE', laterality: 'left' },
-  // ── 通用码 ──
-  { icd10: 'G89.29', desc: 'Other chronic pain', bodyPart: null, laterality: null },
-  { icd10: 'S39.012A', desc: 'Strain of muscle of lower back, initial', bodyPart: 'LBP', laterality: 'bilateral' },
-  { icd10: 'M62.830', desc: 'Muscle spasm of back', bodyPart: 'LBP', laterality: 'bilateral' },
-]
-
-// ICD-10 搜索过滤
+// Primary body part options filtered by note type (IE vs TX have different template support)
 const filteredIcdOptions = computed(() => {
   const supported = noteType.value === 'TX' ? SUPPORTED_TX_PARTS : SUPPORTED_IE_PARTS
   const alreadySelected = new Set(selectedIcds.value.map(s => s.icd10))
@@ -178,147 +90,6 @@ function selectIcdCode(item) {
 function removeIcdCode(index) {
   selectedIcds.value = selectedIcds.value.filter((_, i) => i !== index)
   syncBodyPartFromIcds()
-}
-
-// 病史选项 — 分组
-const MEDICAL_HISTORY_GROUPS = [
-  {
-    label: '心血管',
-    items: ['Hypertension', 'Heart Disease', 'Heart Murmur', 'Pacemaker', 'Stroke', 'Cholesterol', 'Hyperlipidemia'],
-  },
-  {
-    label: '代谢/内科',
-    items: ['Diabetes', 'Thyroid', 'Liver Disease', 'Kidney Disease', 'Anemia', 'Asthma', 'Lung Disease', 'stomach trouble', 'Prostate'],
-  },
-  {
-    label: '骨骼肌肉',
-    items: ['Herniated Disk', 'Osteoporosis', 'Fractures', 'Joint Replacement', 'Pinched Nerve'],
-  },
-  {
-    label: '其他',
-    items: ['Smoking', 'Alcohol', 'Parkinson', 'tinnitus', 'Hysterectomy', 'C-section'],
-  },
-]
-const ALL_MEDICAL_HISTORY_OPTIONS = MEDICAL_HISTORY_GROUPS.flatMap(g => g.items)
-
-// 各部位的放射痛选项 (按医学合理性过滤)
-const RADIATION_MAP = {
-  'LBP': [
-    'without radiation',
-    'With radiation to R leg',
-    'With radiation to L leg',
-    'with radiation to BLLE',
-    'with radiation to toes',
-  ],
-  'MID_LOW_BACK': [
-    'without radiation',
-    'With radiation to R leg',
-    'With radiation to L leg',
-    'with radiation to BLLE',
-    'with radiation to toes',
-  ],
-  'NECK': [
-    'without radiation',
-    'with radiation to R arm',
-    'with radiation to L arm',
-    'with dizziness',
-    'with headache',
-    'with migraine',
-  ],
-  'SHOULDER': [
-    'without radiation',
-    'with radiation to R arm',
-    'with radiation to L arm',
-  ],
-  'KNEE': [
-    'without radiation',
-    'With radiation to R leg',
-    'With radiation to L leg',
-    'with local swollen',
-  ],
-  'ELBOW': [
-    'without radiation',
-    'with radiation to R arm',
-    'with radiation to L arm',
-  ],
-  'HIP': [
-    'without radiation',
-    'With radiation to R leg',
-    'With radiation to L leg',
-    'with radiation to BLLE',
-  ],
-}
-
-// 各部位的侧别选项
-// 四肢关节: left / right / bilateral
-// 脊柱中线: 无侧别选项 (固定 bilateral/unspecified)
-const LATERALITY_MAP = {
-  'SHOULDER': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'KNEE': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'ELBOW': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'HIP': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'WRIST': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'HAND': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'ANKLE': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'FOOT': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'THIGH': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'CALF': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'ARM': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  'FOREARM': [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'bilateral', label: 'Bilateral' }
-  ],
-  // 脊柱部位无侧别
-  'LBP': null,
-  'NECK': null,
-  'UPPER_BACK': null,
-  'MIDDLE_BACK': null,
-  'MID_LOW_BACK': null,
 }
 
 // Primary body part options filtered by note type (IE vs TX have different template support)
@@ -645,6 +416,7 @@ function showValidation(msg) {
   clearTimeout(validationTimer)
   validationTimer = setTimeout(() => { validationMsg.value = '' }, 4000)
 }
+onUnmounted(() => { clearTimeout(validationTimer) })
 
 // 生成中状态
 const isGenerating = ref(false)
@@ -682,6 +454,24 @@ const DURATION_VALUE_OPTIONS = computed(() => {
   const cutIdx = all.indexOf('more than 10')
   return cutIdx >= 0 ? all.slice(0, cutIdx + 1) : all
 })
+
+// 笔记展开/折叠状态（独立于数据对象）
+const openNotes = reactive(new Set())
+function toggleNoteOpen(idx) {
+  if (openNotes.has(idx)) { openNotes.delete(idx) } else { openNotes.add(idx) }
+}
+
+// 安全移除数组元素（避免 indexOf 返回 -1 时 splice 删错）
+function safeRemove(arr, item) {
+  const idx = arr.indexOf(item)
+  if (idx >= 0) arr.splice(idx, 1)
+}
+
+// 安全切换数组元素
+function safeToggle(arr, item) {
+  const idx = arr.indexOf(item)
+  if (idx >= 0) { arr.splice(idx, 1) } else { arr.push(item) }
+}
 
 // 疼痛频率按钮短标签
 function painFreqShort(full) {
@@ -744,7 +534,7 @@ function isLongField(path) {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs text-ink-500 mb-1 block">保险类型</label>
-              <select v-model="insuranceType" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
+              <select v-model="insuranceType" aria-label="保险类型" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option v-for="t in INSURANCE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
               </select>
             </div>
@@ -764,7 +554,7 @@ function isLongField(path) {
                 </button>
               </div>
               <!-- 直选模式 -->
-              <select v-if="selectionMode === 'bodypart'" v-model="bodyPart" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
+              <select v-if="selectionMode === 'bodypart'" v-model="bodyPart" aria-label="部位" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option v-for="p in availableBodyParts" :key="p" :value="p">{{ bodyPartLabel(p) }}</option>
               </select>
               <!-- ICD-10 多选模式 -->
@@ -808,7 +598,7 @@ function isLongField(path) {
             </div>
             <div>
               <label class="text-xs text-ink-500 mb-1 block">笔记类型</label>
-              <select v-model="noteType" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
+              <select v-model="noteType" aria-label="笔记类型" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
                 <option value="IE">IE (初诊)</option>
                 <option value="TX">TX (复诊)</option>
               </select>
@@ -871,7 +661,8 @@ function isLongField(path) {
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.length || '无' }})</span></label>
-              <button @click="togglePanel('medicalHistory')" class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">
+              <button @click="togglePanel('medicalHistory')" class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]"
+                :aria-expanded="!!expandedPanels['medicalHistory']" aria-controls="panel-medicalHistory">
                 {{ expandedPanels['medicalHistory'] ? '收起' : '编辑' }}
               </button>
             </div>
@@ -881,19 +672,19 @@ function isLongField(path) {
               <span v-for="h in medicalHistory" :key="h"
                 class="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
                 {{ h }}
-                <button @click="medicalHistory.splice(medicalHistory.indexOf(h), 1)"
+                <button @click="safeRemove(medicalHistory, h)"
                   class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
                   <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </span>
             </div>
             <!-- 展开面板 (分组) -->
-            <div v-show="expandedPanels['medicalHistory']" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
+            <div v-show="expandedPanels['medicalHistory']" id="panel-medicalHistory" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
               <div v-for="group in MEDICAL_HISTORY_GROUPS" :key="group.label">
                 <p class="text-[10px] text-ink-400 font-medium mb-1">{{ group.label }}</p>
                 <div class="flex flex-wrap gap-1">
                   <button v-for="h in group.items" :key="h"
-                    @click="medicalHistory.includes(h) ? medicalHistory.splice(medicalHistory.indexOf(h), 1) : medicalHistory.push(h)"
+                    @click="safeToggle(medicalHistory, h)"
                     class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
                     :class="medicalHistory.includes(h) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'">
                     {{ h }}
@@ -963,9 +754,8 @@ function isLongField(path) {
           <div>
             <label class="text-xs text-ink-500 mb-1 block">病程时长 <span class="text-red-500">*</span></label>
             <div class="flex gap-2">
-              <select v-model="fields['subjective.symptomDuration.value']" class="flex-1 px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
-                <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
+              <input v-model="fields['subjective.symptomDuration.value']" type="text" placeholder="如: 3, 6, more than 10"
+                class="flex-1 px-2 py-1.5 border border-ink-200 rounded text-xs text-center" />
               <select v-model="fields['subjective.symptomDuration.unit']" class="flex-[2] px-1 py-1.5 border border-ink-200 rounded text-xs">
                 <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
               </select>
@@ -975,9 +765,8 @@ function isLongField(path) {
           <div>
             <label class="text-xs text-ink-500 mb-1 block">近期加重 <span class="text-red-500">*</span></label>
             <div class="flex gap-2">
-              <select v-model="recentWorseValue" class="flex-1 px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
-                <option v-for="opt in DURATION_VALUE_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
+              <input v-model="recentWorseValue" type="text" placeholder="如: 1, 2, 3"
+                class="flex-1 px-2 py-1.5 border border-ink-200 rounded text-xs text-center" />
               <select v-model="recentWorseUnit" class="flex-[2] px-1 py-1.5 border border-ink-200 rounded text-xs">
                 <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
               </select>
@@ -1243,7 +1032,8 @@ function isLongField(path) {
           </div>
           <div v-for="(note, idx) in generatedNotes" :key="idx" class="bg-white rounded-xl border border-ink-200 mb-3">
             <!-- 折叠栏头部 -->
-            <div class="px-4 py-2 border-b border-ink-100 cursor-pointer select-none" @click="note._open = !note._open">
+            <div class="px-4 py-2 border-b border-ink-100 cursor-pointer select-none" @click="toggleNoteOpen(idx)"
+              role="button" :aria-expanded="openNotes.has(idx)" :aria-label="`${note.type}${note.visitIndex || ''} 笔记`">
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0 flex-1">
                   <span class="text-xs font-mono bg-ink-100 text-ink-600 px-2 py-0.5 rounded flex-shrink-0">{{ note.type }}{{ note.visitIndex || '' }}</span>
@@ -1267,13 +1057,13 @@ function isLongField(path) {
                     </span>
                   </div>
                 </div>
-                <svg class="w-4 h-4 text-ink-400 transition-transform flex-shrink-0" :class="{ 'rotate-180': note._open }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-4 h-4 text-ink-400 transition-transform flex-shrink-0" :class="{ 'rotate-180': openNotes.has(idx) }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </div>
             <!-- 展开内容 -->
-            <div v-show="note._open" class="p-4">
+            <div v-show="openNotes.has(idx)" class="p-4">
               <!-- S/O/A/P 分段复制按钮 -->
               <div class="flex items-center gap-1.5 mb-3">
                 <button v-for="sec in ['S','O','A','P']" :key="sec"

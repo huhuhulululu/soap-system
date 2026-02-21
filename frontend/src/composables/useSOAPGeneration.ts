@@ -95,7 +95,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     medicalHistory: medicalHistory.value,
   }))
 
-  const generatedNotes = ref<Array<{ visitIndex?: number; text: string; type: string; state: unknown; _open: boolean }>>([])
+  const generatedNotes = ref<Array<{ visitIndex?: number; text: string; type: string; state: unknown }>>([])
   const copiedIndex = ref(-1)
   const currentSeed = ref<number | null>(null)
   const seedInput = ref('')
@@ -152,13 +152,12 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
         })
         currentSeed.value = actualSeed
         generatedNotes.value = [
-          { visitIndex: 0, text: ieText, type: 'IE', state: null, _open: false },
+          { visitIndex: 0, text: ieText, type: 'IE', state: null },
           ...states.map(state => ({
             visitIndex: state.visitIndex,
             text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
             type: 'TX',
             state,
-            _open: false,
           })),
         ]
         runValidation(states, ctx)

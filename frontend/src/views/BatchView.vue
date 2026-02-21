@@ -29,12 +29,21 @@ const EMPTY_ROW = () => ({
   causativeFactors: '', relievingFactors: 'Changing positions,Resting',
   symptomScale: '70%-80%', painFrequency: 'Constant',
   secondaryParts: '', history: '', soapText: '',
-  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: 'full',
+  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: '', includeIE: true,
 })
 
 // Body parts matching Writer page (supported by IE+TX templates)
-const BATCH_BODY_PARTS = ['LBP', 'NECK', 'MID_LOW_BACK', 'MIDDLE_BACK', 'SHOULDER', 'ELBOW', 'KNEE']
-const BP_LABEL = { 'MID_LOW_BACK': 'M&L Back' }
+const BATCH_BODY_PARTS = [
+  'LBP', 'NECK', 'UPPER_BACK', 'MIDDLE_BACK', 'MID_LOW_BACK',
+  'SHOULDER', 'ELBOW', 'WRIST', 'HAND',
+  'HIP', 'KNEE', 'ANKLE', 'FOOT',
+  'THIGH', 'CALF', 'ARM', 'FOREARM',
+]
+const BP_LABEL = {
+  'MID_LOW_BACK': 'M&L Back',
+  'UPPER_BACK': 'Upper Back',
+  'MIDDLE_BACK': 'Mid Back',
+}
 
 // Body-part-specific radiation (from Writer)
 const RADIATION_MAP = {
@@ -45,6 +54,16 @@ const RADIATION_MAP = {
   'KNEE': ['without radiation', 'With radiation to R leg', 'With radiation to L leg', 'with local swollen'],
   'ELBOW': ['without radiation', 'with radiation to R arm', 'with radiation to L arm'],
   'MIDDLE_BACK': ['without radiation'],
+  'UPPER_BACK': ['without radiation'],
+  'HIP': ['without radiation', 'With radiation to R leg', 'With radiation to L leg', 'with radiation to BLLE'],
+  'WRIST': ['without radiation', 'with radiation to R arm', 'with radiation to L arm'],
+  'HAND': ['without radiation'],
+  'ANKLE': ['without radiation', 'With radiation to R leg', 'With radiation to L leg'],
+  'FOOT': ['without radiation'],
+  'THIGH': ['without radiation', 'With radiation to R leg', 'With radiation to L leg'],
+  'CALF': ['without radiation', 'With radiation to R leg', 'With radiation to L leg'],
+  'ARM': ['without radiation', 'with radiation to R arm', 'with radiation to L arm'],
+  'FOREARM': ['without radiation', 'with radiation to R arm', 'with radiation to L arm'],
 }
 
 // Multi-select options (from whitelist.json)
@@ -232,7 +251,8 @@ function patientLabel(d, i) {
 
 function patientSummary(d) {
   const modeLabel = d.mode ? `[${d.mode}]` : ''
-  const parts = [modeLabel, d.insurance, d.bodyPart, d.laterality === 'B' ? 'Bilateral' : d.laterality === 'L' ? 'Left' : 'Right', `${d.totalVisits}v`].filter(Boolean)
+  const ieLabel = d.includeIE ? 'IE+TX' : 'TX only'
+  const parts = [modeLabel, ieLabel, d.insurance, d.bodyPart, d.laterality === 'B' ? 'Bilateral' : d.laterality === 'L' ? 'Left' : 'Right', `${d.totalVisits}v`].filter(Boolean)
   return parts.join(' / ')
 }
 
@@ -854,11 +874,23 @@ onUnmounted(() => {
         <div v-if="activeDraft" class="card p-4 space-y-3 ring-2 ring-ink-300">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs font-bold text-ink-500">Patient {{ activeIndex + 1 }} / {{ drafts.length }}</span>
-            <div class="flex gap-1">
-              <button v-for="m in [{k:'full',l:'Full'},{k:'soap-only',l:'SOAP'},{k:'continue',l:'Continue'}]" :key="m.k"
-                @click="updateField('mode', m.k)" type="button"
-                class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
-                :class="(activeDraft.mode || batchMode) === m.k ? 'bg-ink-800 text-white border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ m.l }}</button>
+            <div class="flex items-center gap-3">
+              <div class="flex gap-1">
+                <button v-for="m in [{k:'full',l:'Full'},{k:'soap-only',l:'SOAP'},{k:'continue',l:'Continue'}]" :key="m.k"
+                  @click="updateField('mode', m.k)" type="button"
+                  class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                  :class="(activeDraft.mode || batchMode) === m.k ? 'bg-ink-800 text-white border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">{{ m.l }}</button>
+              </div>
+              <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <button @click="updateField('includeIE', !activeDraft.includeIE)" type="button"
+                  class="relative w-8 h-4.5 rounded-full transition-colors duration-200 flex-shrink-0"
+                  :class="activeDraft.includeIE ? 'bg-green-500' : 'bg-ink-300'"
+                  role="switch" :aria-checked="activeDraft.includeIE">
+                  <span class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200"
+                    :class="activeDraft.includeIE ? 'translate-x-3.5' : ''"></span>
+                </button>
+                <span class="text-[11px] font-medium" :class="activeDraft.includeIE ? 'text-green-600' : 'text-ink-400'">含 IE</span>
+              </label>
             </div>
           </div>
 
