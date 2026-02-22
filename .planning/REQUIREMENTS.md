@@ -14,8 +14,8 @@
 
 ### Shared Data
 
-- [ ] **DATA-01**: ICD catalog 从 BatchView.vue 提取到前端共享模块，消除前后端重复
-- [ ] **DATA-02**: CPT defaults (INS_CPT, toggle99203) 从 BatchView.vue 提取到共享模块
+- [x] **DATA-01**: ICD catalog 从 BatchView.vue 提取到前端共享模块，消除前后端重复
+- [x] **DATA-02**: CPT defaults (INS_CPT, toggle99203) 从 BatchView.vue 提取到共享模块
 
 ### Validation
 
@@ -42,8 +42,8 @@
 | UX-02 | Phase 11 | Pending |
 | UX-03 | Phase 11 | Pending |
 | UX-04 | Phase 11 | Pending |
-| DATA-01 | Phase 10 | Pending |
-| DATA-02 | Phase 10 | Pending |
+| DATA-01 | Phase 10 | Complete |
+| DATA-02 | Phase 10 | Complete |
 | VAL-01 | Phase 11 | Pending |
 
 **Coverage:**
