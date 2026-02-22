@@ -22,7 +22,7 @@
 - [x] **Phase 5: Error Classification** - Shared types and error kind enum that gate all retry logic
 - [x] **Phase 6: Adaptive Timeouts** - Per-operation timeout constants replacing the global 30s default (completed 2026-02-22)
 - [x] **Phase 7: Retry, Recovery & Events** - Per-visit retry with backoff, session fast-fail, and JSON line events (completed 2026-02-22)
-- [ ] **Phase 8: Verification & Event Gap Closure** - Verify Phase 5 requirements + fix pre-batch session expiry event emission
+- [x] **Phase 8: Verification & Event Gap Closure** - Verify Phase 5 requirements + fix pre-batch session expiry event emission (completed 2026-02-22)
 
 ## Phase Details
 
@@ -73,7 +73,7 @@ Plans:
   1. `classifyError()` returns correct `AutomationErrorKind` for transient and permanent errors
   2. `failedStep` is populated with the step name on every failed visit result
   3. Pre-batch session expiry emits a `batch_summary` event with `aborted: true` before `process.exit(1)`
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 08-01-PLAN.md — Unit tests for error classification + pre-batch event emission fix
 
@@ -84,4 +84,4 @@ Plans:
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 1/1 | Complete    | 2026-02-22 |
 | 7. Retry, Recovery & Events | 2/2 | Complete    | 2026-02-22 |
-| 8. Verification & Event Gap Closure | 0/1 | Not started | - |
+| 8. Verification & Event Gap Closure | 1/1 | Complete   | 2026-02-22 |

@@ -7,8 +7,8 @@
 
 ### Error Handling
 
-- [ ] **ERR-01**: Automation classifies errors as transient (timeout, element not found) or permanent (session expired, patient not found)
-- [ ] **ERR-02**: Failed visits report which step failed (e.g., fillSOAP, addICD, checkout) in VisitResult
+- [x] **ERR-01**: Automation classifies errors as transient (timeout, element not found) or permanent (session expired, patient not found)
+- [x] **ERR-02**: Failed visits report which step failed (e.g., fillSOAP, addICD, checkout) in VisitResult
 - [x] **ERR-03**: Session expiry stops the entire batch immediately instead of retrying remaining visits
 
 ### Retry & Recovery
@@ -48,8 +48,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ERR-01 | Phase 8 (gap closure) | Pending |
-| ERR-02 | Phase 8 (gap closure) | Pending |
+| ERR-01 | Phase 8 (gap closure) | Complete |
+| ERR-02 | Phase 8 (gap closure) | Complete |
 | ERR-03 | Phase 7 | Complete |
 | RET-01 | Phase 7 | Complete |
 | RET-02 | Phase 7 | Complete |

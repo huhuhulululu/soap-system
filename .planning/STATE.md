@@ -1,26 +1,26 @@
 # Project State
 
 ## Status
-v1.1 Automation Stability — PHASE 7 COMPLETE
+v1.1 Automation Stability — PHASE 8 IN PROGRESS
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Batch-generate compliant SOAP notes from minimal input
-**Current focus:** v1.1 Automation Stability — Phase 7: Retry Recovery Events
+**Current focus:** Phase 8: Verification + Event Gap Closure
 
 ## Current Position
-Phase: 7 (Retry Recovery Events)
-Plan: 07-02-PLAN.md (JSON Event Parsing in Runner) — COMPLETE
-Status: Complete — all plans done
-Last activity: 2026-02-22 — 07-02 executed
+Phase: 8 (Verification + Event Gap Closure)
+Plan: 08-01-PLAN.md (ERR-01/ERR-02 Verification + Pre-batch Event Emission) — COMPLETE
+Status: Plan 1/1 complete
+Last activity: 2026-02-22 — 08-01 executed
 
 ```
-[Phase 5] [x] → [Phase 6] [x] → [Phase 7] [x]
+[Phase 5] [x] → [Phase 6] [x] → [Phase 7] [x] → [Phase 8] [x]
 ```
 
 ## Performance Metrics
-- Phases complete: 3/3 (v1.1)
+- Phases complete: 4/4 (v1.1)
 - Requirements mapped: 7/7
 
 ## Accumulated Context
@@ -35,8 +35,9 @@ Last activity: 2026-02-22 — 07-02 executed
 - withRetry calls processVisit directly; retry reset does full page.goto + clickWaitingRoom + re-search + openVisit
 - unknown errorKind treated as retryable — safer to retry than skip
 - processBatch emits batch_summary on both normal and aborted paths before re-throwing
-
 - JSON lines are also forwarded to appendLog — events and logs serve different consumers but both benefit from the data
+- ERR-02 verified via static grep (failedStep: currentStep at L1165) — runtime Playwright mock not needed
+- Pre-batch session expiry skipped count uses batchData.summary.totalVisits (loaded before validateSession)
 
 ### Critical Constraints
 - MDLand is non-idempotent: ICD/CPT codes are appended, not replaced — every retry MUST call `closeVisit()` and re-navigate before re-attempting
@@ -48,4 +49,4 @@ None
 ## Session Continuity
 - Branch: v1.1-ux
 - Next action: v1.1 complete — all phases done
-- Last session: 2026-02-22 — 07-02 executed
+- Last session: 2026-02-22 — 08-01 executed
