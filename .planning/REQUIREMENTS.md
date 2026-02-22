@@ -48,19 +48,19 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ERR-01 | — | Pending |
-| ERR-02 | — | Pending |
-| ERR-03 | — | Pending |
-| RET-01 | — | Pending |
-| RET-02 | — | Pending |
-| TMO-01 | — | Pending |
-| OBS-01 | — | Pending |
+| ERR-01 | Phase 5 | Pending |
+| ERR-02 | Phase 5 | Pending |
+| ERR-03 | Phase 7 | Pending |
+| RET-01 | Phase 7 | Pending |
+| RET-02 | Phase 7 | Pending |
+| TMO-01 | Phase 6 | Pending |
+| OBS-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 7 total
-- Mapped to phases: 0
-- Unmapped: 7 ⚠️
+- Mapped to phases: 7
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap creation*
