@@ -20,6 +20,7 @@
 import { chromium, type Page, type BrowserContext, type FrameLocator } from 'playwright';
 import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
+import { classifyError, type VisitResult } from '../../server/services/automation-types';
 
 // ============================================
 // 类型定义
@@ -93,14 +94,7 @@ interface AutomationOptions {
   readonly timeout: number;
 }
 
-interface VisitResult {
-  readonly patient: string;
-  readonly visitIndex: number;
-  readonly noteType: string;
-  readonly success: boolean;
-  readonly error?: string;
-  readonly duration: number;
-}
+// VisitResult imported from server/services/automation-types
 
 // ============================================
 // 默认配置
@@ -1022,30 +1016,42 @@ class MDLandAutomation {
     const label = `${patient.name} Visit#${visit.dos} (${visit.noteType})`;
     console.log(`\n=== Processing: ${label} ===`);
 
+    let currentStep = 'init';
+
     try {
       // Step 1: ICD/CPT (skip in soap-only mode)
       if (this.mode !== 'soap-only') {
+        currentStep = 'navigateToICD';
         await this.navigateToICD();
+        currentStep = 'addICDCodes';
         await this.addICDCodes(visit.icdCodes);
+        currentStep = 'addCPTCodes';
         await this.addCPTCodes(visit.cptCodes);
+        currentStep = 'saveDiagnose';
         await this.saveDiagnose();
         await this.takeScreenshot(`icd-saved-${patient.name}-${visit.dos}`);
       }
 
       // Step 2: SOAP
+      currentStep = 'navigateToPTNote';
       await this.navigateToPTNote();
+      currentStep = 'fillSOAP';
       await this.fillSOAP(visit.generated.soap, visit.generated.html);
+      currentStep = 'saveSOAP';
       await this.saveSOAP();
       await this.takeScreenshot(`soap-saved-${patient.name}-${visit.dos}`);
 
       // Step 3: Checkout (skip in soap-only mode)
       if (this.mode !== 'soap-only') {
+        currentStep = 'navigateToCheckout';
         await this.navigateToCheckout();
+        currentStep = 'generateBilling';
         await this.generateBilling();
         await this.takeScreenshot(`billing-done-${patient.name}-${visit.dos}`);
       }
 
       // Step 4: Close
+      currentStep = 'closeVisit';
       await this.closeVisit();
 
       const duration = Date.now() - start;
@@ -1056,12 +1062,13 @@ class MDLandAutomation {
         visitIndex: visit.dos,
         noteType: visit.noteType,
         success: true,
-        duration
+        duration,
+        attempts: 1
       };
     } catch (err) {
       const duration = Date.now() - start;
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error(`=== Failed: ${label} — ${errorMsg} ===`);
+      console.error(`=== Failed: ${label} at ${currentStep} — ${errorMsg} ===`);
 
       await this.takeScreenshot(`error-${patient.name}-${visit.dos}`);
 
@@ -1076,7 +1083,10 @@ class MDLandAutomation {
         noteType: visit.noteType,
         success: false,
         error: errorMsg,
-        duration
+        failedStep: currentStep,
+        errorKind: classifyError(err),
+        duration,
+        attempts: 1
       };
     }
   }
