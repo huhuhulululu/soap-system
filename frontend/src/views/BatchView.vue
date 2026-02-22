@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { getICDCatalog } from '../../../../src/shared/icd-catalog'
+import { defaultCptStr, is99203Ins, toggle99203 } from '../../../../src/shared/cpt-catalog'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -77,51 +79,8 @@ const CAUSATIVE_OPTS = ['age related/degenerative changes', 'weather change', 'p
 const RELIEVING_OPTS = ['Changing positions', 'Stretching', 'Resting', 'Lying down', 'Applying heating pad', 'Massage', 'Medications']
 const SCALE_OPTS = ['90%-100%', '80%-90%', '70%-80%', '60%-70%', '50%-60%', '40%-50%', '30%-40%']
 
-// ICD-10 catalog (from WriterPanel)
-const ICD_CATALOG = [
-  { icd10: 'M54.50', desc: 'Low back pain, unspecified', bodyPart: 'LBP' },
-  { icd10: 'M54.51', desc: 'Vertebrogenic low back pain', bodyPart: 'LBP' },
-  { icd10: 'M54.59', desc: 'Other low back pain', bodyPart: 'LBP' },
-  { icd10: 'M54.41', desc: 'Lumbago with sciatica, right', bodyPart: 'LBP' },
-  { icd10: 'M54.42', desc: 'Lumbago with sciatica, left', bodyPart: 'LBP' },
-  { icd10: 'M54.31', desc: 'Sciatica, right side', bodyPart: 'LBP' },
-  { icd10: 'M54.32', desc: 'Sciatica, left side', bodyPart: 'LBP' },
-  { icd10: 'M47.816', desc: 'Spondylosis w/o myelopathy, lumbar', bodyPart: 'LBP' },
-  { icd10: 'M47.817', desc: 'Spondylosis w/o myelopathy, lumbosacral', bodyPart: 'LBP' },
-  { icd10: 'M51.16', desc: 'IVD disorder w/ radiculopathy, lumbar', bodyPart: 'LBP' },
-  { icd10: 'M51.17', desc: 'IVD disorder w/ radiculopathy, lumbosacral', bodyPart: 'LBP' },
-  { icd10: 'M54.2', desc: 'Cervicalgia', bodyPart: 'NECK' },
-  { icd10: 'M47.812', desc: 'Spondylosis w/o myelopathy, cervical', bodyPart: 'NECK' },
-  { icd10: 'M47.813', desc: 'Spondylosis w/o myelopathy, cervicothoracic', bodyPart: 'NECK' },
-  { icd10: 'M50.30', desc: 'Other cervical disc degeneration, unspecified', bodyPart: 'NECK' },
-  { icd10: 'M50.320', desc: 'Other cervical disc degeneration, mid-cervical', bodyPart: 'NECK' },
-  { icd10: 'M54.6', desc: 'Pain in thoracic spine', bodyPart: 'MIDDLE_BACK' },
-  { icd10: 'M54.5', desc: 'Low back pain', bodyPart: 'MID_LOW_BACK' },
-  { icd10: 'M25.511', desc: 'Pain in right shoulder', bodyPart: 'SHOULDER' },
-  { icd10: 'M25.512', desc: 'Pain in left shoulder', bodyPart: 'SHOULDER' },
-  { icd10: 'M25.519', desc: 'Pain in unspecified shoulder', bodyPart: 'SHOULDER' },
-  { icd10: 'M75.10', desc: 'Rotator cuff syndrome, unspecified', bodyPart: 'SHOULDER' },
-  { icd10: 'M75.11', desc: 'Rotator cuff syndrome, right', bodyPart: 'SHOULDER' },
-  { icd10: 'M75.12', desc: 'Rotator cuff syndrome, left', bodyPart: 'SHOULDER' },
-  { icd10: 'M75.01', desc: 'Adhesive capsulitis, right shoulder', bodyPart: 'SHOULDER' },
-  { icd10: 'M75.02', desc: 'Adhesive capsulitis, left shoulder', bodyPart: 'SHOULDER' },
-  { icd10: 'M25.521', desc: 'Pain in right elbow', bodyPart: 'ELBOW' },
-  { icd10: 'M25.522', desc: 'Pain in left elbow', bodyPart: 'ELBOW' },
-  { icd10: 'M25.529', desc: 'Pain in unspecified elbow', bodyPart: 'ELBOW' },
-  { icd10: 'M77.01', desc: 'Medial epicondylitis, right', bodyPart: 'ELBOW' },
-  { icd10: 'M77.02', desc: 'Medial epicondylitis, left', bodyPart: 'ELBOW' },
-  { icd10: 'M77.11', desc: 'Lateral epicondylitis, right', bodyPart: 'ELBOW' },
-  { icd10: 'M77.12', desc: 'Lateral epicondylitis, left', bodyPart: 'ELBOW' },
-  { icd10: 'M25.561', desc: 'Pain in right knee', bodyPart: 'KNEE' },
-  { icd10: 'M25.562', desc: 'Pain in left knee', bodyPart: 'KNEE' },
-  { icd10: 'M25.569', desc: 'Pain in unspecified knee', bodyPart: 'KNEE' },
-  { icd10: 'M17.0', desc: 'Bilateral primary osteoarthritis of knee', bodyPart: 'KNEE' },
-  { icd10: 'M17.11', desc: 'Primary osteoarthritis, right knee', bodyPart: 'KNEE' },
-  { icd10: 'M17.12', desc: 'Primary osteoarthritis, left knee', bodyPart: 'KNEE' },
-  { icd10: 'G89.29', desc: 'Other chronic pain', bodyPart: null },
-  { icd10: 'S39.012A', desc: 'Strain of muscle of lower back, initial', bodyPart: 'LBP' },
-  { icd10: 'M62.830', desc: 'Muscle spasm of back', bodyPart: 'LBP' },
-]
+// ICD-10 catalog (from shared module)
+const ICD_CATALOG = getICDCatalog()
 
 const icdSearch = ref('')
 const icdDropdownOpen = ref(false)
@@ -148,14 +107,6 @@ function removeIcd(code) {
   updateField('icd', cur.filter(c => c !== code).join(','))
 }
 
-// CPT: fixed per insurance (from cpt-catalog INSURANCE_DEFAULT_CPT)
-const INS_CPT = { HF: '97810', OPTUM: '97810', WC: '97813,97814x2,97811', VC: '97813,97814,97811x2', ELDERPLAN: '97810', NONE: '97810' }
-function is99203Ins(ins) { return ins === 'HF' || ins === 'VC' }
-function defaultCptStr(ins) { return INS_CPT[ins] || '97810' }
-function toggle99203(cpt, ins) {
-  const base = defaultCptStr(ins)
-  return cpt.includes('99203') ? base : base + ',99203'
-}
 
 const MEDICAL_HISTORY_GROUPS = [
   { label: '心血管', items: ['Hypertension', 'Heart Disease', 'Heart Murmur', 'Pacemaker', 'Stroke', 'Cholesterol', 'Hyperlipidemia'] },
