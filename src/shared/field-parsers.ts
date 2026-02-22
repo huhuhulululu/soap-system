@@ -27,12 +27,20 @@ import type { SeverityLevel } from '../types'
  * 合并自 note-checker.ts:24, bridge.ts:70, correction-generator.ts:16
  */
 export function extractPainCurrent(painScale: unknown): number {
-    const ps = painScale as Record<string, any>
-    if (!ps || typeof ps !== 'object') return 7
+    if (!painScale || typeof painScale !== 'object') return warnFallback('not an object')
+    const ps = painScale as Record<string, unknown>
 
     if (typeof ps.current === 'number') return ps.current
     if (typeof ps.value === 'number') return ps.value
-    if (typeof ps.range?.max === 'number') return ps.range.max
+    const range = ps.range
+    if (range && typeof range === 'object' && typeof (range as Record<string, unknown>).max === 'number') {
+        return (range as Record<string, unknown>).max as number
+    }
+    return warnFallback('no recognized key')
+}
+
+function warnFallback(reason: string): number {
+    process.stderr.write(`[field-parsers] extractPainCurrent fallback (${reason}), returning 7\n`)
     return 7
 }
 

@@ -52,7 +52,7 @@ export class RuleComplianceEngine {
       id: 'AC-2.1',
       severity: 'CRITICAL',
       check: (note) => {
-        const valid = templateOptions.chronicityLevel?.options || []
+        const valid = templateOptions.chronicityLevel?.options ?? []
         if (note.chronicityLevel && !valid.includes(note.chronicityLevel)) {
           return {
             ruleId: 'AC-2.1',
@@ -73,7 +73,7 @@ export class RuleComplianceEngine {
       id: 'AC-2.2',
       severity: 'CRITICAL',
       check: (note) => {
-        const valid = templateOptions.severityLevel?.options || []
+        const valid = templateOptions.severityLevel?.options ?? []
         if (note.severityLevel && !valid.includes(note.severityLevel)) {
           return {
             ruleId: 'AC-2.2',
@@ -94,7 +94,7 @@ export class RuleComplianceEngine {
       id: 'AC-2.3',
       severity: 'CRITICAL',
       check: (note) => {
-        const valid = templateOptions.generalCondition?.options || []
+        const valid = templateOptions.generalCondition?.options ?? []
         if (note.generalCondition && !valid.includes(note.generalCondition)) {
           return {
             ruleId: 'AC-2.3',
