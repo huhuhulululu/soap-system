@@ -1392,6 +1392,15 @@ Examples:
     const valid = await automation.validateSession();
     if (!valid) {
       console.error('\nSession expired. Please re-run extract-cookies.ts');
+      emitEvent({
+        type: 'batch_summary',
+        total: 0, passed: 0, failed: 0, skipped: batchData.summary.totalVisits,
+        durationMs: 0,
+        aborted: true,
+        abortReason: 'session_expired',
+        failures: [],
+        ts: Date.now(),
+      });
       process.exit(1);
     }
 
