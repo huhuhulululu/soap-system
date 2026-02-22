@@ -20,3 +20,26 @@
 
 ---
 
+
+## v1.1 Automation Stability (Shipped: 2026-02-22)
+
+**Phases:** 4 phases, 5 plans
+**Timeline:** 2026-02-22 (1 day)
+**Codebase:** +1,987 lines across 20 files
+
+**Key accomplishments:**
+- Error classification system with 6 error kinds (`classifyError`, `isPermanentError`) and step-level failure tracking
+- Operation-specific timeout constants (10 named values) replacing global 30s default, with `TIMEOUT_MULTIPLIER` env var
+- Automatic retry with exponential backoff (2s/4s) and full waiting-room re-navigation between attempts
+- Structured NDJSON event emission (visit_start, visit_result, batch_summary) with parent-process JSON parsing
+- Pre-batch session expiry event emission fix + 16 unit tests verifying error classification
+
+**Tech debt:**
+- Phase 5 missing VERIFICATION.md (requirements gap-closed in Phase 8)
+- Idle API response missing `events` field (automate.ts:136)
+- 4 pre-existing test failures in api-routes.test.ts (outside v1.1 scope)
+
+**Archives:** `milestones/v1.1-ROADMAP.md`, `milestones/v1.1-REQUIREMENTS.md`, `milestones/v1.1-MILESTONE-AUDIT.md`
+
+---
+

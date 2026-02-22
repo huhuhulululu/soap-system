@@ -1,52 +1,35 @@
 # Project State
 
 ## Status
-v1.1 Automation Stability — PHASE 8 IN PROGRESS
+v1.1 Automation Stability — COMPLETE (shipped 2026-02-22)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Batch-generate compliant SOAP notes from minimal input
-**Current focus:** Phase 8: Verification + Event Gap Closure
+**Current focus:** Planning next milestone
 
 ## Current Position
-Phase: 8 (Verification + Event Gap Closure)
-Plan: 08-01-PLAN.md (ERR-01/ERR-02 Verification + Pre-batch Event Emission) — COMPLETE
-Status: Plan 1/1 complete
-Last activity: 2026-02-22 — 08-01 executed
-
-```
-[Phase 5] [x] → [Phase 6] [x] → [Phase 7] [x] → [Phase 8] [x]
-```
+Milestone: v1.1 complete
+Next action: /gsd:new-milestone
+Last activity: 2026-02-22 — v1.1 milestone archived
 
 ## Performance Metrics
-- Phases complete: 4/4 (v1.1)
-- Requirements mapped: 7/7
+- v1.0: 4 phases complete (Production Hardening)
+- v1.1: 4 phases, 5 plans complete (Automation Stability)
+- Requirements: 7/7 v1.1 satisfied
 
 ## Accumulated Context
 
-### Key Decisions
-- Error classification (ERR-01) must precede retry logic — `isPermanentError()` is the gate condition in `withRetry()`
-- Timeouts (TMO-01) before retry because retry uses timeout multipliers referencing `TIMEOUTS` constants
-- Retry belongs in child process (`mdland-automation.ts`), not parent — browser context lives there
-- Use `async-retry@1.3.3` (CJS-native); `p-retry` v7+ is ESM-only and will break this project
-- JSON lines on existing stdout pipe — lines starting with `{` parsed as events, others appended to log buffer
-- TIMEOUTS pre-scaled at module load (Math.round) — no per-call multiplication; TIMEOUT_MULTIPLIER env var for operators
-- withRetry calls processVisit directly; retry reset does full page.goto + clickWaitingRoom + re-search + openVisit
-- unknown errorKind treated as retryable — safer to retry than skip
-- processBatch emits batch_summary on both normal and aborted paths before re-throwing
-- JSON lines are also forwarded to appendLog — events and logs serve different consumers but both benefit from the data
-- ERR-02 verified via static grep (failedStep: currentStep at L1165) — runtime Playwright mock not needed
-- Pre-batch session expiry skipped count uses batchData.summary.totalVisits (loaded before validateSession)
-
 ### Critical Constraints
-- MDLand is non-idempotent: ICD/CPT codes are appended, not replaced — every retry MUST call `closeVisit()` and re-navigate before re-attempting
+- MDLand is non-idempotent: ICD/CPT codes are appended, not replaced
 - Session-expired errors must stop the batch (ERR-03), never retry
+- Single server deployment (Oracle Cloud)
 
 ### Blockers
 None
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: v1.1 complete — all phases done
-- Last session: 2026-02-22 — 08-01 executed
+- Next action: /gsd:new-milestone
+- Last session: 2026-02-22 — v1.1 milestone complete
