@@ -69,4 +69,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 1/1 | Complete    | 2026-02-22 |
-| 7. Retry, Recovery & Events | 2/2 | Complete   | 2026-02-22 |
+| 7. Retry, Recovery & Events | 2/2 | Complete    | 2026-02-22 |
