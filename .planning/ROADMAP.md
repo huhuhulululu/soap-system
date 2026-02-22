@@ -73,7 +73,9 @@ Plans:
   1. `classifyError()` returns correct `AutomationErrorKind` for transient and permanent errors
   2. `failedStep` is populated with the step name on every failed visit result
   3. Pre-batch session expiry emits a `batch_summary` event with `aborted: true` before `process.exit(1)`
-**Plans:** TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 08-01-PLAN.md — Unit tests for error classification + pre-batch event emission fix
 
 ## Progress
 
