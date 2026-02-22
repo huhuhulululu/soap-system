@@ -467,7 +467,7 @@ export interface PatchContext {
  */
 export function buildPatchContext(
   context: GenerationContext,
-  visitState?: { painScaleCurrent?: number; progress?: number; soaChain?: { subjective?: { adlChange?: string } } },
+  visitState?: { painScaleCurrent?: number; progress?: number; soaChain?: { objective?: { romTrend?: string }; subjective?: { adlChange?: string } } },
 ): PatchContext {
   const basePain = deriveBasePain(context)
   const txPain = visitState?.painScaleCurrent ?? basePain
@@ -480,7 +480,7 @@ export function buildPatchContext(
     progress,
     baselineCondition: deriveBaselineCondition(context),
     chronicityLevel: context.chronicityLevel,
-    adlImproved: visitState?.soaChain?.subjective?.adlChange === 'improved',
+    adlImproved: context.noteType === 'TX' && visitState?.soaChain?.subjective?.adlChange === 'improved',
     isTX: context.noteType === 'TX',
   }
 }
