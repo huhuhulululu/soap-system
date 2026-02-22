@@ -18,7 +18,7 @@
 
 ### Timeouts
 
-- [ ] **TMO-01**: Each automation step uses operation-specific timeout instead of global 30s default
+- [x] **TMO-01**: Each automation step uses operation-specific timeout instead of global 30s default
 
 ### Observability
 
@@ -53,7 +53,7 @@
 | ERR-03 | Phase 7 | Pending |
 | RET-01 | Phase 7 | Pending |
 | RET-02 | Phase 7 | Pending |
-| TMO-01 | Phase 6 | Pending |
+| TMO-01 | Phase 6 | Complete |
 | OBS-01 | Phase 7 | Pending |
 
 **Coverage:**

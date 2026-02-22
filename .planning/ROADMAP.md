@@ -20,7 +20,7 @@
 ### v1.1 Automation Stability
 
 - [x] **Phase 5: Error Classification** - Shared types and error kind enum that gate all retry logic
-- [ ] **Phase 6: Adaptive Timeouts** - Per-operation timeout constants replacing the global 30s default
+- [x] **Phase 6: Adaptive Timeouts** - Per-operation timeout constants replacing the global 30s default (completed 2026-02-22)
 - [ ] **Phase 7: Retry, Recovery & Events** - Per-visit retry with backoff, session fast-fail, and JSON line events
 
 ## Phase Details
@@ -45,7 +45,7 @@ Plans:
   1. Fast operations (clicks, navigation) use short timeouts; slow operations (TinyMCE init, SOAP save) use longer timeouts
   2. A timeout on one step does not cause unrelated steps to fail due to an inflated global timeout
   3. Timeout constants are defined in one place and referenced by name throughout the automation
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 06-01-PLAN.md — Adaptive timeout constants + TIMEOUT_MULTIPLIER
 
@@ -65,5 +65,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
-| 6. Adaptive Timeouts | 0/1 | Planned | - |
+| 6. Adaptive Timeouts | 1/1 | Complete   | 2026-02-22 |
 | 7. Retry, Recovery & Events | 0/1 | Not started | - |

@@ -1,7 +1,7 @@
 # Project State
 
 ## Status
-v1.1 Automation Stability — PHASE 6 PLANNED
+v1.1 Automation Stability — PHASE 6 IN PROGRESS
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 Phase: 6 (Adaptive Timeouts)
-Plan: 06-01-PLAN.md (Adaptive Timeout Constants)
-Status: Planned — ready to execute
-Last activity: 2026-02-22 — Phase 6 planned
+Plan: 06-01-PLAN.md (Adaptive Timeout Constants) — COMPLETE
+Status: In Progress — 06-01 done, next: Phase 7
+Last activity: 2026-02-22 — 06-01 executed
 
 ```
 [Phase 5] [x] → [Phase 6] [ ] → [Phase 7] [ ]
@@ -31,6 +31,7 @@ Last activity: 2026-02-22 — Phase 6 planned
 - Retry belongs in child process (`mdland-automation.ts`), not parent — browser context lives there
 - Use `async-retry@1.3.3` (CJS-native); `p-retry` v7+ is ESM-only and will break this project
 - JSON lines on existing stdout pipe — lines starting with `{` parsed as events, others appended to log buffer
+- TIMEOUTS pre-scaled at module load (Math.round) — no per-call multiplication; TIMEOUT_MULTIPLIER env var for operators
 
 ### Critical Constraints
 - MDLand is non-idempotent: ICD/CPT codes are appended, not replaced — every retry MUST call `closeVisit()` and re-navigate before re-attempting
@@ -41,4 +42,4 @@ None
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: `/gsd:execute-phase 6`
+- Next action: `/gsd:execute-phase 7`
