@@ -9,6 +9,7 @@ import { spawn, type ChildProcess } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
+import type { BatchEvent } from './automation-types'
 
 // ── Types ────────────────────────────────────────
 
@@ -21,6 +22,7 @@ export interface AutomationJob {
   readonly status: AutomationStatus
   readonly logs: readonly string[]
   readonly exitCode: number | null
+  readonly events: readonly BatchEvent[]
 }
 
 // ── State ────────────────────────────────────────
@@ -60,6 +62,7 @@ let currentJob: {
   status: AutomationStatus
   logs: string[]
   exitCode: number | null
+  events: BatchEvent[]
   process: ChildProcess | null
 } | null = null
 
@@ -138,6 +141,7 @@ export function getJobStatus(batchId: string): AutomationJob | null {
     status: currentJob.status,
     logs: currentJob.logs,
     exitCode: currentJob.exitCode,
+    events: currentJob.events,
   }
 }
 
@@ -150,6 +154,7 @@ export function getActiveJob(): AutomationJob | null {
     status: currentJob.status,
     logs: currentJob.logs,
     exitCode: currentJob.exitCode,
+    events: currentJob.events,
   }
 }
 
@@ -192,6 +197,7 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
     status: 'running',
     logs: [],
     exitCode: null,
+    events: [],
     process: null,
   }
 
@@ -218,6 +224,12 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
   child.stdout?.on('data', (data: Buffer) => {
     const lines = data.toString().split('\n').filter(l => l.trim())
     for (const line of lines) {
+      if (line.startsWith('{')) {
+        try {
+          const event = JSON.parse(line) as BatchEvent
+          if (currentJob) currentJob.events.push(event)
+        } catch { /* malformed — treat as plain log */ }
+      }
       appendLog(line)
     }
   })
@@ -255,6 +267,7 @@ export function startAutomation(batchId: string, apiBase: string): AutomationJob
     status: currentJob.status,
     logs: currentJob.logs,
     exitCode: currentJob.exitCode,
+    events: currentJob.events,
   }
 }
 
