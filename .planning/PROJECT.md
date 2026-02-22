@@ -7,7 +7,7 @@ Automated SOAP note generation and MDLand submission for acupuncture clinics. Ge
 Batch-generate compliant SOAP notes from minimal input, eliminating manual documentation.
 
 ## Current State
-Shipped v1.1 Automation Stability. ~27,900 LOC TypeScript.
+Shipped v1.2 Batch Logic. ~28,000 LOC TypeScript.
 Tech stack: Express 5, Vue 3, Playwright, ExcelJS, Vitest, Docker Compose on Oracle Cloud.
 Domain: https://rbmeds.com/ac/ (branch: clean-release)
 
@@ -23,6 +23,8 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - ✓ Adaptive per-operation timeouts with TIMEOUT_MULTIPLIER — v1.1
 - ✓ Automatic retry with backoff + waiting-room re-navigation — v1.1
 - ✓ Structured NDJSON event emission + parent-process parsing — v1.1
+- ✓ Soap-only IE default fix (includeIE=true for non-continue modes) — v1.2
+- ✓ Mode-aware IE CPT logic (99203 only in full mode for HF/VC) — v1.2
 
 ### Active
 (None — define in next milestone)
@@ -46,6 +48,8 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 | NDJSON on existing stdout pipe | ✓ Good (startsWith guard handles mixed output) | v1.1 |
 | TIMEOUTS pre-scaled at module load | ✓ Good (no per-call multiplication) | v1.1 |
 | unknown errorKind treated as retryable | ✓ Good (safer to retry than skip) | v1.1 |
+| parseIncludeIE: continue=false, else=true | ✓ Good (soap-only needs IE for ICD validation) | v1.2 |
+| IE CPT mode-split: full adds 99203, soap-only skips | ✓ Good (soap-only IE is structural, not billing) | v1.2 |
 
 ## Constraints
 - Single server deployment (Oracle Cloud)
@@ -53,4 +57,4 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - Playwright required for MDLand automation
 
 ---
-*Last updated: 2026-02-22 after v1.1 milestone complete*
+*Last updated: 2026-02-22 after v1.2 milestone complete*

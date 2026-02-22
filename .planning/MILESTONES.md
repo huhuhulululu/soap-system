@@ -43,3 +43,21 @@
 
 ---
 
+## v1.2 Batch Logic (Shipped: 2026-02-22)
+
+**Phases:** 1 phase, 1 plan
+**Timeline:** 2026-02-22 (1 day)
+**Scope:** Phase 9 only (Phase 10 Form UX deferred)
+
+**Key accomplishments:**
+- `parseIncludeIE` default fix: soap-only defaults IE to true, only continue defaults to false
+- Mode-aware IE CPT: full mode appends 99203 for HF/VC via `getDefaultIECPT`, soap-only strips it
+- 9 new unit tests covering mode×insurance×CPT combinations (26/26 pass)
+
+**Deferred to next milestone:**
+- UX-01~04: Name/DOB split, Gender/Side toggle tags, form layout
+
+**Archives:** `milestones/v1.2-ROADMAP.md`, `milestones/v1.2-REQUIREMENTS.md`
+
+---
+

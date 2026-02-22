@@ -1,23 +1,24 @@
 # Project State
 
 ## Status
-v1.2 UX & Batch Logic — IN PROGRESS
+v1.2 Batch Logic — COMPLETE
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Batch-generate compliant SOAP notes from minimal input
-**Current focus:** v1.2 — IE/CPT logic fixes + form UX optimization
+**Current focus:** Planning next milestone
 
 ## Current Position
-Milestone: v1.2 in progress
-Next action: /gsd:plan-phase 9
-Last activity: 2026-02-22 — v1.2 milestone created
+Milestone: v1.2 complete
+Next action: /gsd:new-milestone
+Last activity: 2026-02-22 — v1.2 milestone archived
 
 ## Performance Metrics
 - v1.0: 4 phases complete (Production Hardening)
 - v1.1: 4 phases, 5 plans complete (Automation Stability)
-- Requirements: 7/7 v1.1 satisfied
+- v1.2: 1 phase, 1 plan complete (Batch Logic)
+- Requirements: 3/3 v1.2 BL satisfied, 4 UX deferred
 
 ## Accumulated Context
 
@@ -31,5 +32,5 @@ None
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: /gsd:plan-phase 9
-- Last session: 2026-02-22 — v1.2 milestone created
+- Next action: /gsd:new-milestone
+- Last session: 2026-02-22 — v1.2 milestone archived
