@@ -16,7 +16,7 @@
 **Goal:** Fix security gaps (Excel validation, CSRF) and known bugs (type safety, pain parser, env validation)
 **Status:** Planned
 **Requirements:** [SEC-1, SEC-2, SEC-3, BUG-1, BUG-2]
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 04-01-PLAN.md — Excel magic bytes validation, 5MB limit, pain parser type safety, auditor nullish coalescing
