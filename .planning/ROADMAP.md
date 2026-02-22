@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Production Hardening** — Phases 1-4 (shipped 2026-02-22)
-- **v1.1 Automation Stability** — Phases 5-7 (active)
+- **v1.1 Automation Stability** — Phases 5-8 (active)
 
 ## Phases
 
@@ -22,6 +22,7 @@
 - [x] **Phase 5: Error Classification** - Shared types and error kind enum that gate all retry logic
 - [x] **Phase 6: Adaptive Timeouts** - Per-operation timeout constants replacing the global 30s default (completed 2026-02-22)
 - [x] **Phase 7: Retry, Recovery & Events** - Per-visit retry with backoff, session fast-fail, and JSON line events (completed 2026-02-22)
+- [ ] **Phase 8: Verification & Event Gap Closure** - Verify Phase 5 requirements + fix pre-batch session expiry event emission
 
 ## Phase Details
 
@@ -63,6 +64,17 @@ Plans:
 - [x] 07-01-PLAN.md — Types + withRetry + emitEvent + fatal-stop in child process
 - [ ] 07-02-PLAN.md — Parent process JSON event parsing
 
+### Phase 8: Verification & Event Gap Closure
+**Goal**: Close audit gaps — verify Phase 5 error classification requirements and fix pre-batch session expiry event emission
+**Depends on**: Phase 7
+**Requirements**: ERR-01, ERR-02
+**Gap Closure**: Closes gaps from v1.1 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. `classifyError()` returns correct `AutomationErrorKind` for transient and permanent errors
+  2. `failedStep` is populated with the step name on every failed visit result
+  3. Pre-batch session expiry emits a `batch_summary` event with `aborted: true` before `process.exit(1)`
+**Plans:** TBD
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -70,3 +82,4 @@ Plans:
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 1/1 | Complete    | 2026-02-22 |
 | 7. Retry, Recovery & Events | 2/2 | Complete    | 2026-02-22 |
+| 8. Verification & Event Gap Closure | 0/1 | Not started | - |

@@ -48,8 +48,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ERR-01 | Phase 5 | Pending |
-| ERR-02 | Phase 5 | Pending |
+| ERR-01 | Phase 8 (gap closure) | Pending |
+| ERR-02 | Phase 8 (gap closure) | Pending |
 | ERR-03 | Phase 7 | Complete |
 | RET-01 | Phase 7 | Complete |
 | RET-02 | Phase 7 | Complete |
