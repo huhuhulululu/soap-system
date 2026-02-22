@@ -27,7 +27,12 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - ✓ Mode-aware IE CPT logic (99203 only in full mode for HF/VC) — v1.2
 
 ### Active
-(None — define in next milestone)
+- [ ] Name/DOB 分离输入，多格式 DOB 识别
+- [ ] Gender 标签选择 M/F
+- [ ] Side 标签选择 Left/Right/Bil
+- [ ] 表单布局优化，字段尺寸匹配内容
+- [ ] ICD/CPT catalog 提取为前端共享模块
+- [ ] 前端表单即时验证
 
 ### Out of Scope
 - Database (PostgreSQL/Redis) — file-based approach works at current scale
@@ -57,4 +62,4 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - Playwright required for MDLand automation
 
 ---
-*Last updated: 2026-02-22 after v1.2 milestone complete*
+*Last updated: 2026-02-22 after v1.3 milestone started*
