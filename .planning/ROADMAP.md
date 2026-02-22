@@ -5,6 +5,7 @@
 - ✅ **v1.0 Production Hardening** — Phases 1-4 (shipped 2026-02-22)
 - ✅ **v1.1 Automation Stability** — Phases 5-8 (shipped 2026-02-22)
 - ✅ **v1.2 Batch Logic** — Phase 9 (shipped 2026-02-22)
+- 🔄 **v1.3 Form UX & Shared Data** — Phases 10-11
 
 ## Phases
 
@@ -35,6 +36,13 @@
 
 </details>
 
+### v1.3 Form UX & Shared Data (Phases 10-11)
+
+- [ ] Phase 10: Shared Data Extraction — ICD/CPT 提取到前端共享模块
+  **Requirements:** [DATA-01, DATA-02]
+- [ ] Phase 11: Form UX & Validation — Name/DOB split, toggle tags, layout, validation
+  **Requirements:** [UX-01, UX-02, UX-03, UX-04, VAL-01]
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -45,3 +53,5 @@
 | 7. Retry, Recovery & Events | v1.1 | 2/2 | Complete | 2026-02-22 |
 | 8. Verification & Event Gap Closure | v1.1 | 1/1 | Complete | 2026-02-22 |
 | 9. Batch Logic Fixes | v1.2 | 1/1 | Complete | 2026-02-22 |
+| 10. Shared Data Extraction | v1.3 | 0/0 | Pending | — |
+| 11. Form UX & Validation | v1.3 | 0/0 | Pending | — |
