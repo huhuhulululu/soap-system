@@ -4,6 +4,7 @@
 
 - ✅ **v1.0 Production Hardening** — Phases 1-4 (shipped 2026-02-22)
 - ✅ **v1.1 Automation Stability** — Phases 5-8 (shipped 2026-02-22)
+- 🔄 **v1.2 UX & Batch Logic** — Phases 9-10
 
 ## Phases
 
@@ -27,6 +28,15 @@
 
 </details>
 
+### v1.2 UX & Batch Logic (Phases 9-10)
+
+- [ ] Phase 9: Batch Logic Fixes — IE/CPT logic across three modes
+  **Requirements:** [BL-01, BL-02, BL-03]
+  **Plans:** 1 plan
+  Plans:
+  - [ ] 09-01-PLAN.md — TDD: parseIncludeIE default fix + mode-aware IE CPT logic
+- [ ] Phase 10: Form UX Optimization — name/DOB split, toggle tags, layout
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -36,3 +46,5 @@
 | 6. Adaptive Timeouts | v1.1 | 1/1 | Complete | 2026-02-22 |
 | 7. Retry, Recovery & Events | v1.1 | 2/2 | Complete | 2026-02-22 |
 | 8. Verification & Event Gap Closure | v1.1 | 1/1 | Complete | 2026-02-22 |
+| 9. Batch Logic Fixes | v1.2 | 0/1 | Planning | — |
+| 10. Form UX Optimization | v1.2 | 0/0 | Pending | — |
