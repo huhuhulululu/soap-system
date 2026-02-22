@@ -33,7 +33,9 @@
   1. A failed visit result includes the name of the step that failed (e.g., "fillSOAP", "addICD", "checkout")
   2. Each automation error is classified as transient (timeout, element not found) or permanent (session expired, patient not found)
   3. The `isPermanentError()` guard returns true for session-expired errors and false for timeout errors
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 05-01-PLAN.md — Shared error types + step tracking in processVisit
 
 ### Phase 6: Adaptive Timeouts
 **Goal**: Each automation step uses a timeout calibrated to its actual operation, not a global default
