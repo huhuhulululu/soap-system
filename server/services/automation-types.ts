@@ -8,6 +8,13 @@ export type AutomationErrorKind =
   | 'element_not_found'
   | 'unknown'
 
+export interface AttemptRecord {
+  readonly attempt: number
+  readonly error: string
+  readonly errorKind: AutomationErrorKind
+  readonly durationMs: number
+}
+
 export interface VisitResult {
   readonly patient: string
   readonly visitIndex: number
@@ -18,7 +25,48 @@ export interface VisitResult {
   readonly errorKind?: AutomationErrorKind
   readonly duration: number
   readonly attempts: number
+  readonly retryHistory?: ReadonlyArray<AttemptRecord>
 }
+
+export type BatchEvent =
+  | {
+      readonly type: 'visit_start'
+      readonly patient: string
+      readonly visitIndex: number
+      readonly noteType: string
+      readonly ts: number
+    }
+  | {
+      readonly type: 'visit_result'
+      readonly patient: string
+      readonly visitIndex: number
+      readonly noteType: string
+      readonly success: boolean
+      readonly error?: string
+      readonly errorKind?: AutomationErrorKind
+      readonly failedStep?: string
+      readonly duration: number
+      readonly attempts: number
+      readonly retryHistory?: ReadonlyArray<AttemptRecord>
+      readonly ts: number
+    }
+  | {
+      readonly type: 'batch_summary'
+      readonly total: number
+      readonly passed: number
+      readonly failed: number
+      readonly skipped: number
+      readonly durationMs: number
+      readonly aborted: boolean
+      readonly abortReason?: string
+      readonly failures: ReadonlyArray<{
+        readonly patient: string
+        readonly visitIndex: number
+        readonly error: string
+        readonly retryHistory?: ReadonlyArray<AttemptRecord>
+      }>
+      readonly ts: number
+    }
 
 export function classifyError(err: unknown): AutomationErrorKind {
   const msg = err instanceof Error ? err.message : String(err)
