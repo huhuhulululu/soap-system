@@ -9,6 +9,7 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import jwt from 'jsonwebtoken'
 import rateLimit from 'express-rate-limit'
+import { randomBytes } from 'crypto'
 import { createBatchRouter } from './routes/batch'
 import { createAutomateRouter } from './routes/automate'
 
@@ -49,6 +50,42 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
   next()
 }
 
+// ── CSRF Protection ──────────────────────────────
+
+function generateCsrfToken(): string {
+  return randomBytes(32).toString('hex')
+}
+
+function csrfProtect(req: Request, res: Response, next: NextFunction): void {
+  if (!req.cookies.csrf_token) {
+    res.cookie('csrf_token', generateCsrfToken(), {
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+    })
+  }
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const cookieToken = req.cookies.csrf_token as string | undefined
+    const headerToken = req.headers['x-csrf-token'] as string | undefined
+    if (!cookieToken || cookieToken !== headerToken) {
+      res.status(403).json({ success: false, error: 'Forbidden' })
+      return
+    }
+  }
+  next()
+}
+
+// ── Env Validation ───────────────────────────────
+
+function validateEnv(): void {
+  if (process.env.NODE_ENV !== 'production') return
+  const required = ['SHARED_JWT_SECRET', 'COOKIE_ENCRYPTION_KEY'] as const
+  const missing = required.filter(v => !process.env[v])
+  if (missing.length > 0) {
+    process.stderr.write(`FATAL: Missing required env vars: ${missing.join(', ')}\n`)
+    process.exit(1)
+  }
+}
+
 // ── App Factory ─────────────────────────────────
 
 export function createApp(): express.Application {
@@ -70,6 +107,8 @@ export function createApp(): express.Application {
 
   app.use('/api/', apiLimiter)
   app.use('/api/automate/login', loginLimiter)
+
+  app.use(csrfProtect)
 
   // 健康检查 (无需认证)
   app.get('/api/health', (_req, res) => {
@@ -101,6 +140,7 @@ export function createApp(): express.Application {
 
 // 直接运行时启动服务器
 if (require.main === module) {
+  validateEnv()
   const port = parseInt(process.env.PORT ?? '3001', 10)
   const app = createApp()
   app.listen(port, () => {
