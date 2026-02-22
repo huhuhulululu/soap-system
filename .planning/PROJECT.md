@@ -21,7 +21,9 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - ✓ Env startup validation, type-safe pain parser — v1.0
 
 ### Active
-(None — start next milestone to define)
+- [ ] Automation retry/recovery on per-visit failures
+- [ ] Structured error reporting with step-level detail
+- [ ] Adaptive timeouts and network resilience
 
 ### Out of Scope
 - Database (PostgreSQL/Redis) — file-based approach works at current scale
@@ -44,4 +46,4 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - Playwright required for MDLand automation
 
 ---
-*Last updated: 2026-02-22 after v1.0 milestone*
+*Last updated: 2026-02-22 after v1.1 milestone start*
