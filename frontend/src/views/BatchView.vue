@@ -3,6 +3,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+function csrfHeader() {
+  const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/)
+  return m ? { 'x-csrf-token': m[1] } : {}
+}
 
 // ── State ────────────────────────────────────────
 const step = ref('upload') // 'upload' | 'review' | 'confirmed'
@@ -268,7 +272,7 @@ async function submitDrafts() {
   try {
     const res = await fetch(`${API_BASE}/batch/json`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify({ rows: drafts.value, mode: batchMode.value, realisticPatch: realisticPatch.value }),
     })
     const json = await res.json()
@@ -388,6 +392,7 @@ async function uploadFile() {
 
     const res = await fetch(`${API_BASE}/batch`, {
       method: 'POST',
+      headers: csrfHeader(),
       body: formData,
     })
 
@@ -474,7 +479,7 @@ async function regenerateVisit(pi, vi) {
   try {
     const res = await fetch(
       `${API_BASE}/batch/${batchId.value}/visit/${pi}/${vi}`,
-      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ realisticPatch: realisticPatch.value }) }
+      { method: 'PUT', headers: { 'Content-Type': 'application/json', ...csrfHeader() }, body: JSON.stringify({ realisticPatch: realisticPatch.value }) }
     )
     const json = await res.json()
     if (!json.success) {
@@ -519,7 +524,7 @@ async function generateAll() {
   try {
     const res = await fetch(`${API_BASE}/batch/${batchId.value}/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify({ realisticPatch: realisticPatch.value }),
     })
     const json = await res.json()
@@ -543,6 +548,7 @@ async function confirmBatch() {
   try {
     const res = await fetch(`${API_BASE}/batch/${batchId.value}/confirm`, {
       method: 'POST',
+      headers: csrfHeader(),
     })
     const json = await res.json()
     if (!json.success) {
@@ -682,7 +688,7 @@ async function handleCookieFileSelect(e) {
 
     const res = await fetch(`${API_BASE}/automate/cookies`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify(json),
     })
     const result = await res.json()
@@ -706,7 +712,7 @@ async function submitPastedCookies() {
     const json = JSON.parse(cookiePasteText.value)
     const res = await fetch(`${API_BASE}/automate/cookies`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify(json),
     })
     const result = await res.json()
@@ -731,6 +737,7 @@ async function startAutomation() {
   try {
     const res = await fetch(`${API_BASE}/automate/${batchId.value}`, {
       method: 'POST',
+      headers: csrfHeader(),
     })
     const json = await res.json()
     if (!json.success) {
@@ -749,7 +756,7 @@ async function startAutomation() {
 
 async function stopAutomation() {
   try {
-    await fetch(`${API_BASE}/automate/${batchId.value}/stop`, { method: 'POST' })
+    await fetch(`${API_BASE}/automate/${batchId.value}/stop`, { method: 'POST', headers: csrfHeader() })
   } catch { /* ignore */ }
 }
 
