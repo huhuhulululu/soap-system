@@ -19,7 +19,7 @@
 
 ### v1.1 Automation Stability
 
-- [ ] **Phase 5: Error Classification** - Shared types and error kind enum that gate all retry logic
+- [x] **Phase 5: Error Classification** - Shared types and error kind enum that gate all retry logic
 - [ ] **Phase 6: Adaptive Timeouts** - Per-operation timeout constants replacing the global 30s default
 - [ ] **Phase 7: Retry, Recovery & Events** - Per-visit retry with backoff, session fast-fail, and JSON line events
 
@@ -35,7 +35,7 @@
   3. The `isPermanentError()` guard returns true for session-expired errors and false for timeout errors
 **Plans:** 1 plan
 Plans:
-- [ ] 05-01-PLAN.md — Shared error types + step tracking in processVisit
+- [x] 05-01-PLAN.md — Shared error types + step tracking in processVisit
 
 ### Phase 6: Adaptive Timeouts
 **Goal**: Each automation step uses a timeout calibrated to its actual operation, not a global default
@@ -62,6 +62,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Error Classification | 0/1 | Not started | - |
+| 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 0/1 | Not started | - |
 | 7. Retry, Recovery & Events | 0/1 | Not started | - |
