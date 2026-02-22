@@ -18,9 +18,18 @@ import { generateBatch, generateContinueBatch, generateMixedBatch, regenerateVis
 import { generateBatchId, saveBatch, getBatch, confirmBatch } from '../store/batch-store'
 import type { BatchData, BatchMode } from '../types'
 
+const XLSX_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+const XLS_MAGIC = Buffer.from([0xd0, 0xcf, 0x11, 0xe0])
+
+function isValidExcelBuffer(buf: Buffer): boolean {
+  if (buf.length < 4) return false
+  const head = buf.slice(0, 4)
+  return head.equals(XLSX_MAGIC) || head.equals(XLS_MAGIC)
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase()
     if (['.xlsx', '.xls'].includes(ext)) {
@@ -41,6 +50,11 @@ export function createBatchRouter(): Router {
     try {
       if (!req.file) {
         res.status(400).json({ success: false, error: 'No file uploaded' })
+        return
+      }
+
+      if (!isValidExcelBuffer(req.file.buffer)) {
+        res.status(400).json({ success: false, error: 'Invalid file format' })
         return
       }
 
