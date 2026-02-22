@@ -91,7 +91,6 @@ interface AutomationOptions {
   readonly apiBase: string;
   readonly storageStatePath: string;
   readonly slowMo: number;
-  readonly timeout: number;
 }
 
 // VisitResult imported from server/services/automation-types
@@ -107,7 +106,6 @@ const DEFAULT_OPTIONS: AutomationOptions = {
   apiBase: 'http://150.136.150.184:3001',
   storageStatePath: join(dirname(dirname(__dirname)), 'data', 'mdland-storage-state.json'),
   slowMo: 100,
-  timeout: 30000
 };
 
 // ============================================
@@ -151,6 +149,28 @@ const SELECTORS = {
 } as const;
 
 // ============================================
+// 超时常量
+// ============================================
+
+const MULTIPLIER = (() => {
+  const v = parseFloat(process.env.TIMEOUT_MULTIPLIER ?? '1');
+  return isNaN(v) ? 1 : v;
+})();
+
+const TIMEOUTS = {
+  NAV_PAGE:      Math.round(15000 * MULTIPLIER),
+  TINYMCE:       Math.round(20000 * MULTIPLIER),
+  IFRAME_LOAD:   Math.round(15000 * MULTIPLIER),
+  ELEMENT_WAIT:  Math.round(10000 * MULTIPLIER),
+  SETTLE_SLOW:   Math.round(3000  * MULTIPLIER),
+  SETTLE_MEDIUM: Math.round(2000  * MULTIPLIER),
+  SETTLE_SORT:   Math.round(1500  * MULTIPLIER),
+  SETTLE_FAST:   Math.round(1000  * MULTIPLIER),
+  SETTLE_QUICK:  Math.round(500   * MULTIPLIER),
+  SETTLE_MICRO:  Math.round(200   * MULTIPLIER),
+} as const;
+
+// ============================================
 // MDLand Playwright 自动化器
 // ============================================
 
@@ -189,7 +209,7 @@ class MDLandAutomation {
     });
 
     this.page = await this.context.newPage();
-    this.page.setDefaultTimeout(this.options.timeout);
+    this.page.setDefaultTimeout(TIMEOUTS.NAV_PAGE);
 
     // tsx injects __name() calls that don't exist in browser context
     await this.page.addInitScript(() => {
@@ -219,11 +239,11 @@ class MDLandAutomation {
     // 导航到 MDLand 主页（需要认证的页面）
     await this.page.goto('https://web153.b.mdland.net/eClinic/clinic_main.aspx', {
       waitUntil: 'domcontentloaded',
-      timeout: 15000
+      timeout: TIMEOUTS.NAV_PAGE
     });
 
     // 等待页面加载
-    await this.page.waitForTimeout(3000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_SLOW);
 
     // 检查是否在登录页（session 过期）
     const isLoginPage = await this.page.evaluate(() => {
@@ -248,7 +268,7 @@ class MDLandAutomation {
 
     // 可能需要等待更长时间
     try {
-      await this.page.waitForSelector(SELECTORS.WORKAREA0, { timeout: 10000 });
+      await this.page.waitForSelector(SELECTORS.WORKAREA0, { timeout: TIMEOUTS.ELEMENT_WAIT });
       console.log('Session valid');
       return true;
     } catch {
@@ -288,9 +308,9 @@ class MDLandAutomation {
     await this.page.waitForFunction(() => {
       const wl = document.getElementById('WL');
       return wl && wl.style.visibility !== 'hidden';
-    }, { timeout: 10000 });
+    }, { timeout: TIMEOUTS.ELEMENT_WAIT });
 
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_FAST);
     console.log('  Waiting Room opened');
   }
 
@@ -328,7 +348,7 @@ class MDLandAutomation {
       throw new Error('One Patient radio not found');
     }
 
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_QUICK);
   }
 
   /**
@@ -344,7 +364,7 @@ class MDLandAutomation {
     const input = searchFrame.locator(SELECTORS.SEARCH_INPUT);
     await input.fill('');
     await input.fill(dob);
-    await this.page.waitForTimeout(200);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_MICRO);
 
     // 点击搜索
     const goBtn = searchFrame.locator(SELECTORS.SEARCH_BUTTON);
@@ -352,11 +372,11 @@ class MDLandAutomation {
 
     // 等待搜索结果
     await searchFrame.locator(`${SELECTORS.SELECTOR_DIV} tr[onclick], ${SELECTORS.SELECTOR_DIV} tr[ondblclick]`).first().waitFor({
-      timeout: 10000
+      timeout: TIMEOUTS.ELEMENT_WAIT
     });
 
     console.log('  Search results shown');
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_QUICK);
   }
 
   /**
@@ -392,7 +412,7 @@ class MDLandAutomation {
       { patientName: name, patientDob: dob }
     );
 
-    await this.page.waitForTimeout(2000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_MEDIUM);
     console.log(`  Patient selected: ${name}`);
   }
 
@@ -422,7 +442,7 @@ class MDLandAutomation {
         };
         return search(document);
       });
-      await this.page.waitForTimeout(1500);
+      await this.page.waitForTimeout(TIMEOUTS.SETTLE_SORT);
     };
 
     // Click twice: first click = descending, second click = ascending
@@ -527,9 +547,9 @@ class MDLandAutomation {
       if (!wa0?.contentDocument) return false;
       const url = wa0.contentDocument.location?.href || '';
       return url.includes('ov_doctor_spec');
-    }, { timeout: 15000 });
+    }, { timeout: TIMEOUTS.IFRAME_LOAD });
 
-    await this.page.waitForTimeout(2000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_MEDIUM);
     console.log(`  Visit #${visitIndex} opened`);
   }
 
@@ -559,9 +579,9 @@ class MDLandAutomation {
       if (!diag?.contentDocument) return false;
       const url = diag.contentDocument.location?.href || '';
       return url.includes('ov_icdcpt');
-    }, { timeout: 15000 });
+    }, { timeout: TIMEOUTS.IFRAME_LOAD });
 
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_FAST);
     console.log('  ICD/CPT page loaded');
   }
 
@@ -607,7 +627,7 @@ class MDLandAutomation {
       }
     }, icdCodes as Array<{ code: string; name: string }>);
 
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_QUICK);
     console.log(`  Added ${icdCodes.length} ICD codes`);
   }
 
@@ -684,7 +704,7 @@ class MDLandAutomation {
       modFields.forEach(f => { (f as HTMLInputElement).value = '1'; });
     }, cptCodes as Array<{ code: string; name: string; units: number }>);
 
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_QUICK);
     console.log(`  Added ${cptCodes.length} CPT codes`);
   }
 
@@ -708,14 +728,14 @@ class MDLandAutomation {
     });
 
     // 等待页面重载
-    await this.page.waitForTimeout(2000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_MEDIUM);
     await this.page.waitForFunction(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const diag = wa0?.contentDocument?.getElementById('diagnose') as HTMLIFrameElement;
       if (!diag?.contentDocument) return false;
       const url = diag.contentDocument.location?.href || '';
       return url.includes('ov_icdcpt');
-    }, { timeout: 15000 });
+    }, { timeout: TIMEOUTS.IFRAME_LOAD });
 
     console.log('  ICD/CPT saved');
   }
@@ -749,9 +769,9 @@ class MDLandAutomation {
       const ptWin: any = pt.contentWindow;
       const tinyMCE = ptWin?.tinyMCE;
       return typeof tinyMCE?.getInstanceById === 'function';
-    }, { timeout: 20000 });
+    }, { timeout: TIMEOUTS.TINYMCE });
 
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_FAST);
     console.log('  PT Note loaded with TinyMCE');
   }
 
@@ -854,14 +874,14 @@ class MDLandAutomation {
     });
 
     // Wait for save to complete (page may reload or show confirmation)
-    await this.page.waitForTimeout(3000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_SLOW);
 
     // Verify save by checking if ptnote iframe is still accessible
     await this.page.waitForFunction(() => {
       const wa0 = document.getElementById('workarea0') as HTMLIFrameElement;
       const pt = wa0?.contentDocument?.getElementById('ptnote') as HTMLIFrameElement;
       return pt?.contentDocument?.readyState === 'complete';
-    }, { timeout: 15000 });
+    }, { timeout: TIMEOUTS.IFRAME_LOAD });
 
     console.log('  SOAP saved');
   }
@@ -887,9 +907,9 @@ class MDLandAutomation {
       if (!co?.contentDocument) return false;
       const url = co.contentDocument.location?.href || '';
       return url.includes('checkout');
-    }, { timeout: 15000 });
+    }, { timeout: TIMEOUTS.IFRAME_LOAD });
 
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_FAST);
     console.log('  Checkout page loaded');
   }
 
@@ -938,7 +958,7 @@ class MDLandAutomation {
     });
 
     // Wait for billing completion
-    await this.page.waitForTimeout(3000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_SLOW);
     console.log('  Billing generated');
   }
 
@@ -970,10 +990,10 @@ class MDLandAutomation {
         if (!wa0?.contentDocument) return false;
         const url = wa0.contentDocument.location?.href || '';
         return url.includes('emptyarea');
-      }, { timeout: 10000 }).catch(() => {});
+      }, { timeout: TIMEOUTS.ELEMENT_WAIT }).catch(() => {});
     }
 
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(TIMEOUTS.SETTLE_FAST);
     console.log('  Visit closed');
   }
 
