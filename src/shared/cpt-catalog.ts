@@ -108,6 +108,21 @@ export function getDefaultIECPT(insurance: InsuranceType): readonly CPTWithUnits
  * 解析 CPT 字符串 (如 "97810,97811x3,97140x2")
  * 返回 CPTWithUnits 数组
  */
+export function defaultCptStr(insurance: InsuranceType): string {
+  return getDefaultTXCPT(insurance)
+    .map(e => e.units > 1 ? `${e.code}x${e.units}` : e.code)
+    .join(',')
+}
+
+export function is99203Ins(insurance: InsuranceType): boolean {
+  return getDefaultIECPT(insurance).length > 0
+}
+
+export function toggle99203(cpt: string, insurance: InsuranceType): string {
+  const base = defaultCptStr(insurance)
+  return cpt.includes('99203') ? base : `${base},99203`
+}
+
 export function parseCPTString(cptStr: string): CPTWithUnits[] {
   if (!cptStr.trim()) return []
 

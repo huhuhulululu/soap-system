@@ -143,3 +143,14 @@ export function getICDNames(codes: readonly string[]): Array<{ code: string; nam
     name: getICDName(code)
   }))
 }
+
+export interface ICDCatalogEntry {
+  readonly icd10: string
+  readonly desc: string
+  readonly bodyPart: string | null
+  readonly laterality: string | null
+}
+
+export function getICDCatalog(): readonly ICDCatalogEntry[] {
+  return ICD_ENTRIES.map(e => ({ icd10: e.code, desc: e.name, bodyPart: e.bodyPart, laterality: e.laterality }))
+}
