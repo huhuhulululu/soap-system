@@ -58,7 +58,10 @@ Plans:
   2. Each retry closes the current visit and re-navigates from the waiting room before re-attempting
   3. A session-expired error stops the entire batch immediately without attempting remaining visits
   4. The child process emits a JSON line to stdout for visit start, visit result (pass/fail/attempts), and batch summary
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — Types + withRetry + emitEvent + fatal-stop in child process
+- [ ] 07-02-PLAN.md — Parent process JSON event parsing
 
 ## Progress
 
@@ -66,4 +69,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 1/1 | Complete    | 2026-02-22 |
-| 7. Retry, Recovery & Events | 0/1 | Not started | - |
+| 7. Retry, Recovery & Events | 0/2 | Planned | - |
