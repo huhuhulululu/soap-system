@@ -20,7 +20,7 @@
 import { chromium, type Page, type BrowserContext, type FrameLocator } from 'playwright';
 import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { classifyError, type VisitResult } from '../../server/services/automation-types';
+import { classifyError, isPermanentError, type AttemptRecord, type BatchEvent, type VisitResult } from '../../server/services/automation-types';
 
 // ============================================
 // 类型定义
@@ -169,6 +169,10 @@ const TIMEOUTS = {
   SETTLE_QUICK:  Math.round(500   * MULTIPLIER),
   SETTLE_MICRO:  Math.round(200   * MULTIPLIER),
 } as const;
+
+function emitEvent(event: BatchEvent): void {
+  process.stdout.write(JSON.stringify(event) + '\n');
+}
 
 // ============================================
 // MDLand Playwright 自动化器
@@ -1029,6 +1033,61 @@ class MDLandAutomation {
   // ==============================
 
   /**
+   * Retry wrapper: up to 2 retries (3 total attempts) with 2s/4s delays.
+   * Permanent errors abort immediately. Each retry resets via page.goto + clickWaitingRoom.
+   */
+  async withRetry(patient: PatientData, visit: VisitData, rowNum: number): Promise<VisitResult> {
+    const DELAYS = [2000, 4000];
+    const retryHistory: AttemptRecord[] = [];
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const attemptStart = Date.now();
+      const result = await this.processVisit(patient, visit);
+
+      if (result.success) {
+        return { ...result, attempts: attempt, retryHistory: retryHistory.length > 0 ? retryHistory : undefined };
+      }
+
+      const kind = result.errorKind ?? 'unknown';
+
+      if (isPermanentError(kind)) {
+        return { ...result, attempts: attempt, retryHistory: retryHistory.length > 0 ? retryHistory : undefined };
+      }
+
+      retryHistory.push({
+        attempt,
+        error: result.error ?? 'unknown error',
+        errorKind: kind,
+        durationMs: Date.now() - attemptStart,
+      });
+
+      if (attempt === 3) {
+        return { ...result, attempts: attempt, retryHistory };
+      }
+
+      // Reset: navigate back to waiting room, then re-search patient
+      const delay = DELAYS[attempt - 1];
+      console.log(`  Retry ${attempt}/2 in ${delay}ms for ${patient.name}...`);
+      await this.page.waitForTimeout(delay);
+
+      await this.page.goto('https://web153.b.mdland.net/eClinic/clinic_main.aspx', {
+        waitUntil: 'domcontentloaded',
+        timeout: TIMEOUTS.NAV_PAGE,
+      });
+      await this.page.waitForTimeout(TIMEOUTS.SETTLE_SLOW);
+      await this.clickWaitingRoom();
+      await this.clickOnePatient();
+      await this.searchPatient(patient.dob);
+      await this.selectPatient(patient.name, patient.dob);
+      await this.sortByApptTime();
+      await this.openVisit(rowNum);
+    }
+
+    // Unreachable but satisfies TypeScript
+    throw new Error('withRetry: exhausted attempts');
+  }
+
+  /**
    * 处理单个 visit
    */
   async processVisit(patient: PatientData, visit: VisitData): Promise<VisitResult> {
@@ -1156,9 +1215,29 @@ class MDLandAutomation {
 
       console.log(`  Mapping visit ${i + 1} (${visit.noteType}) → Row ${rowNum} (${targetRows[i].apptTime})`);
 
-      await this.openVisit(rowNum);
-      const result = await this.processVisit(patient, visit);
+      emitEvent({ type: 'visit_start', patient: patient.name, visitIndex: visit.dos, noteType: visit.noteType, ts: Date.now() });
+
+      const result = await this.withRetry(patient, visit, rowNum);
       results.push(result);
+
+      emitEvent({
+        type: 'visit_result',
+        patient: result.patient,
+        visitIndex: result.visitIndex,
+        noteType: result.noteType,
+        success: result.success,
+        error: result.error,
+        errorKind: result.errorKind,
+        failedStep: result.failedStep,
+        duration: result.duration,
+        attempts: result.attempts,
+        retryHistory: result.retryHistory,
+        ts: Date.now(),
+      });
+
+      if (!result.success && result.errorKind && isPermanentError(result.errorKind)) {
+        throw new Error(`Fatal: ${result.errorKind}`);
+      }
 
       // Re-search patient for next visit
       if (i < doneVisits.length - 1 && i < targetRows.length - 1 && result.success) {
@@ -1184,33 +1263,41 @@ class MDLandAutomation {
     console.log(`Visits: ${batchData.summary.totalVisits}`);
     console.log(`========================================\n`);
 
+    const batchStart = Date.now();
     const allResults: VisitResult[] = [];
 
-    for (let i = 0; i < batchData.patients.length; i++) {
-      const patientResults = await this.processPatient(batchData.patients[i], i === 0);
-      allResults.push(...patientResults);
+    const buildSummary = (aborted: boolean, abortReason?: string) => {
+      const passed = allResults.filter(r => r.success).length;
+      const failed = allResults.filter(r => !r.success).length;
+      const skipped = batchData.summary.totalVisits - allResults.length;
+      emitEvent({
+        type: 'batch_summary',
+        total: allResults.length,
+        passed,
+        failed,
+        skipped,
+        durationMs: Date.now() - batchStart,
+        aborted,
+        abortReason,
+        failures: allResults
+          .filter(r => !r.success)
+          .map(r => ({ patient: r.patient, visitIndex: r.visitIndex, error: r.error ?? '', retryHistory: r.retryHistory })),
+        ts: Date.now(),
+      });
+    };
+
+    try {
+      for (let i = 0; i < batchData.patients.length; i++) {
+        const patientResults = await this.processPatient(batchData.patients[i], i === 0);
+        allResults.push(...patientResults);
+      }
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      buildSummary(true, reason);
+      throw err;
     }
 
-    // 打印总结
-    const succeeded = allResults.filter(r => r.success).length;
-    const failed = allResults.filter(r => !r.success).length;
-    const totalTime = allResults.reduce((sum, r) => sum + r.duration, 0);
-
-    console.log(`\n========================================`);
-    console.log(`BATCH COMPLETE`);
-    console.log(`  Succeeded: ${succeeded}`);
-    console.log(`  Failed:    ${failed}`);
-    console.log(`  Total:     ${allResults.length}`);
-    console.log(`  Time:      ${(totalTime / 1000).toFixed(1)}s`);
-    console.log(`========================================\n`);
-
-    if (failed > 0) {
-      console.log('Failed visits:');
-      allResults
-        .filter(r => !r.success)
-        .forEach(r => console.log(`  - ${r.patient} Visit#${r.visitIndex}: ${r.error}`));
-    }
-
+    buildSummary(false);
     return allResults;
   }
 }
