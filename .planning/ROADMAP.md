@@ -47,7 +47,7 @@ Plans:
   3. Timeout constants are defined in one place and referenced by name throughout the automation
 **Plans:** 1/1 plans complete
 Plans:
-- [ ] 06-01-PLAN.md — Adaptive timeout constants + TIMEOUT_MULTIPLIER
+- [x] 06-01-PLAN.md — Adaptive timeout constants + TIMEOUT_MULTIPLIER
 
 ### Phase 7: Retry, Recovery & Events
 **Goal**: Failed visits automatically retry with clean state, session expiry stops the batch immediately, and every visit outcome is emitted as a structured event
@@ -60,7 +60,7 @@ Plans:
   4. The child process emits a JSON line to stdout for visit start, visit result (pass/fail/attempts), and batch summary
 **Plans:** 2 plans
 Plans:
-- [ ] 07-01-PLAN.md — Types + withRetry + emitEvent + fatal-stop in child process
+- [x] 07-01-PLAN.md — Types + withRetry + emitEvent + fatal-stop in child process
 - [ ] 07-02-PLAN.md — Parent process JSON event parsing
 
 ## Progress
@@ -69,4 +69,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 1/1 | Complete    | 2026-02-22 |
-| 7. Retry, Recovery & Events | 0/2 | Planned | - |
+| 7. Retry, Recovery & Events | 1/2 | In Progress | - |
