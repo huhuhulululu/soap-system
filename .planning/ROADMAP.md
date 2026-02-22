@@ -1,23 +1,17 @@
-# Roadmap — v1.0 Production Hardening
+# Roadmap: SOAP Batch System
 
-## Phase 1: Auth & Access Control ✓
-**Goal:** Lock down API access with JWT + API key auth, CORS, rate limiting
-**Status:** Complete
+## Milestones
 
-## Phase 2: Data Security ✓
-**Goal:** Migrate to exceljs, encrypt cookies, non-root Docker, TLS ready
-**Status:** Complete
+- ✅ **v1.0 Production Hardening** — Phases 1-4 (shipped 2026-02-22)
 
-## Phase 3: Storage & Reliability ✓
-**Goal:** DATA_DIR + LRU batch store, TS 0 errors, healthchecks, lazy routes
-**Status:** Complete
+## Phases
 
-## Phase 4: Security Hardening & Stability
-**Goal:** Fix security gaps (Excel validation, CSRF) and known bugs (type safety, pain parser, env validation)
-**Status:** Planned
-**Requirements:** [SEC-1, SEC-2, SEC-3, BUG-1, BUG-2]
-**Plans:** 2/2 plans complete
+<details>
+<summary>✅ v1.0 Production Hardening (Phases 1-4) — SHIPPED 2026-02-22</summary>
 
-Plans:
-- [x] 04-01-PLAN.md — Excel magic bytes validation, 5MB limit, pain parser type safety, auditor nullish coalescing
-- [ ] 04-02-PLAN.md — CSRF double-submit cookie middleware, production env validation
+- [x] Phase 1: Auth & Access Control — JWT, CORS, rate limiting
+- [x] Phase 2: Data Security — exceljs, cookie encryption, non-root Docker
+- [x] Phase 3: Storage & Reliability — DATA_DIR + LRU, TS 0 errors, healthchecks
+- [x] Phase 4: Security Hardening & Stability — magic bytes, CSRF, env validation, type-safety
+
+</details>

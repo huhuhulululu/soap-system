@@ -1,20 +1,14 @@
 # Project State
 
-## Current Phase
-Phase 4: Security Hardening & Stability — Plan 02 complete
+## Status
+v1.0 Production Hardening — SHIPPED 2026-02-22
 
-## Current Plan
-Plan 03 of Phase 4
+## Project Reference
+See: .planning/PROJECT.md (updated 2026-02-22)
 
-## Last Session
-- **Stopped at:** Completed 04-01-PLAN.md (magic bytes + type-safety fixes)
+**Core value:** Batch-generate compliant SOAP notes from minimal input
+**Current focus:** Planning next milestone
+
+## Last Activity
+- **Milestone:** v1.0 completed and archived
 - **Date:** 2026-02-22
-
-## Decisions
-- 5MB upload limit (down from 10MB) — sufficient for clinical Excel files
-- Magic bytes check in route handler not fileFilter — fileFilter has no buffer access
-- Keep XLS_MAGIC alongside XLSX_MAGIC — existing users may have .xls files
-- process.stderr.write over console.warn — coding style prohibits console.* statements
-- No CSRF exemption for x-api-key clients — all state-changing requests require matching cookie+header token
-- validateEnv() placed in require.main block only — createApp() stays test-safe
-- Cookie HttpOnly omitted (default false) so client JS can read csrf_token for header echo
