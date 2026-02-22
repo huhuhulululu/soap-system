@@ -6,214 +6,205 @@
 
 ```
 soap-system/
-├── src/                    # Core SOAP generation engine (TypeScript)
-│   ├── types/              # Type definitions
-│   ├── shared/             # Shared constants, catalogs, mappings
-│   ├── parser/             # Rule engine, weight system, template parsing
-│   ├── generator/          # SOAP note generation logic
-│   ├── knowledge/          # TCM patterns, medical history inference
-│   ├── validator/          # Output validation
-│   └── auditor/            # Three-tier quality audit system
 ├── server/                 # Express API server
-│   ├── index.ts            # App factory, middleware setup
-│   ├── types.ts            # Batch processing types
-│   ├── routes/             # API route handlers
-│   ├── services/           # Business logic (Excel parsing, batch generation)
-│   ├── store/              # Batch persistence (LRU cache)
-│   └── __tests__/          # Server tests
-├── parsers/                # External parser modules (Optum, etc.)
-├── frontend/               # Vue.js frontend (separate package)
-├── templates/              # Excel templates, SOAP templates
-├── scripts/                # Utility scripts
-├── .batch-data/            # Runtime batch storage (LRU, 32 batch limit)
-├── .planning/              # GSD planning documents
-├── package.json            # Root dependencies (Express, ExcelJS, etc.)
-├── tsconfig.json           # TypeScript configuration
-├── vitest.config.ts        # Vitest configuration
-└── docker-compose.yml      # Docker orchestration
+│   ├── index.ts           # App factory, middleware setup
+│   ├── types.ts           # Batch-related types
+│   ├── routes/            # API route handlers
+│   ├── services/          # Business logic
+│   ├── store/             # Data persistence
+│   └── __tests__/         # Route/service tests
+├── src/                   # Core SOAP generation domain
+│   ├── types/             # Core type definitions
+│   ├── parser/            # Parse clinical data → structured format
+│   ├── generator/         # Generate SOAP notes from context
+│   ├── knowledge/         # Medical domain knowledge (TCM patterns)
+│   ├── auditor/           # Multi-layer validation
+│   ├── validator/         # Output validation
+│   ├── shared/            # Shared catalogs (ICD, CPT, body parts)
+│   └── __tests__/         # Unit tests
+├── parsers/               # Parser implementations (Optum, etc.)
+├── frontend/              # React/Next.js UI (separate package)
+├── scripts/               # Utility scripts
+├── templates/             # Excel template files
+├── .batch-data/           # Runtime batch storage (generated)
+├── .planning/             # GSD planning documents
+├── package.json           # Dependencies, test config
+├── tsconfig.json          # TypeScript configuration
+└── vitest.config.ts       # Vitest configuration
 ```
 
 ## Directory Purposes
 
-**src/types:**
-- Purpose: Central type definitions for entire system
-- Contains: SOAP structure, enums (NoteType, BodyPart, etc.), validation types
-- Key files: `src/types/index.ts`
-
-**src/shared:**
-- Purpose: Shared constants and lookup tables
-- Contains: ICD-10 catalog, CPT codes, TCM mappings, body part constants, severity levels
-- Key files: `src/shared/icd-catalog.ts`, `src/shared/cpt-catalog.ts`, `src/shared/body-part-constants.ts`
-
-**src/parser:**
-- Purpose: Parse clinical input and calculate option weights
-- Contains: Rule engine, weight system, dropdown parser, template logic rules
-- Key files: `src/parser/rule-engine.ts`, `src/parser/weight-system.ts`, `src/parser/template-logic-rules.ts`
-
-**src/generator:**
-- Purpose: Generate complete SOAP notes from context
-- Contains: SOAP generator, TX sequence engine, goals calculator, objective patch
-- Key files: `src/generator/soap-generator.ts`, `src/generator/tx-sequence-engine.ts`
-
-**src/knowledge:**
-- Purpose: Medical knowledge base for inference
-- Contains: TCM pattern definitions, medical history engine
-- Key files: `src/knowledge/tcm-patterns.ts`, `src/knowledge/medical-history-engine.ts`
-
-**src/validator:**
-- Purpose: Validate generated SOAP text
-- Contains: Output validator, integration with Optum parser
-- Key files: `src/validator/output-validator.ts`
-
-**src/auditor:**
-- Purpose: Multi-tier quality assurance
-- Contains: Layer1 (rule compliance), Layer2 (medical logic), Layer3 (case similarity)
-- Key files: `src/auditor/index.ts`, `src/auditor/layer1/`, `src/auditor/layer2/`, `src/auditor/layer3/`
-
 **server/:**
-- Purpose: HTTP API server
-- Contains: Express app, batch routes, automation routes, services
-- Key files: `server/index.ts`, `server/routes/batch.ts`, `server/services/batch-generator.ts`
+- Purpose: Express API server for batch processing and automation
+- Contains: Route handlers, services, data store, middleware
+- Key files: `index.ts` (entry point), `types.ts` (batch types)
 
-**server/services:**
-- Purpose: Business logic for batch processing
-- Contains: Excel parser, batch generator, text-to-HTML converter, automation runner
-- Key files: `server/services/excel-parser.ts`, `server/services/batch-generator.ts`
+**server/routes/:**
+- Purpose: HTTP endpoint handlers
+- Contains: `batch.ts` (upload, generate, confirm), `automate.ts` (automation control)
+- Key files: Route factory functions that return Express Router instances
 
-**server/store:**
-- Purpose: Batch data persistence
-- Contains: LRU cache implementation for batch storage
-- Key files: `server/store/batch-store.ts`
+**server/services/:**
+- Purpose: Business logic orchestration
+- Contains: `batch-generator.ts` (SOAP generation), `excel-parser.ts` (file parsing), `automation-runner.ts` (Playwright), `text-to-html.ts` (formatting)
+- Key files: Service functions called by routes
 
-**parsers/:**
-- Purpose: External parser modules (Optum note format, etc.)
-- Contains: Note parser, checker, type definitions
-- Key files: `parsers/optum-note/parser.ts`, `parsers/optum-note/checker/note-checker.ts`
+**server/store/:**
+- Purpose: Data persistence layer
+- Contains: `batch-store.ts` (in-memory cache + JSON file storage)
+- Key files: LRU cache management, batch CRUD operations
+
+**src/:**
+- Purpose: Core SOAP generation domain logic
+- Contains: Parser, Generator, Knowledge, Auditor, Validator, Shared utilities
+- Key files: Type definitions, generation engines, medical knowledge
+
+**src/parser/:**
+- Purpose: Parse clinical data into structured format
+- Contains: Rule engine, weight system, template logic, dropdown parsing
+- Key files: `rule-engine.ts`, `weight-system.ts`, `template-logic-rules.ts`
+
+**src/generator/:**
+- Purpose: Generate SOAP notes from clinical context
+- Contains: SOAP generator, TX sequence engine, goals calculator, objective patch
+- Key files: `soap-generator.ts` (main), `tx-sequence-engine.ts` (multi-visit TX)
+
+**src/knowledge/:**
+- Purpose: Medical domain knowledge and inference
+- Contains: TCM pattern definitions, medical history engine
+- Key files: `tcm-patterns.ts`, `medical-history-engine.ts`
+
+**src/auditor/:**
+- Purpose: Multi-layer validation of generated notes
+- Contains: Layer 1 (basic), Layer 2 (clinical), Layer 3 (advanced), Baselines
+- Key files: Organized by validation layer
+
+**src/shared/:**
+- Purpose: Shared catalogs and constants
+- Contains: ICD codes, CPT codes, body part mappings, severity levels, TCM mappings
+- Key files: `icd-catalog.ts`, `cpt-catalog.ts`, `body-part-constants.ts`
 
 **frontend/:**
-- Purpose: Vue.js web interface
-- Contains: Components, composables, tests
-- Key files: `frontend/src/App.vue`, `frontend/src/composables/useSOAPGeneration.ts`
+- Purpose: React/Next.js web UI
+- Contains: Separate npm package with own dependencies
+- Key files: Entry point, components, pages
+
+**parsers/:**
+- Purpose: Insurance-specific parsers
+- Contains: Optum parser and other implementations
+- Key files: Parser modules for different data sources
+
+**scripts/:**
+- Purpose: Utility and automation scripts
+- Contains: Playwright scripts, data processing utilities
+- Key files: Organized by purpose
 
 **templates/:**
-- Purpose: Template files for SOAP generation and Excel input
-- Contains: Excel batch template, SOAP section templates
-- Key files: `templates/batch-template.xlsx`
+- Purpose: Excel template files for batch upload
+- Contains: `batch-template.xlsx` (downloadable template)
+- Key files: Pre-formatted Excel with column headers
 
 **.batch-data/:**
-- Purpose: Runtime storage for batch processing results
-- Contains: JSON files with batch data (LRU cache, max 32 batches)
+- Purpose: Runtime batch storage
+- Contains: JSON files for each batch (auto-generated)
 - Generated: Yes
 - Committed: No (in .gitignore)
 
 ## Key File Locations
 
 **Entry Points:**
-- `server/index.ts`: Express app factory, middleware setup, health check endpoint
-- `src/generator/soap-generator.ts`: Main SOAP generation function
-- `server/routes/batch.ts`: Batch API endpoints
+- `server/index.ts`: Express app factory, middleware setup, route registration
+- `server/routes/batch.ts`: Batch upload and generation endpoints
+- `server/routes/automate.ts`: Automation control endpoints
 
 **Configuration:**
-- `package.json`: Dependencies, Jest/Vitest config, test paths
+- `package.json`: Dependencies, test config, scripts
 - `tsconfig.json`: TypeScript compiler options
 - `vitest.config.ts`: Vitest test runner config
-- `docker-compose.yml`: Docker services (app, optional services)
 
 **Core Logic:**
-- `src/generator/soap-generator.ts`: SOAP note generation
-- `src/parser/rule-engine.ts`: Rule evaluation for weights
-- `src/parser/weight-system.ts`: Weight calculation system
+- `src/generator/soap-generator.ts`: Main SOAP generation engine
+- `src/parser/rule-engine.ts`: Clinical data parsing rules
+- `src/knowledge/tcm-patterns.ts`: TCM pattern definitions
 - `server/services/batch-generator.ts`: Batch processing orchestration
-- `server/services/excel-parser.ts`: Excel file parsing
 
 **Testing:**
-- `src/**/__tests__/*.test.ts`: Unit tests (co-located)
-- `server/__tests__/*.test.ts`: Server tests
-- `frontend/src/**/*.test.ts`: Frontend tests
+- `server/__tests__/`: Route and service tests
+- `src/shared/__tests__/`: Shared utility tests
+- `src/auditor/`: Validation layer tests
 
 ## Naming Conventions
 
 **Files:**
-- `*.ts`: TypeScript source files
-- `*.test.ts`: Unit/integration tests (Jest/Vitest)
-- `*.spec.ts`: Specification tests
-- `*-engine.ts`: Core algorithm/logic files (e.g., `rule-engine.ts`, `tx-sequence-engine.ts`)
-- `*-parser.ts`: Parser modules (e.g., `excel-parser.ts`, `dropdown-parser.ts`)
-- `*-generator.ts`: Generation logic (e.g., `batch-generator.ts`, `soap-generator.ts`)
-- `*-calculator.ts`: Calculation utilities (e.g., `goals-calculator.ts`)
+- Services: `{domain}-{purpose}.ts` (e.g., `batch-generator.ts`, `automation-runner.ts`)
+- Routes: `{resource}.ts` (e.g., `batch.ts`, `automate.ts`)
+- Types: `index.ts` in types directory or `{domain}.ts` for specific types
+- Tests: `{module}.test.ts` or `{module}.spec.ts`
 
 **Directories:**
-- `src/`: Core library code
-- `server/`: Express server code
-- `__tests__/`: Test files (co-located with source)
-- `services/`: Business logic services
-- `routes/`: API route handlers
-- `store/`: Data persistence layer
+- Feature domains: lowercase (e.g., `parser`, `generator`, `knowledge`)
+- Test directories: `__tests__` (co-located with source)
+- Utility directories: `shared` for cross-cutting utilities
 
 **Functions:**
-- camelCase for all functions and variables
-- Prefix with `export` for public API
-- Prefix with `function` for named functions (not arrow functions in exports)
+- Generators: `generate{Noun}()` (e.g., `generateBatch()`, `generateBatchId()`)
+- Parsers: `parse{Noun}()` (e.g., `parseExcelBuffer()`)
+- Builders: `build{Noun}()` (e.g., `buildContext()`, `buildPatientsFromRows()`)
+- Exporters: `export{Noun}()` (e.g., `exportSOAPAsText()`)
+- Utilities: `{verb}{Noun}()` (e.g., `splitSOAPText()`, `calculateWeights()`)
+
+**Variables:**
+- camelCase for all variables and parameters
+- Descriptive names: `batchId`, `patientIdx`, `visitIdx` (not `id`, `p`, `v`)
+- Readonly collections: `readonly Type[]` in type definitions
 
 **Types:**
 - PascalCase for interfaces and types
-- Suffix with `Type` for union types (e.g., `NoteType`, `BodyPart`)
-- Suffix with `Result` for function return types (e.g., `ValidationResult`, `AuditReport`)
+- Suffix patterns: `Data`, `Context`, `Options`, `State` (e.g., `BatchData`, `GenerationContext`)
+- Enums: PascalCase with UPPERCASE values (e.g., `NoteType = 'IE' | 'TX'`)
 
 ## Where to Add New Code
 
-**New Feature (e.g., new SOAP section):**
-- Primary code: `src/generator/soap-generator.ts` (add generation logic)
-- Types: `src/types/index.ts` (add to SOAPNote interface)
-- Tests: `src/generator/__tests__/soap-generator.test.ts`
-- Shared constants: `src/shared/` (if needed)
+**New Feature:**
+- Primary code: `src/generator/` (if generation logic) or `server/services/` (if API logic)
+- Routes: `server/routes/{resource}.ts`
+- Tests: `server/__tests__/{feature}.test.ts` or `src/{domain}/__tests__/{feature}.test.ts`
 
-**New Validation Rule:**
-- Implementation: `src/validator/output-validator.ts` or `parsers/optum-note/checker/`
-- Types: `src/validator/` or `parsers/optum-note/checker/types.ts`
-- Tests: `src/validator/__tests__/` or `parsers/optum-note/checker/__tests__/`
-
-**New API Endpoint:**
-- Route handler: `server/routes/batch.ts` or `server/routes/automate.ts`
-- Service logic: `server/services/` (create new file if needed)
-- Types: `server/types.ts`
-- Tests: `server/__tests__/api-routes.test.ts`
-
-**New Knowledge Base Entry:**
-- TCM patterns: `src/knowledge/tcm-patterns.ts`
-- Medical history rules: `src/knowledge/medical-history-engine.ts`
-- Catalogs: `src/shared/` (e.g., `icd-catalog.ts`)
+**New Component/Module:**
+- Implementation: `src/{domain}/{module}.ts` (follow existing domain structure)
+- Types: Add to `src/types/index.ts` or create `src/{domain}/types.ts`
+- Tests: Co-locate in `src/{domain}/__tests__/{module}.test.ts`
 
 **Utilities:**
-- Shared helpers: `src/shared/` (create new file for domain-specific utilities)
-- Parser utilities: `src/parser/` (for parsing-related helpers)
-- Generator utilities: `src/generator/` (for generation-related helpers)
+- Shared helpers: `src/shared/{utility}.ts`
+- Service helpers: `server/services/{utility}.ts`
+- Export from barrel file if used across modules
+
+**New Validation Layer:**
+- Location: `src/auditor/layer{N}/` (follow existing layer pattern)
+- Pattern: Export validation function, register in auditor index
 
 ## Special Directories
 
-**src/auditor/baselines:**
-- Purpose: Baseline data for audit layer comparisons
-- Generated: No
-- Committed: Yes
-
-**src/auditor/layer1, layer2, layer3:**
-- Purpose: Three-tier audit system implementation
-- Generated: No
-- Committed: Yes
-
-**server/__tests__:**
-- Purpose: Server integration and unit tests
-- Generated: No
-- Committed: Yes
-
-**.batch-data/:**
-- Purpose: Runtime batch storage (LRU cache)
-- Generated: Yes (created at runtime)
+**node_modules/:**
+- Purpose: npm dependencies
+- Generated: Yes
 - Committed: No
 
+**.batch-data/:**
+- Purpose: Runtime batch storage (JSON files)
+- Generated: Yes (by `batch-store.ts`)
+- Committed: No (in .gitignore)
+
+**.planning/codebase/:**
+- Purpose: GSD planning documents
+- Generated: Yes (by GSD agents)
+- Committed: Yes
+
 **coverage/:**
-- Purpose: Jest/Vitest coverage reports
-- Generated: Yes (from `npm run test:coverage`)
+- Purpose: Test coverage reports
+- Generated: Yes (by jest)
 - Committed: No
 
 ---

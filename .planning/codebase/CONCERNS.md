@@ -4,210 +4,195 @@
 
 ## Tech Debt
 
-**Large monolithic files (>1000 lines):**
-- Issue: Multiple core files exceed 1000 lines, making them difficult to maintain and test
+**Large monolithic files:**
+- Issue: Several core files exceed 1200 lines, making them difficult to maintain and test
 - Files:
   - `src/generator/soap-generator.ts` (2280 lines)
   - `src/generator/tx-sequence-engine.ts` (1215 lines)
   - `parsers/optum-note/checker/note-checker.ts` (1346 lines)
   - `parsers/optum-note/parser.ts` (1095 lines)
-  - `ccnote/scraper.ts` (1007 lines)
-- Impact: Reduced readability, harder to test individual functions, increased cognitive load
-- Fix approach: Extract cohesive units into separate modules (e.g., separate ROM calculation, strength calculation, pain mapping logic)
+- Impact: Harder to locate bugs, increased cognitive load, difficult to test individual functions
+- Fix approach: Extract cohesive functions into separate modules by responsibility (e.g., separate pain calculation, ROM calculation, strength calculation into dedicated files)
 
-**Type safety gaps with `as any` casts:**
-- Issue: 30+ instances of `as any` type assertions bypass TypeScript safety
+**Type safety gaps:**
+- Issue: Use of `unknown` and `any` types in field parsers without proper validation
+- Files: `src/shared/field-parsers.ts` (line 30: `const ps = painScale as Record<string, any>`)
+- Impact: Runtime errors possible if data structure differs from assumptions; type checking bypassed
+- Fix approach: Create strict type guards and validation schemas using zod or similar; replace `as any` with proper type narrowing
+
+**Deprecated exports still in use:**
+- Issue: `MUSCLE_MAP` and `ADL_MAP` marked `@deprecated` but still exported from `src/generator/soap-generator.ts`
+- Files: `src/generator/soap-generator.ts` (lines 104-108)
+- Impact: Confusion about which constants to use; potential for inconsistency if deprecated versions diverge
+- Fix approach: Remove deprecated exports entirely; update all imports to use `BODY_PART_MUSCLES` and `BODY_PART_ADL` from `src/shared/body-part-constants.ts`
+
+**Hardcoded magic numbers:**
+- Issue: Pain thresholds, severity mappings, and demographic age cutoffs scattered throughout code
 - Files:
-  - `parsers/optum-note/checker/correction-generator.ts` (lines 201, 206, 311)
-  - `parsers/optum-note/checker/bridge.ts` (lines 149, 177, 191)
-  - `frontend/src/tests/fixtures/generator.ts` (lines 222, 226-228, 311, 438, 446, 460-461, 479-480, 486-487, 507-508, 565, 573)
-  - `scripts/playwright/mdland-automation.ts` (lines 202, 502)
-  - `ccnote/scraper.ts` (lines 93, 269, 361)
-  - `server/index.ts` (line 29)
-- Impact: Silent type errors, runtime failures, harder to refactor
-- Fix approach: Define proper interfaces for visit records, pain scales, and window objects; use discriminated unions instead of casting
+  - `src/generator/soap-generator.ts` (lines 123-149: age cutoffs like 65, 35)
+  - `parsers/optum-note/checker/note-checker.ts` (line 89: pain >= 7 threshold)
+  - `src/generator/objective-patch.ts` (lines 31-38: ROM factor breakpoints)
+- Impact: Difficult to adjust clinical parameters; inconsistent thresholds across modules
+- Fix approach: Centralize all clinical parameters in `src/shared/clinical-constants.ts` with clear documentation
 
-**Minimal error handling:**
-- Issue: Only 3 explicit `throw new Error` statements in entire `src/` directory
-- Files: `server/services/excel-parser.ts` (lines 47, 53)
-- Impact: Silent failures, difficult debugging, poor user feedback
-- Fix approach: Add comprehensive error handling with descriptive messages in all critical paths (parsing, generation, validation)
+## Known Bugs
 
-**Null/undefined returns without context:**
-- Issue: Functions return `null` or `[]` without indicating why
-- Files:
-  - `src/shared/field-parsers.ts` (multiple null returns)
-  - `src/generator/objective-patch.ts` (lines with null returns)
-  - `src/auditor/layer1/index.ts` (5+ null returns)
-- Impact: Callers can't distinguish between "not found" and "error", harder to debug
-- Fix approach: Use Result types or throw descriptive errors instead of silent nulls
+**Pain scale extraction fragility:**
+- Symptoms: `extractPainCurrent()` returns default value 7 if data structure unexpected
+- Files: `src/shared/field-parsers.ts` (lines 29-37)
+- Trigger: When `painScale` is null, undefined, or has unexpected shape (e.g., `{ pain: 8 }` instead of `{ current: 8 }`)
+- Workaround: Ensure all data sources normalize pain scale to one of three formats: `{ current }`, `{ value }`, or `{ range: { max } }`
+- Fix approach: Add validation layer that logs warnings when fallback occurs; add test cases for all observed pain scale formats
 
-## Fragile Areas
-
-**Optum note parser regex patterns:**
-- Files: `parsers/optum-note/parser.ts` (lines 127, 266)
-- Why fragile: Complex regex patterns for parsing medical documents are brittle to format changes
-- Safe modification: Add comprehensive test cases for edge cases (missing fields, format variations); document regex intent with examples
-- Test coverage: Parser has tests but edge cases may not be covered
-
-**TX sequence engine state transitions:**
-- Files: `src/generator/tx-sequence-engine.ts`
-- Why fragile: Complex state machine with multiple visit-to-visit dependencies (pain progression, ROM changes, strength tracking)
-- Safe modification: Add state validation before transitions; document state invariants; add integration tests for multi-visit sequences
-- Test coverage: Needs integration tests for realistic visit sequences
-
-**Rule engine condition evaluation:**
-- Files: `src/parser/rule-engine.ts` (478 lines)
-- Why fragile: Complex nested conditions for medical logic (pain→severity mapping, TCM pattern consistency)
-- Safe modification: Add explicit condition validation; document all rule combinations; add property-based tests
-- Test coverage: Unit tests exist but combinations may not be exhaustive
-
-**Excel parser with dynamic field mapping:**
-- Files: `server/services/excel-parser.ts` (500 lines)
-- Why fragile: Maps arbitrary Excel columns to medical fields; aliasing logic (SHLDR→SHOULDER) could mask data entry errors
-- Safe modification: Add validation warnings for ambiguous mappings; log all transformations; add test cases for common misspellings
-- Test coverage: Basic parsing tested but edge cases (malformed dates, invalid body parts) need coverage
-
-## Performance Bottlenecks
-
-**Objective patch calculations on every generation:**
-- Problem: `objective-patch.ts` recalculates ROM factors and strength grades for every note generation
-- Files: `src/generator/objective-patch.ts` (692 lines)
-- Cause: No caching of pain→ROM/strength mappings; interpolation calculations run repeatedly
-- Improvement path: Pre-compute lookup tables for pain levels 0-10; cache results by (pain, bodyPart, difficulty) tuple
-
-**Rule engine re-evaluates all conditions per field:**
-- Problem: `rule-engine.ts` evaluates full condition tree for each dropdown field
-- Files: `src/parser/rule-engine.ts` (478 lines)
-- Cause: No memoization of condition results; context object recreated per field
-- Improvement path: Memoize condition evaluation results; pre-filter applicable rules by field type
-
-**Playwright automation full page traversal:**
-- Problem: `mdland-automation.ts` traverses entire DOM for each interaction
-- Files: `scripts/playwright/mdland-automation.ts` (1295 lines)
-- Cause: No caching of element selectors; repeated DOM queries
-- Improvement path: Cache element references; use event listeners instead of polling
+**Optional chaining with undefined fallbacks:**
+- Symptoms: Code uses `?.` operator but doesn't always handle undefined case explicitly
+- Files: Multiple locations (e.g., `src/auditor/layer1/index.ts` lines 55, 76, 97)
+- Trigger: When optional properties are undefined, code may proceed with undefined values
+- Fix approach: Add explicit null checks before using optional values; use nullish coalescing with meaningful defaults
 
 ## Security Considerations
 
-**JWT secret fallback to API key:**
-- Risk: If JWT verification fails, system falls back to x-api-key without logging
-- Files: `server/index.ts` (lines 32-34)
-- Current mitigation: Rate limiting on login endpoint
+**No input validation on batch uploads:**
+- Risk: Excel files uploaded via `/batch` endpoint not validated for malicious content or structure
+- Files: `server/routes/batch.ts`, `server/services/excel-parser.ts`
+- Current mitigation: File size limits via multer, CORS enabled
 - Recommendations:
-  - Log all auth failures with timestamp and source IP
-  - Add metrics for failed JWT attempts
-  - Consider disabling API key fallback in production
+  - Add schema validation for Excel structure before parsing
+  - Sanitize all text fields extracted from Excel
+  - Add file type verification (check magic bytes, not just extension)
+  - Implement rate limiting per user/IP (already present but verify configuration)
 
-**No input validation on Excel uploads:**
-- Risk: Malformed Excel files could cause crashes or unexpected behavior
-- Files: `server/services/excel-parser.ts`
-- Current mitigation: Basic type checking on body parts and insurance types
+**Environment variable exposure risk:**
+- Risk: `.env` file contains `COOKIE_ENCRYPTION_KEY` and `SHARED_JWT_SECRET` - if leaked, authentication compromised
+- Files: `.env` (not in repo, but referenced in MEMORY.md)
+- Current mitigation: `.env` in `.gitignore`
 - Recommendations:
-  - Add file size limits
-  - Validate all numeric fields (age, pain scale, dates)
-  - Add try-catch around ExcelJS parsing
-  - Sanitize patient names before storage
+  - Rotate secrets immediately if any deployment logs are exposed
+  - Use AWS Secrets Manager or similar for production
+  - Add validation that required secrets are present at startup
 
-**CORS origin hardcoded to environment variable:**
-- Risk: If CORS_ORIGIN env var is misconfigured, could allow unauthorized cross-origin requests
-- Files: `server/index.ts` (line 59)
-- Current mitigation: Defaults to localhost
-- Recommendations:
-  - Validate CORS_ORIGIN is a valid URL
-  - Log CORS rejections
-  - Consider allowlist instead of single origin
+**No CSRF protection on state-changing endpoints:**
+- Risk: POST/PUT endpoints may be vulnerable to cross-site request forgery
+- Files: `server/routes/batch.ts`, `server/routes/automate.ts`
+- Current mitigation: CORS configured but CSRF tokens not implemented
+- Recommendations: Add CSRF token validation to all state-changing endpoints
 
-**No rate limiting on batch generation endpoint:**
-- Risk: Malicious users could generate unlimited notes, consuming resources
-- Files: `server/routes/batch.ts` (implied)
-- Current mitigation: General API rate limiter (60 req/min)
-- Recommendations:
-  - Add per-user rate limiting
-  - Limit batch size (max notes per request)
-  - Add request timeout
+## Performance Bottlenecks
 
-## Test Coverage Gaps
+**Synchronous regex operations on large text:**
+- Problem: `parsers/optum-note/parser.ts` uses multiple regex passes on full document text
+- Files: `parsers/optum-note/parser.ts` (lines 266+)
+- Cause: No streaming or chunked parsing; entire document loaded into memory and processed sequentially
+- Improvement path: Implement line-by-line streaming parser; cache compiled regex patterns; consider lazy evaluation
 
-**Generator logic untested for edge cases:**
-- What's not tested: ROM calculations with extreme pain values, strength grade transitions, multi-visit state consistency
-- Files: `src/generator/soap-generator.ts`, `src/generator/tx-sequence-engine.ts`
-- Risk: Silent failures in medical note generation could produce clinically incorrect notes
-- Priority: HIGH
+**Weight calculation in rule engine:**
+- Problem: `calculateWeights()` iterates through all rules for every option, potentially O(n²) complexity
+- Files: `src/parser/weight-system.ts` (421 lines)
+- Cause: No indexing or memoization of rule results
+- Improvement path: Cache rule evaluation results; build rule index by condition type; implement early exit for high-confidence matches
 
-**Parser edge cases not covered:**
-- What's not tested: Malformed dates, missing required fields, invalid body part combinations
-- Files: `parsers/optum-note/parser.ts`, `server/services/excel-parser.ts`
-- Risk: Parser crashes or produces incomplete data
-- Priority: HIGH
+**No pagination on batch results:**
+- Problem: All batch results loaded into memory at once
+- Files: `server/services/batch-generator.ts` (378 lines)
+- Cause: Results array grows unbounded
+- Improvement path: Implement cursor-based pagination; stream results to client; add result expiration
 
-**No E2E tests for full workflow:**
-- What's not tested: Complete flow from Excel upload → batch generation → export
-- Files: Server routes, batch processing
-- Risk: Integration issues between components go undetected
-- Priority: MEDIUM
+## Fragile Areas
 
-**Checker validation rules not exhaustively tested:**
-- What's not tested: All 20+ validation rules (IE01-IE07, TX01-TX10) with realistic data combinations
-- Files: `parsers/optum-note/checker/note-checker.ts`
-- Risk: Invalid notes pass validation or valid notes are rejected
-- Priority: MEDIUM
+**Optum note parser:**
+- Files: `parsers/optum-note/parser.ts`, `parsers/optum-note/checker/note-checker.ts`
+- Why fragile: Regex-based parsing of unstructured text; sensitive to formatting changes in source documents; multiple hardcoded patterns
+- Safe modification: Add comprehensive test fixtures for each document format variant; add logging for parse failures; implement fallback patterns
+- Test coverage: Gaps in edge cases (malformed dates, missing fields, unusual spacing)
+
+**TX sequence engine state machine:**
+- Files: `src/generator/tx-sequence-engine.ts` (1215 lines)
+- Why fragile: Complex state transitions with many conditional branches; pain/ROM/strength calculations interdependent
+- Safe modification: Add state validation at each transition; extract state machine logic into separate module; add invariant checks
+- Test coverage: Missing tests for edge cases (pain jumps, ROM plateaus, strength regressions)
+
+**Medical history inference engine:**
+- Files: `src/knowledge/medical-history-engine.ts` (420 lines)
+- Why fragile: Heuristic-based inference with many special cases; clinical assumptions may not hold for all patients
+- Safe modification: Add confidence scores to inferences; log assumptions; allow overrides; add audit trail
+- Test coverage: Limited test coverage for edge cases (unusual medical histories, contradictory symptoms)
 
 ## Scaling Limits
 
 **In-memory batch processing:**
-- Current capacity: Batch size limited by available memory (no explicit limit found)
-- Limit: Large batches (1000+ notes) could cause OOM
-- Scaling path: Implement streaming batch processing; process notes one at a time; add queue system for large batches
+- Current capacity: Batch size limited by available memory; no streaming
+- Limit: Breaks at ~10,000 records (estimated) depending on note complexity
+- Scaling path: Implement job queue (Bull, RabbitMQ); stream results to database; add progress tracking
 
-**No database for visit history:**
-- Current capacity: All data stored in memory or Excel files
-- Limit: Can't retrieve historical notes or track patient progress over time
-- Scaling path: Add database (PostgreSQL) for persistent storage; implement visit history queries
+**Single-threaded rule evaluation:**
+- Current capacity: ~100 options evaluated per second (estimated)
+- Limit: Breaks at high concurrency (>10 simultaneous requests)
+- Scaling path: Implement worker pool; cache rule results; parallelize independent evaluations
 
-**Single-threaded Node.js processing:**
-- Current capacity: CPU-bound generation tasks block event loop
-- Limit: High concurrent requests will queue up
-- Scaling path: Use worker threads for generation; implement request queuing with priority
+**No database for caching:**
+- Current capacity: All data in-memory; no persistence between requests
+- Limit: Breaks on server restart; no audit trail
+- Scaling path: Add Redis for caching; add PostgreSQL for audit logs and batch history
 
 ## Dependencies at Risk
 
-**ExcelJS for Excel parsing:**
-- Risk: Large dependency; potential security issues in file parsing
-- Impact: Malformed Excel files could crash server
-- Migration plan: Consider `xlsx` (lighter) or add strict file validation before parsing
+**Playwright (1.58.2):**
+- Risk: Heavy dependency for automation; adds 200MB+ to Docker image
+- Impact: Slow deployments; large container size; maintenance burden
+- Migration plan: Consider headless-chrome or puppeteer if automation is optional; or move to separate service
 
-**Playwright for automation:**
-- Risk: Heavy dependency; requires browser binary; slow for large-scale automation
-- Impact: Automation scripts are slow and resource-intensive
-- Migration plan: Consider API-based approach if available; implement caching to reduce browser interactions
+**ExcelJS (4.4.0):**
+- Risk: Large dependency; potential security issues in XML parsing
+- Impact: Vulnerability surface for malicious Excel files
+- Migration plan: Monitor for updates; consider lightweight alternative if only basic XLSX support needed
 
-**No explicit version pinning in package.json:**
-- Risk: Transitive dependencies could introduce breaking changes
-- Impact: Builds could fail unexpectedly
-- Migration plan: Use lockfile (package-lock.json or yarn.lock); audit dependencies regularly
+**Express (5.2.1):**
+- Risk: Major version; breaking changes possible
+- Impact: Dependency updates may require code changes
+- Migration plan: Pin to 5.x; monitor release notes; test updates in staging
 
 ## Missing Critical Features
 
 **No audit logging:**
 - Problem: No record of who generated which notes, when, or what changes were made
-- Blocks: Compliance requirements, debugging user issues, detecting abuse
-- Recommendation: Add audit log table with user, timestamp, action, and note ID
+- Blocks: Compliance requirements; debugging user issues; security investigation
+- Fix approach: Add audit table; log all generation requests with user, timestamp, input, output hash
 
-**No note versioning:**
-- Problem: Can't track changes to notes or revert to previous versions
-- Blocks: Collaborative editing, change tracking, compliance
-- Recommendation: Implement version control for notes (store diffs or full snapshots)
+**No error recovery for batch jobs:**
+- Problem: If batch job fails mid-way, no way to resume or retry individual records
+- Blocks: Large batch processing; production reliability
+- Fix approach: Implement job queue with retry logic; add checkpoint system; allow partial batch completion
 
-**No export to EHR systems:**
-- Problem: Notes must be manually copied to patient records
-- Blocks: Workflow integration, reduces adoption
-- Recommendation: Add HL7/FHIR export; integrate with common EHR APIs
+**No version control for generated notes:**
+- Problem: Can't compare versions or see what changed between edits
+- Blocks: Audit trail; user confidence; debugging
+- Fix approach: Add version history table; implement diff view; allow rollback
 
-**No user preferences/templates:**
-- Problem: Each user must configure settings from scratch
-- Blocks: Personalization, faster workflows
-- Recommendation: Add user profile with saved preferences, custom templates
+## Test Coverage Gaps
+
+**Parser edge cases:**
+- What's not tested: Malformed dates, missing required fields, unusual spacing, non-ASCII characters
+- Files: `parsers/optum-note/parser.ts`, `parsers/optum-note/checker/note-checker.ts`
+- Risk: Parser may crash or produce incorrect results on real-world data
+- Priority: High
+
+**Weight system edge cases:**
+- What's not tested: Empty rule sets, conflicting rules, extreme weight values, circular dependencies
+- Files: `src/parser/weight-system.ts`, `src/parser/rule-engine.ts`
+- Risk: Unexpected behavior in edge cases; incorrect option selection
+- Priority: High
+
+**Concurrent request handling:**
+- What's not tested: Multiple simultaneous batch uploads, race conditions in state updates
+- Files: `server/routes/batch.ts`, `server/services/batch-generator.ts`
+- Risk: Data corruption or lost updates under load
+- Priority: Medium
+
+**Error handling paths:**
+- What's not tested: Network failures, timeout scenarios, malformed API responses
+- Files: `server/services/automation-runner.ts`, `server/routes/automate.ts`
+- Risk: Unhandled exceptions crash server or leave system in inconsistent state
+- Priority: Medium
 
 ---
 

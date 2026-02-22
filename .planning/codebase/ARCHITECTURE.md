@@ -4,156 +4,156 @@
 
 ## Pattern Overview
 
-**Overall:** Layered pipeline architecture with separation between data parsing, generation, validation, and API serving.
+**Overall:** Layered architecture with domain-driven design
 
 **Key Characteristics:**
-- Modular layer separation: Parser → Generator → Validator → Auditor
+- Separation of concerns: API layer → Services → Core domain logic
 - Immutable data patterns throughout (no mutations)
-- Context-driven generation with TCM knowledge base
-- Three-tier audit system for quality assurance
-- Express API server with batch processing capabilities
+- Batch processing pipeline for SOAP note generation
+- Multi-mode operation (full, soap-only, continue)
+- Headless automation integration via Playwright
 
 ## Layers
 
-**Parser Layer:**
-- Purpose: Extract and normalize clinical data from Excel/JSON input
-- Location: `src/parser/`, `server/services/excel-parser.ts`
-- Contains: Rule engine, weight system, dropdown parsing, template logic
-- Depends on: Shared types, field parsers, template rules
-- Used by: Batch generator, SOAP generation pipeline
+**API Layer (Express):**
+- Purpose: HTTP request handling, authentication, routing
+- Location: `server/index.ts`, `server/routes/`
+- Contains: Route handlers, middleware (auth, CORS, rate limiting)
+- Depends on: Services, Store
+- Used by: Frontend, external clients
 
-**Generator Layer:**
-- Purpose: Create complete SOAP notes from parsed clinical context
-- Location: `src/generator/`
-- Contains: SOAP generator, TX sequence engine, goals calculator, objective patch
-- Depends on: Parser layer, knowledge base, shared constants
-- Used by: Batch generator, API routes
+**Service Layer:**
+- Purpose: Business logic orchestration
+- Location: `server/services/`
+- Contains: `batch-generator.ts` (SOAP generation), `excel-parser.ts` (file parsing), `automation-runner.ts` (Playwright orchestration), `text-to-html.ts` (formatting)
+- Depends on: Core domain (`src/`), Store
+- Used by: Routes
+
+**Core Domain (SOAP Generation):**
+- Purpose: Medical note generation logic
+- Location: `src/`
+- Contains: Parser, Generator, Knowledge, Auditor, Validator, Shared utilities
+- Depends on: Types, Shared catalogs
+- Used by: Services
+
+**Store Layer:**
+- Purpose: Data persistence (in-memory + file)
+- Location: `server/store/batch-store.ts`
+- Contains: Batch caching (LRU, max 50), JSON file persistence
+- Depends on: Types
+- Used by: Routes, Services
 
 **Knowledge Layer:**
-- Purpose: Provide TCM patterns, medical history inference, clinical mappings
+- Purpose: Medical domain knowledge
 - Location: `src/knowledge/`
-- Contains: TCM patterns, medical history engine, ICD/CPT catalogs
-- Depends on: Core types
-- Used by: Generator, batch generator context building
-
-**Validator Layer:**
-- Purpose: Self-check generated SOAP text for compliance
-- Location: `src/validator/`, `parsers/optum-note/`
-- Contains: Output validator, note parser, rule checker
-- Depends on: Parser layer
-- Used by: Generator post-processing
-
-**Auditor Layer:**
-- Purpose: Multi-tier quality assurance (rule compliance, medical logic, case similarity)
-- Location: `src/auditor/`
-- Contains: Layer1 (rules), Layer2 (medical logic), Layer3 (similarity)
-- Depends on: Validator, knowledge base
-- Used by: Optional post-generation audit
-
-**API/Server Layer:**
-- Purpose: HTTP endpoints for batch processing and automation
-- Location: `server/`
-- Contains: Express app, routes, services, batch store
-- Depends on: Generator, parser, validator
-- Used by: Frontend, external clients
+- Contains: TCM pattern inference, medical history engine
+- Depends on: Types, Shared catalogs
+- Used by: Generator
 
 ## Data Flow
 
-**Batch Processing Flow:**
+**Batch Upload & Generation:**
 
 1. Client uploads Excel file → `POST /api/batch`
-2. `excel-parser.ts` parses rows → `ExcelRow[]`
-3. `buildPatientsFromRows()` normalizes → `BatchPatient[]` with `BatchVisit[]`
-4. `generateMixedBatch()` processes each visit:
-   - Build `GenerationContext` from patient clinical data
-   - Call `exportSOAPAsText()` or `exportTXSeriesAsText()`
-   - Split result via `splitSOAPText()` → S/O/A/P sections
-   - Optionally patch via `patchSOAPText()`
-   - Store in `visit.generated`
-5. `saveBatch()` persists to `.batch-data/` directory
-6. Response includes batch ID and generation summary
+2. `batch.ts` route receives file
+3. `excel-parser.parseExcelBuffer()` → extracts rows
+4. `buildPatientsFromRows()` → creates BatchPatient objects with visits
+5. `generateMixedBatch()` → iterates patients/visits
+6. For each visit: `buildContext()` → `exportSOAPAsText()` → `splitSOAPText()`
+7. Results stored in `visit.generated` (immutable update)
+8. `saveBatch()` → memory cache + JSON file
+9. Response: batch summary with generation stats
 
-**Single Visit Regeneration:**
+**Automation Flow:**
 
-1. Client calls `PUT /api/batch/:batchId/visit/:patientIdx/:visitIdx`
-2. Retrieve batch and specific visit
-3. Call `regenerateVisit()` with optional seed
-4. Update batch immutably (spread operator)
-5. Save and return regenerated SOAP
+1. Client uploads MDLand cookies → `POST /api/automate/cookies`
+2. `saveCookies()` → encrypted storage
+3. Client confirms batch → `POST /api/batch/:id/confirm`
+4. Client triggers automation → `POST /api/automate/:batchId`
+5. `startAutomation()` → spawns Playwright subprocess
+6. Subprocess reads batch data, iterates visits, submits to MDLand
+7. Status polled via `GET /api/automate/:batchId`
 
 **State Management:**
-- Batch state stored in `.batch-data/` as JSON files (LRU cache with 32 batch limit)
-- No database; in-memory during request lifecycle
-- Immutable updates: spread operators for patient/visit arrays
-- Confirmed batches marked with `confirmed: true` flag
+- Batches: Immutable objects stored in memory cache + JSON files
+- Updates: Create new objects, never mutate existing (e.g., `{ ...batch, patients: updatedPatients }`)
+- Visits: Regeneration creates new visit object with updated `generated` field
+- Cookies: Encrypted file storage, loaded on automation start
 
 ## Key Abstractions
 
+**BatchData:**
+- Purpose: Container for all patient/visit data in a batch
+- Examples: `server/types.ts` (BatchData, BatchPatient, BatchVisit)
+- Pattern: Immutable record types with readonly fields
+
 **GenerationContext:**
-- Purpose: Encapsulates all clinical parameters needed for SOAP generation
-- Examples: `server/services/batch-generator.ts` line 24-75
-- Pattern: Immutable object passed through generator pipeline
+- Purpose: Input parameters for SOAP generation
+- Examples: `src/types/index.ts` (GenerationContext)
+- Pattern: Structured context object passed through generation pipeline
 
-**BatchVisit:**
-- Purpose: Represents single clinical visit with generated SOAP
-- Examples: `server/types.ts` lines 8-30
-- Pattern: Readonly properties, `generated` field holds S/O/A/P text + seed
+**SOAPNote:**
+- Purpose: Complete SOAP note structure
+- Examples: `src/types/index.ts` (SOAPNote with header, S/O/A/P sections)
+- Pattern: Typed interface with nested sections
 
-**RuleContext:**
-- Purpose: Provides rule engine with patient/clinical context for weight calculations
-- Examples: `src/parser/rule-engine.ts` lines 19-80
-- Pattern: Optional nested structure for flexible rule evaluation
-
-**TemplateFile:**
-- Purpose: Represents parsed template with dropdown fields and raw content
-- Examples: `src/types/index.ts` lines 319-327
-- Pattern: Maps to body part/pattern, contains field definitions
+**TCMPattern:**
+- Purpose: Traditional Chinese Medicine pattern definitions
+- Examples: `src/knowledge/tcm-patterns.ts`
+- Pattern: Catalog of patterns with tongue/pulse/treatment data
 
 ## Entry Points
 
-**API Server:**
+**Server Entry:**
 - Location: `server/index.ts`
-- Triggers: `npm start` or Docker container startup
-- Responsibilities: Create Express app, attach CORS/auth/rate limiting, mount batch/automate routers
+- Triggers: `npm start` or direct execution
+- Responsibilities: Create Express app, setup middleware, register routes, start listening
 
-**Batch Router:**
+**Batch Route:**
 - Location: `server/routes/batch.ts`
-- Triggers: HTTP requests to `/api/batch/*`
-- Responsibilities: Handle file upload, Excel parsing, batch generation, visit regeneration
+- Triggers: POST/GET/PUT requests to `/api/batch/*`
+- Responsibilities: File upload, batch creation, visit regeneration, confirmation
 
-**Automate Router:**
+**Automate Route:**
 - Location: `server/routes/automate.ts`
-- Triggers: HTTP requests to `/api/automate/*`
-- Responsibilities: Browser automation for login/scraping workflows
+- Triggers: POST/GET requests to `/api/automate/*`
+- Responsibilities: Cookie management, automation job control, status polling
 
 **SOAP Generator:**
 - Location: `src/generator/soap-generator.ts`
-- Triggers: Called from `batch-generator.ts` for each visit
-- Responsibilities: Generate complete SOAP note text from context
+- Triggers: Called by `batch-generator.generateSingleVisit()`
+- Responsibilities: Generate complete SOAP text from context
 
 ## Error Handling
 
-**Strategy:** Try-catch at API layer, throw descriptive errors, return JSON error responses
+**Strategy:** Try-catch at route level, throw descriptive errors from services
 
 **Patterns:**
-- API routes wrap logic in try-catch, return `{ success: false, error: message }`
-- Generator functions throw `Error` with descriptive messages
-- Parser validates input and throws on invalid Excel format
-- Validator returns `ValidationResult` with error array (non-throwing)
+- Routes catch errors and return `{ success: false, error: message }` JSON
+- Services throw Error with descriptive messages
+- Validation errors caught early (file type, required fields)
+- Batch not found → 404
+- Unauthorized → 401/403
+- Rate limit exceeded → 429 (via express-rate-limit)
 
 ## Cross-Cutting Concerns
 
-**Logging:** Console output via `process.stdout.write()` for server startup; no structured logging framework
+**Logging:** Console output only (no structured logging framework)
 
 **Validation:**
-- Input validation in parser (Excel row schema)
-- Output validation in validator layer (SOAP text compliance)
-- Rule engine validates dropdown selections against weights
+- File type validation in multer (xlsx/xls only)
+- Excel row schema validation in `buildPatientsFromRows()`
+- JWT/API key validation in `requireAuth()` middleware
 
 **Authentication:**
 - JWT cookie (`rbmeds_token`) with `ac_access` claim
 - Fallback to `x-api-key` header
-- Checked in `requireAuth()` middleware before protected routes
+- Both optional if no secrets configured (dev mode)
+
+**Rate Limiting:**
+- General API: 60 requests/minute
+- Login endpoint: 5 requests/15 minutes
+- Applied via `express-rate-limit` middleware
 
 ---
 

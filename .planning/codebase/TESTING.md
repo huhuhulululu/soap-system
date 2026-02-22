@@ -1,127 +1,177 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-22
+**Analysis Date:** 2026-02-21
 
 ## Test Framework
 
 **Runner:**
-- Jest 29.7.0 (primary) - configured in `package.json`
-- Vitest 4.0.18 (secondary) - `vitest.config.ts` with globals enabled
-- Config: `package.json` jest section
+- Jest 29.7.0 (primary)
+- Vitest 4.0.18 (secondary, used in frontend)
+- Config: `package.json` jest config + `vitest.config.ts`
 
 **Assertion Library:**
-- Jest built-in assertions: `expect()`
+- Jest built-in `expect()` for Jest tests
+- Vitest built-in `expect()` for Vitest tests
 
 **Run Commands:**
 ```bash
-npm test                 # Run all tests
-npm run test:verbose    # Verbose output
-npm run test:coverage   # Coverage report
-npm run test:unit       # Unit tests only
-npm run test:e2e        # E2E tests only
-npm run test:all        # All test patterns
-npm run test:watch      # Watch mode
+npm test                    # Run all tests (Jest)
+npm run test:verbose        # Jest with verbose output
+npm run test:coverage       # Jest with coverage report
+npm run test:unit           # Jest unit tests only
+npm run test:e2e            # Jest E2E tests only
+npm run test:all            # Jest all tests in __tests__ and tests/
+npm run test:watch          # Jest watch mode
 ```
 
 ## Test File Organization
 
 **Location:**
-- Co-located with implementation: `src/shared/__tests__/field-parsers.test.ts` next to `src/shared/field-parsers.ts`
-- Separate test directories: `frontend/src/tests/checker/`, `frontend/src/tests/fixtures/`
-- Pattern: `**/__tests__/**/*.test.ts` or `**/tests/**/*.spec.ts`
+- Backend: `server/__tests__/` and `src/shared/__tests__/`
+- Frontend: `frontend/src/tests/` and co-located with source (e.g., `engine.test.ts` next to `engine.ts`)
+- Parsers: `parsers/optum-note/` (no dedicated test directory)
 
 **Naming:**
-- `.test.ts` suffix for test files: `field-parsers.test.ts`, `sequence-rules.test.ts`
-- `.spec.ts` suffix also supported: `tests/**/*.spec.ts`
-- Descriptive test names matching implementation: `engine.test.ts` for `engine.ts`
+- `*.test.ts` for Jest tests
+- `*.spec.ts` for Jest tests (alternative)
+- Both patterns supported by Jest config
 
 **Structure:**
 ```
-src/shared/__tests__/
-├── field-parsers.test.ts
-├── icd-catalog.test.ts
-├── cpt-catalog.test.ts
-└── body-part-constants.test.ts
-
-frontend/src/tests/
-├── checker/
-│   ├── sequence-rules.test.ts
-│   ├── scoring.test.ts
-│   ├── tx-rules.test.ts
-│   └── integration.test.ts
-└── fixtures/
-    ├── generator.ts
-    └── generator.smoke.test.ts
+server/
+├── __tests__/
+│   ├── batch-store.test.ts
+│   ├── batch-generator.test.ts
+│   ├── excel-parser.test.ts
+│   ├── text-to-html.test.ts
+│   └── api-routes.test.ts
+src/shared/
+├── __tests__/
+│   ├── field-parsers.test.ts
+│   ├── cpt-catalog.test.ts
+│   ├── icd-catalog.test.ts
+│   └── body-part-constants.test.ts
+frontend/src/
+├── engine.test.ts
+├── engine-random.test.ts
+├── medical-history.test.ts
+├── e2e-score-audit.test.ts
+└── tests/
+    ├── checker/
+    │   ├── sequence-rules.test.ts
+    │   ├── scoring.test.ts
+    │   ├── tx-rules.test.ts
+    │   ├── batch-scale.test.ts
+    │   ├── ie-rules.test.ts
+    │   ├── code-rules.test.ts
+    │   ├── stress.test.ts
+    │   ├── generator-rules.test.ts
+    │   └── integration.test.ts
+    ├── shared/
+    │   └── shared-modules.test.ts
+    └── fixtures/
+        ├── debug-errors.test.ts
+        └── generator.smoke.test.ts
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 ```typescript
-import { describe, it, expect, beforeAll } from 'vitest'
-
-describe('Feature Name', () => {
-  describe('Sub-feature', () => {
+describe('Feature/Module Name', () => {
+  describe('Specific Behavior', () => {
     it('should do X when Y', () => {
-      expect(result).toBe(expected)
+      // Arrange
+      const input = makeTestData()
+
+      // Act
+      const result = functionUnderTest(input)
+
+      // Assert
+      expect(result).toBe(expectedValue)
     })
   })
 })
 ```
 
 **Patterns:**
-- Setup: `beforeAll()` for initialization (e.g., `setWhitelist(whitelistData)`)
-- Teardown: Not observed; tests are stateless
-- Assertion: `expect().toBe()`, `expect().toHaveLength()`, `expect().toContain()`
-- Nested describes for logical grouping by feature/rule
+- Setup: `beforeEach()` for test isolation (e.g., `clearAllBatches()`)
+- Teardown: `afterEach()` not commonly used (tests are isolated)
+- Assertion: Direct `expect()` calls, no custom matchers
 
-## Mocking
-
-**Framework:** Vitest/Jest built-in mocking
-
-**Patterns:**
+**Example from `src/shared/__tests__/field-parsers.test.ts`:**
 ```typescript
-// Test fixture generation
-function makeContext(overrides = {}) {
-  return {
-    noteType: 'TX' as const,
-    insuranceType: 'OPTUM' as const,
-    primaryBodyPart: 'LBP' as const,
-    ...overrides
-  }
-}
+describe('extractPainCurrent', () => {
+    it('reads { current } format', () => {
+        expect(extractPainCurrent({ current: 6 })).toBe(6)
+    })
 
-// Error injection for testing
-const doc = generateDocument({
-  painStart: 8,
-  injectErrors: [{ ruleId: 'IE02' }]
+    it('reads { value } format', () => {
+        expect(extractPainCurrent({ value: 5 })).toBe(5)
+    })
+
+    it('returns 7 for null/undefined/empty', () => {
+        expect(extractPainCurrent(null)).toBe(7)
+        expect(extractPainCurrent(undefined)).toBe(7)
+        expect(extractPainCurrent({})).toBe(7)
+    })
 })
 ```
 
+## Mocking
+
+**Framework:** Jest built-in mocking (no external library)
+
+**Patterns:**
+```typescript
+// Mock module
+jest.mock('../path/to/module', () => ({
+  functionName: jest.fn(() => mockValue)
+}))
+
+// Mock function
+const mockFn = jest.fn()
+mockFn.mockReturnValue(value)
+mockFn.mockResolvedValue(asyncValue)
+```
+
 **What to Mock:**
-- Test data generators: `generateDocument()`, `generatePerfectBatch()`
-- Context builders: `makeContext()` with overrides
-- Whitelist initialization: `setWhitelist(whitelistData)`
+- External API calls
+- File system operations
+- Database queries
+- Time-dependent functions (use `jest.useFakeTimers()`)
 
 **What NOT to Mock:**
-- Core business logic functions
-- Validation/parsing functions
-- Rule checking engines
+- Pure utility functions (parse, calculate, filter)
+- Type definitions
+- Constants and mappings
+- Internal module dependencies (test integration)
+
+**Example from `server/__tests__/batch-store.test.ts`:**
+```typescript
+function makeBatch(id?: string): BatchData {
+  return {
+    batchId: id ?? generateBatchId(),
+    createdAt: new Date().toISOString(),
+    mode: 'full',
+    confirmed: false,
+    patients: [],
+    summary: { totalPatients: 0, totalVisits: 0, byType: {} },
+  }
+}
+
+describe('batch-store', () => {
+  beforeEach(() => {
+    clearAllBatches()  // Isolation via setup
+  })
+})
+```
 
 ## Fixtures and Factories
 
 **Test Data:**
 ```typescript
-// Factory function with overrides
-function generateDocument(config = {}) {
-  return {
-    painStart: 8,
-    bodyPart: 'LBP',
-    ...config
-  }
-}
-
-// Context builder
+// Factory function pattern
 function makeContext(overrides = {}) {
   return {
     noteType: 'TX' as const,
@@ -131,16 +181,46 @@ function makeContext(overrides = {}) {
     ...overrides
   }
 }
+
+// Usage
+const ctx = makeContext({ painCurrent: 6 })
 ```
 
 **Location:**
-- `frontend/src/tests/fixtures/generator.ts` - Main test data generator
-- `frontend/src/tests/fixtures/data/whitelist.json` - Whitelist test data
-- Imported in test files: `import { generateDocument } from '../fixtures/generator'`
+- Inline in test files (no separate fixtures directory)
+- Factory functions at top of test file
+- JSON fixtures in `frontend/src/tests/data/` (e.g., `whitelist.json`)
+
+**Example from `frontend/src/engine.test.ts`:**
+```typescript
+function makeContext(overrides = {}) {
+  return {
+    noteType: 'TX' as const,
+    insuranceType: 'OPTUM' as const,
+    primaryBodyPart: 'LBP' as const,
+    laterality: 'bilateral' as const,
+    localPattern: 'Qi Stagnation',
+    systemicPattern: 'Kidney Yang Deficiency',
+    chronicityLevel: 'Chronic' as const,
+    severityLevel: 'moderate to severe' as const,
+    painCurrent: 8,
+    associatedSymptom: 'soreness' as const,
+    ...overrides
+  }
+}
+```
 
 ## Coverage
 
-**Requirements:** 70% threshold enforced
+**Requirements:** 70% minimum (branches, functions, lines, statements)
+
+**View Coverage:**
+```bash
+npm run test:coverage
+# Generates coverage/ directory with HTML report
+```
+
+**Threshold Configuration (from `package.json`):**
 ```json
 "coverageThreshold": {
   "global": {
@@ -152,44 +232,35 @@ function makeContext(overrides = {}) {
 }
 ```
 
-**View Coverage:**
-```bash
-npm run test:coverage
-```
-
-**Collected from:**
-- `src/**/*.ts`
-- `parsers/**/*.ts`
-- `server/**/*.ts`
-- Excludes: `**/__tests__/**`, `**/*.test.ts`, `**/*.spec.ts`
-
 ## Test Types
 
 **Unit Tests:**
 - Scope: Individual functions and utilities
-- Approach: Test single function with various inputs
-- Example: `extractPainCurrent()` tests handle `{ current }`, `{ value }`, `{ range: { max } }` formats
-- Location: `src/shared/__tests__/field-parsers.test.ts`
+- Location: `src/shared/__tests__/`, `server/__tests__/`
+- Examples: `field-parsers.test.ts`, `batch-store.test.ts`
+- Approach: Test pure functions with various inputs (happy path, edge cases, defaults)
 
 **Integration Tests:**
-- Scope: Cross-rule interactions, end-to-end flows
-- Approach: Generate document → check → verify results
-- Example: `frontend/src/tests/checker/integration.test.ts` tests perfect docs (0 errors, score 100) and injected errors
-- Verifies: Multiple rule interactions, scoring calculations, grade assignment
+- Scope: Multiple modules working together
+- Location: `frontend/src/tests/checker/integration.test.ts`
+- Approach: Test data flow through generators and validators
 
 **E2E Tests:**
-- Framework: Playwright 1.58.2 (installed but not extensively used)
 - Scope: Critical user flows
-- Example: `frontend/src/e2e-score-audit.test.ts`
-- Not primary focus; integration tests dominate
+- Framework: Playwright (installed but not heavily used in test suite)
+- Location: `frontend/src/e2e-score-audit.test.ts`
+- Approach: Test complete workflows (generate note → validate → export)
+
+**Smoke Tests:**
+- Scope: Basic functionality verification
+- Location: `frontend/src/tests/fixtures/generator.smoke.test.ts`
+- Approach: Quick sanity checks for major features
 
 ## Common Patterns
 
 **Async Testing:**
 ```typescript
-// Not extensively used; most tests are synchronous
-// When needed, use async/await with expect()
-it('async operation', async () => {
+it('should handle async operations', async () => {
   const result = await asyncFunction()
   expect(result).toBeDefined()
 })
@@ -197,52 +268,77 @@ it('async operation', async () => {
 
 **Error Testing:**
 ```typescript
-// Test error conditions by injecting errors
-it('triggers when pain increases between visits', () => {
-  const doc = generateDocument({
-    painStart: 8,
-    injectErrors: [{ ruleId: 'V01' }]
-  })
-  const result = checkDocument({ document: doc })
-  expect(result.errors.length).toBeGreaterThan(0)
-})
-
-// Test error messages
-it('throws with descriptive message', () => {
-  expect(() => {
-    assertTemplateSupported(invalidContext)
-  }).toThrow('Unsupported TX body part')
+it('should throw on invalid input', () => {
+  expect(() => functionThatThrows()).toThrow()
+  expect(() => functionThatThrows()).toThrow(Error)
 })
 ```
 
-**Boundary Testing:**
+**Parameterized Testing:**
 ```typescript
-// Test edge cases and boundaries
-it('returns 7 for null/undefined/empty', () => {
-  expect(extractPainCurrent(null)).toBe(7)
-  expect(extractPainCurrent(undefined)).toBe(7)
-  expect(extractPainCurrent({})).toBe(7)
-})
-
-it('extracts min from range "5-6"', () => {
-  expect(parseGoalPainTarget('5-6')).toBe(5)
+describe('parseAdlSeverity', () => {
+    it('maps all severity levels', () => {
+        expect(parseAdlSeverity('mild')).toBe('mild')
+        expect(parseAdlSeverity('moderate')).toBe('moderate')
+        expect(parseAdlSeverity('severe')).toBe('severe')
+    })
 })
 ```
 
-**Deterministic Testing:**
+**Seeded Randomness (for reproducible tests):**
 ```typescript
-// Use fixed seeds for reproducible results
 const SEED = 378146595
 
-// Test with specific configurations
-const ctx = makeContext({
-  noteType: 'TX' as const,
-  painCurrent: 8,
-  painWorst: 9,
-  painBest: 3
+it('generates reproducible results with same seed', () => {
+  const r1 = generateTXSequenceStates(ctx, { seed: SEED })
+  const r2 = generateTXSequenceStates(ctx, { seed: SEED })
+  expect(r1.states).toEqual(r2.states)
+})
+```
+
+**Example from `frontend/src/engine.test.ts`:**
+```typescript
+describe('Seed 可复现', () => {
+    it('相同 seed + 输入 → 相同结果', () => {
+      const ctx = makeContext()
+      const opts = {
+        txCount: 11, startVisitIndex: 1, seed: SEED,
+        initialState: { pain: 8, associatedSymptom: 'soreness' }
+      }
+      const r1 = generateTXSequenceStates(ctx, opts)
+      const r2 = generateTXSequenceStates(ctx, opts)
+      expect(r1.seed).toBe(r2.seed)
+      expect(r1.states.map(s => s.painScaleLabel)).toEqual(
+        r2.states.map(s => s.painScaleLabel)
+      )
+    })
+})
+```
+
+## Test Isolation
+
+**Strategy:**
+- Factory functions create fresh test data for each test
+- `beforeEach()` resets shared state (e.g., `clearAllBatches()`)
+- No global state pollution between tests
+- Each test is independent and can run in any order
+
+**Example from `server/__tests__/batch-store.test.ts`:**
+```typescript
+describe('batch-store', () => {
+  beforeEach(() => {
+    clearAllBatches()  // Reset before each test
+  })
+
+  it('saves and retrieves a batch', () => {
+    const batch = makeBatch('test_batch_1')
+    saveBatch(batch)
+    const retrieved = getBatch('test_batch_1')
+    expect(retrieved?.batchId).toBe('test_batch_1')
+  })
 })
 ```
 
 ---
 
-*Testing analysis: 2026-02-22*
+*Testing analysis: 2026-02-21*
