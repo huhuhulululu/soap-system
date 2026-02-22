@@ -19,5 +19,5 @@
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 04-01-PLAN.md — Excel magic bytes validation, 5MB limit, pain parser type safety, auditor nullish coalescing
+- [x] 04-01-PLAN.md — Excel magic bytes validation, 5MB limit, pain parser type safety, auditor nullish coalescing
 - [ ] 04-02-PLAN.md — CSRF double-submit cookie middleware, production env validation
