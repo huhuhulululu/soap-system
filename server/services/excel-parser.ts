@@ -8,7 +8,7 @@ import ExcelJS from 'exceljs'
 import type { BodyPart, InsuranceType, Laterality } from '../../src/types'
 import type { ExcelRow, BatchPatient, BatchVisit, BatchPatientClinical, BatchMode } from '../types'
 import { getICDName } from '../../src/shared/icd-catalog'
-import { parseCPTString, getDefaultTXCPT, type CPTWithUnits } from '../../src/shared/cpt-catalog'
+import { parseCPTString, getDefaultTXCPT, getDefaultIECPT, type CPTWithUnits } from '../../src/shared/cpt-catalog'
 import { severityFromPain } from '../../src/shared/severity'
 import { extractStateFromTX } from '../../src/parser/tx-extractor'
 
@@ -115,8 +115,8 @@ function parseRecentWorse(raw: string): { value: string; unit: string } {
 function parseIncludeIE(raw: boolean | string | undefined, fallbackMode: BatchMode): boolean {
   if (raw === true || raw === 'true' || raw === '1') return true
   if (raw === false || raw === 'false' || raw === '0') return false
-  // 未指定时按模式决定
-  return fallbackMode === 'full'
+  // 未指定时按模式决定: full/soap-only → true, continue → false
+  return fallbackMode !== 'continue'
 }
 
 /**
@@ -423,10 +423,13 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
     const includeIE = parseIncludeIE(row.includeIE, rowMode)
 
     if (includeIE) {
-      // IE visit (dos=1) — includes 99203 if present
-      const ieCPT: CPTWithUnits[] = row.cpt.trim()
-        ? parseCPTString(row.cpt)
+      // IE visit (dos=1) — mode-aware CPT: full adds 99203 for HF/VC, soap-only does not
+      const baseCPT: CPTWithUnits[] = row.cpt.trim()
+        ? parseCPTString(row.cpt).filter(c => c.code !== '99203')
         : [...getDefaultTXCPT(insurance)]
+      const ieCPT: CPTWithUnits[] = rowMode === 'full'
+        ? [...baseCPT, ...getDefaultIECPT(insurance)]
+        : baseCPT
 
       visits.push({
         index: 0,

@@ -68,13 +68,14 @@ describe('excel-parser - buildPatientsFromRows', () => {
     expect(txCpt[0].code).toBe('97810')
   })
 
-  it('parses user-specified CPT with units', () => {
+  it('parses user-specified CPT with units (full+HF appends 99203)', () => {
     const result = buildPatientsFromRows([makeRow({ cpt: '97810,97811x3,97140' })])
     const cpt = result.patients[0].visits[0].cptCodes
-    expect(cpt).toHaveLength(3)
+    expect(cpt).toHaveLength(4)
     expect(cpt[0]).toEqual({ code: '97810', name: expect.any(String), units: 1 })
     expect(cpt[1]).toEqual({ code: '97811', name: expect.any(String), units: 3 })
     expect(cpt[2]).toEqual({ code: '97140', name: expect.any(String), units: 1 })
+    expect(cpt[3]).toEqual({ code: '99203', name: expect.any(String), units: 1 })
   })
 
   it('parses patient name and DOB', () => {
@@ -148,5 +149,66 @@ describe('excel-parser - buildPatientsFromRows', () => {
   it('ICD names are resolved from catalog', () => {
     const result = buildPatientsFromRows([makeRow({ icd: 'M54.50' })])
     expect(result.patients[0].visits[0].icdCodes[0].name).toBe('Low back pain, unspecified')
+  })
+
+  // ── BL-01: parseIncludeIE defaults ──
+
+  it('soap-only defaults includeIE to true', () => {
+    const result = buildPatientsFromRows([makeRow({ includeIE: undefined, mode: 'soap-only' })])
+    expect(result.patients[0].visits[0].noteType).toBe('IE')
+  })
+
+  it('continue mode defaults includeIE to false', () => {
+    const result = buildPatientsFromRows([makeRow({
+      includeIE: undefined, mode: 'continue', soapText: 'S: LBP. O: Tender. A: Chronic. P: Continue.',
+      icd: '', cpt: '',
+    })])
+    expect(result.patients[0].visits.every(v => v.noteType === 'TX')).toBe(true)
+  })
+
+  // ── BL-02: IE CPT by mode ──
+
+  it('full mode HF: IE CPT includes 99203', () => {
+    const result = buildPatientsFromRows([makeRow({ cpt: '', insurance: 'HF' })], 'full')
+    const ieCpt = result.patients[0].visits[0].cptCodes
+    expect(ieCpt.some(c => c.code === '99203')).toBe(true)
+  })
+
+  it('full mode OPTUM: IE CPT has no 99203', () => {
+    const result = buildPatientsFromRows([makeRow({ cpt: '', insurance: 'OPTUM' })], 'full')
+    const ieCpt = result.patients[0].visits[0].cptCodes
+    expect(ieCpt.some(c => c.code === '99203')).toBe(false)
+  })
+
+  it('soap-only mode HF: IE CPT excludes 99203', () => {
+    const result = buildPatientsFromRows([makeRow({ cpt: '', insurance: 'HF', mode: 'soap-only' })])
+    const ieCpt = result.patients[0].visits[0].cptCodes
+    expect(ieCpt.some(c => c.code === '99203')).toBe(false)
+  })
+
+  it('soap-only mode: user CPT with 99203 is stripped from IE', () => {
+    const result = buildPatientsFromRows([makeRow({ cpt: '97810,99203', mode: 'soap-only' })])
+    const ieCpt = result.patients[0].visits[0].cptCodes
+    expect(ieCpt.some(c => c.code === '99203')).toBe(false)
+    expect(ieCpt.some(c => c.code === '97810')).toBe(true)
+  })
+
+  it('full mode: user CPT with 99203 keeps 99203 on IE for HF', () => {
+    const result = buildPatientsFromRows([makeRow({ cpt: '97810,99203', insurance: 'HF' })], 'full')
+    const ieCpt = result.patients[0].visits[0].cptCodes
+    expect(ieCpt.filter(c => c.code === '99203')).toHaveLength(1)
+  })
+
+  // ── BL-03: ICD validation with new defaults ──
+
+  it('soap-only with no explicit includeIE and no ICD throws', () => {
+    expect(() => buildPatientsFromRows(
+      [makeRow({ icd: '', includeIE: undefined, mode: 'soap-only' })]
+    )).toThrow('ICD codes are required')
+  })
+
+  it('soap-only with explicit includeIE=false and no ICD passes', () => {
+    const result = buildPatientsFromRows([makeRow({ icd: '', cpt: '', includeIE: false, mode: 'soap-only' })])
+    expect(result.patients).toHaveLength(1)
   })
 })
