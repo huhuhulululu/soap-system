@@ -21,7 +21,7 @@
 
 - [x] **Phase 5: Error Classification** - Shared types and error kind enum that gate all retry logic
 - [x] **Phase 6: Adaptive Timeouts** - Per-operation timeout constants replacing the global 30s default (completed 2026-02-22)
-- [ ] **Phase 7: Retry, Recovery & Events** - Per-visit retry with backoff, session fast-fail, and JSON line events
+- [x] **Phase 7: Retry, Recovery & Events** - Per-visit retry with backoff, session fast-fail, and JSON line events (completed 2026-02-22)
 
 ## Phase Details
 
@@ -58,7 +58,7 @@ Plans:
   2. Each retry closes the current visit and re-navigates from the waiting room before re-attempting
   3. A session-expired error stops the entire batch immediately without attempting remaining visits
   4. The child process emits a JSON line to stdout for visit start, visit result (pass/fail/attempts), and batch summary
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 07-01-PLAN.md — Types + withRetry + emitEvent + fatal-stop in child process
 - [ ] 07-02-PLAN.md — Parent process JSON event parsing
@@ -69,4 +69,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Error Classification | 1/1 | Complete | 2026-02-22 |
 | 6. Adaptive Timeouts | 1/1 | Complete    | 2026-02-22 |
-| 7. Retry, Recovery & Events | 1/2 | In Progress | - |
+| 7. Retry, Recovery & Events | 2/2 | Complete   | 2026-02-22 |

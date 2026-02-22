@@ -1,7 +1,7 @@
 # Project State
 
 ## Status
-v1.1 Automation Stability — PHASE 7 IN PROGRESS
+v1.1 Automation Stability — PHASE 7 COMPLETE
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 Phase: 7 (Retry Recovery Events)
-Plan: 07-01-PLAN.md (Retry + NDJSON Events) — COMPLETE
-Status: In Progress — 07-01 done
-Last activity: 2026-02-22 — 07-01 executed
+Plan: 07-02-PLAN.md (JSON Event Parsing in Runner) — COMPLETE
+Status: Complete — all plans done
+Last activity: 2026-02-22 — 07-02 executed
 
 ```
 [Phase 5] [x] → [Phase 6] [x] → [Phase 7] [x]
@@ -36,6 +36,8 @@ Last activity: 2026-02-22 — 07-01 executed
 - unknown errorKind treated as retryable — safer to retry than skip
 - processBatch emits batch_summary on both normal and aborted paths before re-throwing
 
+- JSON lines are also forwarded to appendLog — events and logs serve different consumers but both benefit from the data
+
 ### Critical Constraints
 - MDLand is non-idempotent: ICD/CPT codes are appended, not replaced — every retry MUST call `closeVisit()` and re-navigate before re-attempting
 - Session-expired errors must stop the batch (ERR-03), never retry
@@ -45,5 +47,5 @@ None
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: Phase 7 complete — v1.1 all phases done
-- Last session: 2026-02-22 — 07-01 executed
+- Next action: v1.1 complete — all phases done
+- Last session: 2026-02-22 — 07-02 executed
