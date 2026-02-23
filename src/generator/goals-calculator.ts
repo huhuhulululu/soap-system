@@ -71,6 +71,8 @@ const MAIN_BODY_PARTS: BodyPart[] = ['KNEE', 'SHOULDER', 'LBP', 'NECK']
 const ST_PROGRESS = 0.55
 // LT Goal = 初始值 * 此比率 (0.25 使 Pain 8 → LT 2)
 const OPTIMAL_END_RATIO = 0.25
+// Chronic LT Goal = 初始值 * 此比率 (0.55 使 Pain 8 → LT 5, ~38-50% improvement)
+const CHRONIC_END_RATIO = 0.55
 
 // ===== 导出函数 =====
 
@@ -87,7 +89,7 @@ export function calculateIEPainScale(severity: SeverityLevel, bp: BodyPart): IEP
 }
 
 /** 计算 Pain Goals (基于康复曲线) */
-function calculatePainGoals(painCurrent: number, bp: BodyPart): { st: string; lt: string } {
+function calculatePainGoals(painCurrent: number, bp: BodyPart, chronicAware: boolean = false): { st: string; lt: string } {
   // 边界: 已经很好
   if (painCurrent <= 3) {
     return { st: '1', lt: '1' }
@@ -98,7 +100,9 @@ function calculatePainGoals(painCurrent: number, bp: BodyPart): { st: string; lt
   }
 
   // 正常: 重症 (Pain >= 7)
-  const optimalEnd = Math.max(2, painCurrent * OPTIMAL_END_RATIO)
+  // Chronic patients use conservative ratio (30-50% improvement vs 75%)
+  const endRatio = (chronicAware && painCurrent >= 7) ? CHRONIC_END_RATIO : OPTIMAL_END_RATIO
+  const optimalEnd = Math.max(2, painCurrent * endRatio)
   const stActual = recoveryCurve(painCurrent, optimalEnd, ST_PROGRESS)
   const stTarget = Math.ceil(stActual)
   const ltTarget = Math.ceil(optimalEnd)
@@ -151,19 +155,26 @@ function calculateSpasmGoals(current: number = 3): { st: number; lt: number } {
 }
 
 /** 计算 Strength Goals (与 ROM 关联) */
-function calculateStrengthGoals(current: string = '3+/5'): { st: string; lt: string } {
+function calculateStrengthGoals(current: string = '3+/5', chronicAware: boolean = false): { st: string; lt: string } {
   const map: Record<string, number> = {
     '0/5': 0, '1/5': 1, '2/5': 2, '2+/5': 2.5, '3/5': 3, '3+/5': 3.5,
     '4-/5': 3.8, '4/5': 4, '4+/5': 4.5, '5/5': 5
   }
   const val = map[current] ?? 3.5
   // 边界: 已接近满分
-  if (val >= 4.5) return { st: '4+', lt: '4+' }
-  if (val >= 4) return { st: '4', lt: '4+' }
+  if (val >= 4.5) {
+    // Chronic: cap at 4, Non-chronic: 4+
+    return chronicAware ? { st: '4', lt: '4' } : { st: '4+', lt: '4+' }
+  }
+  if (val >= 4) {
+    return chronicAware ? { st: '4', lt: '4' } : { st: '4', lt: '4+' }
+  }
   // ST +0.5, LT +1.0 (ROM 改善后才能训练)
   const stVal = Math.min(5, val + 0.5)
   const ltVal = Math.min(5, val + 1.0)
-  const format = (v: number) => v >= 4.5 ? '4+' : v >= 4 ? '4' : v >= 3.5 ? '3+' : '3'
+  const formatNormal = (v: number) => v >= 4.5 ? '4+' : v >= 4 ? '4' : v >= 3.5 ? '3+' : '3'
+  const formatChronic = (v: number) => v >= 4 ? '4' : v >= 3.5 ? '3+' : '3'
+  const format = chronicAware ? formatChronic : formatNormal
   return { st: format(stVal), lt: format(ltVal) }
 }
 
@@ -179,7 +190,19 @@ function calculateSymptomPctGoals(severity: SeverityLevel): { st: string; lt: st
   }
   return map[severity] || { st: '(50%-60%)', lt: '(20%-30%)' }
 }
-function calculateROMGoals(severity: SeverityLevel): { st: string; lt: string } {
+function calculateROMGoals(severity: SeverityLevel, chronicAware: boolean = false): { st: string; lt: string } {
+  // Chronic patients: conservative ROM targets
+  if (chronicAware) {
+    const chronicMap: Record<string, { st: string; lt: string }> = {
+      'severe': { st: '45%', lt: '60%' },
+      'moderate to severe': { st: '55%', lt: '70%' },
+      'moderate': { st: '50%', lt: '60%' },
+      'mild to moderate': { st: '45%', lt: '55%' },
+      'mild': { st: '45%', lt: '55%' },
+    }
+    return chronicMap[severity] || { st: '55%', lt: '70%' }
+  }
+
   // ROM 改善依赖 Tightness 改善
   // severe: 50% → ST 70% → LT 85%
   // mod-sev: 60% → ST 80% → LT 92%
@@ -209,12 +232,13 @@ function calculateADLGoals(severity: SeverityLevel): { st: string; lt: string } 
  * @param bp - body part
  * @param symptomType - associated symptom type
  * @param painOverride - 用户实际 pain 值 (可选，优先于 severity 反推)
+ * @param chronicAware - 慢性患者标志 (可选，默认 false)
  */
-export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, symptomType: string = 'soreness', painOverride?: number): DynamicGoals {
+export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, symptomType: string = 'soreness', painOverride?: number, chronicAware: boolean = false): DynamicGoals {
   const painCurrent = painOverride ?? parsePainFromSeverity(severity)
 
   return {
-    pain: calculatePainGoals(painCurrent, bp),
+    pain: calculatePainGoals(painCurrent, bp, chronicAware),
     symptomType: symptomType,
     symptomPct: calculateSymptomPctGoals(severity),
     tightness: calculateTightnessGoals(severity),
@@ -224,9 +248,10 @@ export function calculateDynamicGoals(severity: SeverityLevel, bp: BodyPart, sym
     strength: calculateStrengthGoals(
       severity === 'severe' || severity === 'moderate to severe' ? '4-/5'
         : severity === 'moderate' ? '4/5'
-          : '4+/5'
+          : '4+/5',
+      chronicAware
     ),
-    rom: calculateROMGoals(severity),
+    rom: calculateROMGoals(severity, chronicAware),
     adl: calculateADLGoals(severity),
   }
 }
