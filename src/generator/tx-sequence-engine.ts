@@ -389,7 +389,16 @@ function findTemplateOption(fieldPath: string, preferred: string[], fallback: st
   return options[0]
 }
 
-function deriveAssessmentFromSOA(input: {
+/**
+ * ASS-01/02/03: Evidence-based assessment field selection.
+ *
+ * Derives assessment template values from S/O chain data + cumulative context.
+ * All returned strings are from existing TX_*_OPTIONS arrays (ASS-03).
+ *
+ * ASS-01: whatChanged picks the most-improved metric, not a fixed rotation.
+ * ASS-02: present/patientChange strength gated by cumulative evidence + progress.
+ */
+export function deriveAssessmentFromSOA(input: {
   painDelta: number
   adlDelta: number
   frequencyImproved: boolean
@@ -399,6 +408,9 @@ function deriveAssessmentFromSOA(input: {
   objectiveSpasmTrend: 'reduced' | 'slightly reduced' | 'stable'
   objectiveRomTrend: 'improved' | 'slightly improved' | 'stable'
   objectiveStrengthTrend: 'improved' | 'slightly improved' | 'stable'
+  // ASS-02: cumulative context
+  cumulativePainDrop: number  // startPain - currentPain (total from IE baseline)
+  progress: number            // 0-1 normalized visit progress
 }): {
   present: string
   patientChange: string
@@ -406,24 +418,45 @@ function deriveAssessmentFromSOA(input: {
   physicalChange: string
   findingType: string
 } {
-  const present = input.painDelta >= 0.7
+  // ASS-02: cumulative + visit-level evidence gates language strength
+  const strongCumulative = input.cumulativePainDrop >= 3.0 && input.progress >= 0.5
+  const visitLevelStrong = input.painDelta >= 0.7
+
+  const present = (strongCumulative || visitLevelStrong)
     ? 'improvement of symptom(s).'
     : 'slight improvement of symptom(s).'
 
-  const patientChange = input.painDelta >= 0.7
+  const patientChange = (strongCumulative || visitLevelStrong)
     ? 'decreased'
     : 'slightly decreased'
 
-  // Hard chain rule:
-  // S frequency improved -> A must mention "pain frequency".
-  // Rotate among equivalent options by visitIndex to avoid identical assessments
-  const adlOptions = ['difficulty in performing ADLs', 'pain and discomfort', 'symptom severity']
-  const whatChanged = input.frequencyImproved
-    ? 'pain frequency'
-    : input.adlDelta > 0.2
-      ? adlOptions[input.visitIndex % adlOptions.length]
-      : 'pain'
+  // ASS-01: evidence-based whatChanged selection
+  // Priority: frequency (hard rule) > ADL > objective > pain (fallback)
+  const whatChanged = (() => {
+    // Hard chain rule preserved: S frequency improved → A must mention "pain frequency"
+    if (input.frequencyImproved) return 'pain frequency'
 
+    // Strong ADL improvement → ADL-related option (rotate by visitIndex for variety)
+    if (input.adlDelta > 0.2) {
+      const adlOptions = ['difficulty in performing ADLs', 'muscles soreness sensation', 'muscles stiffness sensation']
+      return adlOptions[input.visitIndex % adlOptions.length]
+    }
+
+    // Objective findings strongly improved + pain delta weak → mention physical metric
+    const hasStrongObjective =
+      input.objectiveRomTrend === 'improved' ||
+      input.objectiveStrengthTrend === 'improved' ||
+      input.objectiveTightnessTrend === 'reduced'
+
+    if (hasStrongObjective && input.painDelta < 0.3) {
+      const objOptions = ['muscles stiffness sensation', 'muscles soreness sensation']
+      return objOptions[input.visitIndex % objOptions.length]
+    }
+
+    return 'pain'
+  })()
+
+  // Physical change: same logic as before — derived from objective trends
   const strongPhysicalImprove =
     input.objectiveRomTrend === 'improved' ||
     input.objectiveStrengthTrend === 'improved' ||
@@ -444,24 +477,19 @@ function deriveAssessmentFromSOA(input: {
       ? 'reduced'
       : 'slightly reduced'
 
-  // 修复: 当所有客观趋势都是 stable 时, 不能用 "last visit" 作为 findingType
-  // 因为 "slightly reduced last visit" 语法不通, 需要回退到具体体征名
+  // ASS-01: findingType with cumulative awareness
+  // Late progress + strong cumulative → "joint ROM" (improvement framing)
+  // Early/mid → "joint ROM limitation" (deficit framing)
   const findingType = (() => {
     if (input.objectiveRomTrend !== 'stable') {
-      return 'joint ROM limitation'
+      return input.progress >= 0.6 && input.cumulativePainDrop >= 2.0
+        ? 'joint ROM'
+        : 'joint ROM limitation'
     }
-    if (input.objectiveStrengthTrend !== 'stable') {
-      return 'muscles strength'
-    }
-    if (input.objectiveTightnessTrend !== 'stable') {
-      return 'local muscles tightness'
-    }
-    if (input.objectiveTendernessTrend !== 'stable') {
-      return 'local muscles tenderness'
-    }
-    if (input.objectiveSpasmTrend !== 'stable') {
-      return 'local muscles spasms'
-    }
+    if (input.objectiveStrengthTrend !== 'stable') return 'muscles strength'
+    if (input.objectiveTightnessTrend !== 'stable') return 'local muscles tightness'
+    if (input.objectiveTendernessTrend !== 'stable') return 'local muscles tenderness'
+    if (input.objectiveSpasmTrend !== 'stable') return 'local muscles spasms'
     return 'joint ROM limitation'
   })()
 
@@ -1153,6 +1181,9 @@ export function generateTXSequenceStates(
       painFrequency
     )
 
+    // ASS-02: cumulative pain drop from IE baseline
+    const cumulativePainDrop = startPain - painScaleCurrent
+
     const assessmentFromChain = deriveAssessmentFromSOA({
       painDelta,
       adlDelta,
@@ -1162,7 +1193,9 @@ export function generateTXSequenceStates(
       objectiveTendernessTrend: tendernessTrend,
       objectiveSpasmTrend: spasmTrend,
       objectiveRomTrend: romTrend,
-      objectiveStrengthTrend: strengthTrend
+      objectiveStrengthTrend: strengthTrend,
+      cumulativePainDrop,
+      progress,
     })
 
     visits.push({

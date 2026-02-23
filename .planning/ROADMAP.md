@@ -62,7 +62,12 @@
   - [x] 13-01-PLAN.md — TDD: Chronic-aware goals caps in goals-calculator (CRV-02)
   - [x] 13-02-PLAN.md — TDD: Chronic dampener on engine progress curve + ltFallback alignment (CRV-01)
   - [x] 13-03-PLAN.md — Snapshot regeneration + parity verification (CRV-01, CRV-02)
-- [ ] Phase 14: Assessment Reflection (ASS-01, ASS-02, ASS-03)
+- [x] Phase 14: Assessment Reflection (ASS-01, ASS-02, ASS-03)
+  **Goal:** TX Assessment mentions specific improvements with cumulative tracking, all within template options
+  Plans:
+  - [x] 14-01-PLAN.md — TDD: Enrich deriveAssessmentFromSOA with cumulative context + evidence-based selection
+  - [x] 14-02-PLAN.md — TDD: Wire cumulative tracking in engine loop
+  - [x] 14-03-PLAN.md — Snapshot regeneration + parity verification
 - [ ] Phase 15: Batch Form UX (UX-01, UX-02, UX-03)
 
 ## Progress
@@ -79,5 +84,5 @@
 | 11. Form UX & Validation | v1.3 | 2/2 | Complete | 2026-02-23 |
 | 12. Fixture Snapshots & Parity Audit | v1.4 | 3/3 | Complete | 2026-02-23 |
 | 13. Recovery Curve & Goals Calibration | 3/3 | Complete    | 2026-02-23 | 2026-02-23 |
-| 14. Assessment Reflection | v1.5 | 0/? | Not started | — |
+| 14. Assessment Reflection | v1.5 | 3/3 | Complete | 2026-02-23 |
 | 15. Batch Form UX | v1.5 | 0/? | Not started | — |
