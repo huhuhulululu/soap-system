@@ -2273,9 +2273,28 @@ export function exportTXSeriesAsText(
   assertTemplateSupported(txContext)
 
   const { states } = generateTXSequenceStates(txContext, options)
-  return states.map(state => ({
-    visitIndex: state.visitIndex,
-    state,
-    text: exportSOAPAsText(txContext, state)
-  }))
+  const ieBaselinePain = context.painCurrent ?? 8
+
+  return states.map(state => {
+    let text = exportSOAPAsText(txContext, state)
+
+    // GATE-01: Medicare phase gate — annotate visit 12 for ELDERPLAN with NCD 30.3.3 evidence
+    if (context.insuranceType === 'ELDERPLAN' && state.visitIndex === 12) {
+      const painDrop = ieBaselinePain - state.painScaleCurrent
+      const improvementPct = ieBaselinePain > 0 ? Math.round((painDrop / ieBaselinePain) * 100) : 0
+      const annotation = [
+        '\n--- NCD 30.3.3 Phase Gate (Visit 12) ---',
+        `Baseline Pain: ${ieBaselinePain}/10`,
+        `Current Pain: ${state.painScaleCurrent}/10`,
+        `Cumulative Improvement: ${improvementPct}% reduction`,
+        `Severity: ${state.severityLevel}`,
+        `Progress: ${Math.round(state.progress * 100)}%`,
+        `Recommendation: ${improvementPct >= 15 ? 'Continue treatment — measurable functional improvement documented' : 'Re-evaluate treatment plan — insufficient improvement'}`,
+        '--- End Phase Gate ---',
+      ].join('\n')
+      text += annotation
+    }
+
+    return { visitIndex: state.visitIndex, state, text }
+  })
 }
