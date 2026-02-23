@@ -96,7 +96,7 @@ function generateTXSeries(
 
   const options: TXSequenceOptions = {
     txCount: txVisits.length,
-    seed: Math.floor(Math.random() * 100000),
+    seed: patient.seed ?? Math.floor(Math.random() * 100000),
     initialState,
   }
 
@@ -284,7 +284,7 @@ export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean, d
       const options: TXSequenceOptions = {
         txCount: txVisits.length + extracted.estimatedVisitIndex,
         startVisitIndex: extracted.estimatedVisitIndex + 1,
-        seed: Math.floor(Math.random() * 100000),
+        seed: patient.seed ?? Math.floor(Math.random() * 100000),
         initialState,
       }
       const results = exportTXSeriesAsText(context, options)
@@ -303,8 +303,8 @@ export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean, d
     const ieVisit = patient.visits.find(v => v.noteType === 'IE')
     const reVisits = patient.visits.filter(v => v.noteType === 'RE')
     const txVisits = patient.visits.filter(v => v.noteType === 'TX')
-    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch, disableChronicCaps) : undefined
-    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch, disableChronicCaps))
+    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit, patient.seed, realisticPatch, disableChronicCaps) : undefined
+    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, patient.seed, realisticPatch, disableChronicCaps))
     const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch, disableChronicCaps)
 
     const updatedVisits = patient.visits.map(v => {

@@ -56,6 +56,7 @@ export interface BatchPatient {
   readonly visits: BatchVisit[]
   readonly soapText?: string
   readonly mode?: BatchMode
+  readonly seed?: number
 }
 
 export type BatchMode = 'full' | 'soap-only' | 'continue'
@@ -100,4 +101,5 @@ export interface ExcelRow {
   readonly recentWorse: string
   readonly mode?: string
   readonly includeIE?: boolean | string
+  readonly seed?: number
 }

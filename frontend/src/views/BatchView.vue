@@ -38,7 +38,7 @@ const EMPTY_ROW = () => ({
   causativeFactors: '', relievingFactors: 'Changing positions,Resting',
   symptomScale: '70%-80%', painFrequency: 'Constant',
   secondaryParts: '', history: '', soapText: '',
-  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: '', includeIE: true,
+  chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: '', includeIE: true, seed: '',
 })
 
 function normalizeDOB(val) {
@@ -316,7 +316,7 @@ async function submitDrafts() {
     const res = await fetch(`${API_BASE}/batch/json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...csrfHeader() },
-      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})` })), mode: batchMode.value, realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }),
+      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})`, seed: d.seed ? parseInt(d.seed) || undefined : undefined })), mode: batchMode.value, realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }),
     })
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
@@ -1045,11 +1045,15 @@ onUnmounted(() => {
                 <label class="text-xs text-ink-500 mb-0.5 block">预约次数 *</label>
                 <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
-              <div class="sm:col-span-2">
+              <div class="sm:col-span-1">
                 <label class="text-xs text-ink-500 mb-0.5 block">Chronicity</label>
                 <select :value="activeDraft.chronicityLevel" @change="updateField('chronicityLevel', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="c in ['Chronic','Sub Acute','Acute']" :key="c" :value="c">{{ c }}</option>
                 </select>
+              </div>
+              <div class="sm:col-span-1">
+                <label class="text-xs text-ink-500 mb-0.5 block">Seed</label>
+                <input type="number" :value="activeDraft.seed" @input="updateField('seed', $event.target.value)" placeholder="auto" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400 font-mono" />
               </div>
             </div>
 
@@ -1486,6 +1490,7 @@ onUnmounted(() => {
                     class="w-2 h-2 rounded-full bg-green-500"
                     title="Generated"
                   ></span>
+                  <span v-if="visit.generated" class="text-xs text-ink-400 font-mono" :title="'Seed: ' + visit.generated.seed">🌱{{ visit.generated.seed }}</span>
                   <span
                     v-else
                     class="w-2 h-2 rounded-full bg-red-400"

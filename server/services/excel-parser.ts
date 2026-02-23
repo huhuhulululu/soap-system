@@ -253,6 +253,7 @@ function buildRowsFromRecords(records: Record<string, string>[]): ExcelRow[] {
       recentWorse: getString(['RecentWorse', 'recentWorse', 'X']),
       mode: getString(['Mode', 'mode', 'Y']),
       includeIE: record['includeIE'] ?? record['IncludeIE'] ?? getString(['IncludeIE', 'includeIE', 'Z']),
+      seed: (() => { const v = record['seed'] ?? record['Seed']; return v != null ? parseInt(String(v)) || undefined : undefined })(),
     }
   })
 }
@@ -362,6 +363,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
         name, dob, age, gender, insurance, clinical, visits,
         soapText: row.soapText,
         mode: rowMode,
+        seed: row.seed,
       }
     }
 
@@ -484,6 +486,7 @@ export function buildPatientsFromRows(rows: ExcelRow[], mode: BatchMode = 'full'
       clinical,
       visits,
       mode: rowMode,
+      seed: row.seed,
     }
   })
 
