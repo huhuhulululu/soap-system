@@ -1,7 +1,7 @@
 # Project State
 
 ## Status
-v1.4 UX & Engine Tuning — Phase 12 Plan 01 complete
+v1.4 UX & Engine Tuning — Phase 12 Plan 02 complete
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
@@ -11,16 +11,16 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 Phase: 12 — Fixture Snapshots & Parity Audit
-Plan: 01 — Complete
-Status: Plan 01 done (30 fixture snapshots + audit report)
-Last activity: 2026-02-22 — 30 snapshot tests green, Strength/ROM audit 7/7 consistent
+Plan: 02 — Complete
+Status: Plan 02 done (normalizeGenerationContext() + both paths refactored)
+Last activity: 2026-02-23 — Shared normalizer created, batch+compose unified, 30/30 snapshots green
 
 ## Performance Metrics
 - v1.0: 4 phases complete (Production Hardening)
 - v1.1: 4 phases, 5 plans complete (Automation Stability)
 - v1.2: 1 phase, 1 plan complete (Batch Logic)
 - v1.3: 2 phases, 3 plans complete (Form UX & Shared Data)
-- v1.4: 0/4 phases, 1 plan complete (UX & Engine Tuning)
+- v1.4: 0/4 phases, 2 plans complete (UX & Engine Tuning)
 
 ## Accumulated Context
 
@@ -44,8 +44,10 @@ None
 - HIP not in SUPPORTED_TX_BODY_PARTS — replaced with SHOULDER-bilateral in fixtures
 - Strength/ROM values identical between compose/batch (computed from pain+progress, not tightness/tenderness/spasm)
 - Known parity gaps (tightness/tenderness/spasm initialState, TCM inference) affect Muscle Testing only
+- Canonical tightness/tenderness/spasm formula: painCurrent >= 7 ? 3 : 2 (matches batch baseline, not engine severityToInit)
+- normalizeGenerationContext() is sole context-construction entry point for both batch and compose paths
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: Phase 12 complete if single-plan phase; otherwise proceed to Plan 02
-- Last session: 2026-02-22 — Phase 12 Plan 01 executed (30 snapshots + audit report)
+- Next action: Proceed to Plan 03 (parity diff tests)
+- Last session: 2026-02-23 — Phase 12 Plan 02 executed (normalizer + refactor)

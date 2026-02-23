@@ -54,7 +54,7 @@
 
 Plans:
 - [x] 12-01-PLAN.md — Capture 30 fixture snapshots + Strength/ROM audit report
-- [ ] 12-02-PLAN.md — Build normalizeGenerationContext() + refactor both paths
+- [x] 12-02-PLAN.md — Build normalizeGenerationContext() + refactor both paths
 - [ ] 12-03-PLAN.md — Parity diff tests proving identical batch/compose output
 
 Pre-work phase. Captures regression baselines before any engine modification and establishes batch/compose parity through a shared normalization layer.
@@ -141,7 +141,7 @@ Frontend-only phase. Optimizes the batch form with ICD-first selection flow and 
 | 9. Batch Logic Fixes | v1.2 | 1/1 | Complete | 2026-02-22 |
 | 10. Shared Data Extraction | v1.3 | 1/1 | Complete | 2026-02-22 |
 | 11. Form UX & Validation | v1.3 | 2/2 | Complete | 2026-02-23 |
-| 12. Fixture Snapshots & Parity Audit | v1.4 | 1/3 | In progress | — |
+| 12. Fixture Snapshots & Parity Audit | v1.4 | 2/3 | In progress | — |
 | 13. Recovery Curve & Goals Calibration | v1.4 | 0/? | Not started | — |
 | 14. Assessment Reflection | v1.4 | 0/? | Not started | — |
 | 15. Batch Form UX | v1.4 | 0/? | Not started | — |
