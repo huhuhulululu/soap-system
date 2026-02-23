@@ -1,7 +1,7 @@
 # Project State
 
 ## Status
-v1.4 UX & Engine Tuning — Phase 12 Plan 02 complete
+v1.4 UX & Engine Tuning — Phase 12 complete
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 **Current focus:** Phase 12 — Fixture Snapshots & Parity Audit
 
 ## Current Position
-Phase: 12 — Fixture Snapshots & Parity Audit
-Plan: 02 — Complete
-Status: Plan 02 done (normalizeGenerationContext() + both paths refactored)
-Last activity: 2026-02-23 — Shared normalizer created, batch+compose unified, 30/30 snapshots green
+Phase: 12 — Fixture Snapshots & Parity Audit — Complete
+Plan: 03 — Complete (final plan)
+Status: Phase 12 complete — 39/39 tests green (30 snapshots + 9 parity), 0 type errors
+Last activity: 2026-02-23 — Parity diff tests added, full regression green
 
 ## Performance Metrics
 - v1.0: 4 phases complete (Production Hardening)
 - v1.1: 4 phases, 5 plans complete (Automation Stability)
 - v1.2: 1 phase, 1 plan complete (Batch Logic)
 - v1.3: 2 phases, 3 plans complete (Form UX & Shared Data)
-- v1.4: 0/4 phases, 2 plans complete (UX & Engine Tuning)
+- v1.4: 1/4 phases, 3 plans complete (UX & Engine Tuning)
 
 ## Accumulated Context
 
@@ -46,8 +46,9 @@ None
 - Known parity gaps (tightness/tenderness/spasm initialState, TCM inference) affect Muscle Testing only
 - Canonical tightness/tenderness/spasm formula: painCurrent >= 7 ? 3 : 2 (matches batch baseline, not engine severityToInit)
 - normalizeGenerationContext() is sole context-construction entry point for both batch and compose paths
+- Parity seeds 200001-200009 distinct from fixture snapshot seeds 100001-100030
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: Proceed to Plan 03 (parity diff tests)
-- Last session: 2026-02-23 — Phase 12 Plan 02 executed (normalizer + refactor)
+- Next action: Phase 12 complete — proceed to Phase 13 (Recovery Curve & Goals Calibration)
+- Last session: 2026-02-23 — Phase 12 Plan 03 executed (parity diff tests)
