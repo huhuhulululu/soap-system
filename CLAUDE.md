@@ -18,6 +18,7 @@ Express 5 + Vue 3 + Playwright | Docker on Oracle Cloud
 | `docs/ARCHITECTURE.md` | 技术真相源 — 架构、模块、API、安全 |
 | `docs/decisions.md` | ADR — 所有技术决策及理由 |
 | `docs/PROJECT-CONTEXT.md` | 项目状态、里程碑、待办、工作流 |
+| `docs/archive/` | 历史参考文档（MDLand 集成、部署、重构方案） |
 
 ## 工作流
 
