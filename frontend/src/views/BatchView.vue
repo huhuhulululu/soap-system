@@ -27,7 +27,7 @@ const inputMode = ref('editor') // 'editor' | 'excel'
 // ── Patient Editor ──────────────────────────────
 const STORAGE_KEY = 'soap-batch-drafts'
 const EMPTY_ROW = () => ({
-  patient: '', gender: 'F', insurance: 'HF', bodyPart: 'LBP', laterality: 'B',
+  name: '', dob: '', gender: '', insurance: 'HF', bodyPart: 'LBP', laterality: '',
   icd: '', cpt: '', totalVisits: 12,
   painWorst: '8', painBest: '3', painCurrent: '6',
   symptomDuration: '3 year(s)', painRadiation: 'without radiation',
@@ -37,6 +37,21 @@ const EMPTY_ROW = () => ({
   secondaryParts: '', history: '', soapText: '',
   chronicityLevel: 'Chronic', recentWorse: '1 week(s)', mode: '', includeIE: true,
 })
+
+function normalizeDOB(val) {
+  const v = val.trim()
+  if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`
+  if (/^\d{2}-\d{2}-\d{2}$/.test(v)) { const [m,d,y] = v.split('-'); return `${m.padStart(2,'0')}/${d.padStart(2,'0')}/20${y}` }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(v)) { const [m,d,y] = v.split('-'); return `${m.padStart(2,'0')}/${d.padStart(2,'0')}/${y}` }
+  if (/^\d{2}\/\d{2}\/\d{2}$/.test(v)) { const [m,d,y] = v.split('/'); return `${m}/${d}/20${y}` }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) { const [m,d,y] = v.split('/'); return `${m.padStart(2,'0')}/${d.padStart(2,'0')}/${y}` }
+  return v
+}
+
+function handleDobBlur() {
+  const normalized = normalizeDOB(activeDraft.value.dob)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) updateField('dob', normalized)
+}
 
 // Body parts matching Writer page (supported by IE+TX templates)
 const BATCH_BODY_PARTS = [
@@ -139,7 +154,14 @@ function loadDrafts() {
     if (saved) {
       const parsed = JSON.parse(saved)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        drafts.value = parsed
+        drafts.value = parsed.map(d => {
+          if (d.patient && !d.name) {
+            const m = d.patient.match(/^(.+?)\((.+?)\)$/)
+            const { patient: _, ...rest } = d
+            return m ? { ...rest, name: m[1], dob: m[2] } : { ...rest, name: d.patient, dob: '' }
+          }
+          return d
+        })
         return
       }
     }
@@ -201,7 +223,7 @@ function editPatient(i) {
 }
 
 function patientLabel(d, i) {
-  return d.patient || `Patient ${i + 1}`
+  return d.name || `Patient ${i + 1}`
 }
 
 function patientSummary(d) {
@@ -224,7 +246,7 @@ async function submitDrafts() {
     const res = await fetch(`${API_BASE}/batch/json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...csrfHeader() },
-      body: JSON.stringify({ rows: drafts.value, mode: batchMode.value, realisticPatch: realisticPatch.value }),
+      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})` })), mode: batchMode.value, realisticPatch: realisticPatch.value }),
     })
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
@@ -855,34 +877,38 @@ onUnmounted(() => {
           </div>
 
             <!-- Row 1: Identity -->
-            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
-              <div class="col-span-2">
-                <label class="text-xs text-ink-500 mb-0.5 block">Patient *</label>
-                <input :value="activeDraft.patient" @input="updateField('patient', $event.target.value)" placeholder="LAST,FIRST(MM/DD/YYYY)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+            <div class="grid grid-cols-2 sm:grid-cols-12 gap-2">
+              <div class="sm:col-span-3 col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">Name *</label>
+                <input :value="activeDraft.name" @input="updateField('name', $event.target.value)" placeholder="LAST,FIRST" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
               </div>
-              <div>
+              <div class="sm:col-span-2 col-span-1">
+                <label class="text-xs text-ink-500 mb-0.5 block">DOB *</label>
+                <input :value="activeDraft.dob" @input="updateField('dob', $event.target.value)" @blur="handleDobBlur" placeholder="MM/DD/YYYY" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div class="sm:col-span-1 col-span-1">
                 <label class="text-xs text-ink-500 mb-0.5 block">Gender *</label>
-                <select :value="activeDraft.gender" @change="updateField('gender', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
-                  <option value="F">F</option><option value="M">M</option>
-                </select>
+                <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs h-[34px]">
+                  <button v-for="m in [{k:'M',l:'M'},{k:'F',l:'F'}]" :key="m.k" type="button" @click="updateField('gender', m.k)" class="flex-1 font-medium transition-colors" :class="activeDraft.gender === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">{{ m.l }}</button>
+                </div>
               </div>
-              <div>
+              <div class="sm:col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Insurance *</label>
                 <select :value="activeDraft.insurance" @change="updateField('insurance', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="ins in ['HF','OPTUM','WC','VC','ELDERPLAN','NONE']" :key="ins" :value="ins">{{ ins }}</option>
                 </select>
               </div>
-              <div>
+              <div class="sm:col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">BodyPart *</label>
                 <select :value="activeDraft.bodyPart" @change="updateField('bodyPart', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="bp in BATCH_BODY_PARTS" :key="bp" :value="bp">{{ BP_LABEL[bp] || bp }}</option>
                 </select>
               </div>
-              <div>
+              <div class="sm:col-span-2 col-span-1">
                 <label class="text-xs text-ink-500 mb-0.5 block">Side *</label>
-                <select :value="activeDraft.laterality" @change="updateField('laterality', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
-                  <option value="B">Bilateral</option><option value="L">Left</option><option value="R">Right</option>
-                </select>
+                <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs h-[34px]">
+                  <button v-for="m in [{k:'L',l:'Left'},{k:'B',l:'Bil'},{k:'R',l:'Right'}]" :key="m.k" type="button" @click="updateField('laterality', m.k)" class="flex-1 font-medium transition-colors" :class="activeDraft.laterality === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">{{ m.l }}</button>
+                </div>
               </div>
             </div>
 
