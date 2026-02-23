@@ -107,7 +107,8 @@ const icdDropdownOpen = ref(false)
 const filteredIcdOptions = computed(() => {
   const bp = activeDraft.value?.bodyPart
   const selected = new Set((activeDraft.value?.icd || '').split(',').map(s => s.trim()).filter(Boolean))
-  const available = ICD_CATALOG.filter(item => !selected.has(item.icd10) && (item.bodyPart === null || item.bodyPart === bp))
+  // UX-01: when bodyPart is empty, show all ICD codes (ICD-first flow)
+  const available = ICD_CATALOG.filter(item => !selected.has(item.icd10) && (!bp || item.bodyPart === null || item.bodyPart === bp))
   if (!icdSearch.value.trim()) return available
   const q = icdSearch.value.toLowerCase()
   return available.filter(item => item.icd10.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q))
@@ -117,6 +118,15 @@ function selectIcd(item) {
   const cur = (activeDraft.value.icd || '').split(',').map(s => s.trim()).filter(Boolean)
   if (cur.length >= 4) return
   updateField('icd', [...cur, item.icd10].join(','))
+  // UX-01: auto-fill bodyPart and laterality from ICD catalog entry
+  if (item.bodyPart && !activeDraft.value.bodyPart) {
+    updateField('bodyPart', item.bodyPart)
+  }
+  if (item.laterality && !activeDraft.value.laterality) {
+    const latMap = { bilateral: 'B', left: 'L', right: 'R' }
+    const mapped = latMap[item.laterality.toLowerCase()]
+    if (mapped) updateField('laterality', mapped)
+  }
   icdSearch.value = ''
   icdDropdownOpen.value = false
 }
@@ -949,7 +959,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-            <!-- Row 1: Identity -->
+            <!-- Row 1: Identity + ICD + BodyPart/Side -->
             <div class="grid grid-cols-2 sm:grid-cols-12 gap-2">
               <div class="sm:col-span-3 col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Name *</label>
@@ -991,38 +1001,37 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Row 2: Visits + Diagnosis + Chronicity -->
-            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
-              <div>
-                <label class="text-xs text-ink-500 mb-0.5 block">预约次数 *</label>
-                <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
-              </div>
-              <div class="col-span-2">
+            <!-- Row 2: ICD (search + chips inline) + CPT + Visits + Chronicity -->
+            <div class="grid grid-cols-2 sm:grid-cols-12 gap-2">
+              <div class="sm:col-span-5 col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">ICD{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
-                <div class="flex flex-wrap gap-1 mb-1" v-if="activeDraft.icd">
-                  <span v-for="code in activeDraft.icd.split(',').filter(Boolean)" :key="code"
-                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded-full bg-ink-800 text-white">
-                    {{ code.trim() }}
-                    <button @click="removeIcd(code.trim())" type="button" class="hover:text-red-300">&times;</button>
-                  </span>
-                </div>
-                <div v-if="(activeDraft.icd || '').split(',').filter(Boolean).length < 4" class="relative">
-                  <input v-model="icdSearch" @focus="icdDropdownOpen = true" @blur="icdDropdownOpen = false"
-                    placeholder="搜索 ICD-10..."
-                    class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
-                  <div v-if="icdDropdownOpen && filteredIcdOptions.length"
-                    class="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-ink-200 rounded-lg shadow-lg">
-                    <button v-for="item in filteredIcdOptions" :key="item.icd10"
-                      @mousedown.prevent="selectIcd(item)"
-                      class="w-full px-2 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between">
-                      <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
-                      <span class="text-ink-400 truncate ml-2 text-xs">{{ item.desc }}</span>
-                    </button>
+                <!-- UX-03: search input left, chips right in a single flex row -->
+                <div class="flex items-center gap-1.5">
+                  <div v-if="(activeDraft.icd || '').split(',').filter(Boolean).length < 4" class="relative flex-1 min-w-0">
+                    <input v-model="icdSearch" @focus="icdDropdownOpen = true" @blur="icdDropdownOpen = false"
+                      placeholder="搜索 ICD-10..."
+                      class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                    <div v-if="icdDropdownOpen && filteredIcdOptions.length"
+                      class="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-ink-200 rounded-lg shadow-lg">
+                      <button v-for="item in filteredIcdOptions" :key="item.icd10"
+                        @mousedown.prevent="selectIcd(item)"
+                        class="w-full px-2 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between">
+                        <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
+                        <span class="text-ink-400 truncate ml-2 text-xs">{{ item.desc }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-shrink-0 gap-1" v-if="activeDraft.icd">
+                    <span v-for="code in activeDraft.icd.split(',').filter(Boolean)" :key="code"
+                      class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded-full bg-ink-800 text-white whitespace-nowrap">
+                      {{ code.trim() }}
+                      <button @click="removeIcd(code.trim())" type="button" class="hover:text-red-300">&times;</button>
+                    </span>
                   </div>
                 </div>
                 <span v-if="activeErrors.icd" class="text-xs text-red-500">{{ activeErrors.icd }}</span>
               </div>
-              <div class="col-span-2">
+              <div class="sm:col-span-3 col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">CPT{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
                 <div class="flex items-center gap-2">
                   <span class="text-sm text-ink-600 font-mono">{{ activeDraft.cpt || defaultCptStr(activeDraft.insurance) }}</span>
@@ -1032,7 +1041,11 @@ onUnmounted(() => {
                     :class="(activeDraft.cpt || '').includes('99203') ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'">首诊 99203</button>
                 </div>
               </div>
-              <div>
+              <div class="sm:col-span-2">
+                <label class="text-xs text-ink-500 mb-0.5 block">预约次数 *</label>
+                <input type="number" :value="activeDraft.totalVisits" @input="updateField('totalVisits', parseInt($event.target.value) || 1)" min="1" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+              </div>
+              <div class="sm:col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Chronicity</label>
                 <select :value="activeDraft.chronicityLevel" @change="updateField('chronicityLevel', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="c in ['Chronic','Sub Acute','Acute']" :key="c" :value="c">{{ c }}</option>
@@ -1044,19 +1057,19 @@ onUnmounted(() => {
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Worst</label>
-                <select :value="activeDraft.painWorst" @change="updateField('painWorst', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                <select :value="activeDraft.painWorst" @change="updateField('painWorst', $event.target.value)" class="w-[60px] px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="n in 10" :key="n" :value="String(11-n)">{{ 11-n }}</option>
                 </select>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Best</label>
-                <select :value="activeDraft.painBest" @change="updateField('painBest', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                <select :value="activeDraft.painBest" @change="updateField('painBest', $event.target.value)" class="w-[60px] px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="n in 10" :key="n" :value="String(11-n)">{{ 11-n }}</option>
                 </select>
               </div>
               <div>
                 <label class="text-xs text-ink-500 mb-0.5 block">Current</label>
-                <select :value="activeDraft.painCurrent" @change="updateField('painCurrent', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                <select :value="activeDraft.painCurrent" @change="updateField('painCurrent', $event.target.value)" class="w-[60px] px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
                   <option v-for="n in 10" :key="n" :value="String(11-n)">{{ 11-n }}</option>
                 </select>
               </div>
