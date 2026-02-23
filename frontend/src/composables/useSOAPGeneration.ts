@@ -6,6 +6,7 @@ import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { generateTXSequenceStates } from '../../../src/generator/tx-sequence-engine.ts'
 import { exportSOAPAsText } from '../../../src/generator/soap-generator.ts'
 import { patchSOAPText } from '../../../src/generator/objective-patch.ts'
+import { normalizeGenerationContext, type NormalizeInput } from '../../../src/shared/normalize-generation-context.ts'
 import {
   validateGeneratedSequence,
   visitStateToSnapshot,
@@ -56,44 +57,48 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
   const ieTxCount = options.ieTxCount
   const realisticPatch = options.realisticPatch
 
-  const generationContext = computed(() => ({
-    noteType: noteType.value,
-    insuranceType: insuranceType.value,
-    primaryBodyPart: bodyPart.value,
-    laterality: laterality.value,
-    localPattern: (fields['assessment.tcmDiagnosis.localPattern'] as string) || 'Qi Stagnation',
-    systemicPattern: (fields['assessment.tcmDiagnosis.systemicPattern'] as string) || 'Kidney Yang Deficiency',
-    chronicityLevel: (fields['subjective.chronicityLevel'] as string) || 'Chronic',
-    severityLevel: derivedSeverity.value,
-    painCurrent: currentPain.value,
-    painWorst: parseInt(((fields['subjective.painScale.worst'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
-    painBest: parseInt(((fields['subjective.painScale.best'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
-    associatedSymptoms: (fields['subjective.associatedSymptoms'] as string[]) || ['soreness'],
-    associatedSymptom: ((fields['subjective.associatedSymptoms'] as string[])?.[0]) || 'soreness',
-    symptomDuration: {
-      value: (fields['subjective.symptomDuration.value'] as string) || '3',
-      unit: (fields['subjective.symptomDuration.unit'] as string) || 'year(s)',
-    },
-    painRadiation: (fields['subjective.painRadiation'] as string) || 'without radiation',
-    recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
-    painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
-    symptomScale: (fields['subjective.symptomScale'] as string) || '70%-80%',
-    painFrequency:
-      (fields['subjective.painFrequency'] as string) ||
-      'Constant (symptoms occur between 76% and 100% of the time)',
-    causativeFactors: (fields['subjective.causativeFactors'] as string[]) || ['age related/degenerative changes'],
-    relievingFactors: (fields['subjective.relievingFactors'] as string[]) || [
-      'Changing positions',
-      'Resting',
-      'Massage',
-    ],
-    age: patientAge.value,
-    gender: patientGender.value,
-    secondaryBodyParts: [...secondaryBodyParts.value],
-    hasPacemaker: medicalHistory.value.includes('Pacemaker'),
-    hasMetalImplant: medicalHistory.value.includes('Joint Replacement'),
-    medicalHistory: medicalHistory.value,
-  }))
+  const normalized = computed(() => {
+    const input: NormalizeInput = {
+      noteType: noteType.value as NormalizeInput['noteType'],
+      insuranceType: insuranceType.value as NormalizeInput['insuranceType'],
+      primaryBodyPart: bodyPart.value as NormalizeInput['primaryBodyPart'],
+      laterality: laterality.value as NormalizeInput['laterality'],
+      painCurrent: currentPain.value,
+      severityLevel: derivedSeverity.value as NormalizeInput['severityLevel'],
+      // Compose user selections override TCM inference
+      localPattern: (fields['assessment.tcmDiagnosis.localPattern'] as string) || undefined,
+      systemicPattern: (fields['assessment.tcmDiagnosis.systemicPattern'] as string) || undefined,
+      chronicityLevel: ((fields['subjective.chronicityLevel'] as string) || 'Chronic') as NormalizeInput['chronicityLevel'],
+      painWorst: parseInt(((fields['subjective.painScale.worst'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
+      painBest: parseInt(((fields['subjective.painScale.best'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
+      associatedSymptom: (((fields['subjective.associatedSymptoms'] as string[])?.[0]) || 'soreness') as NormalizeInput['associatedSymptom'],
+      associatedSymptoms: (fields['subjective.associatedSymptoms'] as string[]) || ['soreness'],
+      symptomDuration: {
+        value: (fields['subjective.symptomDuration.value'] as string) || '3',
+        unit: (fields['subjective.symptomDuration.unit'] as string) || 'year(s)',
+      },
+      painRadiation: (fields['subjective.painRadiation'] as string) || 'without radiation',
+      recentWorse: { value: recentWorseValue.value, unit: recentWorseUnit.value },
+      painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
+      symptomScale: (fields['subjective.symptomScale'] as string) || '70%-80%',
+      painFrequency:
+        (fields['subjective.painFrequency'] as string) ||
+        'Constant (symptoms occur between 76% and 100% of the time)',
+      causativeFactors: (fields['subjective.causativeFactors'] as string[]) || ['age related/degenerative changes'],
+      relievingFactors: (fields['subjective.relievingFactors'] as string[]) || [
+        'Changing positions',
+        'Resting',
+        'Massage',
+      ],
+      age: patientAge.value,
+      gender: patientGender.value as NormalizeInput['gender'],
+      secondaryBodyParts: [...secondaryBodyParts.value],
+      medicalHistory: medicalHistory.value,
+    }
+    return normalizeGenerationContext(input)
+  })
+
+  const generationContext = computed(() => normalized.value.context)
 
   const generatedNotes = ref<Array<{ visitIndex?: number; text: string; type: string; state: unknown }>>([])
   const copiedIndex = ref(-1)
@@ -111,8 +116,8 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
 
   function generate(useSeed?: number) {
     try {
-      const ctx = generationContext.value
-      const txCtx = { ...ctx, noteType: 'TX' }
+      const { context: ctx, initialState } = normalized.value
+      const txCtx = { ...ctx, noteType: 'TX' as const }
       const usePatch = realisticPatch?.value ?? false
       const mayPatch = (text: string, c: typeof ctx, vs?: any) =>
         usePatch ? patchSOAPText(text, c as any, vs) : text
@@ -122,25 +127,6 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
           : seedInput.value
             ? parseInt(seedInput.value, 10) || undefined
             : undefined
-
-      const freqText = (fields['subjective.painFrequency'] as string) || ''
-      const freqLevel = freqText.includes('Constant')
-        ? 3
-        : freqText.includes('Frequent')
-          ? 2
-          : freqText.includes('Occasional')
-            ? 1
-            : freqText.includes('Intermittent')
-              ? 0
-              : 3
-
-      const initialState = {
-        pain: ctx.painCurrent,
-        associatedSymptom: ctx.associatedSymptom || 'soreness',
-        symptomScale: (fields['subjective.symptomScale'] as string) || '70%-80%',
-        frequency: freqLevel,
-        painTypes: (fields['subjective.painTypes'] as string[]) || ['Dull', 'Aching'],
-      }
 
       if (noteType.value === 'IE') {
         const ieText = mayPatch(exportSOAPAsText(ctx, {}), ctx)

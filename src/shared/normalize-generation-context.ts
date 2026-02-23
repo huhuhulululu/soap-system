@@ -32,6 +32,8 @@ export interface NormalizeInput {
   readonly spasm?: number
   readonly frequency?: number
   readonly associatedSymptom?: 'soreness' | 'weakness' | 'stiffness' | 'heaviness' | 'numbness'
+  /** Full associated symptoms array for TCM inference (batch passes all, compose passes single) */
+  readonly associatedSymptoms?: readonly string[]
   readonly painTypes?: readonly string[]
   readonly symptomScale?: string
 
@@ -91,9 +93,12 @@ export function normalizeGenerationContext(input: NormalizeInput): NormalizeOutp
   const associatedSymptom = input.associatedSymptom ?? 'soreness'
 
   // TCM inference (overridable by compose user selections)
+  const symptomsForInference = input.associatedSymptoms
+    ? [...input.associatedSymptoms]
+    : [associatedSymptom]
   const localCandidates = inferLocalPatterns(
     painTypes,
-    [associatedSymptom],
+    symptomsForInference,
     input.primaryBodyPart,
     chronicityLevel,
   )

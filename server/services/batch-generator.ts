@@ -8,57 +8,33 @@
  * 生成后将 SOAP 文本拆分为 S/O/A/P 四段，附加到 visit.generated
  */
 
-import type { GenerationContext } from '../../src/types'
 import type { TXSequenceOptions } from '../../src/generator/tx-sequence-engine'
 import { exportSOAPAsText, exportTXSeriesAsText } from '../../src/generator/soap-generator'
 import { patchSOAPText } from '../../src/generator/objective-patch'
-import { inferLocalPatterns, inferSystemicPatterns } from '../../src/knowledge/medical-history-engine'
+import { normalizeGenerationContext, type NormalizeInput } from '../../src/shared/normalize-generation-context'
 import { extractStateFromTX, buildContextFromExtracted, buildInitialStateFromExtracted } from '../../src/parser/tx-extractor'
 import { splitSOAPText } from './text-to-html'
 import type { BatchData, BatchPatient, BatchVisit } from '../types'
 
 /**
- * 根据 BatchPatient + BatchVisit 构建 GenerationContext
- * 使用患者临床数据 + 自动推断 TCM 证型
+ * Map BatchPatient + BatchVisit to NormalizeInput for the shared normalizer.
+ * TCM patterns are inferred (no explicit overrides in batch path).
  */
-function buildContext(
-  patient: BatchPatient,
-  visit: BatchVisit
-): GenerationContext {
+function toBatchInput(patient: BatchPatient, visit: BatchVisit): NormalizeInput {
   const { clinical } = patient
-  const history = [...visit.history]
-
-  // 自动推断 TCM 证型
-  const localCandidates = inferLocalPatterns(
-    [...clinical.painTypes],
-    [...clinical.associatedSymptoms],
-    visit.bodyPart,
-    clinical.chronicityLevel ?? 'Chronic'
-  )
-  const systemicCandidates = inferSystemicPatterns(history, patient.age)
-
-  const localPattern = localCandidates.length > 0
-    ? localCandidates[0].pattern
-    : 'Qi Stagnation'
-  const systemicPattern = systemicCandidates.length > 0
-    ? systemicCandidates[0].pattern
-    : 'Kidney Yang Deficiency'
-
   return {
     noteType: visit.noteType,
     insuranceType: patient.insurance,
     primaryBodyPart: visit.bodyPart,
-    secondaryBodyParts: [...visit.secondaryParts],
     laterality: visit.laterality,
-    localPattern,
-    systemicPattern,
-    chronicityLevel: clinical.chronicityLevel ?? 'Chronic',
-    severityLevel: clinical.severityLevel,
     painCurrent: clinical.painCurrent,
+    severityLevel: clinical.severityLevel,
+    secondaryBodyParts: [...visit.secondaryParts],
     painWorst: clinical.painWorst,
     painBest: clinical.painBest,
     painTypes: [...clinical.painTypes],
-    associatedSymptom: clinical.associatedSymptoms[0] as GenerationContext['associatedSymptom'] ?? 'soreness',
+    associatedSymptom: (clinical.associatedSymptoms[0] as NormalizeInput['associatedSymptom']) ?? 'soreness',
+    associatedSymptoms: [...clinical.associatedSymptoms],
     symptomDuration: { ...clinical.symptomDuration },
     painRadiation: clinical.painRadiation,
     symptomScale: clinical.symptomScale,
@@ -66,11 +42,10 @@ function buildContext(
     causativeFactors: [...clinical.causativeFactors],
     relievingFactors: [...clinical.relievingFactors],
     recentWorse: clinical.recentWorse ? { ...clinical.recentWorse } : { value: '1', unit: 'week(s)' },
+    chronicityLevel: clinical.chronicityLevel ?? 'Chronic',
     age: patient.age,
     gender: patient.gender,
-    medicalHistory: history,
-    hasPacemaker: history.includes('Pacemaker'),
-    hasMetalImplant: history.includes('Metal Implant') || history.includes('Joint Replacement'),
+    medicalHistory: [...visit.history],
   }
 }
 
@@ -83,7 +58,7 @@ function generateSingleVisit(
   seed?: number,
   realisticPatch?: boolean,
 ): BatchVisit {
-  const context = buildContext(patient, visit)
+  const { context } = normalizeGenerationContext(toBatchInput(patient, visit))
   const actualSeed = seed ?? Math.floor(Math.random() * 100000)
 
   let fullText = exportSOAPAsText(context)
@@ -114,34 +89,12 @@ function generateTXSeries(
   if (txVisits.length === 0) return []
 
   const firstTX = txVisits[0]
-  const context = buildContext(patient, firstTX)
-  const { clinical } = patient
-
-  // 构建 initialState（与前端 useSOAPGeneration 一致）
-  const freqText = clinical.painFrequency
-  const freqLevel = freqText.includes('Constant')
-    ? 3
-    : freqText.includes('Frequent')
-      ? 2
-      : freqText.includes('Occasional')
-        ? 1
-        : freqText.includes('Intermittent')
-          ? 0
-          : 3
+  const { context, initialState } = normalizeGenerationContext(toBatchInput(patient, firstTX))
 
   const options: TXSequenceOptions = {
     txCount: txVisits.length,
     seed: Math.floor(Math.random() * 100000),
-    initialState: {
-      pain: clinical.painCurrent,
-      tightness: clinical.painCurrent >= 7 ? 3 : 2,
-      tenderness: clinical.painCurrent >= 7 ? 3 : 2,
-      spasm: clinical.painCurrent >= 7 ? 3 : 2,
-      frequency: freqLevel,
-      associatedSymptom: (clinical.associatedSymptoms[0] as string) || 'soreness',
-      symptomScale: clinical.symptomScale,
-      painTypes: [...clinical.painTypes],
-    },
+    initialState,
   }
 
   const results = exportTXSeriesAsText(context, options)
