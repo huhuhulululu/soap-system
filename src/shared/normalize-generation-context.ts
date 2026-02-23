@@ -56,6 +56,7 @@ export interface NormalizeInput {
   readonly relievingFactors?: readonly string[]
   readonly exacerbatingFactors?: readonly string[]
   readonly baselineCondition?: 'good' | 'fair' | 'poor'
+  readonly disableChronicCaps?: boolean
 }
 
 export interface NormalizeOutput {
@@ -149,6 +150,7 @@ export function normalizeGenerationContext(input: NormalizeInput): NormalizeOutp
     hasPacemaker,
     hasMetalImplant,
     baselineCondition: input.baselineCondition,
+    disableChronicCaps: input.disableChronicCaps,
   }
 
   const initialState: NonNullable<TXSequenceOptions['initialState']> = {

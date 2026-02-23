@@ -306,6 +306,8 @@ export interface GenerationContext {
   exacerbatingFactors?: string[]
   /** 用户选择的缓解因素 */
   relievingFactors?: string[]
+  /** 禁用慢性患者补丁 (CRV-01/02 curve dampener + goals caps) */
+  disableChronicCaps?: boolean
   /** 患者年龄 */
   age?: number
   /** 患者性别 */

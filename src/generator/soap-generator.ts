@@ -1315,7 +1315,7 @@ export function generatePlanIE(context: GenerationContext): string {
 
   // 动态计算 Goals (使用 context 中的 associatedSymptom 和实际 pain)
   const symptomType = context.associatedSymptom || 'soreness'
-  const isChronicAware = context.chronicityLevel === 'Chronic'
+  const isChronicAware = context.chronicityLevel === 'Chronic' && !context.disableChronicCaps
   const goals = calculateDynamicGoals(severity, bp, symptomType, context.painCurrent, isChronicAware)
   const isMainBP = bp === 'KNEE' || bp === 'SHOULDER' || bp === 'LBP' || bp === 'NECK' || bp === 'MID_LOW_BACK'
 

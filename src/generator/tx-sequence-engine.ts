@@ -623,7 +623,8 @@ export function generateTXSequenceStates(
         ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
       )
   // CRV-01: chronic-aware ltFallback — higher floor for long treatment courses
-  const chronicEndRatio = txCount >= 16 ? 0.55 : 0.25
+  const chronicCapsEnabled = txCount >= 16 && !context.disableChronicCaps
+  const chronicEndRatio = chronicCapsEnabled ? 0.55 : 0.25
   const ltFallback = ieStartPain <= 6
     ? 1
     : Math.ceil(Math.max(2, ieStartPain * chronicEndRatio))
@@ -642,7 +643,7 @@ export function generateTXSequenceStates(
   const medHistory = context.medicalHistory || []
   const baseMultiplier = inferProgressMultiplier(medHistory, context.age)
   // CRV-01: chronic-aware dampener — slower progression for long treatment courses
-  const chronicDampener = txCount >= 16 ? 0.82 : 1.0
+  const chronicDampener = chronicCapsEnabled ? 0.82 : 1.0
   const progressMultiplier = baseMultiplier * chronicDampener
   const medAdjustments = inferInitialAdjustments(medHistory, context.primaryBodyPart)
 
