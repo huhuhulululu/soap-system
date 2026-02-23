@@ -1,19 +1,18 @@
 # Project State
 
 ## Status
-v1.5 Engine & UX Completion — All phases complete (13, 14, 15)
+v1.5 Engine & UX Completion — SHIPPED 2026-02-23
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Batch-generate compliant SOAP notes from minimal input
-**Current focus:** v1.5 complete — remaining items: SEED-01, PLAT-01, GATE-01
+**Current focus:** v1.5 complete — all 11 requirements delivered
 
 ## Current Position
-Phase: 15-batch-form-ux
-Plan: 01 (complete)
-Status: Complete (1/1 plans)
-Last activity: 2026-02-23 — Completed Phase 15 (Batch Form UX)
+Milestone: v1.5 — Complete
+Status: All 11 requirements shipped (CRV-01/02, ASS-01/02/03, UX-01/02/03, SEED-01, PLAT-01, GATE-01)
+Last activity: 2026-02-23 — Completed GATE-01 (final v1.5 requirement)
 
 ## Performance Metrics
 - v1.0: 4 phases complete (Production Hardening)
@@ -24,6 +23,9 @@ Last activity: 2026-02-23 — Completed Phase 15 (Batch Form UX)
 - v1.5: Phase 13 complete — 3 plans (Recovery Curve & Goals Calibration)
 - v1.5: Phase 14 complete — 3 plans (Assessment Reflection)
 - v1.5: Phase 15 complete — 1 plan (Batch Form UX)
+- v1.5: SEED-01 complete — per-patient seed passthrough
+- v1.5: PLAT-01 complete — plateau breaker for stalled pain
+- v1.5: GATE-01 complete — Medicare visit 12 phase gate annotation
 
 ## Accumulated Context
 
@@ -52,7 +54,11 @@ None
 - UX-02: Pain score selects use w-[60px] instead of w-full
 - UX-03: ICD chips display inline to the right of search input (flex row)
 
+- SEED-01: Batch API accepts optional seed per patient; response includes seeds; replay produces identical output
+- PLAT-01: When pain label identical 3+ visits, micro-improvement (0.3-0.5 drop) injected to break plateau
+- GATE-01: Visit 12 for Medicare (ELDERPLAN) annotated with NCD 30.3.3 cumulative improvement evidence
+
 ## Session Continuity
 - Branch: clean-release
-- Next action: v1.5 milestone audit or start SEED-01/PLAT-01/GATE-01
-- Last session: 2026-02-23 — Completed Phase 15 (Batch Form UX)
+- Next action: v1.5 milestone audit or start v1.6 planning
+- Last session: 2026-02-23 — Completed v1.5 milestone (all 11 requirements)

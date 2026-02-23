@@ -7,7 +7,7 @@
 - ✅ **v1.2 Batch Logic** — Phase 9 (shipped 2026-02-22)
 - ✅ **v1.3 Form UX & Shared Data** — Phases 10-11 (shipped 2026-02-23)
 - ✅ **v1.4 UX & Engine Tuning** — Phase 12 (shipped 2026-02-23)
-- 📋 **v1.5 Engine & UX Completion** — Phases 13-15 (planned)
+- ✅ **v1.5 Engine & UX Completion** — Phases 13-15 + SEED-01, PLAT-01, GATE-01 (shipped 2026-02-23)
 
 ## Phases
 
@@ -53,7 +53,10 @@
 
 </details>
 
-### 📋 v1.5 Engine & UX Completion (Planned)
+### ✅ v1.5 Engine & UX Completion — SHIPPED 2026-02-23
+
+<details>
+<summary>Phases 13-15 + Standalone Requirements</summary>
 
 - [x] Phase 13: Recovery Curve & Goals Calibration (CRV-01, CRV-02)
   **Goal:** Chronic patients get realistic recovery curves (dampened progression) and conservative LT goals (30-50% improvement, not 75%)
@@ -69,6 +72,11 @@
   - [x] 14-02-PLAN.md — TDD: Wire cumulative tracking in engine loop
   - [x] 14-03-PLAN.md — Snapshot regeneration + parity verification
 - [x] Phase 15: Batch Form UX (UX-01, UX-02, UX-03)
+- [x] SEED-01: Per-patient seed passthrough (batch API + frontend)
+- [x] PLAT-01: Plateau breaker for stalled pain progression
+- [x] GATE-01: Medicare visit 12 phase gate annotation (NCD 30.3.3)
+
+</details>
 
 ## Progress
 
@@ -86,3 +94,6 @@
 | 13. Recovery Curve & Goals Calibration | 3/3 | Complete    | 2026-02-23 | 2026-02-23 |
 | 14. Assessment Reflection | v1.5 | 3/3 | Complete | 2026-02-23 |
 | 15. Batch Form UX | v1.5 | 1/1 | Complete | 2026-02-23 |
+| SEED-01 Seed Passthrough | v1.5 | — | Complete | 2026-02-23 |
+| PLAT-01 Plateau Breaker | v1.5 | — | Complete | 2026-02-23 |
+| GATE-01 Medicare Phase Gate | v1.5 | — | Complete | 2026-02-23 |

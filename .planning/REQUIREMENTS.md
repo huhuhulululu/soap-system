@@ -68,21 +68,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CRV-01 | — | Complete |
-| CRV-02 | — | Pending |
-| ASS-01 | — | Pending |
-| ASS-02 | — | Pending |
-| ASS-03 | — | Pending |
-| UX-01 | — | Pending |
-| UX-02 | — | Pending |
-| UX-03 | — | Pending |
-| SEED-01 | — | Pending |
-| PLAT-01 | — | Pending |
-| GATE-01 | — | Pending |
+| CRV-02 | — | Complete |
+| ASS-01 | Phase 14 | Complete |
+| ASS-02 | Phase 14 | Complete |
+| ASS-03 | Phase 14 | Complete |
+| UX-01 | Phase 15 | Complete |
+| UX-02 | Phase 15 | Complete |
+| UX-03 | Phase 15 | Complete |
+| SEED-01 | — | Complete |
+| PLAT-01 | — | Complete |
+| GATE-01 | — | Complete |
 
 **Coverage:**
 - v1.5 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Complete: 11 ✅
 
 ---
 *Requirements defined: 2026-02-22*
