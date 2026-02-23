@@ -1,17 +1,17 @@
 # Project Research Summary
 
-**Project:** soap-system v1.1 — Playwright automation stability
-**Domain:** Browser automation resilience — MDLand EHR SOAP submission
+**Project:** soap-system v1.4 — UX & Engine Tuning
+**Domain:** SOAP generation engine calibration + batch form UX optimization (acupuncture)
 **Researched:** 2026-02-22
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone adds retry/recovery, structured error reporting, and adaptive timeouts to an existing Playwright automation that submits SOAP notes to MDLand EHR. The system already works end-to-end; the goal is making it production-reliable when MDLand is slow or flaky. The recommended approach is minimal: add a `TIMEOUTS` constants object, an error kind enum, a `withRetry` wrapper in the child process, and JSON line event emission on stdout — all without changing the spawn model or adding a message queue.
+This milestone tunes the SOAP generation engine for 20-visit chronic pain courses and brings the batch form to feature parity with the compose path. The system already generates clinically valid SOAP notes for 12-visit plans; v1.4 extends that to 20-visit Medicare-compliant courses (NCD 30.3.3: 12 initial + 8 additional), fixes the recovery curve that flattens too early, makes the Assessment section reflect cumulative improvement with concrete deltas, and adds ICD-first selection flow to BatchView.
 
-The critical constraint is that MDLand is not idempotent. ICD/CPT codes are appended, not replaced. Any retry that does not first call `closeVisit()` and re-navigate from the waiting room will produce duplicate billing codes — a HIGH-cost manual recovery situation. Error classification must be implemented before retry logic: retrying a session-expired error wastes time and risks data corruption, while skipping a timeout error abandons a visit that would succeed on the second attempt.
+The recommended approach is zero new dependencies. All four features — ICD auto-mapping, recovery curve recalibration, assessment reflection, and batch/compose parity — build on existing infrastructure. The ICD catalog already has `bodyPart` and `laterality` on every entry. The recovery curve math in `tx-sequence-engine.ts` needs a chronic-aware variant, not a rewrite. The assessment chain in `deriveAssessmentFromSOA()` needs cumulative delta inputs, not a new template engine. The batch path already shares `soap-generator.ts` with compose — the gap is context normalization, not generation logic.
 
-The stack additions are minimal: `async-retry` for the retry wrapper (CJS-compatible, unlike `p-retry` v7 which is ESM-only and will break this project), and `pino` for structured logging. The architecture stays as-is — JSON lines on the existing stdout pipe give the parent process structured per-visit results without changing spawn options or adding IPC.
+The highest risk is modifying `tx-sequence-engine.ts` (1,216 LOC, ~15 seeded RNG calls per visit loop). Any change to the engine shifts the PRNG sequence, invalidating existing seed-based reproducibility. Fixture snapshots must be captured before any engine work begins. The second risk is BatchView.vue (1,697 LOC monolith) — adding ICD-first flow without first extracting a `PatientForm.vue` component will cause regression cascades through tightly coupled state.
 
 ---
 
@@ -19,87 +19,117 @@ The stack additions are minimal: `async-retry` for the retry wrapper (CJS-compat
 
 ### Recommended Stack
 
-The project is CJS (no `"type": "module"`), which rules out `p-retry` v7+. Use `async-retry@1.3.3` for retry with exponential backoff. Add `pino@10.3.1` for structured JSON logging — it replaces `console.log` calls with filterable, level-aware output. No other new dependencies are needed; Playwright's per-action `{ timeout }` option handles adaptive timeouts natively.
+No new packages required. All v1.4 features are implementable with the existing stack. The ICD-to-body-part mapping is a `Map` built from existing `ICDEntry.bodyPart` fields at module load. Recovery curve tuning is pure math in `tx-sequence-engine.ts`. Assessment reflection extends `deriveAssessmentFromSOA()` with cumulative delta inputs. Field sizing uses existing Tailwind `col-span-*` classes.
 
 **Core technologies:**
-- `async-retry@1.3.3`: per-visit retry with backoff — CJS-native, no ESM friction
-- `pino@10.3.1`: structured JSON logging — replaces unstructured `console.log`, carries `batchId`/`visitId` context
-- `pino-http@11.0.0`: Express request logging — pairs with pino for consistent log format
-- Playwright per-action `{ timeout }`: adaptive timeouts — no new library, built into Playwright API
+- `icd-catalog.ts` (existing): ICD→bodyPart+laterality reverse lookup — data already populated on all 70+ entries
+- `tx-sequence-engine.ts` (existing): chronic curve variant using linear-blend instead of sqrt+smoothstep for txCount ≥ 16
+- `goals-calculator.ts` (existing): `OPTIMAL_END_RATIO` scaled by visit count (0.25 for 12 visits, 0.35 for 20 visits)
+- `deriveAssessmentFromSOA()` (existing): cumulative pain delta + ADL improvement tracking for concrete assessment text
+
+**Alternatives rejected:**
+- Fuse.js for ICD search (80 entries don't justify fuzzy search overhead)
+- D3/Chart.js for curve visualization (not in scope; ApexCharts already in deps if needed later)
+- LLM-generated assessment text (non-deterministic, breaks reproducibility, compliance risk)
+- Zod for batch form validation (out of scope for this milestone, but recommended for v1.5 parity layer)
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Configurable per-operation timeouts (`TIMEOUTS` constants) — global 30s is wrong for both 500ms clicks and 20s TinyMCE init
-- Step-level error context (`failedStep` in `VisitResult`) — "visit failed" is not actionable; "failed at: saveSOAP" is
-- Error classification (transient vs permanent) — required gate before any retry logic is written
-- Per-visit retry with exponential backoff (2 attempts, 2s/4s delays) — recovers ~60-80% of flaky iframe failures
+- ICD → Body Part + Side auto-fill — data exists, just not wired as primary input in BatchView
+- Batch/Compose generation parity — same patient must produce identical SOAP via both paths
+- Assessment reflects visit-over-visit improvement — auditors expect specific S→O→A references
+- Recovery curve spread for 20-visit chronic plans — current curve flattens by visit 12, leaving 8 visits with no measurable progress
 
-**Should have (v1.x after validation):**
-- Progress events emitted as JSON lines to stdout — enables structured frontend display
-- Session expiry fast-fail — stop entire batch immediately on auth failure
+**Should have (competitive):**
+- Realistic LTG for chronic patients — `OPTIMAL_END_RATIO=0.25` (pain 8→2) is unrealistic; chronic pain literature supports 30-50% reduction
+- ICD confirmation chips repositioned to right side of form row
+- Worst/Best/Current pain fields compacted to 60px width
 
-**Defer (v2+):**
-- Visit-level idempotency check — only if double-submission incidents are reported in production
-- Adaptive timeout scaling — only if timeout failures persist after per-step tuning
+**Defer (v1.5+):**
+- Strength/ROM centralized calculation — trigger only if IE/TX strength inconsistency found in audit
+- Visit 12 Medicare phase gate — trigger only if clinic needs Medicare billing compliance
+- Body-part grouping headers in ICD dropdown — only if catalog grows beyond ~100 codes
 
 ### Architecture Approach
 
-The existing spawn model (parent `automation-runner.ts` → child `mdland-automation.ts` via stdio pipe) is correct and should not change. Structured communication is achieved by emitting JSON lines on stdout — lines starting with `{` are parsed as events, all others are appended to the log buffer as before. Retry logic belongs in the child (not the parent) because the browser context lives there; parent-level retry would require killing and re-spawning the browser, losing session state. A new `automation-types.ts` file provides shared types for both parent and child.
+The architecture stays as-is: Vue 3 SPA → Express 5 → generation engine (`soap-generator.ts` + `tx-sequence-engine.ts` + `goals-calculator.ts`). The only new file is `src/shared/icd-body-resolver.ts` (~50 LOC), extracting `syncBodyPartFromIcds()` logic so both BatchView and WriterPanel share a single ICD→bodyPart+laterality resolver. All engine changes are modifications to existing functions with backward-compatible optional parameters.
 
-**Major components:**
-1. `automation-types.ts` (new) — `AutomationEvent`, `VisitResult` with `attempts`/`failedStep`, `AutomationErrorKind` enum
-2. `mdland-automation.ts` (modify) — add `emit()`, `withRetry()` wrapper, per-step `TIMEOUTS` constants, error classification
-3. `automation-runner.ts` (modify) — add JSON line parser, populate `visitResults[]` on job state
-4. `automate.ts` (minor modify) — expose `visitResults` in GET response
+**Major components modified:**
+1. `tx-sequence-engine.ts` — chronic curve variant, plateau breaker, cumulative delta tracking, assessment reflection rules (HIGH complexity)
+2. `BatchView.vue` — ICD-first toggle, field width optimization, seed display (MEDIUM complexity)
+3. `goals-calculator.ts` — `visitCount` param for LTG realism (LOW complexity)
+4. `soap-generator.ts` — late-stage summary sentence in `generateAssessmentTX()` (LOW complexity)
+5. `batch-generator.ts` + `batch.ts` — seed passthrough for regeneration (LOW complexity)
 
 ### Critical Pitfalls
 
-1. **Non-idempotent retry creates duplicate ICD/CPT codes** — before any retry, call `closeVisit()` then re-navigate from waiting room; read existing codes before adding
-2. **Stale execution context after failed save** — wrap every `page.evaluate()` to detect "Execution context was destroyed"; trigger full page-state reset, never propagate as visit failure
-3. **Error classification collapse** — implement `AutomationErrorKind` enum before retry; session-expired must stop the batch, not retry; timeout must retry, not skip
-4. **Progress lost on child process crash** — write `data/automation-progress-{batchId}.json` after each visit; skip completed visits on re-run
-5. **PHI in error logs/screenshots** — use stable visit keys (`${patientName}-${dos}`) in error strings, not patient names; name screenshots with `visitKey-timestamp.png`
+1. **ICD auto-mapping overwrites user's intentional body part** — only auto-map when body part field is empty; track `bodyPartManuallySet` flag; show confirmation toast instead of silent override
+2. **Laterality inference conflict** — ICD code laterality (billing specificity) ≠ clinical laterality (patient's side); only infer when ALL selected codes agree; mixed codes default to bilateral
+3. **Recovery curve breaks monotonic constraint validators** — flattening reduces per-visit deltas below `snapPainToGrid` quantization threshold; reduce `NOISE_CAP` proportionally; add post-snap label monotonic guard
+4. **Assessment S↔A contradiction** — assessment claims "improvement" while subjective says "similar" when objective metrics improve but pain plateaus; gate assessment `present` on final `symptomChange` value
+5. **Seed reproducibility invalidated by engine changes** — any new `rng()` call shifts the entire PRNG sequence; snapshot 30 reference fixtures before modifications; append new RNG calls at end of loop
 
 ---
 
 ## Implications for Roadmap
 
-Based on research, the dependency chain is strict: types → error classification → timeouts → retry. These cannot be reordered safely.
+Based on research, the build order is driven by two dependency chains: (1) shared resolver → BatchView UX, and (2) recovery curve → assessment reflection. A Phase 0 pre-work step is required to snapshot fixtures and extract the BatchView form component before any feature work begins.
 
-### Phase 1: Shared Types + Error Classification
-**Rationale:** Everything else depends on `AutomationErrorKind` and the extended `VisitResult` type. Error classification must exist before retry logic is written — otherwise retry conditions are guesswork.
-**Delivers:** `automation-types.ts` with `AutomationErrorKind`, extended `VisitResult` (adds `failedStep`, `attempts`), `isPermanentError()` guard
-**Addresses:** Error classification (P1), step-level error context (P1)
-**Avoids:** Retrying session-expired errors; collapsing all failures into one category
+### Phase 0: Pre-Work (Fixtures + Component Extraction)
+**Rationale:** Engine changes invalidate seed reproducibility; BatchView changes cause regressions in a 1,697-line monolith. Both risks must be mitigated before feature work.
+**Delivers:** 30 reference seed fixtures in `src/generator/__fixtures__/`; `PatientForm.vue` extracted from BatchView; `usePatientValidation.ts` composable
+**Addresses:** Pitfall 6 (seed reproducibility), Pitfall 7 (BatchView regression)
+**Avoids:** Untestable engine changes; cascading form regressions
 
-### Phase 2: Adaptive Timeouts
-**Rationale:** Safe to add independently (no dependencies on retry). Immediate stability improvement with zero risk of data corruption. Establishes named constants that retry logic will reference for timeout scaling.
-**Delivers:** `TIMEOUTS` constants object in `mdland-automation.ts`; `page.setDefaultTimeout` replaced with per-action `{ timeout }` overrides
-**Addresses:** Configurable timeouts (P1)
-**Avoids:** Global timeout inflation masking per-step failures; TinyMCE init failures on slow days
+### Phase 1: Shared Foundation (ICD Resolver + Parity Audit)
+**Rationale:** ICD-first flow and batch/compose parity are prerequisites for all other features. The shared resolver must exist before BatchView wires it. Parity must be fixed before engine tuning, because engine changes tested against one path will silently break the other.
+**Delivers:** `src/shared/icd-body-resolver.ts`; `normalizeGenerationContext()` shared function; parity diff test
+**Addresses:** ICD auto-mapping (P1), Batch/Compose parity (P1)
+**Avoids:** Duplicating ICD logic between views; parity drift after engine changes
 
-### Phase 3: Retry + Backoff + JSON Line Events
-**Rationale:** Can only be implemented correctly after Phase 1 (error kinds) and Phase 2 (timeout constants for retry scaling). This is the core deliverable of the milestone.
-**Delivers:** `withRetry()` wrapper in child; `closeVisit()` + re-navigation before each retry attempt; exponential backoff (2s/4s); JSON line `emit()` function; parent JSON line parser; `visitResults[]` on job state; progress file written after each visit
-**Addresses:** Per-visit retry + backoff (P1), progress events (P2), crash recovery
-**Avoids:** Duplicate ICD/CPT from non-idempotent retry; stale execution context; progress lost on crash
+### Phase 2: Recovery Curve + Goals Calibration
+**Rationale:** The curve and goals must ship together — if the curve flattens but LTG still promises pain 2, the last 8 visits show no progress toward an unreachable goal. This is the highest-risk engine change.
+**Delivers:** Chronic curve variant (linear-blend for txCount ≥ 16); plateau breaker (micro-improvement when pain stalls 3+ visits); `OPTIMAL_END_RATIO` scaled by visit count; `NOISE_CAP` reduced for longer plans
+**Uses:** `tx-sequence-engine.ts`, `goals-calculator.ts`
+**Addresses:** Recovery curve flattening (P1), Realistic LTG (P1), Pitfall 3 (monotonic constraint), Pitfall 8 (goals disconnect)
+
+### Phase 3: Assessment Improvement Reflection
+**Rationale:** Depends on Phase 2 — the plateau behavior changes how assessment text is generated. Cumulative delta tracking requires the recovery curve to be stable first.
+**Delivers:** `cumulativePainDelta` passed to `deriveAssessmentFromSOA`; stronger language for cumulative delta ≥ 3; ADL improvement mention when `adlChange === 'improved'`; late-stage summary for progress > 0.8
+**Uses:** `tx-sequence-engine.ts`, `soap-generator.ts`
+**Addresses:** Assessment reflection (P1), Pitfall 4 (S↔A contradiction)
+
+### Phase 4: Batch UX (Frontend)
+**Rationale:** Can run in parallel with Phases 2-3 after Phase 1 completes. Uses the shared ICD resolver from Phase 1 and the extracted PatientForm from Phase 0.
+**Delivers:** ICD-first toggle in BatchView; field width optimization (W/B/C → 3-col inline); ICD chips repositioned to right column; seed display + copy in review step
+**Uses:** `icd-body-resolver.ts` (Phase 1), `PatientForm.vue` (Phase 0)
+**Addresses:** ICD auto-fill (P1), field sizing (P1), ICD chips (P1)
+
+### Phase 5: Batch Seed Control (Server)
+**Rationale:** Depends on Phase 4 (seed display in UI) and Phase 2 (engine changes that shift seed output). Last because it's lowest risk and lowest priority.
+**Delivers:** Seed passthrough in `batch-generator.ts` + `batch.ts` regenerate endpoint
+**Addresses:** Batch/Compose parity gap (seed control)
 
 ### Phase Ordering Rationale
 
-- Types first because both parent and child import from `automation-types.ts` — it has no dependencies and unblocks everything
-- Error classification before retry because `isPermanentError()` is the gate condition in `withRetry()`
-- Timeouts before retry because retry uses timeout multipliers (`1 + attempt * 0.5`) that reference the `TIMEOUTS` constants
-- Retry last because it is the highest-risk change and requires all prior work to be correct
+- Phase 0 before everything because fixture snapshots are the regression safety net for all engine changes, and PatientForm extraction contains the blast radius of BatchView modifications
+- Phase 1 before engine work because parity bugs discovered after engine tuning are 3x harder to diagnose (is it a parity bug or an engine bug?)
+- Phase 2 before Phase 3 because assessment reflection depends on stable plateau behavior from the recovery curve
+- Phases 2-3 (engine) and Phase 4 (frontend) can run in parallel after Phase 1 — no cross-dependencies
+- Phase 5 last because seed control is a convenience feature, not a correctness requirement
 
 ### Research Flags
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** Enum + interface extension — standard TypeScript, no research needed
-- **Phase 2:** Per-action timeout constants — Playwright API is well-documented, HIGH confidence
-- **Phase 3:** `withRetry` wrapper pattern — well-documented in `async-retry` docs; JSON lines is a standard pattern
+Phases likely needing deeper research during planning:
+- **Phase 2:** Recovery curve math — the piecewise linear-blend parameters need empirical tuning with real 20-visit sequences; run 50+ seeds and validate against `soap-constraints.ts`
 
-No phases require `/gsd:research-phase` — all patterns are well-established and the codebase has been directly analyzed.
+Phases with standard patterns (skip research-phase):
+- **Phase 0:** Component extraction + fixture snapshots — standard Vue refactoring, no domain research needed
+- **Phase 1:** Shared utility extraction + parity test — straightforward code extraction
+- **Phase 3:** Assessment template extension — pattern already established in `deriveAssessmentFromSOA`
+- **Phase 4:** Form layout changes — pure Tailwind/Vue template work
+- **Phase 5:** API parameter passthrough — trivial route change
 
 ---
 
@@ -107,35 +137,34 @@ No phases require `/gsd:research-phase` — all patterns are well-established an
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | npm registry versions verified; ESM/CJS compatibility confirmed for `async-retry` vs `p-retry` |
-| Features | HIGH | Based on direct code inspection of `mdland-automation.ts` (1296 lines) |
-| Architecture | HIGH | Direct source read of all 3 relevant files; JSON lines pattern is well-established |
-| Pitfalls | HIGH | Derived from direct codebase analysis + MDLand-specific iframe behavior observed in code |
+| Stack | HIGH | No new dependencies; all features use existing modules verified via direct code inspection |
+| Features | HIGH | Feature landscape derived from CMS NCD 30.3.3, clinical literature, and direct codebase analysis |
+| Architecture | HIGH | All source files read directly; data flow traced through generation pipeline end-to-end |
+| Pitfalls | HIGH | 8 pitfalls identified from code-level analysis; recovery strategies documented with specific file/line references |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **TinyMCE exact timeout value:** Current code uses `timeout: 20000` for TinyMCE init. Whether 20s is sufficient on slow days is unknown without production timing data. Start with 25s and tune down.
-- **`isPermanentError()` completeness:** The error message patterns for MDLand-specific permanent failures (e.g., "Patient not found", "Visit already closed") need to be verified against actual MDLand error strings during implementation.
-- **Progress file location:** `data/automation-progress-{batchId}.json` assumes `DATA_DIR` is writable. Verify against Phase 3 batch-store implementation.
+- **Chronic curve parameters:** The linear-blend curve shape for 20-visit plans needs empirical validation with real clinical expectations. The proposed 3-segment piecewise curve (30-40% / 30-35% / 20-25% improvement distribution) is based on the "Steps of Care" model but hasn't been tested against the constraint validator at scale.
+- **`snapPainToGrid` zone boundary behavior:** The interaction between reduced `NOISE_CAP` and the 0.25/0.75 quantization thresholds needs testing with edge-case seeds to confirm no V01 violations.
+- **Parity test coverage:** The exact set of fields where batch and compose diverge (painTypes format, symptomScale default, medicalHistory undefined vs empty array) needs a comprehensive audit during Phase 1 implementation.
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase analysis: `scripts/playwright/mdland-automation.ts`, `server/services/automation-runner.ts`, `server/routes/automate.ts`
-- npm registry: `async-retry@1.3.3`, `pino@10.3.1`, `pino-http@11.0.0` versions verified 2026-02-22
-- Playwright API docs: per-action `{ timeout }` option on all locator methods
+- Direct codebase analysis: `tx-sequence-engine.ts` (1,216 LOC), `soap-generator.ts` (~2,000 LOC), `goals-calculator.ts` (233 LOC), `objective-patch.ts` (707 LOC), `icd-catalog.ts` (157 LOC), `body-part-constants.ts` (225 LOC), `BatchView.vue` (1,697 LOC), `WriterPanel.vue` (~800 LOC), `batch-generator.ts` (379 LOC)
+- ICD-10 laterality encoding: CMS ICD-10-CM Official Guidelines, Chapter 19
 
 ### Secondary (MEDIUM confidence)
-- [Pino vs Winston comparison](https://betterstack.com/community/comparisons/pino-vs-winston/) — pino performance advantage
-- [Playwright timeout patterns](https://circleci.com/blog/mastering-waits-and-timeouts-in-playwright/) — per-action timeout approach
-- [Playwright flaky test patterns](https://betterstack.com/community/guides/testing/avoid-flaky-playwright-tests/) — retry and reset strategies
+- [CMS NCD 30.3.3 — Acupuncture for Chronic Lower Back Pain](https://www.cms.gov/medicare-coverage-database/view/ncd.aspx?NCDId=373) — 20-visit Medicare cap
+- [Acupuncture Media Works — Steps of Care recovery curve](https://acupuncturemediaworks.com/products/steps-of-care-laminated-chart) — 3-phase recovery model
+- [arXiv 2404.06503 — Comparing Two Model Designs for Clinical Note Generation](https://arxiv.org/html/2404.06503v1) — holistic vs independent SOAP generation parity
 
 ### Tertiary (LOW confidence)
-- [EHR double data entry risks](https://www.anisolutions.com/2026/02/10/reducing-double-data-entry-in-ehr-with-integration/) — general EHR idempotency concerns (MDLand-specific behavior confirmed via code inspection)
+- Chronic pain LTG realism (30-50% reduction target) — derived from clinical literature consensus, not a single authoritative source; needs validation with practicing clinicians
 
 ---
 *Research completed: 2026-02-22*
