@@ -33,3 +33,6 @@ data/screenshots/
 .playwright-mcp/
 test.xlsx
 .planning/
+
+# Scraper data
+ccnote/
