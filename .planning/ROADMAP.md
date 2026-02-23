@@ -60,7 +60,7 @@
   **Plans:** 3 plans
   Plans:
   - [x] 13-01-PLAN.md — TDD: Chronic-aware goals caps in goals-calculator (CRV-02)
-  - [ ] 13-02-PLAN.md — TDD: Chronic dampener on engine progress curve + ltFallback alignment (CRV-01)
+  - [x] 13-02-PLAN.md — TDD: Chronic dampener on engine progress curve + ltFallback alignment (CRV-01)
   - [ ] 13-03-PLAN.md — Snapshot regeneration + parity verification (CRV-01, CRV-02)
 - [ ] Phase 14: Assessment Reflection (ASS-01, ASS-02, ASS-03)
 - [ ] Phase 15: Batch Form UX (UX-01, UX-02, UX-03)

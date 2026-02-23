@@ -9,7 +9,7 @@ Requirements for v1.5 Engine & UX Completion. Each maps to roadmap phases.
 
 ### Recovery Curve
 
-- [ ] **CRV-01**: Recovery curve spreads improvement across 20 visits with a chronic-aware variant (slower progression for txCount ≥ 16)
+- [x] **CRV-01**: Recovery curve spreads improvement across 20 visits with a chronic-aware variant (slower progression for txCount ≥ 16)
 - [ ] **CRV-02**: Long-term goals reflect realistic 30-50% improvement for chronic pain patients (not 75%), with Strength/ROM never reaching fully normal values
 
 ### Assessment
@@ -67,7 +67,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CRV-01 | — | Pending |
+| CRV-01 | — | Complete |
 | CRV-02 | — | Pending |
 | ASS-01 | — | Pending |
 | ASS-02 | — | Pending |
