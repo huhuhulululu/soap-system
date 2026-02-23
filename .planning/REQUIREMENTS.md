@@ -62,24 +62,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UX-01 | — | Pending |
-| UX-02 | — | Pending |
-| UX-03 | — | Pending |
-| PAR-01 | — | Pending |
-| PAR-02 | — | Pending |
-| CRV-01 | — | Pending |
-| CRV-02 | — | Pending |
-| ASS-01 | — | Pending |
-| ASS-02 | — | Pending |
-| ASS-03 | — | Pending |
-| AUD-01 | — | Pending |
-| AUD-02 | — | Pending |
+| UX-01 | 15 | Pending |
+| UX-02 | 15 | Pending |
+| UX-03 | 15 | Pending |
+| PAR-01 | 12 | Pending |
+| PAR-02 | 12 | Pending |
+| CRV-01 | 13 | Pending |
+| CRV-02 | 13 | Pending |
+| ASS-01 | 14 | Pending |
+| ASS-02 | 14 | Pending |
+| ASS-03 | 14 | Pending |
+| AUD-01 | 12 | Pending |
+| AUD-02 | 12 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12 ⚠️
+- Mapped to phases: 12
+- Unmapped: 0 ✅
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap creation*
