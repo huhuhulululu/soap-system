@@ -59,7 +59,7 @@
   **Goal:** Chronic patients get realistic recovery curves (dampened progression) and conservative LT goals (30-50% improvement, not 75%)
   **Plans:** 3 plans
   Plans:
-  - [ ] 13-01-PLAN.md — TDD: Chronic-aware goals caps in goals-calculator (CRV-02)
+  - [x] 13-01-PLAN.md — TDD: Chronic-aware goals caps in goals-calculator (CRV-02)
   - [ ] 13-02-PLAN.md — TDD: Chronic dampener on engine progress curve + ltFallback alignment (CRV-01)
   - [ ] 13-03-PLAN.md — Snapshot regeneration + parity verification (CRV-01, CRV-02)
 - [ ] Phase 14: Assessment Reflection (ASS-01, ASS-02, ASS-03)
@@ -78,6 +78,6 @@
 | 10. Shared Data Extraction | v1.3 | 1/1 | Complete | 2026-02-22 |
 | 11. Form UX & Validation | v1.3 | 2/2 | Complete | 2026-02-23 |
 | 12. Fixture Snapshots & Parity Audit | v1.4 | 3/3 | Complete | 2026-02-23 |
-| 13. Recovery Curve & Goals Calibration | v1.5 | 0/3 | Planned | — |
+| 13. Recovery Curve & Goals Calibration | v1.5 | 1/3 | In Progress | — |
 | 14. Assessment Reflection | v1.5 | 0/? | Not started | — |
 | 15. Batch Form UX | v1.5 | 0/? | Not started | — |
