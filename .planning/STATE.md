@@ -1,18 +1,19 @@
 # Project State
 
 ## Status
-v1.3 Form UX & Shared Data — SHIPPED 2026-02-23
+v1.4 UX & Engine Tuning — Defining requirements
 
 ## Project Reference
-See: .planning/PROJECT.md (updated 2026-02-23)
+See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Batch-generate compliant SOAP notes from minimal input
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.4
 
 ## Current Position
-Milestone: v1.3 complete
-Next action: /gsd:new-milestone
-Last activity: 2026-02-23 — v1.3 milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-22 — Milestone v1.4 started
 
 ## Performance Metrics
 - v1.0: 4 phases complete (Production Hardening)
@@ -36,5 +37,5 @@ None
 
 ## Session Continuity
 - Branch: v1.1-ux
-- Next action: /gsd:new-milestone
-- Last session: 2026-02-23 — v1.3 milestone complete
+- Next action: Define requirements
+- Last session: 2026-02-22 — v1.4 milestone started

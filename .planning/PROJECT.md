@@ -33,7 +33,19 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - ✓ Inline validation with blur triggers and submit guard — v1.3
 
 ### Active
-(Next milestone — use /gsd:new-milestone to define)
+
+#### Current Milestone: v1.4 UX & Engine Tuning
+
+**Goal:** Optimize batch form UX (ICD-first flow, field sizing) and calibrate SOAP generation engine (recovery curve, assessment reflection, batch/compose parity)
+
+**Target features:**
+- ICD selection before Body Part/Side with auto-mapping
+- Worst/Best/Current field width optimization
+- ICD confirmation display repositioned to right side
+- Batch vs Compose generation parity audit and fix
+- Recovery curve flattening (20-visit spread, realistic LTG)
+- TX Assessment reflects visit improvements (ADL/pain/symptom)
+- Strength/ROM generation logic audit across all modes
 
 ### Out of Scope
 - Database (PostgreSQL/Redis) — file-based approach works at current scale
@@ -67,4 +79,4 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - Playwright required for MDLand automation
 
 ---
-*Last updated: 2026-02-23 after v1.3 milestone*
+*Last updated: 2026-02-22 after v1.4 milestone started*
