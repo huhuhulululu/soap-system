@@ -19,7 +19,7 @@
 
 ### Validation
 
-- [ ] **VAL-01**: 前端即时验证 — patient 格式、必填字段、ICD 数量限制，提交前显示错误提示
+- [x] **VAL-01**: 前端即时验证 — patient 格式、必填字段、ICD 数量限制，提交前显示错误提示
 
 ## Future Requirements
 
@@ -44,7 +44,7 @@
 | UX-04 | Phase 11 | Complete |
 | DATA-01 | Phase 10 | Complete |
 | DATA-02 | Phase 10 | Complete |
-| VAL-01 | Phase 11 | Pending |
+| VAL-01 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 7 total

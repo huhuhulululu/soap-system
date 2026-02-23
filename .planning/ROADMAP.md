@@ -43,7 +43,7 @@
   **Plans:** 1 plan
   Plans:
   - [ ] 10-01-PLAN.md — Add shared adapters and replace inline ICD/CPT data in BatchView + writer-constants
-- [ ] Phase 11: Form UX & Validation — Name/DOB split, toggle tags, layout, validation
+- [x] Phase 11: Form UX & Validation — Name/DOB split, toggle tags, layout, validation (completed 2026-02-23)
   **Requirements:** [UX-01, UX-02, UX-03, UX-04, VAL-01]
   **Plans:** 2 plans
   Plans:
@@ -61,4 +61,4 @@
 | 8. Verification & Event Gap Closure | v1.1 | 1/1 | Complete | 2026-02-22 |
 | 9. Batch Logic Fixes | v1.2 | 1/1 | Complete | 2026-02-22 |
 | 10. Shared Data Extraction | 1/1 | Complete    | 2026-02-22 | — |
-| 11. Form UX & Validation | 1/2 | In Progress|  | — |
+| 11. Form UX & Validation | 2/2 | Complete   | 2026-02-23 | — |
