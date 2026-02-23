@@ -79,3 +79,27 @@
 
 ---
 
+
+## v1.4 UX & Engine Tuning (Shipped: 2026-02-23)
+
+**Phases:** 1 phase (Phase 12), 3 plans, 6 tasks
+**Scope:** Phase 12 only (Phases 13-15 deferred to v1.5)
+**Timeline:** 2026-02-22 → 2026-02-23
+**Codebase:** 35,157 LOC TypeScript
+**Git range:** 4cf0a5d → f6ab203 (9 commits, 15 files, +20,459/-141 lines)
+
+**Key accomplishments:**
+- 30 deterministic SOAP engine snapshot tests + Strength/ROM audit report (7/7 parity across compose and batch)
+- normalizeGenerationContext() shared function unifying batch and compose context construction
+- 9 parity diff tests proving batch/compose produce byte-identical SOAP output across all 7 body parts
+- 39/39 tests green, 0 type errors — full regression safety net for future engine modifications
+
+**Known gaps (deferred to v1.5):**
+- UX-01, UX-02, UX-03: Batch Form UX (Phase 15)
+- CRV-01, CRV-02: Recovery Curve & Goals Calibration (Phase 13)
+- ASS-01, ASS-02, ASS-03: Assessment Reflection (Phase 14)
+
+**Archives:** `milestones/v1.4-ROADMAP.md`, `milestones/v1.4-REQUIREMENTS.md`
+
+---
+

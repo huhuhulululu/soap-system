@@ -1,15 +1,16 @@
 # SOAP Batch System
 
 ## What This Is
-Automated SOAP note generation and MDLand submission for acupuncture clinics. Generates clinically accurate notes from patient data, with batch processing and browser automation.
+Automated SOAP note generation and MDLand submission for acupuncture clinics. Generates clinically accurate notes from patient data, with batch processing and browser automation. Batch and compose paths now produce identical output through a shared normalization layer.
 
 ## Core Value
 Batch-generate compliant SOAP notes from minimal input, eliminating manual documentation.
 
 ## Current State
-Shipped v1.3 Form UX & Shared Data. ~32,000 LOC TypeScript.
+Shipped v1.4 UX & Engine Tuning. 35,157 LOC TypeScript.
 Tech stack: Express 5, Vue 3, Playwright, ExcelJS, Vitest, Docker Compose on Oracle Cloud.
 Domain: https://rbmeds.com/ac/ (branch: clean-release)
+39 regression tests (30 fixture snapshots + 9 parity diff) guard engine modifications.
 
 ## Requirements
 
@@ -31,25 +32,29 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - ✓ 12-column compact form layout — v1.3
 - ✓ ICD/CPT catalog extracted to src/shared/ — v1.3
 - ✓ Inline validation with blur triggers and submit guard — v1.3
+- ✓ 30 fixture snapshots for SOAP engine regression baseline — v1.4
+- ✓ Strength/ROM audit: 7/7 parity across compose, batch, realistic patch — v1.4
+- ✓ normalizeGenerationContext() as sole entry point for both paths — v1.4
+- ✓ Batch/compose parity: byte-identical output for same patient data — v1.4
 
 ### Active
 
-#### Current Milestone: v1.4 UX & Engine Tuning
+#### Next Milestone: v1.5 Engine & UX Completion
 
-**Goal:** Optimize batch form UX (ICD-first flow, field sizing) and calibrate SOAP generation engine (recovery curve, assessment reflection, batch/compose parity)
-
-**Target features:**
-- ICD selection before Body Part/Side with auto-mapping
-- Worst/Best/Current field width optimization
-- ICD confirmation display repositioned to right side
-- Batch vs Compose generation parity audit and fix
-- Recovery curve flattening (20-visit spread, realistic LTG)
-- TX Assessment reflects visit improvements (ADL/pain/symptom)
-- Strength/ROM generation logic audit across all modes
+- [ ] Recovery curve: 20-visit chronic-aware spread (CRV-01)
+- [ ] Realistic long-term goals: 30-50% improvement for chronic (CRV-02)
+- [ ] Assessment reflects specific improvements (ADL, pain, symptom) (ASS-01)
+- [ ] Cumulative progress tracking for stronger assessment language (ASS-02)
+- [ ] Assessment strictly within template structure (ASS-03)
+- [ ] ICD-first selection with Body Part/Side auto-fill (UX-01)
+- [ ] Pain score field width optimization (~60px) (UX-02)
+- [ ] ICD chips displayed right-side of form row (UX-03)
 
 ### Out of Scope
 - Database (PostgreSQL/Redis) — file-based approach works at current scale
 - Mobile app — web-only for now
+- Fuse.js fuzzy ICD search — 80 entries don't justify overhead
+- LLM-generated assessment text — non-deterministic, compliance risk
 
 ## Key Decisions
 
@@ -72,11 +77,17 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 | CPT helpers delegate to getDefaultTXCPT/getDefaultIECPT | ✓ Good (no data duplication) | v1.3 |
 | No default gender/laterality on new patients | ✓ Good (forces explicit selection) | v1.3 |
 | clearFieldError wired into updateField | ✓ Good (auto-clear on input) | v1.3 |
+| HIP replaced with SHOULDER-bilateral in fixtures | ✓ Good (HIP not in SUPPORTED_TX_BODY_PARTS) | v1.4 |
+| Canonical tightness formula: painCurrent >= 7 ? 3 : 2 | ✓ Good (matches batch baseline) | v1.4 |
+| normalizeGenerationContext() as sole context entry point | ✓ Good (eliminates divergence by construction) | v1.4 |
+| Parity seeds 200001-200009 distinct from fixture seeds | ✓ Good (no collision) | v1.4 |
 
 ## Constraints
 - Single server deployment (Oracle Cloud)
 - No database — file-based storage only
 - Playwright required for MDLand automation
+- tx-sequence-engine.ts: new rng() calls must append at end of loop (PRNG sequence sensitive)
+- 30 fixture snapshots must pass before any engine modification
 
 ---
-*Last updated: 2026-02-22 after v1.4 milestone started*
+*Last updated: 2026-02-23 after v1.4 milestone*
