@@ -1,18 +1,19 @@
 # Project State
 
 ## Status
-v1.4 UX & Engine Tuning — SHIPPED 2026-02-23
+v1.5 Engine & UX Completion — Defining requirements
 
 ## Project Reference
-See: .planning/PROJECT.md (updated 2026-02-23)
+See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Batch-generate compliant SOAP notes from minimal input
-**Current focus:** Planning next milestone (v1.5 Engine & UX Completion)
+**Current focus:** v1.5 — defining requirements
 
 ## Current Position
-Phase: 12 — Fixture Snapshots & Parity Audit — Complete (final phase of v1.4)
-Milestone: v1.4 complete — Phase 12 shipped, Phases 13-15 deferred to v1.5
-Last activity: 2026-02-23 — Milestone v1.4 archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-22 — Milestone v1.5 started
 
 ## Performance Metrics
 - v1.0: 4 phases complete (Production Hardening)

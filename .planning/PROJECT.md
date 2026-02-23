@@ -39,16 +39,17 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 
 ### Active
 
-#### Next Milestone: v1.5 Engine & UX Completion
+#### Current Milestone: v1.5 Engine & UX Completion
 
-- [ ] Recovery curve: 20-visit chronic-aware spread (CRV-01)
-- [ ] Realistic long-term goals: 30-50% improvement for chronic (CRV-02)
-- [ ] Assessment reflects specific improvements (ADL, pain, symptom) (ASS-01)
-- [ ] Cumulative progress tracking for stronger assessment language (ASS-02)
-- [ ] Assessment strictly within template structure (ASS-03)
-- [ ] ICD-first selection with Body Part/Side auto-fill (UX-01)
-- [ ] Pain score field width optimization (~60px) (UX-02)
-- [ ] ICD chips displayed right-side of form row (UX-03)
+**Goal:** Complete deferred engine calibration (recovery curve, assessment), batch form UX, plus seed passthrough, plateau breaker, and Medicare phase gate.
+
+**Target features:**
+- Recovery curve: 20-visit chronic-aware spread (CRV-01, CRV-02)
+- Assessment reflects specific improvements with cumulative tracking (ASS-01, ASS-02, ASS-03)
+- ICD-first selection with auto-fill, field sizing, chips display (UX-01, UX-02, UX-03)
+- Batch seed passthrough for deterministic regeneration (SEED-01)
+- Plateau breaker for stalled pain progression (PLAT-01)
+- Visit 12 Medicare phase gate for NCD 30.3.3 compliance (GATE-01)
 
 ### Out of Scope
 - Database (PostgreSQL/Redis) — file-based approach works at current scale
@@ -90,4 +91,4 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - 30 fixture snapshots must pass before any engine modification
 
 ---
-*Last updated: 2026-02-23 after v1.4 milestone*
+*Last updated: 2026-02-22 after v1.5 milestone started*
