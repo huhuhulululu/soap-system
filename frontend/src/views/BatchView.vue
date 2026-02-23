@@ -51,6 +51,7 @@ function normalizeDOB(val) {
 function handleDobBlur() {
   const normalized = normalizeDOB(activeDraft.value.dob)
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) updateField('dob', normalized)
+  validateField('dob', activeDraft.value.dob)
 }
 
 // Body parts matching Writer page (supported by IE+TX templates)
@@ -137,6 +138,60 @@ const activeIndex = ref(0)
 const patientBucketOpen = ref(true)
 const activeDraft = computed(() => drafts.value[activeIndex.value])
 
+// ── Validation ───────────────────────────────────
+const fieldErrors = ref({})
+const activeErrors = computed(() => fieldErrors.value[activeIndex.value] || {})
+
+function validateField(key, value) {
+  const cur = fieldErrors.value[activeIndex.value] || {}
+  let msg
+  if (key === 'name') msg = !value.trim() ? 'Name is required' : undefined
+  else if (key === 'dob') msg = !/^\d{2}\/\d{2}\/\d{4}$/.test(normalizeDOB(value)) ? 'Format: MM/DD/YYYY, MM-DD-YYYY, MMDDYYYY, or MM/DD/YY' : undefined
+  else if (key === 'gender') msg = !value ? 'Select gender' : undefined
+  else if (key === 'laterality') msg = !value ? 'Select side' : undefined
+  else if (key === 'insurance') msg = !value ? 'Select insurance' : undefined
+  else if (key === 'bodyPart') msg = !value ? 'Select body part' : undefined
+  else if (key === 'icd') {
+    const mode = (activeDraft.value?.mode || batchMode.value)
+    msg = mode === 'full' && !value.trim() ? 'At least 1 ICD required in Full mode' : undefined
+  }
+  const updated = { ...cur }
+  if (msg) updated[key] = msg
+  else delete updated[key]
+  fieldErrors.value = { ...fieldErrors.value, [activeIndex.value]: updated }
+}
+
+function clearFieldError(key) {
+  const cur = fieldErrors.value[activeIndex.value]
+  if (!cur || !cur[key]) return
+  const updated = { ...cur }
+  delete updated[key]
+  fieldErrors.value = { ...fieldErrors.value, [activeIndex.value]: updated }
+}
+
+function validateAll() {
+  const allErrors = {}
+  drafts.value.forEach((d, i) => {
+    const e = {}
+    if (!d.name.trim()) e.name = 'Name is required'
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(normalizeDOB(d.dob))) e.dob = 'Format: MM/DD/YYYY, MM-DD-YYYY, MMDDYYYY, or MM/DD/YY'
+    if (!d.gender) e.gender = 'Select gender'
+    if (!d.laterality) e.laterality = 'Select side'
+    if (!d.insurance) e.insurance = 'Select insurance'
+    if (!d.bodyPart) e.bodyPart = 'Select body part'
+    const mode = d.mode || batchMode.value
+    if (mode === 'full' && !(d.icd || '').trim()) e.icd = 'At least 1 ICD required in Full mode'
+    if (Object.keys(e).length) allErrors[i] = e
+  })
+  fieldErrors.value = allErrors
+  if (Object.keys(allErrors).length) {
+    const firstIdx = Number(Object.keys(allErrors)[0])
+    if (firstIdx !== activeIndex.value) activeIndex.value = firstIdx
+    return false
+  }
+  return true
+}
+
 const activeRadiation = computed(() => RADIATION_MAP[activeDraft.value?.bodyPart] || ['without radiation'])
 
 function toggleCSV(key, val) {
@@ -211,6 +266,7 @@ function updateField(key, value) {
     if (key === 'insurance') updated.cpt = defaultCptStr(value)
     return updated
   })
+  clearFieldError(key)
 }
 
 function saveAndNext() {
@@ -240,6 +296,7 @@ function clearDrafts() {
 }
 
 async function submitDrafts() {
+  if (!validateAll()) return
   loading.value = true
   error.value = ''
   try {
@@ -880,35 +937,41 @@ onUnmounted(() => {
             <div class="grid grid-cols-2 sm:grid-cols-12 gap-2">
               <div class="sm:col-span-3 col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Name *</label>
-                <input :value="activeDraft.name" @input="updateField('name', $event.target.value)" placeholder="LAST,FIRST" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                <input :value="activeDraft.name" @input="updateField('name', $event.target.value)" @blur="validateField('name', activeDraft.name)" placeholder="LAST,FIRST" class="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" :class="activeErrors.name ? 'border-red-400' : 'border-ink-200'" />
+                <span v-if="activeErrors.name" class="text-xs text-red-500">{{ activeErrors.name }}</span>
               </div>
               <div class="sm:col-span-2 col-span-1">
                 <label class="text-xs text-ink-500 mb-0.5 block">DOB *</label>
-                <input :value="activeDraft.dob" @input="updateField('dob', $event.target.value)" @blur="handleDobBlur" placeholder="MM/DD/YYYY" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" />
+                <input :value="activeDraft.dob" @input="updateField('dob', $event.target.value)" @blur="handleDobBlur" placeholder="MM/DD/YYYY" class="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" :class="activeErrors.dob ? 'border-red-400' : 'border-ink-200'" />
+                <span v-if="activeErrors.dob" class="text-xs text-red-500">{{ activeErrors.dob }}</span>
               </div>
               <div class="sm:col-span-1 col-span-1">
                 <label class="text-xs text-ink-500 mb-0.5 block">Gender *</label>
-                <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs h-[34px]">
+                <div class="flex rounded-lg border overflow-hidden text-xs h-[34px]" :class="activeErrors.gender ? 'border-red-400' : 'border-ink-200'">
                   <button v-for="m in [{k:'M',l:'M'},{k:'F',l:'F'}]" :key="m.k" type="button" @click="updateField('gender', m.k)" class="flex-1 font-medium transition-colors" :class="activeDraft.gender === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">{{ m.l }}</button>
                 </div>
+                <span v-if="activeErrors.gender" class="text-xs text-red-500">{{ activeErrors.gender }}</span>
               </div>
               <div class="sm:col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">Insurance *</label>
-                <select :value="activeDraft.insurance" @change="updateField('insurance', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                <select :value="activeDraft.insurance" @change="updateField('insurance', $event.target.value)" class="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" :class="activeErrors.insurance ? 'border-red-400' : 'border-ink-200'">
                   <option v-for="ins in ['HF','OPTUM','WC','VC','ELDERPLAN','NONE']" :key="ins" :value="ins">{{ ins }}</option>
                 </select>
+                <span v-if="activeErrors.insurance" class="text-xs text-red-500">{{ activeErrors.insurance }}</span>
               </div>
               <div class="sm:col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">BodyPart *</label>
-                <select :value="activeDraft.bodyPart" @change="updateField('bodyPart', $event.target.value)" class="w-full px-2 py-1.5 text-sm border border-ink-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400">
+                <select :value="activeDraft.bodyPart" @change="updateField('bodyPart', $event.target.value)" class="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-ink-400" :class="activeErrors.bodyPart ? 'border-red-400' : 'border-ink-200'">
                   <option v-for="bp in BATCH_BODY_PARTS" :key="bp" :value="bp">{{ BP_LABEL[bp] || bp }}</option>
                 </select>
+                <span v-if="activeErrors.bodyPart" class="text-xs text-red-500">{{ activeErrors.bodyPart }}</span>
               </div>
               <div class="sm:col-span-2 col-span-1">
                 <label class="text-xs text-ink-500 mb-0.5 block">Side *</label>
-                <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs h-[34px]">
+                <div class="flex rounded-lg border overflow-hidden text-xs h-[34px]" :class="activeErrors.laterality ? 'border-red-400' : 'border-ink-200'">
                   <button v-for="m in [{k:'L',l:'Left'},{k:'B',l:'Bil'},{k:'R',l:'Right'}]" :key="m.k" type="button" @click="updateField('laterality', m.k)" class="flex-1 font-medium transition-colors" :class="activeDraft.laterality === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">{{ m.l }}</button>
                 </div>
+                <span v-if="activeErrors.laterality" class="text-xs text-red-500">{{ activeErrors.laterality }}</span>
               </div>
             </div>
 
@@ -941,6 +1004,7 @@ onUnmounted(() => {
                     </button>
                   </div>
                 </div>
+                <span v-if="activeErrors.icd" class="text-xs text-red-500">{{ activeErrors.icd }}</span>
               </div>
               <div class="col-span-2">
                 <label class="text-xs text-ink-500 mb-0.5 block">CPT{{ (activeDraft.mode || batchMode) === 'full' ? ' *' : '' }}</label>
