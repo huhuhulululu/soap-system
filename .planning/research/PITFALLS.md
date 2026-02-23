@@ -1,126 +1,209 @@
 # Pitfalls Research
 
-**Domain:** Playwright browser automation — adding retry/resilience to existing EHR submission system
+**Domain:** v1.5 new features — seed passthrough (SEED-01), plateau breaker (PLAT-01), Medicare phase gate (GATE-01)
 **Researched:** 2026-02-22
-**Confidence:** HIGH (based on direct codebase analysis + verified patterns)
+**Confidence:** HIGH (direct analysis of tx-sequence-engine.ts, batch-generator.ts, normalize-generation-context.ts, fixture-snapshots.test.ts, mdland-automation.ts, and CMS NCD 30.3.3)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Retry Without State Reset Creates Duplicate EHR Entries
+### Pitfall 1: Seed Passthrough Stored But Never Reaches TX Sequence Engine
 
 **What goes wrong:**
-A visit fails mid-way (e.g., after `addICDCodes` succeeds but `saveSOAP` times out). On retry, the code re-enters ICD codes into a form that already has them, creating duplicate billing codes in MDLand. The EHR has no deduplication — it appends whatever is submitted.
+`batch-generator.ts` generates a random seed at line 96 (`Math.floor(Math.random() * 100000)`) and stores it in `visit.generated.seed`. But when the user calls `regenerateVisit()` (line 324) to re-generate with the same seed, the function delegates to `generateSingleVisit()` which calls `exportSOAPAsText(context)` — a single-visit IE/RE generator that doesn't use the TX sequence engine at all. The seed parameter is accepted but never passed to `exportTXSeriesAsText()`. Re-generation with a stored seed produces completely different output because it bypasses the sequence engine entirely.
 
 **Why it happens:**
-The current `processVisit` flow is linear: ICD → SOAP → Checkout. If it fails at step 2, step 1 has already mutated EHR state. Retry naively re-runs from step 1. The page is not reset between attempts — `openVisit()` is not re-called, so the iframe state from the failed attempt persists.
+`regenerateVisit()` was designed for single IE/RE re-generation. TX visits are generated as a batch via `generateTXSeries()`. There's no `regenerateTXWithSeed()` function that re-runs the full sequence engine with a stored seed and extracts the specific visit. The API surface suggests seed-based regeneration works, but the plumbing doesn't connect.
 
 **How to avoid:**
-- Before any retry, call `closeVisit()` then re-navigate: `clickWaitingRoom()` → `searchPatient()` → `selectPatient()` → `openVisit()`. This reloads the iframe tree from scratch.
-- Read current ICD/CPT state from the diagnose iframe before adding codes. If codes already exist, skip the add step.
-- Track which steps completed per visit attempt. Only retry from the last failed step if the completed steps are idempotent (SOAP fill is safe to repeat; ICD add is not).
+- `regenerateVisit()` must detect `visit.noteType === 'TX'` and route to a TX-specific path that calls `exportTXSeriesAsText()` with the stored seed, then returns only the requested visit index.
+- The seed must be stored per-patient (not per-visit) because all TX visits for one patient share a single PRNG sequence. Storing per-visit creates the illusion that individual visits can be regenerated independently.
+- Add a `regenerateTXSeries(patient, seed)` function that re-runs the full sequence and returns all TX visits. The frontend can then replace the entire TX series atomically.
 
 **Warning signs:**
-- Retry succeeds but MDLand shows doubled ICD/CPT codes on the visit
-- `addICDCodes` throws "already exists" or silently appends duplicates
-- Billing amounts are doubled after a retry run
+- User copies seed from visit review, pastes it into regenerate, gets different SOAP text
+- `regenerateVisit()` called with seed for a TX visit produces IE-style output (no sequence progression)
+- Seed stored as `0` (from `options.seed ?? 0` fallback at line 118) when `options.seed` is undefined
 
-**Phase to address:** Retry/recovery phase — must be the first thing designed before any retry loop is written.
+**Phase to address:** SEED-01 implementation — must fix the regeneration path before exposing seed UI.
 
 ---
 
-### Pitfall 2: Stale Execution Context After Navigation
+### Pitfall 2: New `rng()` Calls in Plateau Breaker Shift Entire PRNG Sequence
 
 **What goes wrong:**
-After a failed `saveSOAP()` or `generateBilling()`, the page may have partially navigated. Any subsequent `page.evaluate()` call throws `Execution context was destroyed, most likely because of a navigation`. The retry attempt then fails with a confusing error that masks the original failure.
+The plateau breaker needs randomness to decide micro-improvement magnitude (e.g., `0.2 + rng() * 0.1` for pain drop). Adding this `rng()` call inside the visit loop shifts every subsequent random value for all remaining visits. The existing ~15 `rng()` calls per iteration (lines 735-882) are order-dependent. Inserting one call at the plateau detection point (line 855) means visits after the first plateau get different symptomChange, reason, tightnessGrading, tendernessGrading, needlePoints, and spasmGrading values. All 30 fixture snapshots break.
 
 **Why it happens:**
-`saveSOAP()` dispatches mouse events that trigger an AJAX save + iframe reload. If the save times out, the iframe is mid-reload. The `waitForTimeout(3000)` after billing is a fixed sleep that doesn't confirm the navigation completed. On retry, `page.evaluate()` runs against a destroyed context.
+`mulberry32` is a sequential PRNG — the Nth call always returns the same value for a given seed, but inserting a call at position K shifts positions K+1 through N. The plateau breaker is conditional (only fires when `plateau === true`), making the shift non-deterministic across seeds. Some seeds trigger plateau at visit 5, others at visit 8, so the cascade differs per seed.
 
 **How to avoid:**
-- After any save/submit action, wait for a stable DOM signal (e.g., `waitForFunction` checking `readyState === 'complete'` on the target iframe) before proceeding.
-- Wrap every `page.evaluate()` in a try/catch that detects `Execution context was destroyed` and triggers a full page-state reset rather than propagating the error as a visit failure.
-- Never use `waitForTimeout` as the sole post-save guard. It is a race condition.
+- Append all new `rng()` calls at the END of the visit loop body (after line 1196), not at the plateau detection point. Consume the random value unconditionally (even when plateau is false) to keep the call count constant per iteration.
+- Alternative: create a sub-PRNG for plateau decisions: `const plateauRng = mulberry32(seed + 0x50_4C_41_54)`. This isolates plateau randomness from the main sequence entirely. Changes to plateau logic never affect other fields.
+- Before any engine change, run `npx vitest run src/generator/__fixtures__/fixture-snapshots.test.ts` and confirm 30/30 pass. After changes, run `--update` only after reviewing diffs.
 
 **Warning signs:**
-- Error messages containing "Execution context was destroyed"
-- Errors on the retry attempt that reference a different step than where the original failure occurred
-- Screenshots showing a blank or loading iframe
+- Fixture snapshot tests fail on visits AFTER the first plateau occurrence (not on the plateau visit itself)
+- Different seeds break at different visit indices (non-uniform failure pattern)
+- Parity diff tests (9 cases) fail because batch and compose paths now diverge on plateau timing
 
-**Phase to address:** Retry/recovery phase — the reset sequence must handle destroyed contexts explicitly.
+**Phase to address:** PLAT-01 implementation — must be the first engine change, before recovery curve or assessment modifications.
 
 ---
 
-### Pitfall 3: Hardcoded `timeout: 30000` Applied Globally Causes Cascading Failures
+### Pitfall 3: Plateau Breaker Violates Monotonic Pain Constraint via snapPainToGrid Quantization
 
 **What goes wrong:**
-`DEFAULT_OPTIONS.timeout = 30000` is passed to `page.setDefaultTimeout()`. This applies to every `waitForSelector`, `waitForFunction`, and locator action. On a slow network day, TinyMCE initialization (currently `waitForFunction` with `timeout: 20000`) fails, which fails the entire visit. Increasing the global timeout to compensate causes slow failures to take 30s each, making a 20-visit batch take 10+ minutes just in timeout overhead.
+The plateau breaker injects a micro-improvement when pain stalls (e.g., force `rawPain -= 0.25`). But `snapPainToGrid` has zone boundaries at 0.25 and 0.75 fractions. A pain value of 6.30 snaps to label "7-6" (range zone). After plateau breaker drops it to 6.05, it snaps to label "6" (integer zone). This looks correct. But if the PREVIOUS visit had pain 6.24 which snapped to "6" (below 0.25 threshold), the current visit's pre-plateau value of 6.30 would have snapped to "7-6" — an apparent INCREASE. The monotonic guard at line 768 (`painScaleCurrent = Math.min(prevPain, snapped.value)`) catches the numeric value but the LABEL can still show "7-6" > "6" if the guard clamps the value but not the label.
 
 **Why it happens:**
-A single global timeout cannot fit both fast operations (clicking a button: should fail in 5s) and slow operations (TinyMCE init: legitimately needs 20s). The current code mixes both under one value.
+The existing monotonic guard operates on `snapped.value` (numeric) but the label is derived from `snapped.label` (string). Lines 770-772 re-snap if `painScaleCurrent < snapped.value`, but this only fires when the guard actually clamped. The plateau breaker changes the raw pain BEFORE snapping, so the guard may not trigger, but the label sequence can still appear non-monotonic to the checker which parses labels.
 
 **How to avoid:**
-- Keep `page.setDefaultTimeout()` at a conservative value (10–15s) for UI interactions.
-- Override per-operation for known slow steps: `waitForFunction(..., { timeout: 25000 })` for TinyMCE, `waitForFunction(..., { timeout: 20000 })` for post-save iframe reload.
-- Do not "fix" flakiness by raising the global timeout. Diagnose which specific step is slow and tune only that step.
+- After plateau breaker adjusts `rawPain`, apply the same monotonic label guard: if the new label parses to a higher value than `prevPainScaleLabel`, force the label to `prevPainScaleLabel`.
+- Add a post-loop assertion: iterate all visits and verify `parseInt(visit.painScaleLabel) <= parseInt(prevVisit.painScaleLabel)` for range labels (take the higher number).
+- Test with seeds that produce pain values near zone boundaries (6.24, 6.26, 6.74, 6.76) — these are the fragile points.
 
 **Warning signs:**
-- Batch runs taking significantly longer than expected with no visible errors
-- Timeout errors on steps that previously succeeded (indicates the step got slower, not that the timeout is wrong)
-- All timeouts failing at exactly the same duration (global timeout is masking per-step tuning)
+- Checker V01 violations appearing only on specific seeds (boundary-sensitive)
+- Pain label sequence like "7-6", "6", "7-6", "6" (oscillation at boundary)
+- `snapPainToGrid` returning different labels for values that differ by < 0.05
 
-**Phase to address:** Adaptive timeout phase — implement per-step timeout constants before tuning values.
+**Phase to address:** PLAT-01 implementation — must be validated with constraint checker before merging.
 
 ---
 
-### Pitfall 4: Error Classification Collapses All Failures Into One Category
+### Pitfall 4: Medicare Phase Gate at Visit 12 Creates Hard Discontinuity in Recovery Curve
 
 **What goes wrong:**
-The current `processVisit` catch block returns `{ success: false, error: errorMsg }` for every failure — session expired, element not found, network timeout, and EHR business logic errors all look identical. When building retry logic, the code retries session-expired errors (which will always fail until cookies are refreshed) and skips retryable network timeouts.
+NCD 30.3.3 requires "documented improvement" at visit 12 to authorize visits 13-20. The naive implementation checks `if (visitIndex === 12) { assertImprovement() }` and forces a pain drop if improvement is insufficient. This creates a visible discontinuity — visits 11-12 show a sudden jump in improvement that doesn't match the gradual curve before and after. Auditors reviewing the full 20-visit sequence see an unnatural acceleration at exactly visit 12, which looks like the notes were engineered to pass the checkpoint rather than reflecting genuine clinical progress.
 
 **Why it happens:**
-`err instanceof Error ? err.message : String(err)` loses all structural information. The error message is a free-form string from Playwright or from `throw new Error(...)` calls scattered through the automation methods.
+The recovery curve is continuous (sqrt + smoothstep). Injecting a forced improvement at a specific visit index creates a step function discontinuity. The S→O→A chain then amplifies it: forced pain drop → assessment says "improvement" → but objective metrics (tightness, ROM) haven't caught up because they lag pain by design (lines 816-844). The visit 12 note has subjective improvement without matching objective support.
 
 **How to avoid:**
-Classify errors at the point of throw, not at the catch site. Use a small enum:
-```typescript
-type AutomationErrorKind =
-  | 'session_expired'    // cookies invalid — stop entire batch
-  | 'element_not_found'  // selector missing — retry with page reset
-  | 'timeout'            // network/render slow — retry with backoff
-  | 'ehr_logic'          // EHR rejected the data — skip, do not retry
-  | 'unknown'
-```
-Map Playwright error messages to kinds: `TimeoutError` → `timeout`, `session expired` in URL → `session_expired`, `not found` in message → `element_not_found`.
+- Don't force improvement AT visit 12. Instead, calibrate the recovery curve so that cumulative improvement by visit 12 is always sufficient. The curve parameters (`progressMultiplier`, `ST_PROGRESS`) should guarantee that `startPain - painAtVisit12 >= minimumDelta` for all valid starting conditions.
+- The phase gate should be a VALIDATION check, not a generation modifier. After generating the full sequence, verify that visit 12 shows sufficient improvement. If it doesn't, flag the patient for clinical review rather than silently adjusting the curve.
+- If forced adjustment is unavoidable, spread it across visits 10-12 (not just visit 12) by slightly increasing the progress rate in that window. This preserves curve smoothness.
 
 **Warning signs:**
-- Retry logic retrying session-expired visits (wastes time, always fails)
-- Timeout errors being treated as permanent failures (skips visits that would succeed on retry)
-- No way to distinguish "MDLand rejected the ICD code" from "page didn't load"
+- Visit 12 pain drop is 2x larger than adjacent visits' drops
+- Assessment at visit 12 says "significant improvement" while visit 11 said "slight improvement"
+- Objective metrics (tightness, ROM) at visit 12 don't reflect the subjective improvement
+- Auditor flags visit 12 as "clinically implausible acceleration"
 
-**Phase to address:** Structured error reporting phase — must precede retry logic. You cannot write correct retry conditions without error kinds.
+**Phase to address:** GATE-01 implementation — must be designed AFTER recovery curve calibration (CRV-01/CRV-02) is stable.
 
 ---
 
-### Pitfall 5: Child Process Model Loses Per-Visit Progress on Crash
+### Pitfall 5: Medicare Phase Gate Applied to Non-Medicare Insurance Types
 
 **What goes wrong:**
-The automation runs as a child process spawned by `automation-runner.ts`. If the process crashes (OOM, unhandled rejection, Playwright browser crash), `currentJob.status` becomes `'failed'` with no record of which visits succeeded before the crash. Re-running the batch re-processes all visits, including already-completed ones.
+The system has 6 insurance types: HF, OPTUM, WC, VC, ELDERPLAN, NONE. NCD 30.3.3 applies only to Medicare beneficiaries. If the phase gate logic is added to `generateTXSequenceStates()` without an insurance type check, it fires for ALL patients — including commercial insurance (HF, WC, VC) patients who have no 12-visit checkpoint requirement. This unnecessarily constrains the recovery curve for non-Medicare patients and may produce suboptimal note sequences.
 
 **Why it happens:**
-`VisitResult[]` is accumulated in memory inside the child process. It is never written to disk or reported back to the parent process incrementally. The parent only sees stdout lines and the final exit code.
+`generateTXSequenceStates()` receives `GenerationContext` which has `insuranceType`, but the current engine doesn't branch on insurance type for clinical progression (only for CPT code selection in `INSURANCE_NEEDLE_MAP`). Adding insurance-conditional logic to the engine is a new pattern. The temptation is to apply the gate universally "for safety" — but this over-constrains non-Medicare patients.
 
 **How to avoid:**
-- Write a progress file (e.g., `data/automation-progress-{batchId}.json`) after each visit completes, recording `{ visitKey, success, completedAt }`.
-- On batch start, read the progress file and skip already-completed visits.
-- The visit key must be stable: `${patientName}-${dos}-${noteType}` not array index.
+- The phase gate check must be gated on `context.insuranceType`. Determine which insurance types map to Medicare: likely ELDERPLAN (Medicare Advantage) and potentially NONE (if the clinic bills Medicare directly). HF, OPTUM, WC, VC are commercial Medicaid plans — NCD 30.3.3 does not apply.
+- Add `isMedicare(insuranceType)` helper to `src/shared/` that returns true for Medicare-applicable types. Use this in both the engine gate and any UI warnings.
+- Confirm with the clinic which `InsuranceType` values correspond to Medicare beneficiaries. This is a business logic decision, not a technical one.
 
 **Warning signs:**
-- After a crash, re-running the batch produces duplicate EHR entries for visits that completed before the crash
-- No way to resume a partial batch without manual inspection of MDLand
+- Commercial insurance patients getting visit-12 checkpoint warnings in the UI
+- Recovery curves for HF/WC patients showing the same forced improvement pattern as Medicare patients
+- Clinic staff confused by "Medicare compliance" messages for non-Medicare patients
 
-**Phase to address:** Retry/recovery phase — progress persistence is a prerequisite for safe retry.
+**Phase to address:** GATE-01 implementation — insurance type mapping must be confirmed before coding the gate.
+
+---
+
+### Pitfall 6: MDLand ICD/CPT Append-Only Behavior Causes Duplicates on Regeneration
+
+**What goes wrong:**
+MDLand's ICD/CPT interface is append-only: `addSelectionD(name, code)` adds a code to the list, and `addSelectionD_cpt(name, name, code)` adds a CPT code. There is no "clear all codes" or "replace codes" API. When seed passthrough enables regeneration, the user regenerates a visit with a new seed, which may produce different ICD/CPT codes. The automation re-runs `addICDCodes()` and `addCPTCodes()`, but the previous codes are still in the list. The visit now has duplicate or conflicting codes.
+
+**Why it happens:**
+`mdland-automation.ts` `addICDCodes()` (line 595) iterates codes and calls `addSelectionD()` for each. It doesn't check if the code already exists. `addCPTCodes()` (line 641) has the same pattern. The MDLand UI accumulates codes across multiple submissions. The automation was designed for single-pass generation, not iterative regeneration.
+
+**How to avoid:**
+- Before adding codes, clear the existing ICD/CPT list. Investigate MDLand's DOM for a "clear all" button or a way to remove individual codes programmatically (e.g., selecting and deleting from the `diag_code_h` hidden inputs).
+- If clearing isn't possible, add a pre-check: read the current code list from the DOM, diff against the new codes, only add missing ones and remove extras.
+- For seed-based regeneration specifically: if the ICD/CPT codes don't change (only SOAP text changes), skip the ICD/CPT step entirely. The seed only affects the TX sequence engine, not the code selection.
+
+**Warning signs:**
+- MDLand showing duplicate ICD codes (e.g., M54.50 appearing twice)
+- CPT units doubled (97810 x2 instead of x1) after regeneration
+- Claim denials due to duplicate billing codes
+
+**Phase to address:** SEED-01 implementation — must handle MDLand idempotency before enabling regeneration in automation.
+
+---
+
+### Pitfall 7: Plateau Breaker Fires on Visit 1, Creating Impossible "Stalled" Narrative
+
+**What goes wrong:**
+The current plateau detection (line 855-857) checks `progress > 0.7 && painDelta < 0.2 && adlDelta < 0.12 && !frequencyImproved` OR `painScaleLabel === prevPainScaleLabel`. The second condition (`painScaleLabel === prevPainScaleLabel`) can be true on visit 1 if the starting pain snaps to the same label as the IE pain. For example, IE pain = 8, TX1 raw pain = 7.80, both snap to "8". The plateau breaker fires on TX1, injecting a micro-improvement on the very first treatment visit — which is clinically nonsensical (you can't be "stalled" after one visit).
+
+**Why it happens:**
+`prevPainScaleLabel` is initialized from `snapPainToGrid(startPain).label` before the loop (line 645). On the first iteration, if the pain drop is small enough that the label doesn't change, the label-equality check triggers plateau. The `progress > 0.7` guard in the first condition prevents early firing, but the OR with label equality bypasses it.
+
+**How to avoid:**
+- Add a minimum visit count guard: `const plateau = visitIndex >= 3 && (...)`. A patient cannot be "stalled" before visit 3.
+- Separate the two plateau conditions: label equality alone should not trigger the breaker — it should only suppress ROM/strength trends (current behavior at lines 858-870). The breaker (forced pain micro-drop) should require the full condition including `progress > 0.7`.
+- Track consecutive stall count: only trigger breaker after 3+ consecutive visits with identical pain labels, not on the first occurrence.
+
+**Warning signs:**
+- TX1 showing a pain drop that doesn't match the recovery curve's expected early-phase behavior
+- Assessment at TX1 mentioning "plateau" or "stalled" language
+- Fixture snapshots for early-phase fixtures (3tx) changing unexpectedly
+
+**Phase to address:** PLAT-01 implementation — guard must be in place before any plateau logic is added.
+
+---
+
+### Pitfall 8: Seed Passthrough Exposes Deterministic Pattern to Auditors
+
+**What goes wrong:**
+Seed passthrough means the same seed always produces the same SOAP text. If an auditor reviews multiple patients and notices identical phrasing patterns (same symptomChange, same reason, same ADL activities), they may suspect automated generation. Currently, random seeds provide natural variation. Exposing seed control to users means a user could accidentally (or intentionally) reuse the same seed across patients, producing identical notes for different people.
+
+**Why it happens:**
+The seed controls the entire PRNG sequence — symptomChange selection, reason selection, ADL activities, needle points (first visit only), tightness/tenderness grading randomness. Two patients with the same body part, pain level, and seed will get byte-identical SOAP text. This is by design for reproducibility, but it's a liability if seeds are reused across patients.
+
+**How to avoid:**
+- The UI should display the seed as read-only (for debugging/support) and allow copy, but NOT allow manual seed input for batch generation. Seed input should only be available in a "regenerate single patient" flow.
+- If manual seed input is allowed, validate that the seed is unique within the batch. Show a warning if two patients share the same seed.
+- Consider incorporating patient-specific entropy into the seed: `effectiveSeed = hash(userSeed, patientName, bodyPart)`. This ensures different patients always get different sequences even with the same user-provided seed.
+
+**Warning signs:**
+- Two patients in the same batch having identical symptomChange + reason + ADL sequences
+- Auditor flagging "template-like" notes across patients
+- User reporting "I used the same seed and got the same notes for different patients"
+
+**Phase to address:** SEED-01 implementation — seed uniqueness validation before exposing UI.
+
+---
+
+### Pitfall 9: Medicare Phase Gate Assessment Language Exceeds Template Vocabulary
+
+**What goes wrong:**
+The visit 12 phase gate needs to document "improvement" in specific Medicare-compliant language. The temptation is to add new assessment phrases like "Patient demonstrates clinically meaningful improvement sufficient to warrant continued treatment per NCD 30.3.3." But `deriveAssessmentFromSOA()` returns values that are rendered by `generateAssessmentTX()` in `soap-generator.ts`, which uses template vocabulary from `template-rule-whitelist.ts`. Injecting free-text Medicare language bypasses the template system and may produce text that MDLand's dropdown fields can't accept.
+
+**Why it happens:**
+MDLand's SOAP form uses dropdown/combo fields with predefined options (loaded from `whitelist.json`). The generator must produce text that matches these options. Medicare compliance language is regulatory, not clinical — it doesn't map to existing template options. Adding it requires either extending the whitelist (which affects all patients) or injecting it as free-text (which MDLand may reject).
+
+**How to avoid:**
+- The Medicare phase gate documentation should be a SEPARATE section or annotation, not embedded in the standard Assessment template text. Consider adding it to the Plan section ("Continue treatment per NCD 30.3.3 — documented improvement at visit 12") where free-text is more acceptable.
+- If it must go in Assessment, verify that the exact phrasing exists in MDLand's assessment dropdown options. If not, the gate should produce standard template vocabulary that implies compliance without using regulatory language.
+- The gate's output should be a boolean flag (`meetsVisit12Threshold: true`) that the UI displays as a compliance badge, not injected text in the SOAP note itself.
+
+**Warning signs:**
+- MDLand automation failing at the SOAP paste step because assessment text doesn't match any dropdown option
+- `getTemplateOptionsForField('assessment.*')` returning no match for Medicare-specific phrases
+- Generated assessment text longer than MDLand's field character limit
+
+**Phase to address:** GATE-01 implementation — must verify MDLand field constraints before designing gate output format.
 
 ---
 
@@ -128,11 +211,11 @@ The automation runs as a child process spawned by `automation-runner.ts`. If the
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| `waitForTimeout(2000)` as post-save guard | Simple, works most of the time | Race condition on slow days; masks real completion signal | Never — replace with `waitForFunction` |
-| Global `console.log` for all output | Easy to read during dev | No log levels; can't filter errors from progress; child process stdout is the only channel | Never in production automation |
-| Single `catch` block for all errors | Simple error handling | Cannot implement correct retry logic without error classification | Never once retry is added |
-| Fixed `visitIndex` for visit mapping | Simple array access | Breaks if MDLand row order changes between visits; causes wrong-visit submission | Never — use stable visit key |
-| `slowMo: 100` always on | Reduces race conditions | Adds ~2-5s per visit; 20 visits = 40-100s overhead | Acceptable for now; tune per environment |
+| Storing seed per-visit instead of per-patient-TX-series | Simpler data model | Misleading: implies individual TX visits can be regenerated independently; actual PRNG is per-series | Never — seed belongs on the patient/series level |
+| Plateau breaker as inline code in the main loop | No new functions to test | Adds another conditional branch to the already 1216-line engine; increases cyclomatic complexity | Only if guarded by `visitIndex >= 3` and consuming rng() unconditionally |
+| Medicare gate as engine-internal logic | No new files | Mixes regulatory compliance with clinical generation; insurance-type branching in the engine is a new pattern | Never — gate should be a post-generation validator, not an in-loop modifier |
+| Hardcoding visit 12 as the Medicare checkpoint | Matches current NCD 30.3.3 | CMS could change the checkpoint visit count; hardcoded magic number | Acceptable if extracted to a named constant `MEDICARE_PHASE_GATE_VISIT = 12` |
+| Reusing `Math.floor(Math.random() * 100000)` for seed generation | Simple | Seed space is only 100k values; collision probability is ~1% at 450 patients (birthday paradox); not cryptographically random | Never for production — use `crypto.getRandomValues()` or at minimum `Math.floor(Math.random() * 0xFFFFFFFF)` |
 
 ---
 
@@ -140,11 +223,13 @@ The automation runs as a child process spawned by `automation-runner.ts`. If the
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| MDLand TinyMCE | Calling `setContent` before `getInstanceById` returns non-null | Wait for `typeof tinyMCE.getInstanceById === 'function'` AND call `getInstanceById` and check result is non-null before setting content |
-| MDLand iframe tree | Accessing `contentDocument` without checking `readyState` | Check `readyState === 'complete'` or wait for URL pattern before accessing nested iframe documents |
-| MDLand `letsGo(2)` save | Assuming save is synchronous after call | Wait for iframe URL to cycle back to `ov_icdcpt` — the save triggers a server round-trip and iframe reload |
-| MDLand session cookies | Reusing stale cookies silently | `validateSession()` only checks for `workarea0` presence; a session can be partially valid (page loads but actions fail). Check after first real action, not just on init. |
-| Child process stdout | Treating all stdout as structured data | Playwright and tsx both write to stdout. Parse only lines matching a known prefix pattern for structured progress reporting. |
+| Seed passthrough → batch-generator.ts | Passing seed to `regenerateVisit()` which routes to single-visit IE generator, not TX sequence engine | Create `regenerateTXSeries(patient, seed)` that re-runs full sequence; return all TX visits atomically |
+| Seed passthrough → MDLand automation | Re-running automation with new seed without clearing existing ICD/CPT codes | Check if codes changed; if only SOAP text changed, skip ICD/CPT step; if codes changed, clear before re-adding |
+| Plateau breaker → fixture snapshots | Adding conditional `rng()` call that shifts sequence only when plateau fires | Consume `rng()` unconditionally at fixed position in loop; use the value only when plateau condition is true |
+| Plateau breaker → soaChain assessment | Plateau breaker forces pain drop but `deriveAssessmentFromSOA` sees small `painDelta` and says "slight improvement" | Pass a `plateauBroken: boolean` flag to assessment derivation; use "gradual improvement" language instead of delta-based |
+| Medicare gate → insuranceType | Applying NCD 30.3.3 gate to all insurance types | Gate on `isMedicare(insuranceType)`; confirm which InsuranceType values map to Medicare with clinic |
+| Medicare gate → recovery curve | Forcing improvement at visit 12 creates discontinuity | Calibrate curve parameters so visit 12 naturally shows sufficient improvement; gate is validation, not generation |
+| Medicare gate → MDLand template | Injecting regulatory language that doesn't match MDLand dropdown options | Use standard template vocabulary; add compliance flag as metadata, not inline text |
 
 ---
 
@@ -152,9 +237,9 @@ The automation runs as a child process spawned by `automation-runner.ts`. If the
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| `waitForTimeout` accumulation | Each visit takes 8-12s in sleeps alone (6 × 1-2s waits) | Replace with event-driven waits; keep sleeps only where MDLand has no observable completion signal | At 20+ visits per batch |
-| Screenshot on every step | `--screenshot` flag creates 6+ PNGs per visit; disk fills on Oracle Cloud's limited storage | Screenshots only on error by default; `--screenshot` flag for debug runs only | At 50+ visits |
-| Re-searching patient for every visit | `clickWaitingRoom` + `searchPatient` + `selectPatient` + `sortByApptTime` repeated N times per patient | Cache patient row state; only re-search if visit navigation fails | At 3+ visits per patient |
+| Seed-based regeneration re-runs full TX sequence to get one visit | Regenerating visit 15 of 20 requires generating all 20 visits | Cache the full sequence result keyed by `(patientId, seed)`; return cached visit on re-request | At 20+ visits per patient with frequent regeneration |
+| Plateau detection scanning previous N visits for stall count | O(N) lookback per visit, O(N²) total for sequence | Track `consecutiveStallCount` as a running counter (already done for other metrics) | At 30+ visits (unlikely but possible with continue mode) |
+| Medicare gate validation running constraint checker on every generation | `validateGeneratedSequence` is O(visits²) for cross-visit checks | Run gate validation only when `insuranceType` is Medicare AND `txCount >= 12` | At batch sizes > 50 patients |
 
 ---
 
@@ -162,20 +247,36 @@ The automation runs as a child process spawned by `automation-runner.ts`. If the
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Temp cookie file `.tmp-cookies.json` left on disk after crash | Plaintext MDLand session credentials readable by any process | `cleanupTempCookies()` is called in `child.on('close')` but not if the parent process crashes. Add cleanup on `SIGTERM`/`SIGINT` in the child process itself. |
-| Error messages including patient name + DOB in logs | PHI in log files | Structured errors should use visit keys (e.g., `visit-3`) not patient identifiers in error strings |
-| Screenshot files named with patient name | PHI in filesystem | Name screenshots with `visitKey-timestamp.png` not `patient.name` |
+| Seed exposed in API response without access control | Attacker could enumerate seeds to find one that produces favorable notes (e.g., faster improvement curve) | Seeds are not security-sensitive (they control text variation, not clinical validity); but don't expose seed enumeration endpoint |
+| Medicare compliance flag stored client-side only | User could modify the flag to bypass the gate check | Gate validation must run server-side in `batch-generator.ts`; client flag is display-only |
+| Plateau breaker magnitude not bounded | Unbounded micro-improvement could produce clinically impossible pain drops | Clamp plateau breaker delta to `[0.15, 0.35]` range; never exceed one `snapPainToGrid` step |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Seed displayed as raw integer (e.g., 378146595) | Meaningless to clinicians; confusing | Show seed only in "developer/debug" panel; label it "Regeneration Code" not "Seed" |
+| Medicare gate blocks generation instead of warning | User can't generate notes for visit 13+ until visit 12 passes gate | Generate all 20 visits; show warning badge on visit 12 if improvement is insufficient; let user decide |
+| Plateau breaker silently modifies pain values | User sees pain values they didn't input; loses trust in the system | Show a subtle indicator (e.g., small icon) on visits where plateau breaker activated; tooltip explains "Pain adjusted to maintain clinical progression" |
+| Seed copy button copies per-visit seed | User thinks they can regenerate individual TX visits | Copy button should copy the series seed with a label: "This seed regenerates all TX visits for this patient" |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Retry logic:** Verify it calls `closeVisit()` + full re-navigation before re-attempting, not just re-calling `processVisit()` on the existing page state
-- [ ] **Error classification:** Verify session-expired errors stop the batch immediately rather than retrying all remaining visits
-- [ ] **Progress persistence:** Verify a crash mid-batch does not cause duplicate EHR entries on re-run
-- [ ] **Timeout tuning:** Verify per-step timeouts are named constants, not magic numbers scattered through the code
-- [ ] **ICD idempotency:** Verify retry reads existing codes before adding — MDLand appends, it does not replace
-- [ ] **Structured errors:** Verify the parent process (automation-runner.ts) receives structured per-visit results, not just exit code 0/1
+- [ ] **Seed passthrough:** Verify `regenerateVisit()` with a TX visit actually calls `exportTXSeriesAsText()`, not `exportSOAPAsText()` — test by regenerating TX visit 5 of 12 and checking it has sequence-aware progression
+- [ ] **Seed passthrough:** Verify seed is stored per-patient-series, not per-visit — check that all TX visits for one patient show the same seed value
+- [ ] **Seed passthrough:** Verify seed space is >= 2^32, not 100000 — check `Math.random() * 100000` is replaced with full 32-bit range
+- [ ] **Plateau breaker:** Verify it does NOT fire on visits 1-2 — test with 3tx fixtures, confirm no plateau activation
+- [ ] **Plateau breaker:** Verify `rng()` call count per iteration is constant regardless of plateau condition — count calls in plateau=true vs plateau=false paths
+- [ ] **Plateau breaker:** Verify all 30 fixture snapshots pass after implementation — run `npx vitest run src/generator/__fixtures__/fixture-snapshots.test.ts`
+- [ ] **Plateau breaker:** Verify pain labels remain monotonically non-increasing after breaker fires — run constraint checker on 20-visit sequences with 10 seeds
+- [ ] **Medicare gate:** Verify gate only fires for Medicare insurance types — test with HF, OPTUM, WC patients at visit 12, confirm no gate activation
+- [ ] **Medicare gate:** Verify visit 12 assessment uses standard template vocabulary — check output against `whitelist.json` options
+- [ ] **Medicare gate:** Verify gate is validation (post-generation check), not generation modifier — confirm recovery curve shape is identical with and without gate enabled
+- [ ] **MDLand regeneration:** Verify ICD/CPT codes are not duplicated after regeneration — automate: generate, regenerate with new seed, check code count unchanged
 
 ---
 
@@ -183,11 +284,15 @@ The automation runs as a child process spawned by `automation-runner.ts`. If the
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Duplicate ICD/CPT from non-idempotent retry | HIGH | Manual MDLand review and deletion of duplicate codes per affected visit; no automated recovery possible |
-| Stale execution context crash | LOW | Re-run batch with progress file; completed visits are skipped |
-| Session expired mid-batch | LOW | Re-upload cookies, re-run; progress file skips completed visits |
-| Wrong visit mapped (row order mismatch) | HIGH | Manual MDLand review; SOAP content in wrong visit requires manual correction |
-| Temp cookie file left on disk | MEDIUM | `rm data/.tmp-cookies.json`; rotate MDLand session by re-logging in |
+| Seed doesn't reach TX engine | LOW | Add `regenerateTXSeries()` function; route TX visits through it |
+| PRNG sequence shifted by plateau breaker | MEDIUM | Move new `rng()` calls to end of loop; consume unconditionally; re-snapshot fixtures |
+| Plateau breaker violates monotonic constraint | LOW | Add post-snap label monotonic guard; clamp breaker delta |
+| Medicare gate creates curve discontinuity | HIGH | Redesign as post-generation validator; recalibrate curve parameters instead of forcing |
+| Gate applied to non-Medicare patients | LOW | Add `isMedicare()` guard; gate on insurance type |
+| MDLand duplicate codes on regeneration | MEDIUM | Add pre-clear step or diff-based code management in automation |
+| Plateau fires on visit 1 | LOW | Add `visitIndex >= 3` guard |
+| Seed reuse across patients | LOW | Add per-batch seed uniqueness validation; incorporate patient entropy |
+| Medicare language exceeds template vocabulary | MEDIUM | Move compliance text to Plan section or metadata flag; verify against MDLand fields |
 
 ---
 
@@ -195,24 +300,49 @@ The automation runs as a child process spawned by `automation-runner.ts`. If the
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Duplicate EHR entries from non-idempotent retry | Retry/recovery — design idempotency check before retry loop | Run a visit twice; confirm MDLand shows codes only once |
-| Stale execution context | Retry/recovery — add context-destroyed detection to reset handler | Simulate mid-save timeout; verify retry re-navigates cleanly |
-| Global timeout masking per-step needs | Adaptive timeout — extract per-step timeout constants | Each step has a named timeout constant; no magic numbers |
-| Error classification collapse | Structured error reporting — implement error kinds before retry | Verify session-expired stops batch; timeout triggers retry |
-| Progress lost on crash | Retry/recovery — progress file written after each visit | Kill process mid-batch; re-run; verify no duplicate submissions |
-| PHI in error logs/screenshots | Structured error reporting — use visit keys not patient names | Grep logs for patient name patterns; should return nothing |
+| Seed doesn't reach TX engine | SEED-01 | Regenerate TX visit with stored seed; compare output to original — must be byte-identical |
+| PRNG sequence shifted | PLAT-01 (before any engine change) | 30 fixture snapshots pass; 9 parity diffs pass |
+| Monotonic constraint violation | PLAT-01 | Run `validateGeneratedSequence` on 20-visit sequences with 20 seeds, 0 V01 violations |
+| Curve discontinuity at visit 12 | GATE-01 (after CRV-01/CRV-02) | Plot pain curve for 20-visit sequence; verify no step > 2x adjacent steps at visit 12 |
+| Gate on non-Medicare patients | GATE-01 | Generate batch with mixed insurance types; verify gate only activates for Medicare |
+| MDLand duplicate codes | SEED-01 | Automate: generate → regenerate → count ICD codes in DOM; expect no duplicates |
+| Plateau fires on visit 1 | PLAT-01 | Run 3tx fixtures; verify no plateau activation in any visit |
+| Seed reuse across patients | SEED-01 | Generate 10-patient batch; verify all seeds are unique |
+| Assessment exceeds template vocabulary | GATE-01 | Grep visit 12 assessment text against `whitelist.json`; all phrases must match |
+
+---
+
+## Implementation Order Constraint
+
+The three features have strict ordering dependencies:
+
+```
+PLAT-01 (plateau breaker)
+    ↓ must be stable before
+CRV-01/CRV-02 (recovery curve calibration)
+    ↓ must be stable before
+GATE-01 (Medicare phase gate)
+    ↓ independent of
+SEED-01 (seed passthrough)
+```
+
+Rationale:
+- PLAT-01 changes the PRNG call pattern — must be done first so fixture snapshots can be re-baselined once
+- CRV-01/CRV-02 depends on stable plateau behavior to calibrate the curve shape
+- GATE-01 depends on the final curve shape to set the visit-12 improvement threshold
+- SEED-01 is orthogonal to engine changes — it's a plumbing fix in `batch-generator.ts` and UI work
 
 ---
 
 ## Sources
 
-- Direct codebase analysis: `scripts/playwright/mdland-automation.ts`, `server/services/automation-runner.ts`
-- Playwright execution context destruction: https://stackoverflow.com/questions/63523187/playwright-reload-page-after-navigation-if-certain-status-code
-- Playwright flaky test patterns: https://betterstack.com/community/guides/testing/avoid-flaky-playwright-tests/
-- Playwright timeout handling: https://www.lambdatest.com/blog/playwright-timeouts/
-- Playwright session state pitfalls: https://www.testleaf.com/blog/playwright-ai-session-preservation-failure-triage-ci/
-- EHR double data entry risks: https://www.anisolutions.com/2026/02/10/reducing-double-data-entry-in-ehr-with-integration/
+- Direct codebase analysis: `src/generator/tx-sequence-engine.ts` (1216 LOC), `server/services/batch-generator.ts` (332 LOC), `src/shared/normalize-generation-context.ts` (167 LOC), `src/generator/__fixtures__/fixture-snapshots.test.ts`, `src/generator/__fixtures__/parity-diff.test.ts`, `scripts/playwright/mdland-automation.ts`
+- [CMS NCD 30.3.3 — Acupuncture for Chronic Lower Back Pain](https://www.cms.gov/medicare-coverage-database/view/ncd.aspx?NCDId=373&NCDver=1) — 12+8 visit structure, improvement requirement
+- [Medicare.gov — Acupuncture coverage](https://medicare.gov/coverage/acupuncture) — patient-facing coverage summary
+- [AAPC — Billing Acupuncture for cLBP](https://www.aapc.com/blog/90501-think-positive-when-billing-acupuncture-for-clbp/) — coding and compliance guidance
+- Seeded PRNG cascade effect: known property of sequential PRNGs (Mulberry32) — inserting calls shifts all subsequent values
+- v1.4 PITFALLS.md (previous version) — Pitfalls 3, 4, 6 remain relevant as foundational context
 
 ---
-*Pitfalls research for: Playwright automation retry/resilience — MDLand EHR SOAP submission*
+*Pitfalls research for: v1.5 new features — seed passthrough, plateau breaker, Medicare phase gate*
 *Researched: 2026-02-22*
