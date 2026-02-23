@@ -15,8 +15,8 @@ Requirements for v1.4 UX & Engine Tuning. Each maps to roadmap phases.
 
 ### Generation Parity
 
-- [ ] **PAR-01**: Same patient data produces identical SOAP output via batch mode and compose mode
-- [ ] **PAR-02**: Shared `normalizeGenerationContext()` function standardizes input for both generation paths
+- [x] **PAR-01**: Same patient data produces identical SOAP output via batch mode and compose mode
+- [x] **PAR-02**: Shared `normalizeGenerationContext()` function standardizes input for both generation paths
 
 ### Recovery Curve
 
@@ -31,8 +31,8 @@ Requirements for v1.4 UX & Engine Tuning. Each maps to roadmap phases.
 
 ### Engine Audit
 
-- [ ] **AUD-01**: Strength/ROM generation logic audited for consistency across compose mode, batch mode, and realistic patch
-- [ ] **AUD-02**: 30 reference seed fixture snapshots captured before any engine modification to detect regressions
+- [x] **AUD-01**: Strength/ROM generation logic audited for consistency across compose mode, batch mode, and realistic patch
+- [x] **AUD-02**: 30 reference seed fixture snapshots captured before any engine modification to detect regressions
 
 ## Future Requirements
 
@@ -65,15 +65,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UX-01 | 15 | Pending |
 | UX-02 | 15 | Pending |
 | UX-03 | 15 | Pending |
-| PAR-01 | 12 | Pending |
-| PAR-02 | 12 | Pending |
+| PAR-01 | 12 | Complete |
+| PAR-02 | 12 | Complete |
 | CRV-01 | 13 | Pending |
 | CRV-02 | 13 | Pending |
 | ASS-01 | 14 | Pending |
 | ASS-02 | 14 | Pending |
 | ASS-03 | 14 | Pending |
-| AUD-01 | 12 | Pending |
-| AUD-02 | 12 | Pending |
+| AUD-01 | 12 | Complete |
+| AUD-02 | 12 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 12 total

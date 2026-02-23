@@ -50,7 +50,7 @@
 
 ### Phase 12: Fixture Snapshots & Parity Audit
 **Requirements:** AUD-02, AUD-01, PAR-01, PAR-02
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 12-01-PLAN.md — Capture 30 fixture snapshots + Strength/ROM audit report
@@ -141,7 +141,7 @@ Frontend-only phase. Optimizes the batch form with ICD-first selection flow and 
 | 9. Batch Logic Fixes | v1.2 | 1/1 | Complete | 2026-02-22 |
 | 10. Shared Data Extraction | v1.3 | 1/1 | Complete | 2026-02-22 |
 | 11. Form UX & Validation | v1.3 | 2/2 | Complete | 2026-02-23 |
-| 12. Fixture Snapshots & Parity Audit | v1.4 | 3/3 | Complete | 2026-02-23 |
+| 12. Fixture Snapshots & Parity Audit | v1.4 | Complete    | 2026-02-23 | 2026-02-23 |
 | 13. Recovery Curve & Goals Calibration | v1.4 | 0/? | Not started | — |
 | 14. Assessment Reflection | v1.4 | 0/? | Not started | — |
 | 15. Batch Form UX | v1.4 | 0/? | Not started | — |
