@@ -78,6 +78,6 @@
 | 10. Shared Data Extraction | v1.3 | 1/1 | Complete | 2026-02-22 |
 | 11. Form UX & Validation | v1.3 | 2/2 | Complete | 2026-02-23 |
 | 12. Fixture Snapshots & Parity Audit | v1.4 | 3/3 | Complete | 2026-02-23 |
-| 13. Recovery Curve & Goals Calibration | v1.5 | 3/3 | Complete | 2026-02-23 |
+| 13. Recovery Curve & Goals Calibration | 3/3 | Complete    | 2026-02-23 | 2026-02-23 |
 | 14. Assessment Reflection | v1.5 | 0/? | Not started | — |
 | 15. Batch Form UX | v1.5 | 0/? | Not started | — |
