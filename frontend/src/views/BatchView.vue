@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { getICDCatalog } from '../../../../src/shared/icd-catalog'
-import { defaultCptStr, is99203Ins, toggle99203 } from '../../../../src/shared/cpt-catalog'
+import { getICDCatalog } from '../../../src/shared/icd-catalog'
+import { defaultCptStr, is99203Ins, toggle99203 } from '../../../src/shared/cpt-catalog'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
