@@ -7,10 +7,10 @@
 
 ### Form UX
 
-- [ ] **UX-01**: Name 和 DOB 分为两个独立输入框，DOB 支持 MM/DD/YYYY、MM-DD-YYYY、MMDDYYYY、MM/DD/YY 格式自动识别
-- [ ] **UX-02**: Gender 用 M/F 标签按钮替代下拉框，选中高亮
-- [ ] **UX-03**: Side 用 L/B/R 标签按钮替代下拉框，选中高亮
-- [ ] **UX-04**: 表单字段尺寸按内容比例优化，紧凑布局无浪费空间
+- [x] **UX-01**: Name 和 DOB 分为两个独立输入框，DOB 支持 MM/DD/YYYY、MM-DD-YYYY、MMDDYYYY、MM/DD/YY 格式自动识别
+- [x] **UX-02**: Gender 用 M/F 标签按钮替代下拉框，选中高亮
+- [x] **UX-03**: Side 用 L/B/R 标签按钮替代下拉框，选中高亮
+- [x] **UX-04**: 表单字段尺寸按内容比例优化，紧凑布局无浪费空间
 
 ### Shared Data
 
@@ -38,10 +38,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UX-01 | Phase 11 | Pending |
-| UX-02 | Phase 11 | Pending |
-| UX-03 | Phase 11 | Pending |
-| UX-04 | Phase 11 | Pending |
+| UX-01 | Phase 11 | Complete |
+| UX-02 | Phase 11 | Complete |
+| UX-03 | Phase 11 | Complete |
+| UX-04 | Phase 11 | Complete |
 | DATA-01 | Phase 10 | Complete |
 | DATA-02 | Phase 10 | Complete |
 | VAL-01 | Phase 11 | Pending |
