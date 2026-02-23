@@ -20,7 +20,7 @@ import type { BatchData, BatchPatient, BatchVisit } from '../types'
  * Map BatchPatient + BatchVisit to NormalizeInput for the shared normalizer.
  * TCM patterns are inferred (no explicit overrides in batch path).
  */
-function toBatchInput(patient: BatchPatient, visit: BatchVisit): NormalizeInput {
+function toBatchInput(patient: BatchPatient, visit: BatchVisit, disableChronicCaps?: boolean): NormalizeInput {
   const { clinical } = patient
   return {
     noteType: visit.noteType,
@@ -46,6 +46,7 @@ function toBatchInput(patient: BatchPatient, visit: BatchVisit): NormalizeInput 
     age: patient.age,
     gender: patient.gender,
     medicalHistory: [...visit.history],
+    disableChronicCaps,
   }
 }
 
@@ -57,8 +58,9 @@ function generateSingleVisit(
   visit: BatchVisit,
   seed?: number,
   realisticPatch?: boolean,
+  disableChronicCaps?: boolean,
 ): BatchVisit {
-  const { context } = normalizeGenerationContext(toBatchInput(patient, visit))
+  const { context } = normalizeGenerationContext(toBatchInput(patient, visit, disableChronicCaps))
   const actualSeed = seed ?? Math.floor(Math.random() * 100000)
 
   let fullText = exportSOAPAsText(context)
@@ -85,11 +87,12 @@ function generateTXSeries(
   txVisits: readonly BatchVisit[],
   _ieVisit: BatchVisit | undefined,
   realisticPatch?: boolean,
+  disableChronicCaps?: boolean,
 ): BatchVisit[] {
   if (txVisits.length === 0) return []
 
   const firstTX = txVisits[0]
-  const { context, initialState } = normalizeGenerationContext(toBatchInput(patient, firstTX))
+  const { context, initialState } = normalizeGenerationContext(toBatchInput(patient, firstTX, disableChronicCaps))
 
   const options: TXSequenceOptions = {
     txCount: txVisits.length,
@@ -136,7 +139,7 @@ export interface BatchGenerationResult {
  * 1. 先生成 IE/RE (独立生成)
  * 2. 再生成 TX 序列 (使用 TX Sequence Engine 保持连续性)
  */
-export function generateBatch(batch: BatchData, realisticPatch?: boolean): BatchGenerationResult {
+export function generateBatch(batch: BatchData, realisticPatch?: boolean, disableChronicCaps?: boolean): BatchGenerationResult {
   let totalGenerated = 0
   let totalFailed = 0
 
@@ -148,14 +151,14 @@ export function generateBatch(batch: BatchData, realisticPatch?: boolean): Batch
 
     // 1. 生成 IE
     const generatedIE = ieVisit
-      ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch)
+      ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch, disableChronicCaps)
       : undefined
 
     // 2. 生成 RE
-    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch))
+    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch, disableChronicCaps))
 
     // 3. 生成 TX 序列
-    const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch)
+    const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch, disableChronicCaps)
 
     // 重新组装 visits (保持原始顺序)
     const updatedVisits = patient.visits.map(originalVisit => {
@@ -192,7 +195,7 @@ export function generateBatch(batch: BatchData, realisticPatch?: boolean): Batch
 /**
  * Continue 模式：从 TX SOAP 文本提取状态并续写
  */
-export function generateContinueBatch(batch: BatchData, realisticPatch?: boolean): BatchGenerationResult {
+export function generateContinueBatch(batch: BatchData, realisticPatch?: boolean, disableChronicCaps?: boolean): BatchGenerationResult {
   let totalGenerated = 0
   let totalFailed = 0
 
@@ -202,12 +205,13 @@ export function generateContinueBatch(batch: BatchData, realisticPatch?: boolean
     }
 
     const extracted = extractStateFromTX(patient.soapText)
-    const context = buildContextFromExtracted(extracted, {
+    const baseContext = buildContextFromExtracted(extracted, {
       insuranceType: patient.insurance,
       age: patient.age,
       gender: patient.gender,
       medicalHistory: [...(patient.visits[0]?.history ?? [])],
     })
+    const context = disableChronicCaps ? { ...baseContext, disableChronicCaps } : baseContext
     const initialState = buildInitialStateFromExtracted(extracted)
 
     const txVisits = patient.visits.filter(v => v.noteType === 'TX')
@@ -253,7 +257,7 @@ export function generateContinueBatch(batch: BatchData, realisticPatch?: boolean
 /**
  * Mixed mode: generate each patient according to its own mode field
  */
-export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean): BatchGenerationResult {
+export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean, disableChronicCaps?: boolean): BatchGenerationResult {
   let totalGenerated = 0
   let totalFailed = 0
 
@@ -266,12 +270,13 @@ export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean): 
         return { ...patient, visits: patient.visits.map(v => ({ ...v, status: 'failed' as const })) }
       }
       const extracted = extractStateFromTX(patient.soapText)
-      const context = buildContextFromExtracted(extracted, {
+      const baseCtx = buildContextFromExtracted(extracted, {
         insuranceType: patient.insurance,
         age: patient.age,
         gender: patient.gender,
         medicalHistory: [...(patient.visits[0]?.history ?? [])],
       })
+      const context = disableChronicCaps ? { ...baseCtx, disableChronicCaps } : baseCtx
       const initialState = buildInitialStateFromExtracted(extracted)
       const txVisits = patient.visits.filter(v => v.noteType === 'TX')
       if (txVisits.length === 0) return patient
@@ -298,9 +303,9 @@ export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean): 
     const ieVisit = patient.visits.find(v => v.noteType === 'IE')
     const reVisits = patient.visits.filter(v => v.noteType === 'RE')
     const txVisits = patient.visits.filter(v => v.noteType === 'TX')
-    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch) : undefined
-    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch))
-    const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch)
+    const generatedIE = ieVisit ? generateSingleVisit(patient, ieVisit, undefined, realisticPatch, disableChronicCaps) : undefined
+    const generatedRE = reVisits.map(v => generateSingleVisit(patient, v, undefined, realisticPatch, disableChronicCaps))
+    const generatedTX = generateTXSeries(patient, txVisits, generatedIE, realisticPatch, disableChronicCaps)
 
     const updatedVisits = patient.visits.map(v => {
       if (v.noteType === 'IE' && generatedIE) return generatedIE
@@ -326,6 +331,7 @@ export function regenerateVisit(
   visit: BatchVisit,
   seed?: number,
   realisticPatch?: boolean,
+  disableChronicCaps?: boolean,
 ): BatchVisit {
-  return generateSingleVisit(patient, visit, seed, realisticPatch)
+  return generateSingleVisit(patient, visit, seed, realisticPatch, disableChronicCaps)
 }

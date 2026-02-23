@@ -21,6 +21,9 @@ const batchMode = ref('full') // 'full' | 'soap-only' | 'continue'
 // Realistic Patch toggle (corrected ROM/Strength scores)
 const realisticPatch = ref(true)
 
+// Chronic Caps toggle (CRV-01/02: dampened curve + conservative goals)
+const chronicCaps = ref(true)
+
 // Input mode
 const inputMode = ref('editor') // 'editor' | 'excel'
 
@@ -303,7 +306,7 @@ async function submitDrafts() {
     const res = await fetch(`${API_BASE}/batch/json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...csrfHeader() },
-      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})` })), mode: batchMode.value, realisticPatch: realisticPatch.value }),
+      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})` })), mode: batchMode.value, realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }),
     })
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
@@ -419,6 +422,7 @@ async function uploadFile() {
     formData.append('file', selectedFile.value)
     formData.append('mode', batchMode.value)
     formData.append('realisticPatch', String(realisticPatch.value))
+    formData.append('disableChronicCaps', String(!chronicCaps.value))
 
     const res = await fetch(`${API_BASE}/batch`, {
       method: 'POST',
@@ -509,7 +513,7 @@ async function regenerateVisit(pi, vi) {
   try {
     const res = await fetch(
       `${API_BASE}/batch/${batchId.value}/visit/${pi}/${vi}`,
-      { method: 'PUT', headers: { 'Content-Type': 'application/json', ...csrfHeader() }, body: JSON.stringify({ realisticPatch: realisticPatch.value }) }
+      { method: 'PUT', headers: { 'Content-Type': 'application/json', ...csrfHeader() }, body: JSON.stringify({ realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }) }
     )
     const json = await res.json()
     if (!json.success) {
@@ -555,7 +559,7 @@ async function generateAll() {
     const res = await fetch(`${API_BASE}/batch/${batchId.value}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...csrfHeader() },
-      body: JSON.stringify({ realisticPatch: realisticPatch.value }),
+      body: JSON.stringify({ realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }),
     })
     const json = await res.json()
     if (!json.success) {
@@ -873,6 +877,18 @@ onUnmounted(() => {
             </button>
             <span class="text-xs font-medium" :class="realisticPatch ? 'text-green-600' : 'text-red-500'">
               {{ realisticPatch ? '✓ Realistic' : '✗ Original' }}
+            </span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
+            <button @click="chronicCaps = !chronicCaps" type="button"
+              class="relative w-9 h-5 rounded-full transition-colors duration-200 ring-2"
+              :class="chronicCaps ? 'bg-green-500 ring-green-300' : 'bg-red-400 ring-red-200'"
+              role="switch" :aria-checked="chronicCaps">
+              <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                :class="chronicCaps ? 'translate-x-4' : ''"></span>
+            </button>
+            <span class="text-xs font-medium" :class="chronicCaps ? 'text-green-600' : 'text-red-500'">
+              {{ chronicCaps ? '✓ Chronic' : '✗ No Cap' }}
             </span>
           </label>
           <span class="text-ink-200">|</span>

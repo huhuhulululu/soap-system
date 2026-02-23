@@ -58,10 +58,11 @@ export function createBatchRouter(): Router {
         return
       }
 
-      // 1. 读取 mode + realisticPatch
+      // 1. 读取 mode + realisticPatch + disableChronicCaps
       const rawMode = req.body?.mode as string
       const mode: BatchMode = rawMode === 'soap-only' ? 'soap-only' : rawMode === 'continue' ? 'continue' : 'full'
       const realisticPatch = req.body?.realisticPatch === true || req.body?.realisticPatch === 'true'
+      const disableChronicCaps = req.body?.disableChronicCaps === true || req.body?.disableChronicCaps === 'true'
 
       // 2. 解析 Excel
       const rows = await parseExcelBuffer(req.file.buffer)
@@ -81,7 +82,7 @@ export function createBatchRouter(): Router {
       }
 
       // 5. Generate via mixed handler (supports per-patient modes)
-      const result = generateMixedBatch(batchData, realisticPatch)
+      const result = generateMixedBatch(batchData, realisticPatch, disableChronicCaps)
       saveBatch({ ...batchData, patients: result.patients })
 
       res.json({
@@ -106,7 +107,7 @@ export function createBatchRouter(): Router {
    */
   router.post('/json', async (req: Request, res: Response) => {
     try {
-      const { rows, mode: rawMode, realisticPatch: rawPatch } = req.body ?? {}
+      const { rows, mode: rawMode, realisticPatch: rawPatch, disableChronicCaps: rawChronicCaps } = req.body ?? {}
       if (!Array.isArray(rows) || rows.length === 0) {
         res.status(400).json({ success: false, error: 'rows[] is required' })
         return
@@ -114,6 +115,7 @@ export function createBatchRouter(): Router {
 
       const mode: BatchMode = rawMode === 'soap-only' ? 'soap-only' : rawMode === 'continue' ? 'continue' : 'full'
       const realisticPatch = rawPatch === true || rawPatch === 'true'
+      const disableChronicCaps = rawChronicCaps === true || rawChronicCaps === 'true'
       const { patients, summary } = buildPatientsFromRows(rows, mode)
 
       const batchId = generateBatchId()
@@ -127,7 +129,7 @@ export function createBatchRouter(): Router {
       }
 
       // Always generate via mixed handler (supports per-patient modes)
-      const result = generateMixedBatch(batchData, realisticPatch)
+      const result = generateMixedBatch(batchData, realisticPatch, disableChronicCaps)
       saveBatch({ ...batchData, patients: result.patients })
       res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: result.totalGenerated, totalFailed: result.totalFailed, byType: summary.byType } })
     } catch (error) {
@@ -188,7 +190,8 @@ export function createBatchRouter(): Router {
 
       const seed = req.body?.seed as number | undefined
       const realisticPatchFlag = req.body?.realisticPatch === true || req.body?.realisticPatch === 'true'
-      const regenerated = regenerateVisit(patient, visit, seed, realisticPatchFlag)
+      const disableChronicCapsFlag = req.body?.disableChronicCaps === true || req.body?.disableChronicCaps === 'true'
+      const regenerated = regenerateVisit(patient, visit, seed, realisticPatchFlag, disableChronicCapsFlag)
 
       // 更新 batch (immutable pattern)
       const updatedVisits = patient.visits.map((v, i) =>
@@ -226,7 +229,8 @@ export function createBatchRouter(): Router {
       }
 
       const realisticPatchGen = req.body?.realisticPatch === true || req.body?.realisticPatch === 'true'
-      const result = generateMixedBatch(batch, realisticPatchGen)
+      const disableChronicCapsGen = req.body?.disableChronicCaps === true || req.body?.disableChronicCaps === 'true'
+      const result = generateMixedBatch(batch, realisticPatchGen, disableChronicCapsGen)
       const updatedBatch: BatchData = { ...batch, patients: result.patients }
       saveBatch(updatedBatch)
 
