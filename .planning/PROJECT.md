@@ -7,7 +7,7 @@ Automated SOAP note generation and MDLand submission for acupuncture clinics. Ge
 Batch-generate compliant SOAP notes from minimal input, eliminating manual documentation.
 
 ## Current State
-Shipped v1.2 Batch Logic. ~28,000 LOC TypeScript.
+Shipped v1.3 Form UX & Shared Data. ~32,000 LOC TypeScript.
 Tech stack: Express 5, Vue 3, Playwright, ExcelJS, Vitest, Docker Compose on Oracle Cloud.
 Domain: https://rbmeds.com/ac/ (branch: clean-release)
 
@@ -25,14 +25,15 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - ✓ Structured NDJSON event emission + parent-process parsing — v1.1
 - ✓ Soap-only IE default fix (includeIE=true for non-continue modes) — v1.2
 - ✓ Mode-aware IE CPT logic (99203 only in full mode for HF/VC) — v1.2
+- ✓ Name/DOB split inputs with 4-format DOB auto-normalization — v1.3
+- ✓ Gender M/F segmented button control — v1.3
+- ✓ Side L/B/R segmented button control — v1.3
+- ✓ 12-column compact form layout — v1.3
+- ✓ ICD/CPT catalog extracted to src/shared/ — v1.3
+- ✓ Inline validation with blur triggers and submit guard — v1.3
 
 ### Active
-- [ ] Name/DOB 分离输入，多格式 DOB 识别
-- [ ] Gender 标签选择 M/F
-- [ ] Side 标签选择 Left/Right/Bil
-- [ ] 表单布局优化，字段尺寸匹配内容
-- [ ] ICD/CPT catalog 提取为前端共享模块
-- [ ] 前端表单即时验证
+(Next milestone — use /gsd:new-milestone to define)
 
 ### Out of Scope
 - Database (PostgreSQL/Redis) — file-based approach works at current scale
@@ -55,6 +56,10 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 | unknown errorKind treated as retryable | ✓ Good (safer to retry than skip) | v1.1 |
 | parseIncludeIE: continue=false, else=true | ✓ Good (soap-only needs IE for ICD validation) | v1.2 |
 | IE CPT mode-split: full adds 99203, soap-only skips | ✓ Good (soap-only IE is structural, not billing) | v1.2 |
+| ICDCatalogEntry adapter maps code→icd10, name→desc | ✓ Good (backend fields unchanged) | v1.3 |
+| CPT helpers delegate to getDefaultTXCPT/getDefaultIECPT | ✓ Good (no data duplication) | v1.3 |
+| No default gender/laterality on new patients | ✓ Good (forces explicit selection) | v1.3 |
+| clearFieldError wired into updateField | ✓ Good (auto-clear on input) | v1.3 |
 
 ## Constraints
 - Single server deployment (Oracle Cloud)
@@ -62,4 +67,4 @@ Domain: https://rbmeds.com/ac/ (branch: clean-release)
 - Playwright required for MDLand automation
 
 ---
-*Last updated: 2026-02-22 after v1.3 milestone started*
+*Last updated: 2026-02-23 after v1.3 milestone*

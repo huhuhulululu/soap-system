@@ -61,3 +61,21 @@
 
 ---
 
+
+## v1.3 Form UX & Shared Data (Shipped: 2026-02-23)
+
+**Phases:** 2 phases, 3 plans, 4 tasks
+**Timeline:** 2026-02-22 → 2026-02-23
+**Codebase:** ~32,000 LOC TypeScript
+
+**Key accomplishments:**
+- ICD/CPT data unified under src/shared/ — single source of truth (66 entries vs previous inline copies)
+- Name/DOB split inputs with 4-format DOB auto-normalization on blur
+- Gender/Side segmented button controls replacing dropdowns
+- 12-column compact form layout with proportional column spans
+- Blur-triggered inline validation with submit guard and first-error navigation
+
+**Archives:** `milestones/v1.3-ROADMAP.md`, `milestones/v1.3-REQUIREMENTS.md`, `milestones/v1.3-MILESTONE-AUDIT.md`
+
+---
+
