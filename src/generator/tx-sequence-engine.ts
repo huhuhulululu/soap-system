@@ -677,6 +677,8 @@ export function generateTXSequenceStates(
 
   let prevPain = startPain
   let prevPainScaleLabel = snapPainToGrid(startPain).label
+  // PLAT-01: consecutive identical pain label counter
+  let consecutiveSameLabel = 0
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0
   let prevAdl = 3.5
   let prevFrequency = options.initialState?.frequency ?? 3
@@ -799,11 +801,29 @@ export function generateTXSequenceStates(
     // pain 只允许保持或降低（≤ prevPain），允许平稳
     const rawPain = clamp(Math.min(prevPain, expectedPain + painNoise), targetPain, startPain)
     const snapped = snapPainToGrid(rawPain)
-    const painScaleCurrent = Math.min(prevPain, snapped.value)
+    let painScaleCurrent = Math.min(prevPain, snapped.value)
 
-    const painScaleLabel = painScaleCurrent < snapped.value
+    // PLAT-01: plateau breaker — when pain label is identical for 3+ consecutive visits,
+    // inject a micro-improvement (0.3-0.5 drop) to break the stall.
+    // Uses progress-derived drop amount (no new rng() calls).
+    let painScaleLabel = painScaleCurrent < snapped.value
       ? snapPainToGrid(painScaleCurrent).label
       : snapped.label
+
+    if (painScaleLabel === prevPainScaleLabel) {
+      consecutiveSameLabel++
+      if (consecutiveSameLabel >= 3 && painScaleCurrent > targetPain) {
+        // Micro-drop: 0.3 at early progress, 0.5 at late progress
+        const microDrop = 0.3 + progress * 0.2
+        painScaleCurrent = clamp(painScaleCurrent - microDrop, targetPain, prevPain)
+        const reSnapped = snapPainToGrid(painScaleCurrent)
+        painScaleLabel = reSnapped.label
+        consecutiveSameLabel = 0 // reset after breaking
+      }
+    } else {
+      consecutiveSameLabel = 0
+    }
+
     const painDelta = prevPain - painScaleCurrent
     prevPain = painScaleCurrent
 
