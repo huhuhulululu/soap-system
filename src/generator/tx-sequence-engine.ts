@@ -1175,7 +1175,6 @@ export function generateTXSequenceStates(
       'can move joint more freely and with less pain',
       'physical activity no longer causes distress',
       'reduced level of pain',
-      'reduced joint stiffness and swelling',
       'less difficulty performing daily activities',
       'energy level improved',
       'sleep quality improved',
