@@ -752,6 +752,8 @@ export function generateTXSequenceStates(
   let prevPainScaleLabel = snapPainToGrid(startPain).label
   // PLAT-01: consecutive identical pain label counter
   let consecutiveSameLabel = 0
+  // Reason rotation: independent counter for improvement visits
+  let improvementCount = 0
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0
   let prevAdl = 3.5
   let prevFrequency = options.initialState?.frequency ?? 3
@@ -1199,13 +1201,13 @@ export function generateTXSequenceStates(
     let finalReason = reason
     let finalConnector = reasonConnector
     if (isImprovement) {
-      if (!POSITIVE_REASONS.has(finalReason)) {
-        // Phase D: 轮换 positive reason，不总是 energy level improved
-        finalReason = POSITIVE_REASONS_LIST[i % POSITIVE_REASONS_LIST.length]
-      }
+      // 始终用 improvementCount 轮换，避免 energy level improved 过度集中
+      const offset = (options.seed ?? 0) % POSITIVE_REASONS_LIST.length
+      finalReason = POSITIVE_REASONS_LIST[(improvementCount + offset) % POSITIVE_REASONS_LIST.length]
       // Phase D: improvement connector 也可以变化
       const improvementConnectors = ['because of', 'due to']
       finalConnector = improvementConnectors[Math.floor(rng() * improvementConnectors.length)] || 'because of'
+      improvementCount++
     } else if (isExacerbate) {
       if (!NEGATIVE_REASONS.has(finalReason)) finalReason = 'did not have good rest'
       if (finalConnector !== 'due to' && finalConnector !== 'because of') finalConnector = 'due to'
