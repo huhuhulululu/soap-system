@@ -12299,8 +12299,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12355,8 +12353,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12411,8 +12407,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12467,8 +12461,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12523,8 +12515,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12579,8 +12569,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12635,8 +12623,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12691,8 +12677,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12747,8 +12731,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12803,8 +12785,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12859,8 +12839,6 @@ Back Points: (15 mins) - personal one on one contact with the patient
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
 Documentation
-
-Precautions: Pacemaker - no electrical stimulation
 ---VISIT---
 Subjective
 Follow up visit
@@ -12914,9 +12892,7 @@ Back Points: (15 mins) - personal one on one contact with the patient
 
 Removing and properly disposing of needles
 Post treatment service and education patient about precautions at home after treatment.
-Documentation
-
-Precautions: Pacemaker - no electrical stimulation"
+Documentation"
 `;
 
 exports[`Fixture Snapshots > snapshot: SHOULDER-bilateral-early-3tx 1`] = `

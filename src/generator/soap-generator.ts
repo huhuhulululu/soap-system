@@ -2210,13 +2210,6 @@ export function generateSOAPNote(context: GenerationContext): SOAPNote {
 export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisitState): string {
   assertTemplateSupported(context)
 
-  // 病史特殊约束注意事项
-  const medCautions: string[] = []
-  if (context.hasPacemaker) medCautions.push('Pacemaker - no electrical stimulation')
-  if (context.hasMetalImplant) medCautions.push('Metal implant - use electrical stimulation with caution')
-  if (context.medicalHistory?.includes('Osteoporosis')) medCautions.push('Osteoporosis - caution with needle depth')
-  const cautionText = medCautions.length > 0 ? `\n\nPrecautions: ${medCautions.join('; ')}` : ''
-
   if (context.noteType === 'TX') {
     // TX (Daily Note / Treatment Note)
     const subjective = generateSubjectiveTX(context, visitState)
@@ -2229,7 +2222,7 @@ export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisi
     output += `Objective\n${objective}\n\n`
     output += `Assessment\n${assessment}\n\n`
     output += `Plan\n${planTx}\n\n`
-    output += needleProtocol + cautionText
+    output += needleProtocol
 
     return output
   }
@@ -2245,7 +2238,7 @@ export function exportSOAPAsText(context: GenerationContext, visitState?: TXVisi
   output += `Objective\n${objective}\n\n`
   output += `Assessment\n${assessment}\n\n`
   output += `Plan\n${plan}\n\n`
-  output += needleProtocol + cautionText
+  output += needleProtocol
 
   return output
 }

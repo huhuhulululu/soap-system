@@ -282,24 +282,24 @@ describe('引擎集成', () => {
     expect(text).toContain('N/A')
   })
 
-  it('Pacemaker → IE 文本含 Precautions', () => {
+  it('Pacemaker → IE 文本含 without electrical stimulation', () => {
     const ctx = makeContext({
       noteType: 'IE',
       hasPacemaker: true,
       medicalHistory: ['Pacemaker']
     })
     const text = exportSOAPAsText(ctx)
-    expect(text).toContain('Precautions')
-    expect(text).toContain('no electrical stimulation')
+    expect(text).toContain('without electrical stimulation')
   })
 
-  it('Osteoporosis → IE 文本含 needle depth 注意', () => {
+  it('Osteoporosis → IE 文本生成正常（无额外 Precautions）', () => {
     const ctx = makeContext({
       noteType: 'IE',
       medicalHistory: ['Osteoporosis']
     })
     const text = exportSOAPAsText(ctx)
-    expect(text).toContain('needle depth')
+    expect(text).not.toContain('Precautions')
+    expect(text).toContain('Subjective')
   })
 
   it('Stroke 患者 progress 更慢', () => {
