@@ -339,12 +339,12 @@ function parsePainTarget(target: string | undefined, fallback: number): number {
  * 刻度是整数 (10,9,8,...,0)
  * "X-(X-1)" 是过渡范围, 代表"在 X 和 X-1 之间"
  *
- * 吸附逻辑:
+ * 吸附逻辑 (0.5 步进):
  *   raw >= N+0.75        → N+1 (整数)
  *   N+0.25 <= raw < N+0.75 → "(N+1)-N" (范围)
  *   raw < N+0.25         → N (整数)
  */
-function snapPainToGrid(rawPain: number): { value: number; label: string } {
+export function snapPainToGrid(rawPain: number): { value: number; label: string } {
   const clamped = Math.max(0, Math.min(10, rawPain))
   const floor = Math.floor(clamped)
   const frac = clamped - floor
@@ -361,6 +361,26 @@ function snapPainToGrid(rawPain: number): { value: number; label: string } {
   } else {
     // 接近当前整数
     return { value: floor, label: `${floor}` }
+  }
+}
+
+/**
+ * Symptom% 吸附 — 与 snapPainToGrid 同逻辑，10% 为一档
+ *
+ * 整数十位 → "60%", 中间值 → "50%-60%"
+ * 输入: rawPct (0-100 的连续值)
+ */
+export function snapSymptomToGrid(rawPct: number): string {
+  const clamped = Math.max(10, Math.min(100, rawPct))
+  const decade = Math.floor(clamped / 10) * 10
+  const frac = (clamped - decade) / 10
+
+  if (frac >= 0.75) {
+    return `${Math.min(100, decade + 10)}%`
+  } else if (frac >= 0.25) {
+    return `${decade}%-${Math.min(100, decade + 10)}%`
+  } else {
+    return `${decade}%`
   }
 }
 
@@ -1272,8 +1292,7 @@ export function generateTXSequenceStates(
         const reductionFactor = chronicCapsEnabled ? 25 : 40
         const reduction = Math.round(progress * progress * reductionFactor)
         const reduced = Math.max(10, base - reduction)
-        const snapped = Math.round(reduced / 10) * 10
-        return `${snapped}%`
+        return snapSymptomToGrid(reduced)
       })(),
       electricalStimulation: options.initialState?.electricalStimulation,
       treatmentTime: options.initialState?.treatmentTime,
