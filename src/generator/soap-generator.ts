@@ -1730,13 +1730,20 @@ export function generateAssessmentTX(context: GenerationContext, visitState?: TX
   const weightedFinding = calculateWeights('assessment.findingType', TX_FINDING_TYPE_OPTIONS, weightContext)
   const selectedFinding = visitState?.soaChain.assessment.findingType || selectBestOption(weightedFinding)
 
-  // 权重选择: 耐受描述
-  const weightedTolerated = calculateWeights('assessment.tolerated', TX_TOLERATED_OPTIONS, weightContext)
-  const selectedTolerated = selectBestOption(weightedTolerated)
+  // 权重选择: 耐受描述 — Phase F: 优先使用引擎生成的值
+  const selectedTolerated = visitState?.soaChain.assessment.tolerated || (() => {
+    const weightedTolerated = calculateWeights('assessment.tolerated', TX_TOLERATED_OPTIONS, weightContext)
+    return selectBestOption(weightedTolerated)
+  })()
 
-  // 权重选择: 反应描述
-  const weightedResponse = calculateWeights('assessment.response', TX_RESPONSE_OPTIONS, weightContext)
-  const selectedResponse = selectBestOption(weightedResponse)
+  // 权重选择: 反应描述 — Phase F: 优先使用引擎生成的值
+  const selectedResponse = visitState?.soaChain.assessment.response || (() => {
+    const weightedResponse = calculateWeights('assessment.response', TX_RESPONSE_OPTIONS, weightContext)
+    return selectBestOption(weightedResponse)
+  })()
+
+  // Phase F: adverse effect 动态变化
+  const adverseEffect = visitState?.soaChain.assessment.adverseEffect || 'No adverse side effect post treatment.'
 
   let assessment = ''
 
@@ -1759,7 +1766,7 @@ export function generateAssessmentTX(context: GenerationContext, visitState?: TX
   assessment += `The patient has ${selectedPatientChange} ${selectedWhat}, `
   assessment += `physical finding has ${selectedPhysical} ${selectedFinding}. `
   assessment += `Patient tolerated ${selectedTolerated} ${selectedResponse}. `
-  assessment += `No adverse side effect post treatment.\n`
+  assessment += `${adverseEffect}\n`
 
   // 证型延续
   assessment += `Current patient still has ${context.localPattern} in local meridian that cause the pain.`

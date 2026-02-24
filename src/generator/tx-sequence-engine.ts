@@ -281,6 +281,9 @@ export interface TXVisitState {
       whatChanged: string
       physicalChange: string
       findingType: string
+      tolerated: string
+      response: string
+      adverseEffect: string
     }
   }
 }
@@ -437,6 +440,9 @@ export function deriveAssessmentFromSOA(input: {
   whatChanged: string
   physicalChange: string
   findingType: string
+  tolerated: string
+  response: string
+  adverseEffect: string
 } {
   // ASS-02: cumulative + visit-level evidence gates language strength
   const strongCumulative = input.cumulativePainDrop >= 3.0 && input.progress >= 0.5
@@ -528,7 +534,37 @@ export function deriveAssessmentFromSOA(input: {
     return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]
   })()
 
-  return { present, patientChange, whatChanged, physicalChange, findingType }
+  // Phase F: tolerated/response/adverseEffect 按 visitIndex 轮换
+  const TOLERATED_OPTIONS = ['session', 'treatment', 'acupuncture session', 'acupuncture treatment']
+  const RESPONSE_OPTIONS = [
+    'well', 'with good positioning technique', 'with good draping technique',
+    'with positive verbal response', 'with good response', 'with positive response',
+    'with good outcome in reducing spasm', 'with excellent outcome due reducing pain',
+    'with good outcome in improving ROM', 'good outcome in improving ease with functional mobility',
+    'with increase ease with functional mobility', 'with increase ease with function'
+  ]
+  const ADVERSE_OPTIONS = [
+    'No adverse side effect post treatment.',
+    'No adverse reaction reported after treatment.',
+    'Patient reported no adverse effects following treatment.',
+    'No negative side effects observed post treatment.',
+  ]
+
+  const tolerated = TOLERATED_OPTIONS[input.visitIndex % TOLERATED_OPTIONS.length]
+  // response: 根据 objective 改善情况选择相关的 response
+  const responseIdx = (() => {
+    if (strongPhysicalImprove) {
+      // 有明显改善时，选择描述改善的 response
+      const improveResponses = [6, 7, 8, 9, 10, 11] // reducing spasm, reducing pain, improving ROM, etc.
+      return improveResponses[input.visitIndex % improveResponses.length]
+    }
+    // 一般情况轮换前 6 个通用 response
+    return input.visitIndex % 6
+  })()
+  const response = RESPONSE_OPTIONS[responseIdx] || 'well'
+  const adverseEffect = ADVERSE_OPTIONS[input.visitIndex % ADVERSE_OPTIONS.length]
+
+  return { present, patientChange, whatChanged, physicalChange, findingType, tolerated, response, adverseEffect }
 }
 
 function buildRuleContext(ctx: GenerationContext, painScaleCurrent: number, severityLevel: SeverityLevel): RuleContext {
