@@ -487,20 +487,25 @@ export function deriveAssessmentFromSOA(input: {
       ? 'reduced'
       : 'slightly reduced'
 
-  // ASS-01: findingType with cumulative awareness
-  // Late progress + strong cumulative → "joint ROM" (improvement framing)
-  // Early/mid → "joint ROM limitation" (deficit framing)
+  // ASS-01 + REAL-02: findingType lists ALL changed dimensions
   const findingType = (() => {
+    const parts: string[] = []
+
     if (input.objectiveRomTrend !== 'stable') {
-      return input.progress >= 0.6 && input.cumulativePainDrop >= 2.0
-        ? 'joint ROM'
-        : 'joint ROM limitation'
+      parts.push(
+        input.progress >= 0.6 && input.cumulativePainDrop >= 2.0
+          ? 'joint ROM'
+          : 'joint ROM limitation'
+      )
     }
-    if (input.objectiveStrengthTrend !== 'stable') return 'muscles strength'
-    if (input.objectiveTightnessTrend !== 'stable') return 'local muscles tightness'
-    if (input.objectiveTendernessTrend !== 'stable') return 'local muscles tenderness'
-    if (input.objectiveSpasmTrend !== 'stable') return 'local muscles spasms'
-    return 'joint ROM limitation'
+    if (input.objectiveStrengthTrend !== 'stable') parts.push('muscles strength')
+    if (input.objectiveTightnessTrend !== 'stable') parts.push('local muscles tightness')
+    if (input.objectiveTendernessTrend !== 'stable') parts.push('local muscles tenderness')
+    if (input.objectiveSpasmTrend !== 'stable') parts.push('local muscles spasms')
+
+    if (parts.length === 0) return 'joint ROM limitation'
+    if (parts.length === 1) return parts[0]
+    return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]
   })()
 
   return { present, patientChange, whatChanged, physicalChange, findingType }

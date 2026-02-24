@@ -90,7 +90,9 @@ describe('deriveAssessmentFromSOA', () => {
         progress: 0.75,
         cumulativePainDrop: 3.0,
       })
-      expect(result.findingType).toBe('joint ROM')
+      expect(result.findingType).toContain('joint ROM')
+      // Should NOT say "limitation" at late progress with strong cumulative
+      expect(result.findingType).not.toContain('limitation')
     })
 
     it('findingType uses "joint ROM limitation" at early progress', () => {
@@ -100,7 +102,7 @@ describe('deriveAssessmentFromSOA', () => {
         progress: 0.2,
         cumulativePainDrop: 0.5,
       })
-      expect(result.findingType).toBe('joint ROM limitation')
+      expect(result.findingType).toContain('joint ROM limitation')
     })
   })
 
@@ -172,7 +174,11 @@ describe('deriveAssessmentFromSOA', () => {
           expect(VALID_WHAT_CHANGED).toContain(part)
         }
         expect(VALID_PHYSICAL_CHANGE).toContain(result.physicalChange)
-        expect(VALID_FINDING_TYPE).toContain(result.findingType)
+        // REAL-02: findingType can be combined; validate each part
+        const findingParts = result.findingType.split(/ and |, /).map(p => p.trim())
+        for (const part of findingParts) {
+          expect(VALID_FINDING_TYPE).toContain(part)
+        }
       }
     })
   })
@@ -209,7 +215,70 @@ describe('deriveAssessmentFromSOA', () => {
         objectiveRomTrend: 'stable',
         objectiveStrengthTrend: 'improved',
       })
-      expect(result.findingType).toBe('muscles strength')
+      expect(result.findingType).toContain('muscles strength')
+    })
+  })
+
+  describe('REAL-02: findingType lists ALL changed dimensions', () => {
+    it('ROM + Strength + Tightness all changed → findingType mentions all three', () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: 'improved',
+        objectiveStrengthTrend: 'improved',
+        objectiveTightnessTrend: 'reduced',
+        objectiveTendernessTrend: 'stable',
+        objectiveSpasmTrend: 'stable',
+        progress: 0.3,
+        cumulativePainDrop: 1.0,
+      })
+      expect(result.findingType).toContain('joint ROM')
+      expect(result.findingType).toContain('muscles strength')
+      expect(result.findingType).toContain('local muscles tightness')
+    })
+
+    it('ROM + Tenderness changed → findingType mentions both', () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: 'slightly improved',
+        objectiveStrengthTrend: 'stable',
+        objectiveTightnessTrend: 'stable',
+        objectiveTendernessTrend: 'reduced',
+        objectiveSpasmTrend: 'stable',
+        progress: 0.5,
+        cumulativePainDrop: 2.0,
+      })
+      expect(result.findingType).toContain('joint ROM')
+      expect(result.findingType).toContain('local muscles tenderness')
+    })
+
+    it('all five dimensions changed → findingType mentions all', () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: 'improved',
+        objectiveStrengthTrend: 'improved',
+        objectiveTightnessTrend: 'reduced',
+        objectiveTendernessTrend: 'reduced',
+        objectiveSpasmTrend: 'reduced',
+        progress: 0.7,
+        cumulativePainDrop: 3.0,
+      })
+      expect(result.findingType).toContain('joint ROM')
+      expect(result.findingType).toContain('muscles strength')
+      expect(result.findingType).toContain('local muscles tightness')
+      expect(result.findingType).toContain('local muscles tenderness')
+      expect(result.findingType).toContain('local muscles spasms')
+    })
+
+    it('single dimension changed → findingType is just that one', () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: 'stable',
+        objectiveStrengthTrend: 'stable',
+        objectiveTightnessTrend: 'reduced',
+        objectiveTendernessTrend: 'stable',
+        objectiveSpasmTrend: 'stable',
+      })
+      expect(result.findingType).toBe('local muscles tightness')
     })
   })
 })
