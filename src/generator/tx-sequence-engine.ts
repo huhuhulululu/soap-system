@@ -994,9 +994,12 @@ export function generateTXSequenceStates(
       'improvement of symptom(s)'
     )
 
-    // --- T02/T03 硬约束守卫: symptomChange 必须与 painDelta 一致 ---
-    if (painDelta <= 0) {
-      // pain 未降: 不能说 improvement
+    // --- T02/T03 硬约束守卫: symptomChange 与 painDelta + objective trends 一致 ---
+    // Phase D: 不仅看 painDelta，也看 objective 维度是否有改善
+    const objectiveImproved = tightnessTrend !== 'stable' || tendernessTrend !== 'stable' ||
+      romTrend !== 'stable' || strengthTrend !== 'stable' || spasmTrend !== 'stable'
+    if (painDelta <= 0 && !objectiveImproved) {
+      // pain 未降且 objective 无变化: 不能说 improvement
       if (symptomChange.includes('improvement')) {
         symptomChange = 'similar symptom(s) as last visit'
       }
@@ -1007,8 +1010,8 @@ export function generateTXSequenceStates(
       }
     }
 
-    // 后期强制改善 — 仅在 painDelta > 0 时生效
-    if (progress > 0.7 && painDelta > 0 && !symptomChange.includes('improvement of symptom')) {
+    // 后期强制改善 — painDelta > 0 或 objective 有改善时生效
+    if (progress > 0.7 && (painDelta > 0 || objectiveImproved) && !symptomChange.includes('improvement of symptom')) {
       symptomChange = 'improvement of symptom(s)'
     }
 
@@ -1051,17 +1054,35 @@ export function generateTXSequenceStates(
       'discontinuous treatment', 'weak constitution',
     ])
 
+    // Phase D: reason 轮换 — 避免总是同一个 reason
+    const POSITIVE_REASONS_LIST = Array.from(POSITIVE_REASONS)
+    const NEUTRAL_REASONS = [
+      'maintain regular treatments',
+      'continuous treatment',
+      'body is adjusting to treatment',
+    ]
+
     let finalReason = reason
     let finalConnector = reasonConnector
     if (isImprovement) {
-      if (!POSITIVE_REASONS.has(finalReason)) finalReason = 'energy level improved'
-      finalConnector = 'because of'
+      if (!POSITIVE_REASONS.has(finalReason)) {
+        // Phase D: 轮换 positive reason，不总是 energy level improved
+        finalReason = POSITIVE_REASONS_LIST[i % POSITIVE_REASONS_LIST.length]
+      }
+      // Phase D: improvement connector 也可以变化
+      const improvementConnectors = ['because of', 'due to']
+      finalConnector = improvementConnectors[Math.floor(rng() * improvementConnectors.length)] || 'because of'
     } else if (isExacerbate) {
       if (!NEGATIVE_REASONS.has(finalReason)) finalReason = 'did not have good rest'
       if (finalConnector !== 'due to' && finalConnector !== 'because of') finalConnector = 'due to'
     } else if (isSimilar) {
-      if (POSITIVE_REASONS.has(finalReason)) finalReason = 'maintain regular treatments'
-      if (finalConnector !== 'and' && finalConnector !== 'may related of') finalConnector = 'and'
+      // Phase D: similar reason 轮换，不总是 maintain regular treatments
+      if (POSITIVE_REASONS.has(finalReason)) {
+        finalReason = NEUTRAL_REASONS[i % NEUTRAL_REASONS.length]
+      }
+      // Phase D: similar connector 也可以变化
+      const similarConnectors = ['and', 'may related of']
+      finalConnector = similarConnectors[Math.floor(rng() * similarConnectors.length)] || 'and'
     } else if (isCameBack) {
       if (POSITIVE_REASONS.has(finalReason)) finalReason = 'continuous treatment'
       finalConnector = 'due to'
