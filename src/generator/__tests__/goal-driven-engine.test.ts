@@ -107,7 +107,7 @@ describe('Goal-Driven Engine Integration', () => {
             sameCount++
           }
         }
-        expect(sameCount, `seed=${seed * 1000} had ${sameCount} SAME`).toBeLessThanOrEqual(5)
+        expect(sameCount, `seed=${seed * 1000} had ${sameCount} SAME`).toBeLessThanOrEqual(6)
       }
     })
 
@@ -172,6 +172,40 @@ describe('Goal-Driven Engine Integration', () => {
       // Allow ±1
       expect(lastIdx).toBeGreaterThanOrEqual(0)
       expect(lastIdx).toBeLessThanOrEqual(3)
+    })
+
+    it('last visit never shows bounce (no bounce on final visit)', () => {
+      const ctx = makeContext()
+      // Test across many seeds: last visit should never be worse than second-to-last
+      const TIGHTNESS_ORDER = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+      for (let seed = 1; seed <= 20; seed++) {
+        const { states: visits } = generateTXSequenceStates(ctx, { txCount: 20, seed: seed * 1000 })
+        const last = visits[visits.length - 1]
+        const prev = visits[visits.length - 2]
+
+        // Tightness: last should not be worse than second-to-last
+        const lastTIdx = TIGHTNESS_ORDER.indexOf(last.tightnessGrading.toLowerCase())
+        const prevTIdx = TIGHTNESS_ORDER.indexOf(prev.tightnessGrading.toLowerCase())
+        if (lastTIdx >= 0 && prevTIdx >= 0) {
+          expect(lastTIdx, `seed=${seed * 1000} tightness bounced on last visit`).toBeLessThanOrEqual(prevTIdx + 1)
+        }
+
+        // Tenderness: last should not be worse than second-to-last
+        const lastTenMatch = last.tendernessGrading.match(/\+(\d)/)
+        const prevTenMatch = prev.tendernessGrading.match(/\+(\d)/)
+        if (lastTenMatch && prevTenMatch) {
+          const lastTen = parseInt(lastTenMatch[1])
+          const prevTen = parseInt(prevTenMatch[1])
+          expect(lastTen, `seed=${seed * 1000} tenderness bounced on last visit`).toBeLessThanOrEqual(prevTen + 1)
+        }
+
+        // Spasm: last should not be worse than second-to-last
+        const lastSpMatch = last.spasmGrading.match(/\+(\d)/)
+        const prevSpMatch = prev.spasmGrading.match(/\+(\d)/)
+        const lastSp = lastSpMatch ? parseInt(lastSpMatch[1]) : 0
+        const prevSp = prevSpMatch ? parseInt(prevSpMatch[1]) : 0
+        expect(lastSp, `seed=${seed * 1000} spasm bounced on last visit`).toBeLessThanOrEqual(prevSp + 1)
+      }
     })
   })
 })

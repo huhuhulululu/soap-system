@@ -53,7 +53,8 @@ function distributeDrops(
   for (let d = 1; d <= drops; d++) {
     const base = Math.round(rangeStart + interval * d - 1)
     // ±1 抖动
-    const jitter = rng() < 0.33 ? -1 : rng() < 0.5 ? 1 : 0
+    const r = rng()
+    const jitter = r < 0.33 ? -1 : r < 0.67 ? 1 : 0
     const visit = Math.max(rangeStart, Math.min(rangeEnd, base + jitter))
     visits.push(visit)
   }

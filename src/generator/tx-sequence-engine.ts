@@ -1000,7 +1000,8 @@ export function generateTXSequenceStates(
       nextTightness = Math.max(1, prevTightness - 1)
     } else if (bounceEnabled && bounceRng < bounceProbability
       && prevTightness <= goalPaths.tightness.stGoal
-      && !goalPaths.tightness.changeVisits.includes(i + 1)) {
+      && !goalPaths.tightness.changeVisits.includes(i + 1)
+      && i < txCount) {
       // Don't bounce if next visit is a scheduled drop
       nextTightness = prevTightness + 1
       tightnessBounced = true
@@ -1020,7 +1021,8 @@ export function generateTXSequenceStates(
       nextTenderness = Math.max(1, prevTenderness - 1)
     } else if (bounceEnabled && tenderBounceRng < bounceProbability
       && prevTenderness <= goalPaths.tenderness.stGoal
-      && !goalPaths.tenderness.changeVisits.includes(i + 1)) {
+      && !goalPaths.tenderness.changeVisits.includes(i + 1)
+      && i < txCount) {
       nextTenderness = prevTenderness + 1
       tendernessBounced = true
     } else {
@@ -1028,12 +1030,12 @@ export function generateTXSequenceStates(
     }
     prevTendernessBounced = tendernessBounced
     const tightnessTrend: 'reduced' | 'slightly reduced' | 'stable' =
-      nextTightness < prevTightness ? 'reduced'
-        : nextTightness > prevTightness ? 'stable' // bounce up 不报告为 reduced
+      prevTightnessBounced ? 'stable' // bounce return 不是真正改善
+        : nextTightness < prevTightness ? 'reduced'
           : 'stable'
     const tendernessTrend: 'reduced' | 'slightly reduced' | 'stable' =
-      nextTenderness < prevTenderness ? 'reduced'
-        : nextTenderness > prevTenderness ? 'stable'
+      prevTendernessBounced ? 'stable' // bounce return 不是真正改善
+        : nextTenderness < prevTenderness ? 'reduced'
           : 'stable'
     prevTightness = nextTightness
     prevTenderness = nextTenderness
@@ -1050,7 +1052,8 @@ export function generateTXSequenceStates(
       nextSpasm = Math.max(0, prevSpasm - 1)
     } else if (bounceEnabled && spasmBounceRng < bounceProbability
       && prevSpasm <= goalPaths.spasm.stGoal
-      && !goalPaths.spasm.changeVisits.includes(i + 1)) {
+      && !goalPaths.spasm.changeVisits.includes(i + 1)
+      && i < txCount) {
       nextSpasm = prevSpasm + 1
       spasmBounced = true
     } else {
@@ -1060,7 +1063,8 @@ export function generateTXSequenceStates(
     // Consume rng() to maintain PRNG sequence
     rng()
     const spasmTrend: 'reduced' | 'slightly reduced' | 'stable' =
-      nextSpasm < prevSpasm ? 'reduced' : 'stable'
+      prevSpasmBounced ? 'stable' // bounce return 不是真正改善
+        : nextSpasm < prevSpasm ? 'reduced' : 'stable'
     prevSpasm = nextSpasm
 
     // ROM/Strength: 独立进度，滞后于 pain，互相联动
@@ -1298,9 +1302,13 @@ export function generateTXSequenceStates(
       const curOrder = tenderOptions[targetTenderGrade]?.order ?? 2
       if (curOrder > prevOrder) {
         tendernessGrading = tenderOptions[prevTendernessGrade]?.text || tendernessGrading
+        // 保持 prevTendernessGrade 不变 — 追踪实际显示的 grade
+      } else {
+        prevTendernessGrade = targetTenderGrade
       }
+    } else {
+      prevTendernessGrade = targetTenderGrade
     }
-    prevTendernessGrade = targetTenderGrade
 
     // V09: 穴位纵向继承 — 首次选穴后所有 TX 复用
     if (fixedNeedlePoints.length === 0) {
