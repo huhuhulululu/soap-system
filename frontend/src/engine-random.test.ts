@@ -292,7 +292,8 @@ describe('随机输入测试 (20 组)', () => {
       it('Frequency chain: S frequency 改善 → A 提及 frequency', () => {
         for (const s of states) {
           if (s.soaChain.subjective.frequencyChange === 'improved') {
-            expect(s.soaChain.assessment.whatChanged).toBe('pain frequency')
+            // REAL-01: whatChanged may be combined, but must contain "pain frequency"
+            expect(s.soaChain.assessment.whatChanged).toContain('pain frequency')
           }
         }
       })
@@ -446,7 +447,7 @@ describe.skipIf(BULK_N <= 0)(`Bulk 批量随机 (${BULK_N} seeds)`, () => {
         if (anyObjImprove && s.soaChain.assessment.physicalChange === 'remained the same')
           fail('A.physChange vs O', 'not remained', s.soaChain.assessment.physicalChange)
         if (s.soaChain.subjective.frequencyChange === 'improved' &&
-            s.soaChain.assessment.whatChanged !== 'pain frequency')
+            !s.soaChain.assessment.whatChanged.includes('pain frequency'))
           fail('Frequency chain', 'pain frequency', s.soaChain.assessment.whatChanged)
       }
 

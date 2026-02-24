@@ -119,6 +119,7 @@ function generateTXSeries(
         soap,
         fullText: patchedText,
         seed: options.seed ?? 0,
+        state: result.state,
       },
       status: 'done' as const,
     }
@@ -238,16 +239,15 @@ export function generateContinueBatch(batch: BatchData, realisticPatch?: boolean
       const soap = splitSOAPText(patchedText)
       return {
         ...visit,
-        generated: { soap, fullText: patchedText, seed: options.seed ?? 0 },
+        generated: { soap, fullText: patchedText, seed: options.seed ?? 0, state: result.state },
         status: 'done' as const,
       }
     })
-
-    const updatedVisits = patient.visits.map(v => {
-      const match = generatedTX.find(g => g.index === v.index)
-      return match ?? v
-    })
-
+    const updatedVisits = patient.visits.map(v => generatedTX.find(g => g.index === v.index) ?? v)
+    for (const v of updatedVisits) {
+      if (v.status === 'done') totalGenerated++
+      else if (v.status === 'failed') totalFailed++
+    }
     return { ...patient, visits: updatedVisits }
   })
 
@@ -293,7 +293,7 @@ export function generateMixedBatch(batch: BatchData, realisticPatch?: boolean, d
         if (!result) { totalFailed++; return { ...visit, status: 'failed' as const } }
         totalGenerated++
         const patchedText = realisticPatch ? patchSOAPText(result.text, context, result.state) : result.text
-        return { ...visit, generated: { soap: splitSOAPText(patchedText), fullText: patchedText, seed: options.seed ?? 0 }, status: 'done' as const }
+        return { ...visit, generated: { soap: splitSOAPText(patchedText), fullText: patchedText, seed: options.seed ?? 0, state: result.state }, status: 'done' as const }
       })
       const updatedVisits = patient.visits.map(v => generatedTX.find(g => g.index === v.index) ?? v)
       return { ...patient, visits: updatedVisits }

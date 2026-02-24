@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { getICDCatalog } from '../../../src/shared/icd-catalog'
 import { defaultCptStr, is99203Ins, toggle99203 } from '../../../src/shared/cpt-catalog'
+import { useDiffHighlight, shortFreq, shortSpasm, shortTight, shortTender } from '../composables/useDiffHighlight'
 
 // ── API ──────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -18,11 +19,8 @@ const error = ref('')
 // Mode
 const batchMode = ref('full') // 'full' | 'soap-only' | 'continue'
 
-// Realistic Patch toggle (corrected ROM/Strength scores)
+// REAL-01: Unified realistic toggle — controls both ROM/Strength patch AND chronic curve/goals
 const realisticPatch = ref(true)
-
-// Chronic Caps toggle (CRV-01/02: dampened curve + conservative goals)
-const chronicCaps = ref(true)
 
 // Input mode
 const inputMode = ref('editor') // 'editor' | 'excel'
@@ -316,7 +314,7 @@ async function submitDrafts() {
     const res = await fetch(`${API_BASE}/batch/json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...csrfHeader() },
-      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})`, seed: d.seed ? parseInt(d.seed) || undefined : undefined })), mode: batchMode.value, realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }),
+      body: JSON.stringify({ rows: drafts.value.map(d => ({ ...d, patient: `${d.name}(${d.dob})`, seed: d.seed ? parseInt(d.seed) || undefined : undefined })), mode: batchMode.value, realisticPatch: realisticPatch.value, disableChronicCaps: !realisticPatch.value }),
     })
     const json = await res.json()
     if (!json.success) { error.value = json.error || 'Submit failed'; return }
@@ -342,6 +340,46 @@ const expandedPatients = ref(new Set())
 const expandedVisits = ref(new Set())
 const regeneratingVisits = ref(new Set())
 const generating = ref(false)
+
+// REAL-01: Build per-patient GeneratedNote arrays for diff highlight
+function getPatientNotes(pi) {
+  const patient = batchData.value?.patients?.[pi]
+  if (!patient) return []
+  return patient.visits
+    .filter(v => v.generated)
+    .map(v => ({
+      visitIndex: v.txNumber || v.dos,
+      text: v.generated.fullText,
+      type: v.noteType,
+      state: v.generated.state || undefined,
+    }))
+}
+
+function getVisitSummary(pi, vi) {
+  const notes = getPatientNotes(pi)
+  if (notes.length === 0) return null
+  const patient = batchData.value?.patients?.[pi]
+  if (!patient) return null
+  const visit = patient.visits[vi]
+  if (!visit?.generated || visit.noteType === 'IE') return null
+  const noteIdx = patient.visits.slice(0, vi + 1).filter(v => v.generated).length - 1
+  if (noteIdx < 0) return null
+  const notesRef = ref(notes)
+  const { getNoteSummary } = useDiffHighlight(notesRef)
+  return getNoteSummary(notes[noteIdx], noteIdx)
+}
+
+function getVisitDiffLines(pi, vi) {
+  const notes = getPatientNotes(pi)
+  if (notes.length === 0) return null
+  const patient = batchData.value?.patients?.[pi]
+  if (!patient) return null
+  const noteIdx = patient.visits.slice(0, vi + 1).filter(v => v.generated).length - 1
+  if (noteIdx < 0) return null
+  const notesRef = ref(notes)
+  const { getDiffLines } = useDiffHighlight(notesRef)
+  return getDiffLines(noteIdx)
+}
 
 // ── Computed ─────────────────────────────────────
 const uploadSummary = computed(() => {
@@ -432,7 +470,7 @@ async function uploadFile() {
     formData.append('file', selectedFile.value)
     formData.append('mode', batchMode.value)
     formData.append('realisticPatch', String(realisticPatch.value))
-    formData.append('disableChronicCaps', String(!chronicCaps.value))
+    formData.append('disableChronicCaps', String(!realisticPatch.value))
 
     const res = await fetch(`${API_BASE}/batch`, {
       method: 'POST',
@@ -523,7 +561,7 @@ async function regenerateVisit(pi, vi) {
   try {
     const res = await fetch(
       `${API_BASE}/batch/${batchId.value}/visit/${pi}/${vi}`,
-      { method: 'PUT', headers: { 'Content-Type': 'application/json', ...csrfHeader() }, body: JSON.stringify({ realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }) }
+      { method: 'PUT', headers: { 'Content-Type': 'application/json', ...csrfHeader() }, body: JSON.stringify({ realisticPatch: realisticPatch.value, disableChronicCaps: !realisticPatch.value }) }
     )
     const json = await res.json()
     if (!json.success) {
@@ -569,7 +607,7 @@ async function generateAll() {
     const res = await fetch(`${API_BASE}/batch/${batchId.value}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...csrfHeader() },
-      body: JSON.stringify({ realisticPatch: realisticPatch.value, disableChronicCaps: !chronicCaps.value }),
+      body: JSON.stringify({ realisticPatch: realisticPatch.value, disableChronicCaps: !realisticPatch.value }),
     })
     const json = await res.json()
     if (!json.success) {
@@ -889,18 +927,7 @@ onUnmounted(() => {
               {{ realisticPatch ? '✓ Realistic' : '✗ Original' }}
             </span>
           </label>
-          <label class="flex items-center gap-1.5 cursor-pointer select-none">
-            <button @click="chronicCaps = !chronicCaps" type="button"
-              class="relative w-9 h-5 rounded-full transition-colors duration-200 ring-2"
-              :class="chronicCaps ? 'bg-green-500 ring-green-300' : 'bg-red-400 ring-red-200'"
-              role="switch" :aria-checked="chronicCaps">
-              <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-                :class="chronicCaps ? 'translate-x-4' : ''"></span>
-            </button>
-            <span class="text-xs font-medium" :class="chronicCaps ? 'text-green-600' : 'text-red-500'">
-              {{ chronicCaps ? '✓ Chronic' : '✗ No Cap' }}
-            </span>
-          </label>
+
           <span class="text-ink-200">|</span>
           <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
             <button @click="inputMode = 'editor'" class="px-3 py-1.5 font-medium transition-colors" :class="inputMode === 'editor' ? 'bg-ink-100 text-ink-800' : 'text-ink-400 hover:text-ink-600'">Editor</button>
@@ -1481,6 +1508,24 @@ onUnmounted(() => {
                     >
                       {{ icd.code }}
                     </span>
+                    <!-- REAL-01: Summary badges (value changes + trends) -->
+                    <template v-if="getVisitSummary(pi, vi)">
+                      <span class="text-ink-200 mx-0.5">|</span>
+                      <span v-for="item in getVisitSummary(pi, vi).values" :key="'v-'+item.label"
+                        class="text-[11px] font-mono whitespace-nowrap">
+                        <span class="text-ink-400">{{ item.label }}</span>
+                        <span class="text-ink-300 mx-px">{{ item.from }}</span>
+                        <span class="text-ink-300">&rarr;</span>
+                        <span class="font-medium" :class="item.from !== item.to ? 'text-green-600' : 'text-ink-400'">{{ item.to }}</span>
+                      </span>
+                      <span v-for="item in getVisitSummary(pi, vi).trends" :key="'t-'+item.label"
+                        class="text-[11px] px-1.5 py-px rounded-full whitespace-nowrap"
+                        :class="item.trend.includes('improved') || item.trend.includes('reduced')
+                          ? 'bg-green-50 text-green-600'
+                          : 'bg-amber-50 text-amber-600'">
+                        {{ item.label }} {{ item.trend === 'improved' || item.trend === 'reduced' ? '↑' : '~' }}
+                      </span>
+                    </template>
                   </div>
                 </button>
                 <div class="flex items-center gap-2 ml-4 flex-shrink-0">
@@ -1529,7 +1574,17 @@ onUnmounted(() => {
 
               <!-- SOAP Content (Expanded) -->
               <div v-if="expandedVisits.has(visitKey(pi, vi)) && visit.generated" class="px-4 py-3 bg-white">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- REAL-01: Diff-highlighted full text (for TX with previous visit) -->
+                <div v-if="getVisitDiffLines(pi, vi)" class="mb-3">
+                  <div class="text-xs font-mono text-ink-700 leading-relaxed bg-paper-50 rounded-lg p-3 border border-ink-50 max-h-80 overflow-y-auto">
+                    <div v-for="(line, li) in getVisitDiffLines(pi, vi)" :key="li" class="whitespace-pre-wrap"><template
+                      v-for="(seg, si) in line.segments" :key="si"><mark
+                        v-if="seg.hl" class="bg-yellow-200/80 text-ink-800 rounded-sm px-px">{{ seg.text }}</mark><template
+                        v-else>{{ seg.text === '' && si === 0 ? '\n' : seg.text }}</template></template></div>
+                  </div>
+                </div>
+                <!-- Fallback: plain SOAP sections (IE or no diff available) -->
+                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div v-for="section in ['subjective', 'objective', 'assessment', 'plan']" :key="section">
                     <h4 class="text-xs font-bold text-ink-500 uppercase tracking-wider mb-1">
                       {{ section.charAt(0).toUpperCase() + section.slice(1) }}

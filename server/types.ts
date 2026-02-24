@@ -25,6 +25,18 @@ export interface BatchVisit {
     }
     readonly fullText: string
     readonly seed: number
+    readonly state?: {
+      readonly painScaleLabel?: string
+      readonly symptomScale?: string
+      readonly painFrequency?: string
+      readonly tightnessGrading?: string
+      readonly tendernessGrading?: string
+      readonly spasmGrading?: string
+      readonly soaChain?: {
+        readonly objective?: { readonly romTrend?: string; readonly strengthTrend?: string }
+        readonly subjective?: { readonly frequencyChange?: string; readonly adlChange?: string }
+      }
+    }
   } | null
   status: 'pending' | 'confirmed' | 'processing' | 'done' | 'failed'
 }

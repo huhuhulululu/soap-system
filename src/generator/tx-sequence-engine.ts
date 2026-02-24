@@ -430,30 +430,40 @@ export function deriveAssessmentFromSOA(input: {
     ? 'decreased'
     : 'slightly decreased'
 
-  // ASS-01: evidence-based whatChanged selection
-  // Priority: frequency (hard rule) > ADL > objective > pain (fallback)
+  // ASS-01 + REAL-01: evidence-based whatChanged — collect ALL improved dimensions
   const whatChanged = (() => {
-    // Hard chain rule preserved: S frequency improved → A must mention "pain frequency"
-    if (input.frequencyImproved) return 'pain frequency'
+    const parts: string[] = []
 
-    // Strong ADL improvement → ADL-related option (rotate by visitIndex for variety)
-    if (input.adlDelta > 0.2) {
-      const adlOptions = ['difficulty in performing ADLs', 'muscles soreness sensation', 'muscles stiffness sensation']
-      return adlOptions[input.visitIndex % adlOptions.length]
+    // Hard chain rule preserved: S frequency improved → A must mention "pain frequency"
+    if (input.frequencyImproved) parts.push('pain frequency')
+
+    // Pain improved
+    if (input.painDelta > 0.3 && !input.frequencyImproved) {
+      parts.push('pain')
     }
 
-    // Objective findings strongly improved + pain delta weak → mention physical metric
+    // ADL improved
+    if (input.adlDelta > 0.2) {
+      parts.push('difficulty in performing ADLs')
+    }
+
+    // Objective findings strongly improved
     const hasStrongObjective =
       input.objectiveRomTrend === 'improved' ||
       input.objectiveStrengthTrend === 'improved' ||
       input.objectiveTightnessTrend === 'reduced'
 
-    if (hasStrongObjective && input.painDelta < 0.3) {
+    if (hasStrongObjective && parts.length < 2) {
       const objOptions = ['muscles stiffness sensation', 'muscles soreness sensation']
-      return objOptions[input.visitIndex % objOptions.length]
+      parts.push(objOptions[input.visitIndex % objOptions.length])
     }
 
-    return 'pain'
+    // Fallback: at least one item
+    if (parts.length === 0) return 'pain'
+
+    // Join: "pain frequency and difficulty in performing ADLs"
+    if (parts.length === 1) return parts[0]
+    return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]
   })()
 
   // Physical change: same logic as before — derived from objective trends
@@ -650,8 +660,8 @@ export function generateTXSequenceStates(
       : Math.ceil(
         ieStartPain - (ieStartPain - Math.max(2, ieStartPain * 0.25)) * (1 - (1 - 0.55) * (1 - 0.55))
       )
-  // CRV-01: chronic-aware ltFallback — higher floor for long treatment courses
-  const chronicCapsEnabled = txCount >= 16 && !context.disableChronicCaps
+  // REAL-01: chronic-aware — no txCount threshold, applies whenever chronicityLevel=Chronic
+  const chronicCapsEnabled = context.chronicityLevel === 'Chronic' && !context.disableChronicCaps
   const chronicEndRatio = chronicCapsEnabled ? 0.55 : 0.25
   const ltFallback = ieStartPain <= 6
     ? 1
@@ -670,8 +680,8 @@ export function generateTXSequenceStates(
   // 病史推断: progress 系数 + 初始值修正
   const medHistory = context.medicalHistory || []
   const baseMultiplier = inferProgressMultiplier(medHistory, context.age)
-  // CRV-01: chronic-aware dampener — slower progression for long treatment courses
-  const chronicDampener = chronicCapsEnabled ? 0.82 : 1.0
+  // REAL-01: chronic-aware dampener — slower progression for chronic patients
+  const chronicDampener = chronicCapsEnabled ? 0.72 : 1.0
   const progressMultiplier = baseMultiplier * chronicDampener
   const medAdjustments = inferInitialAdjustments(medHistory, context.primaryBodyPart)
 
@@ -803,16 +813,18 @@ export function generateTXSequenceStates(
     const snapped = snapPainToGrid(rawPain)
     let painScaleCurrent = Math.min(prevPain, snapped.value)
 
-    // PLAT-01: plateau breaker — when pain label is identical for 3+ consecutive visits,
+    // PLAT-01: plateau breaker — when pain label is identical for consecutive visits,
     // inject a micro-improvement (0.3-0.5 drop) to break the stall.
+    // REAL-01: chronic patients tolerate longer plateaus (4 vs 3)
     // Uses progress-derived drop amount (no new rng() calls).
     let painScaleLabel = painScaleCurrent < snapped.value
       ? snapPainToGrid(painScaleCurrent).label
       : snapped.label
 
+    const plateauThreshold = chronicCapsEnabled ? 4 : 3
     if (painScaleLabel === prevPainScaleLabel) {
       consecutiveSameLabel++
-      if (consecutiveSameLabel >= 3 && painScaleCurrent > targetPain) {
+      if (consecutiveSameLabel >= plateauThreshold && painScaleCurrent > targetPain) {
         // Micro-drop: 0.3 at early progress, 0.5 at late progress
         const microDrop = 0.3 + progress * 0.2
         painScaleCurrent = clamp(painScaleCurrent - microDrop, targetPain, prevPain)
@@ -857,19 +869,22 @@ export function generateTXSequenceStates(
     prevSeverity = severityLevel
 
     // Frequency 改善: 基于 progress 分段确定目标，与 pain 下降联动
+    // REAL-01: chronic patients have delayed frequency improvement
     // Constant(3) → Frequent(2) → Occasional(1) → Intermittent(0)
-    const frequencyTarget = progress >= 0.80 ? 1 :    // 后期至少 Occasional
-      progress >= 0.55 ? 2 :    // 中后期至少 Frequent
-        progress >= 0.30 ? 3 : 3  // 早期保持 Constant
+    const frequencyTarget = chronicCapsEnabled
+      ? (progress >= 0.90 ? 1 : progress >= 0.65 ? 2 : 3)
+      : (progress >= 0.80 ? 1 : progress >= 0.55 ? 2 : progress >= 0.30 ? 3 : 3)
     const nextFrequency = Math.min(prevFrequency, Math.max(frequencyTarget, prevFrequency - (rng() > 0.6 ? 1 : 0)))
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
 
     // Tightness/Tenderness: 慢于 pain，有随机因子
-    // 递减概率随 progress 增加，但比 pain 滞后
-    const tightnessGate = progress > 0.40 && rng() > 0.40
+    // REAL-01: gates delayed for slower progression
+    const tightnessThreshold = chronicCapsEnabled ? 0.55 : 0.40
+    const tendernessThreshold = chronicCapsEnabled ? 0.60 : 0.45
+    const tightnessGate = progress > tightnessThreshold && rng() > 0.40
     const nextTightness = Math.max(1, prevTightness - (tightnessGate ? 1 : 0))
-    const tendernessGate = progress > 0.45 && rng() > 0.45
+    const tendernessGate = progress > tendernessThreshold && rng() > 0.45
     // tenderness floor: 不应低于 pain 对应的最小值 (对齐 Checker TX02)
     // 使用 snapPainToGrid 的 label 第一个数字——与 Parser 提取的 pain 值一致
     const snappedForGrade = snapPainToGrid(painScaleCurrent)
@@ -884,7 +899,10 @@ export function generateTXSequenceStates(
     prevTenderness = nextTenderness
 
     // Spasm: 基于 progress 分段目标 + rng 随机因子，纵向只降不升
-    const spasmTarget = progress >= 0.85 ? 0 : progress >= 0.60 ? 1 : progress >= 0.40 ? 2 : 3
+    // REAL-01: chronic patients have delayed spasm reduction
+    const spasmTarget = chronicCapsEnabled
+      ? (progress >= 0.90 ? 0 : progress >= 0.70 ? 1 : progress >= 0.50 ? 2 : 3)
+      : (progress >= 0.85 ? 0 : progress >= 0.60 ? 1 : progress >= 0.40 ? 2 : 3)
     const spasmGate = rng() > 0.4
     const nextSpasm = Math.min(prevSpasm, spasmGate ? Math.max(spasmTarget, prevSpasm - 1) : prevSpasm)
     const spasmTrend: 'reduced' | 'slightly reduced' | 'stable' =
@@ -892,9 +910,11 @@ export function generateTXSequenceStates(
     prevSpasm = nextSpasm
 
     // ROM/Strength: 独立进度，滞后于 pain，互相联动
-    // romProgress 约为 pain progress 的 85%，strength 再滞后 5%
-    const romProgress = progress * 0.85
-    const strengthProgress = romProgress * 0.95
+    // REAL-01: chronic patients have slower ROM/Strength recovery
+    const romDampener = chronicCapsEnabled ? 0.75 : 0.85
+    const strengthDampener = chronicCapsEnabled ? 0.70 : 0.95
+    const romProgress = progress * romDampener
+    const strengthProgress = romProgress * strengthDampener
     const nextRomDeficit = clamp(Math.min(prevRomDeficit, prevRomDeficit - (0.03 + rng() * 0.05) * (romProgress > 0.2 ? 1 : 0.3)), 0.08, 0.6)
     const nextStrengthDeficit = clamp(Math.min(prevStrengthDeficit, prevStrengthDeficit - (0.02 + rng() * 0.04) * (strengthProgress > 0.2 ? 1 : 0.3)), 0.06, 0.6)
     let romTrend: 'improved' | 'slightly improved' | 'stable' =
@@ -1243,8 +1263,9 @@ export function generateTXSequenceStates(
         const m = raw.match(/(\d+)/)
         if (!m) return raw
         const base = parseInt(m[1], 10)
-        // 用 progress 的平方使早期递减更平缓，避免 IE→TX1 跳变
-        const reduction = Math.round(progress * progress * 40)
+        // REAL-01: gentler reduction for chronic patients (25 vs 40 multiplier)
+        const reductionFactor = chronicCapsEnabled ? 25 : 40
+        const reduction = Math.round(progress * progress * reductionFactor)
         const reduced = Math.max(10, base - reduction)
         const snapped = Math.round(reduced / 10) * 10
         return `${snapped}%`

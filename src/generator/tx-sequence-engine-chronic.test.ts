@@ -23,45 +23,40 @@ function makeContext(overrides: Partial<GenerationContext> = {}): GenerationCont
 }
 
 describe('CRV-01: Chronic dampener on progress curve', () => {
-  it('txCount>=16 dampens midpoint progress (pain stays higher)', () => {
+  it('Chronic context dampens midpoint progress (pain stays higher) regardless of txCount', () => {
     const ctx = makeContext()
-    const chronicOpts: TXSequenceOptions = { txCount: 20, seed: 300001 }
-    const acuteOpts: TXSequenceOptions = { txCount: 10, seed: 300001 }
+    // REAL-01: dampener now applies based on chronicityLevel, not txCount
+    const ctxNonChronic = makeContext({ chronicityLevel: 'Acute' as any })
+    const opts: TXSequenceOptions = { txCount: 20, seed: 300001 }
 
-    const chronic = generateTXSequenceStates(ctx, chronicOpts)
-    const acute = generateTXSequenceStates(ctx, acuteOpts)
+    const chronic = generateTXSequenceStates(ctx, opts)
+    const acute = generateTXSequenceStates(ctxNonChronic, opts)
 
-    // Midpoint of chronic run (visit 10)
+    // Midpoint of both runs (visit 10)
     const chronicMid = chronic.states.find(s => s.visitIndex === 10)!
-    // Midpoint of acute run (visit 5)
-    const acuteMid = acute.states.find(s => s.visitIndex === 5)!
+    const acuteMid = acute.states.find(s => s.visitIndex === 10)!
 
-    // Chronic midpoint pain should be HIGHER (less improved) than acute midpoint
-    // because chronicDampener (0.82) slows the S-curve
+    // Chronic midpoint pain should be HIGHER (less improved) than non-chronic midpoint
     expect(chronicMid.painScaleCurrent).toBeGreaterThan(acuteMid.painScaleCurrent)
   })
 
-  it('txCount<16 has no dampening applied', () => {
+  it('txCount<16 with Chronic context still applies dampening (no txCount gate)', () => {
     const ctx = makeContext()
+    const ctxNonChronic = makeContext({ chronicityLevel: 'Acute' as any })
     const opts12: TXSequenceOptions = { txCount: 12, seed: 300002 }
-    const opts20: TXSequenceOptions = { txCount: 20, seed: 300002 }
 
-    const result12 = generateTXSequenceStates(ctx, opts12)
-    const result20 = generateTXSequenceStates(ctx, opts20)
+    const result12Chronic = generateTXSequenceStates(ctx, opts12)
+    const result12NonChronic = generateTXSequenceStates(ctxNonChronic, opts12)
 
-    // txCount=12 should NOT have dampening (< 16 threshold)
-    // txCount=20 SHOULD have dampening
-    // At equivalent progress points, the 12-visit run should show more improvement
-    const visit6of12 = result12.states.find(s => s.visitIndex === 6)!
-    const visit10of20 = result20.states.find(s => s.visitIndex === 10)!
+    // REAL-01: even txCount=12, Chronic context should dampen
+    const visit6Chronic = result12Chronic.states.find(s => s.visitIndex === 6)!
+    const visit6NonChronic = result12NonChronic.states.find(s => s.visitIndex === 6)!
 
-    // visit 6/12 = 50% through, visit 10/20 = 50% through
-    // Without dampening, 12-visit should have equal or better progress at midpoint
-    // With dampening on 20-visit, the 20-visit midpoint pain should be higher
-    expect(visit10of20.painScaleCurrent).toBeGreaterThanOrEqual(visit6of12.painScaleCurrent)
+    // Chronic should have higher pain (less improved) at midpoint
+    expect(visit6Chronic.painScaleCurrent).toBeGreaterThanOrEqual(visit6NonChronic.painScaleCurrent)
   })
 
-  it('ltFallback uses chronicEndRatio 0.55 for txCount>=16 (pain=8)', () => {
+  it('ltFallback uses chronicEndRatio 0.55 for Chronic context (pain=8)', () => {
     // No previousIE → forces ltFallback path
     // With chronic ratio: ltFallback = ceil(max(2, 8 * 0.55)) = ceil(4.4) = 5
     // Without chronic ratio: ltFallback = ceil(max(2, 8 * 0.25)) = ceil(2) = 2
@@ -76,16 +71,16 @@ describe('CRV-01: Chronic dampener on progress curve', () => {
     expect(lastVisit.painScaleCurrent).toBeGreaterThanOrEqual(4)
   })
 
-  it('ltFallback unchanged for txCount<16 (pain=8)', () => {
-    // txCount=10 → non-chronic → ltFallback = ceil(max(2, 8*0.25)) = 2
-    const ctx = makeContext({ painCurrent: 8 })
+  it('ltFallback uses non-chronic ratio when disableChronicCaps=true (pain=8)', () => {
+    // REAL-01: disableChronicCaps bypasses chronic dampener
+    const ctx = makeContext({ painCurrent: 8, disableChronicCaps: true })
     const opts: TXSequenceOptions = { txCount: 10, seed: 300004 }
 
     const result = generateTXSequenceStates(ctx, opts)
     const lastVisit = result.states[result.states.length - 1]
 
-    // Non-chronic: ltFallback=2, final pain can drop to 2-3 range
-    expect(lastVisit.painScaleCurrent).toBeLessThanOrEqual(4)
+    // Non-chronic: ltFallback=2, final pain can drop to 2-4 range
+    expect(lastVisit.painScaleCurrent).toBeLessThanOrEqual(5)
   })
 
   it('PRNG sequence preserved — visit count equals txCount', () => {

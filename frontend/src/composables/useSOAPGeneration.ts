@@ -69,6 +69,8 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
       localPattern: (fields['assessment.tcmDiagnosis.localPattern'] as string) || undefined,
       systemicPattern: (fields['assessment.tcmDiagnosis.systemicPattern'] as string) || undefined,
       chronicityLevel: ((fields['subjective.chronicityLevel'] as string) || 'Chronic') as NormalizeInput['chronicityLevel'],
+      // REAL-01: realistic toggle controls chronic caps — when realistic is OFF, disable chronic caps
+      disableChronicCaps: !(realisticPatch?.value ?? true),
       painWorst: parseInt(((fields['subjective.painScale.worst'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
       painBest: parseInt(((fields['subjective.painScale.best'] as string) || '').match(/\d+/)?.[0] || '', 10) || undefined,
       associatedSymptom: (((fields['subjective.associatedSymptoms'] as string[])?.[0]) || 'soreness') as NormalizeInput['associatedSymptom'],

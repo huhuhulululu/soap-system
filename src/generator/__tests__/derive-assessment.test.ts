@@ -42,7 +42,8 @@ describe('deriveAssessmentFromSOA', () => {
   describe('ASS-01: specific improvements in whatChanged', () => {
     it('selects "pain frequency" when frequency improved (hard rule preserved)', () => {
       const result = deriveAssessmentFromSOA({ ...baseInput, frequencyImproved: true })
-      expect(result.whatChanged).toBe('pain frequency')
+      // REAL-01: whatChanged may be combined, but must contain "pain frequency"
+      expect(result.whatChanged).toContain('pain frequency')
     })
 
     it('selects ADL-related option when adlDelta is dominant', () => {
@@ -52,7 +53,9 @@ describe('deriveAssessmentFromSOA', () => {
         painDelta: 0.2,
         frequencyImproved: false,
       })
-      expect(['difficulty in performing ADLs', 'muscles soreness sensation', 'muscles stiffness sensation']).toContain(result.whatChanged)
+      // REAL-01: whatChanged may be combined; each part must be valid
+      const parts = result.whatChanged.split(/ and |, /).map(p => p.trim())
+      expect(parts.some(p => ['difficulty in performing ADLs', 'muscles soreness sensation', 'muscles stiffness sensation'].includes(p))).toBe(true)
     })
 
     it('selects objective-related option when objective trends are strong and pain/adl weak', () => {
@@ -163,7 +166,11 @@ describe('deriveAssessmentFromSOA', () => {
         const result = deriveAssessmentFromSOA(input)
         expect(VALID_PRESENT).toContain(result.present)
         expect(VALID_PATIENT_CHANGE).toContain(result.patientChange)
-        expect(VALID_WHAT_CHANGED).toContain(result.whatChanged)
+        // REAL-01: whatChanged can be combined; validate each part
+        const whatParts = result.whatChanged.split(/ and |, /).map(p => p.trim())
+        for (const part of whatParts) {
+          expect(VALID_WHAT_CHANGED).toContain(part)
+        }
         expect(VALID_PHYSICAL_CHANGE).toContain(result.physicalChange)
         expect(VALID_FINDING_TYPE).toContain(result.findingType)
       }

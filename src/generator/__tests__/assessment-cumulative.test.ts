@@ -117,7 +117,14 @@ describe('Assessment cumulative tracking (ASS-02)', () => {
     for (const visit of result.states) {
       expect(VALID_PRESENT).toContain(visit.soaChain.assessment.present)
       expect(VALID_PATIENT_CHANGE).toContain(visit.soaChain.assessment.patientChange)
-      expect(VALID_WHAT_CHANGED).toContain(visit.soaChain.assessment.whatChanged)
+      // REAL-01: whatChanged can be a combined string like "pain frequency and difficulty in performing ADLs"
+      // Validate each part individually
+      const whatParts = visit.soaChain.assessment.whatChanged
+        .split(/ and |, /)
+        .map(p => p.trim())
+      for (const part of whatParts) {
+        expect(VALID_WHAT_CHANGED).toContain(part)
+      }
     }
   })
 })
