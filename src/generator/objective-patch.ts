@@ -19,7 +19,11 @@ import {
   type ROMMovement,
   type ROMDifficulty,
 } from '../shared/body-part-constants'
-import type { GenerationContext } from '../types'
+import {
+  inferProgressMultiplier,
+  inferInitialAdjustments,
+} from '../knowledge/medical-history-engine'
+import type { GenerationContext, SeverityLevel, BodyPart } from '../types'
 
 // ==================== 修正公式 ====================
 
@@ -63,11 +67,11 @@ const PATCHED_BASE_GRADES: readonly string[] = [
   '4/5',   // pain 3
   '4/5',   // pain 4
   '4-/5',  // pain 5
-  '3+/5',  // pain 6
-  '3+/5',  // pain 7
-  '3/5',   // pain 8
-  '3/5',   // pain 9
-  '3-/5',  // pain 10
+  '4-/5',  // pain 6
+  '4-/5',  // pain 7
+  '3+/5',  // pain 8
+  '3+/5',  // pain 9
+  '3/5',   // pain 10
 ]
 
 const STRENGTH_LADDER: readonly string[] = [
@@ -701,6 +705,334 @@ export function patchSOAPText(
     }
   }
 
-  // 重新组装
-  return fullText.slice(0, objContentStart) + objectiveText + fullText.slice(objEnd)
+  // 重新组装 Objective
+  let result = fullText.slice(0, objContentStart) + objectiveText + fullText.slice(objEnd)
+
+  // 3. 替换 Plan Goals（仅 IE）
+  if (!pctx.isTX) {
+    result = patchPlanGoals(result, context)
+  }
+
+  return result
+}
+
+// ==================== Phase 2: Patched Goals ====================
+
+export interface PatchedGoals {
+  pain: { st: string; lt: string }
+  symptomPct: { st: string; lt: string }
+  tightness: { st: string; lt: string }
+  tenderness: { st: number; lt: number }
+  spasm: { st: number; lt: number }
+  strength: { st: string; lt: string }
+  rom: { st: string; lt: string }
+  adl: { st: string; lt: string }
+}
+
+/** 5 个基础模型 (pain 5-9) */
+interface BaseModel {
+  pain: { st: string; lt: string }
+  symptomPct: { st: string; lt: string }
+  tightness: { st: string; lt: string }
+  tenderness: { st: number; lt: number }
+  spasm: { st: number; lt: number }
+  strength: { st: string; lt: string }
+  rom: { st: string; lt: string }
+  adl: { st: string; lt: string }
+}
+
+const BASE_MODELS: Record<number, BaseModel> = {
+  5: {
+    pain: { st: '3', lt: '2' },
+    symptomPct: { st: '(30%-40%)', lt: '(20%-30%)' },
+    tightness: { st: 'mild', lt: 'mild' },
+    tenderness: { st: 1, lt: 1 },
+    spasm: { st: 1, lt: 0 },
+    strength: { st: '4+', lt: '4+' },
+    rom: { st: '50%', lt: '60%' },
+    adl: { st: 'mild', lt: 'mild' },
+  },
+  6: {
+    pain: { st: '3', lt: '2' },
+    symptomPct: { st: '(30%-40%)', lt: '(20%-30%)' },
+    tightness: { st: 'mild', lt: 'mild' },
+    tenderness: { st: 1, lt: 1 },
+    spasm: { st: 1, lt: 0 },
+    strength: { st: '4+', lt: '4+' },
+    rom: { st: '50%', lt: '65%' },
+    adl: { st: 'mild', lt: 'mild' },
+  },
+  7: {
+    pain: { st: '3-4', lt: '2-3' },
+    symptomPct: { st: '(30%-40%)', lt: '(20%-30%)' },
+    tightness: { st: 'mild to moderate', lt: 'mild' },
+    tenderness: { st: 1, lt: 1 },
+    spasm: { st: 1, lt: 0 },
+    strength: { st: '4', lt: '4+' },
+    rom: { st: '55%', lt: '70%' },
+    adl: { st: 'mild-moderate', lt: 'mild' },
+  },
+  8: {
+    pain: { st: '4-5', lt: '3' },
+    symptomPct: { st: '(40%-50%)', lt: '(20%-30%)' },
+    tightness: { st: 'mild to moderate', lt: 'mild' },
+    tenderness: { st: 2, lt: 1 },
+    spasm: { st: 1, lt: 0 },
+    strength: { st: '4', lt: '4' },
+    rom: { st: '55%', lt: '70%' },
+    adl: { st: 'moderate', lt: 'mild-moderate' },
+  },
+  9: {
+    pain: { st: '5-6', lt: '3-4' },
+    symptomPct: { st: '(50%-60%)', lt: '(30%-40%)' },
+    tightness: { st: 'moderate', lt: 'mild to moderate' },
+    tenderness: { st: 2, lt: 1 },
+    spasm: { st: 1, lt: 0 },
+    strength: { st: '4', lt: '4' },
+    rom: { st: '50%', lt: '65%' },
+    adl: { st: 'moderate-severe', lt: 'mild-moderate' },
+  },
+}
+
+/** 将 pain 值映射到最近的基础模型 key */
+function resolveBaseModel(painCurrent: number): BaseModel {
+  const p = Math.round(Math.max(5, Math.min(9, painCurrent)))
+  return BASE_MODELS[p]
+}
+
+/** 微调选项 */
+interface AdjustmentInput {
+  medicalHistory?: string[]
+  age?: number
+  bodyPart?: string
+}
+
+function parsePainRange(s: string): { lo: number; hi: number } {
+  const parts = s.split('-').map(Number)
+  return parts.length === 2 ? { lo: parts[0], hi: parts[1] } : { lo: parts[0], hi: parts[0] }
+}
+
+function formatPainRange(lo: number, hi: number): string {
+  return lo === hi ? String(lo) : `${lo}-${hi}`
+}
+
+function parseRomPct(s: string): number {
+  return parseInt(s.replace('%', ''))
+}
+
+/**
+ * 计算补丁版 Goals
+ *
+ * @param painCurrent - 当前疼痛值 (5-9)
+ * @param severity - severity level (用于 symptomPct 等)
+ * @param bodyPart - 身体部位
+ * @param symptomType - 症状类型 (soreness, etc.)
+ * @param adjustments - 微调输入 (medicalHistory, age)
+ */
+export function computePatchedGoals(
+  painCurrent: number,
+  severity: SeverityLevel | string,
+  bodyPart: BodyPart | string,
+  symptomType: string = 'soreness',
+  adjustments?: AdjustmentInput,
+): PatchedGoals {
+  const base = resolveBaseModel(painCurrent)
+
+  // Deep copy base model
+  const goals: PatchedGoals = {
+    pain: { ...base.pain },
+    symptomPct: { ...base.symptomPct },
+    tightness: { ...base.tightness },
+    tenderness: { ...base.tenderness },
+    spasm: { ...base.spasm },
+    strength: { ...base.strength },
+    rom: { ...base.rom },
+    adl: { ...base.adl },
+  }
+
+  // Body part adjustments (always apply, independent of medical history)
+  if (bodyPart === 'SHOULDER') {
+    goals.rom = {
+      st: `${Math.max(30, parseRomPct(goals.rom.st) - 5)}%`,
+      lt: `${Math.max(40, parseRomPct(goals.rom.lt) - 5)}%`,
+    }
+  }
+  if (bodyPart === 'NECK') {
+    const TIGHT_LEVELS_NECK = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+    const ltIdx = TIGHT_LEVELS_NECK.indexOf(goals.tightness.lt)
+    if (ltIdx < 1) {
+      goals.tightness = { ...goals.tightness, lt: 'mild to moderate' }
+    }
+  }
+
+  if (!adjustments) return goals
+
+  const history = adjustments.medicalHistory ?? []
+  const age = adjustments.age
+
+  // Skip adjustments if no meaningful input
+  if (history.length === 0 && age === undefined) return goals
+
+  // 1. progressMultiplier < 0.90 → Pain ST/LT each +1
+  const progMult = inferProgressMultiplier(history, age)
+  if (progMult < 0.90) {
+    const stRange = parsePainRange(goals.pain.st)
+    const ltRange = parsePainRange(goals.pain.lt)
+    goals.pain = {
+      st: formatPainRange(stRange.lo + 1, stRange.hi + 1),
+      lt: formatPainRange(ltRange.lo + 1, ltRange.hi + 1),
+    }
+  }
+
+  // 2. initialAdjustments from medical history + body part
+  const adj = inferInitialAdjustments(history, bodyPart as BodyPart)
+
+  // severityBump > 0 → Tenderness ST +1, Tightness ST up one level
+  if (adj.severityBump > 0) {
+    goals.tenderness = { ...goals.tenderness, st: goals.tenderness.st + 1 }
+    const TIGHT_LEVELS = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
+    const tIdx = TIGHT_LEVELS.indexOf(goals.tightness.st)
+    if (tIdx >= 0 && tIdx < TIGHT_LEVELS.length - 1) {
+      goals.tightness = { ...goals.tightness, st: TIGHT_LEVELS[tIdx + 1] }
+    }
+  }
+
+  // romDeficitBump > 0 → ROM ST/LT each -round(bump×100)%
+  if (adj.romDeficitBump > 0) {
+    const romDelta = Math.round(adj.romDeficitBump * 100)
+    goals.rom = {
+      st: `${Math.max(30, parseRomPct(goals.rom.st) - romDelta)}%`,
+      lt: `${Math.max(40, parseRomPct(goals.rom.lt) - romDelta)}%`,
+    }
+  }
+
+  // spasmBump > 0 → Spasm ST +1, LT +1
+  if (adj.spasmBump > 0) {
+    goals.spasm = {
+      st: goals.spasm.st + adj.spasmBump,
+      lt: goals.spasm.lt + adj.spasmBump,
+    }
+  }
+
+  // 3. baselineCondition === 'poor' → Strength cap 4, ROM LT -5%
+  const condition = deriveBaselineCondition({
+    medicalHistory: history,
+    age,
+  } as GenerationContext)
+  if (condition === 'poor') {
+    const capStr = (s: string) => {
+      const map: Record<string, number> = { '3': 3, '3+': 3.5, '4': 4, '4+': 4.5, '5': 5 }
+      const val = map[s] ?? 4
+      return val > 4 ? '4' : s
+    }
+    goals.strength = { st: capStr(goals.strength.st), lt: capStr(goals.strength.lt) }
+    goals.rom = {
+      ...goals.rom,
+      lt: `${Math.max(40, parseRomPct(goals.rom.lt) - 5)}%`,
+    }
+  }
+
+  return goals
+}
+
+// ==================== Phase 3: Plan 文本替换 ====================
+
+/**
+ * 替换 IE Plan 中的 Goals 行
+ * 使用 regex 逐行替换，保持原始格式
+ */
+function patchPlanGoals(fullText: string, context: GenerationContext): string {
+  const planStart = fullText.indexOf('Plan\n')
+  if (planStart === -1) return fullText
+
+  const stStart = fullText.indexOf('Short Term Goal', planStart)
+  if (stStart === -1) return fullText
+
+  const goals = computePatchedGoals(
+    deriveBasePain(context),
+    context.severityLevel || 'moderate to severe',
+    context.primaryBodyPart,
+    context.associatedSymptom || 'soreness',
+    {
+      medicalHistory: context.medicalHistory,
+      age: context.age,
+      bodyPart: context.primaryBodyPart,
+    },
+  )
+
+  let planText = fullText.slice(stStart)
+  const afterPlanEnd = fullText.indexOf('\nSelect Needle Size', stStart)
+  const needleStart = fullText.indexOf('\nDaily acupuncture', stStart)
+  const endMarker = afterPlanEnd !== -1 ? afterPlanEnd
+    : needleStart !== -1 ? needleStart
+      : fullText.length
+  planText = fullText.slice(stStart, endMarker)
+
+  // Replace ST Goals lines
+  planText = planText.replace(
+    /Decrease Pain Scale to [^\n]+/,
+    `Decrease Pain Scale to ${goals.pain.st}.`,
+  )
+  planText = planText.replace(
+    /Decrease \w+ sensation Scale to [^\n]+/,
+    `Decrease ${context.associatedSymptom || 'soreness'} sensation Scale to ${goals.symptomPct.st}`,
+  )
+  planText = planText.replace(
+    /Decrease Muscles Tightness to [^\n]+/,
+    `Decrease Muscles Tightness to ${goals.tightness.st}`,
+  )
+  planText = planText.replace(
+    /Decrease Muscles Tenderness to Grade [^\n]+/,
+    `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}`,
+  )
+  planText = planText.replace(
+    /Decrease Muscles Spasms to Grade [^\n]+/,
+    `Decrease Muscles Spasms to Grade ${goals.spasm.st}`,
+  )
+  planText = planText.replace(
+    /Increase Muscles Strength to [^\n]+/,
+    `Increase Muscles Strength to ${goals.strength.st}`,
+  )
+
+  // Replace LT Goals lines (after "Long Term Goal" header)
+  const ltIdx = planText.indexOf('Long Term Goal')
+  if (ltIdx !== -1) {
+    let ltPart = planText.slice(ltIdx)
+    ltPart = ltPart.replace(
+      /Decrease Pain Scale to [^\n]+/,
+      `Decrease Pain Scale to ${goals.pain.lt}`,
+    )
+    ltPart = ltPart.replace(
+      /Decrease \w+ sensation Scale to [^\n]+/,
+      `Decrease ${context.associatedSymptom || 'soreness'} sensation Scale to ${goals.symptomPct.lt}`,
+    )
+    const tightnessLT = goals.tightness.lt.replace(/ to /g, '-')
+    ltPart = ltPart.replace(
+      /Decrease Muscles Tightness to [^\n]+/,
+      `Decrease Muscles Tightness to ${tightnessLT}`,
+    )
+    ltPart = ltPart.replace(
+      /Decrease Muscles Tenderness to Grade [^\n]+/,
+      `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}`,
+    )
+    ltPart = ltPart.replace(
+      /Decrease Muscles Spasms to Grade [^\n]+/,
+      `Decrease Muscles Spasms to Grade ${goals.spasm.lt}`,
+    )
+    ltPart = ltPart.replace(
+      /Increase Muscles Strength to [^\n]+/,
+      `Increase Muscles Strength to ${goals.strength.lt}`,
+    )
+    ltPart = ltPart.replace(
+      /Increase ROM [^\n]+/,
+      `Increase ROM ${goals.rom.lt}`,
+    )
+    ltPart = ltPart.replace(
+      /Decrease impaired Activities of Daily Living to [^\n.]+\.?/,
+      `Decrease impaired Activities of Daily Living to ${goals.adl.lt}.`,
+    )
+    planText = planText.slice(0, ltIdx) + ltPart
+  }
+
+  return fullText.slice(0, stStart) + planText + fullText.slice(endMarker)
 }
