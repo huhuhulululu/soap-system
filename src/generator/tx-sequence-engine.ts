@@ -905,16 +905,18 @@ export function generateTXSequenceStates(
 
     // Tightness/Tenderness: 慢于 pain，有随机因子
     // REAL-01: gates delayed for slower progression
-    const tightnessThreshold = chronicCapsEnabled ? 0.55 : 0.40
-    const tendernessThreshold = chronicCapsEnabled ? 0.60 : 0.45
-    const tightnessGate = progress > tightnessThreshold && rng() > 0.40
+    const tightnessThreshold = chronicCapsEnabled ? 0.45 : 0.30
+    const tendernessThreshold = chronicCapsEnabled ? 0.50 : 0.35
+    const tightnessGate = progress > tightnessThreshold && rng() > 0.35
     const nextTightness = Math.max(1, prevTightness - (tightnessGate ? 1 : 0))
-    const tendernessGate = progress > tendernessThreshold && rng() > 0.45
-    // tenderness floor: 不应低于 pain 对应的最小值 (对齐 Checker TX02)
-    // 使用 snapPainToGrid 的 label 第一个数字——与 Parser 提取的 pain 值一致
+    const tendernessGate = progress > tendernessThreshold && rng() > 0.40
+    // tenderness soft floor: pain 设定初始上界，progress 可以突破
+    // pain >= 7 → 初始 +3，但 progress > 0.5 允许降到 +2
+    // pain >= 5 → 初始 +2，但 progress > 0.6 允许降到 +1
     const snappedForGrade = snapPainToGrid(painScaleCurrent)
     const painInt = parseInt(snappedForGrade.label, 10)
-    const tenderFloor = painInt >= 7 ? 3 : painInt >= 5 ? 2 : 1
+    const hardFloor = painInt >= 7 ? 3 : painInt >= 5 ? 2 : 1
+    const tenderFloor = progress > 0.6 ? Math.max(1, hardFloor - 1) : hardFloor
     const nextTenderness = Math.max(tenderFloor, prevTenderness - (tendernessGate ? 1 : 0))
     const tightnessTrend: 'reduced' | 'slightly reduced' | 'stable' =
       nextTightness < prevTightness ? (prevTightness - nextTightness >= 1 ? 'reduced' : 'slightly reduced') : 'stable'
@@ -924,11 +926,11 @@ export function generateTXSequenceStates(
     prevTenderness = nextTenderness
 
     // Spasm: 基于 progress 分段目标 + rng 随机因子，纵向只降不升
-    // REAL-01: chronic patients have delayed spasm reduction
+    // Phase B: 降低阈值让 spasm 更早开始变化
     const spasmTarget = chronicCapsEnabled
-      ? (progress >= 0.90 ? 0 : progress >= 0.70 ? 1 : progress >= 0.50 ? 2 : 3)
-      : (progress >= 0.85 ? 0 : progress >= 0.60 ? 1 : progress >= 0.40 ? 2 : 3)
-    const spasmGate = rng() > 0.4
+      ? (progress >= 0.80 ? 0 : progress >= 0.55 ? 1 : progress >= 0.35 ? 2 : 3)
+      : (progress >= 0.70 ? 0 : progress >= 0.45 ? 1 : progress >= 0.25 ? 2 : 3)
+    const spasmGate = rng() > 0.35
     const nextSpasm = Math.min(prevSpasm, spasmGate ? Math.max(spasmTarget, prevSpasm - 1) : prevSpasm)
     const spasmTrend: 'reduced' | 'slightly reduced' | 'stable' =
       nextSpasm < prevSpasm ? 'reduced' : 'stable'
@@ -1097,36 +1099,21 @@ export function generateTXSequenceStates(
     const generalCondition = fixedGeneralCondition
     const treatmentFocus = pickSingle('assessment.treatmentPrinciples.focusOn', ruleContext, progress, rng, 'focus')
 
-    // --- Tightness grading: S→O 链约束 + 纵向单调约束 ---
-    // S→O chain validation: tightness grade correlates with BOTH pain level AND progress
-    // (镜像 tenderness 的逻辑 - 遵循 soap-generator 规范)
-    // High pain (8-10) -> moderate to severe / severe
-    // Moderate pain (5-7) -> moderate / moderate to severe
-    // Low pain (0-4) -> mild / mild to moderate / moderate
+    // --- Tightness grading: ceiling-based (pain sets upper bound, progress drives down) ---
+    // Phase B: pain 决定天花板，progress + rng 决定实际值，允许更多变化
     const TIGHTNESS_ORDER = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
-    let targetTightnessGrade: string
-    if (painInt >= 8) {
-      // High pain: moderate to severe or severe
-      targetTightnessGrade = rng() > 0.4 ? 'Severe' : 'Moderate to severe'
-    } else if (painInt >= 5) {
-      // Moderate pain: moderate or moderate to severe, with progress influence
-      if (progress >= 0.75) {
-        targetTightnessGrade = 'Moderate'
-      } else if (progress >= 0.45) {
-        targetTightnessGrade = rng() > 0.5 ? 'Moderate' : 'Moderate to severe'
-      } else {
-        targetTightnessGrade = 'Moderate to severe'
-      }
-    } else {
-      // Low pain (0-4): mild, mild to moderate, or moderate
-      if (progress >= 0.75) {
-        targetTightnessGrade = 'Mild'
-      } else if (progress >= 0.45) {
-        targetTightnessGrade = rng() > 0.5 ? 'Mild' : 'Mild to moderate'
-      } else {
-        targetTightnessGrade = 'Mild to moderate'
-      }
-    }
+    // Pain ceiling: pain 越高天花板越高，但不锁死
+    const tightnessCeiling = painInt >= 8 ? 4 : painInt >= 6 ? 3 : painInt >= 4 ? 2 : 1
+    // Progress-driven drop: progress 越大，从天花板往下降越多
+    const tightnessRoll = rng()
+    const progressDrop = progress >= 0.80 ? 2 : progress >= 0.55 ? 1 : progress >= 0.30 ? (tightnessRoll > 0.5 ? 1 : 0) : 0
+    // Phase B jitter: 即使 progressDrop=0，也有小概率额外降 1 级，避免长期停滞
+    const tightnessJitter = (progressDrop === 0 && progress >= 0.15 && tightnessRoll > 0.75) ? 1 : 0
+    const tightnessIdx = Math.max(0, tightnessCeiling - progressDrop - tightnessJitter)
+    let targetTightnessGrade = TIGHTNESS_ORDER[tightnessIdx]
+      .split(' ')
+      .map((w, wi) => wi === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w)
+      .join(' ')
 
     let tightnessGrading = targetTightnessGrade
     // 纵向约束: tightnessGrading 不允许比上一次更差
@@ -1156,45 +1143,26 @@ export function generateTXSequenceStates(
     }
     const tenderOptions = context.primaryBodyPart === 'KNEE' ? KNEE_TENDERNESS_OPTIONS : SHOULDER_TENDERNESS_OPTIONS
 
-    // S->O chain validation: tenderness grade correlates with BOTH pain level AND progress
-    // Use rounded pain to match the integer written to text (Parser reads rounded value)
-    // Use painInt from snap (same as what Parser reads from text output)
+    // Phase B: ceiling-based tenderness — pain sets ceiling, progress drives down, soft floor
     const painForGrade = painInt
-    // High pain (8-10) -> +3 or +4 tenderness
-    // Moderate pain (5-7) -> +2 or +3 tenderness
-    // Low pain (0-4) -> +1 or +2 tenderness
-    // Progress then modifies within the pain-appropriate range
-    let targetTenderGrade: string
-    if (painForGrade >= 8) {
-      // High pain: always +3 or +4
-      targetTenderGrade = rng() > 0.4 ? '+4' : '+3'
-    } else if (painForGrade >= 5) {
-      // Moderate pain: +2 or +3, with progress influence
-      if (progress >= 0.75) {
-        targetTenderGrade = '+2'
-      } else if (progress >= 0.45) {
-        targetTenderGrade = rng() > 0.5 ? '+2' : '+3'
-      } else {
-        targetTenderGrade = '+3'
-      }
-    } else {
-      // Low pain (0-4): +1 or +2
-      if (progress >= 0.75) {
-        targetTenderGrade = '+1'
-      } else if (progress >= 0.45) {
-        targetTenderGrade = rng() > 0.5 ? '+1' : '+2'
-      } else {
-        targetTenderGrade = '+2'
-      }
-    }
+    // Pain ceiling: pain 越高天花板越高
+    const tenderCeiling = painForGrade >= 8 ? 4 : painForGrade >= 6 ? 3 : painForGrade >= 4 ? 2 : 1
+    // Progress-driven drop
+    const tendernessRoll = rng()
+    const tenderProgressDrop = progress >= 0.75 ? 2 : progress >= 0.50 ? 1 : progress >= 0.30 ? (tendernessRoll > 0.5 ? 1 : 0) : 0
+    // Soft floor: progress > 0.6 allows breaking hardFloor by 1
+    const tenderGradeFloor = progress > 0.6 ? Math.max(1, hardFloor - 1) : hardFloor
+    // Phase B jitter: 小概率额外降 1 级
+    const tenderJitter = (tenderProgressDrop === 0 && progress >= 0.15 && tendernessRoll > 0.75) ? 1 : 0
+    const tenderIdx = Math.max(tenderGradeFloor, tenderCeiling - tenderProgressDrop - tenderJitter)
+    let targetTenderGrade = '+' + tenderIdx
 
     let tendernessGrading = tenderOptions[targetTenderGrade]?.text
       || tenderOptions['+2']?.text
       || '(+2) = Patient states that the area is moderately tender'
 
-    // Grade floor: 对齐 Checker TX02 的 expectedTenderMinScaleByPain
-    // pain>=7 → 至少 +3, pain>=5 → 至少 +2, else → +1
-    const gradeFloor = painForGrade >= 7 ? '+3' : painForGrade >= 5 ? '+2' : '+1'
+    // Grade floor: 使用 soft floor (Phase B: progress > 0.6 允许突破)
+    const gradeFloor = '+' + tenderGradeFloor
     const floorOrder = tenderOptions[gradeFloor]?.order ?? 1
     const curGradeOrder = tenderOptions[targetTenderGrade]?.order ?? 2
     if (curGradeOrder < floorOrder) {
