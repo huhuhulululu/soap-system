@@ -894,12 +894,12 @@ export function generateTXSequenceStates(
     prevSeverity = severityLevel
 
     // Frequency 改善: 基于 progress 分段确定目标，与 pain 下降联动
-    // REAL-01: chronic patients have delayed frequency improvement
+    // Phase E: 降低阈值让 frequency 更早开始变化，覆盖更多级别
     // Constant(3) → Frequent(2) → Occasional(1) → Intermittent(0)
     const frequencyTarget = chronicCapsEnabled
-      ? (progress >= 0.90 ? 1 : progress >= 0.65 ? 2 : 3)
-      : (progress >= 0.80 ? 1 : progress >= 0.55 ? 2 : progress >= 0.30 ? 3 : 3)
-    const nextFrequency = Math.min(prevFrequency, Math.max(frequencyTarget, prevFrequency - (rng() > 0.6 ? 1 : 0)))
+      ? (progress >= 0.85 ? 0 : progress >= 0.65 ? 1 : progress >= 0.40 ? 2 : 3)
+      : (progress >= 0.75 ? 0 : progress >= 0.50 ? 1 : progress >= 0.30 ? 2 : 3)
+    const nextFrequency = Math.min(prevFrequency, Math.max(frequencyTarget, prevFrequency - (rng() > 0.55 ? 1 : 0)))
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
 
