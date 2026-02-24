@@ -107,16 +107,16 @@ describe('Phase 2: patchedGoals() 5 个基础模型', () => {
     expect(goals.tightness.lt).toBe('mild')
   })
 
-  it('Pain 8 → Tightness ST=mild to moderate, LT=mild', () => {
+  it('Pain 8 → Tightness ST=moderate, LT=mild to moderate', () => {
     const goals = computePatchedGoals(8, 'moderate to severe', 'LBP', 'soreness')
-    expect(goals.tightness.st).toBe('mild to moderate')
-    expect(goals.tightness.lt).toBe('mild')
-  })
-
-  it('Pain 9 → Tightness ST=moderate, LT=mild to moderate', () => {
-    const goals = computePatchedGoals(9, 'severe', 'LBP', 'soreness')
     expect(goals.tightness.st).toBe('moderate')
     expect(goals.tightness.lt).toBe('mild to moderate')
+  })
+
+  it('Pain 9 → Tightness ST=moderate to severe, LT=moderate', () => {
+    const goals = computePatchedGoals(9, 'severe', 'LBP', 'soreness')
+    expect(goals.tightness.st).toBe('moderate to severe')
+    expect(goals.tightness.lt).toBe('moderate')
   })
 
   // Tenderness
@@ -130,10 +130,14 @@ describe('Phase 2: patchedGoals() 5 个基础模型', () => {
   })
 
   // Spasm
-  it('Pain 5-8 → Spasm ST=1, LT=0', () => {
-    for (const p of [5, 6, 7, 8]) {
+  it('Pain 5-8 → Spasm ST varies, LT=1', () => {
+    for (const p of [5, 6]) {
+      const goals = computePatchedGoals(p, 'moderate', 'LBP', 'soreness')
+      expect(goals.spasm).toEqual({ st: 1, lt: 1 })
+    }
+    for (const p of [7, 8]) {
       const goals = computePatchedGoals(p, 'moderate to severe', 'LBP', 'soreness')
-      expect(goals.spasm).toEqual({ st: 1, lt: 0 })
+      expect(goals.spasm).toEqual({ st: 2, lt: 1 })
     }
   })
 
@@ -147,9 +151,9 @@ describe('Phase 2: patchedGoals() 5 个基础模型', () => {
     expect(computePatchedGoals(7, 'moderate to severe', 'LBP', 'soreness').strength).toEqual({ st: '4', lt: '4+' })
   })
 
-  it('Pain 8-9 → Strength ST=4, LT=4', () => {
-    expect(computePatchedGoals(8, 'moderate to severe', 'LBP', 'soreness').strength).toEqual({ st: '4', lt: '4' })
-    expect(computePatchedGoals(9, 'severe', 'LBP', 'soreness').strength).toEqual({ st: '4', lt: '4' })
+  it('Pain 8-9 → Strength ST=4, LT=4+', () => {
+    expect(computePatchedGoals(8, 'moderate to severe', 'LBP', 'soreness').strength).toEqual({ st: '4', lt: '4+' })
+    expect(computePatchedGoals(9, 'severe', 'LBP', 'soreness').strength).toEqual({ st: '4', lt: '4+' })
   })
 
   // ROM

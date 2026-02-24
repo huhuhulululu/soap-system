@@ -66,6 +66,26 @@
 | D31 | PLAT-01 连续 3+ visit 相同 pain label 时注入 0.3-0.5 微改善 | 打破停滞 |
 | D32 | GATE-01 Medicare visit 12 标注 NCD 30.3.3 累积改善证据 | 合规要求，仅标注不改曲线 |
 
+## v2.0 Goal-Driven TX Sequence Engine (2026-02-24)
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D33 | 从 progress-threshold 架构迁移到 goal-driven 架构 | 当前阈值不感知 txCount，导致 txCount=20 时 5/19 SAME visits，txCount=16 时 5/15 SAME；变化集中在少数 visit（一次变 3-4 个维度），其他 visit 完全不变 |
+| D34 | 各维度变化路径以 ST/LT Goal 为终点，按 txCount 均匀分配降级时机 | 不同 txCount 自适应：8 visits 变化密集，20 visits 变化均匀；各维度总降幅不同，降级时机天然错开 |
+| D35 | 后期 floor 附近允许微波动（±1 级） | 维度到 floor 后完全停滞不合临床现实；恢复非线性，有好有坏是正常的 |
+| D36 | plateau 条件从 painSame 改为 progress stagnant | painSame 过于激进（13/19 visits 被压制），progress 停滞才是真正的平台期 |
+| D37 | ROM/Strength 保持 pain-based 计算 + romAdj/bumpStrength，不改为 goal-driven | ROM 度数和 Strength 档位受 pain 和 difficulty 影响，goal-driven 只控制 romTrend/strengthTrend 的释放时机 |
+| D38 | rng() 新增调用追加在循环末尾，接受 30 fixture snapshot 全量重生成 | PRNG 序列稳定性约束；offset 和 bounce 各需要少量 rng 调用 |
+| D39 | Strength 选项去掉 5/5，最高 4+/5 | MDLand 模板实际无 5/5 选项 |
+
+### 待确认问题（实现前必须回答）
+
+1. ST/LT 分界点：txCount=20 时前 12 是 ST 后 8 是 LT？还是按 60/40 比例？
+2. Frequency 的 ST/LT Goal 值（当前 computePatchedGoals 未定义 freq goal）
+3. 微波动是否允许暂时回升（如 tender +1→+2→+1）？还是只在 floor 和 floor+1 交替？
+4. Chronic vs Non-Chronic：差异完全由 goals 体现，还是保留 chronicDampener？
+5. Bilateral 左右不对称：goal 路径是否也分左右？
+
 ## 排除决策
 
 | 特性 | 排除理由 |

@@ -156,7 +156,7 @@ describe('阶段B: Spasm grading 松绑', () => {
     expect(spasmLabels.size).toBeGreaterThanOrEqual(2)
   })
 
-  it('纵向单调: spasm 只降不升', () => {
+  it('纵向趋势: spasm 整体下降 (允许 bounce +1)', () => {
     const ctx = makeContext({ painCurrent: 8 })
     const result = generateTXSequenceStates(ctx, {
       txCount: 20,
@@ -168,8 +168,15 @@ describe('阶段B: Spasm grading 松绑', () => {
       const match = s.spasmGrading.match(/\(\+?(\d)\)/)
       return match ? parseInt(match[1], 10) : 0
     })
+
+    // Overall downward: first >= last
+    expect(spasmNums[0]).toBeGreaterThanOrEqual(spasmNums[spasmNums.length - 1])
+
+    // Any increase should be at most +1 (bounce)
     for (let i = 1; i < spasmNums.length; i++) {
-      expect(spasmNums[i]).toBeLessThanOrEqual(spasmNums[i - 1])
+      if (spasmNums[i] > spasmNums[i - 1]) {
+        expect(spasmNums[i] - spasmNums[i - 1]).toBeLessThanOrEqual(1)
+      }
     }
   })
 })

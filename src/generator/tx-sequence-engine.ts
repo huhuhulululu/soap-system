@@ -2,6 +2,8 @@ import type { GenerationContext, SeverityLevel } from '../types'
 import { getWeightedOptions, type RuleContext } from '../parser/rule-engine'
 import { getTemplateOptionsForField } from '../parser/template-rule-whitelist'
 import { inferCondition, inferProgressMultiplier, inferInitialAdjustments } from '../knowledge/medical-history-engine'
+import { computeGoalPaths, type GoalPaths } from './goal-path-calculator'
+import { computePatchedGoals } from './objective-patch'
 
 /**
  * Body part specific muscle mapping for objective findings
@@ -759,7 +761,7 @@ export function generateTXSequenceStates(
   const initObjLevel = severityToInit[initSeverity] ?? 3
   let prevTightness = options.initialState?.tightness ?? Math.round(initObjLevel)
   let prevTenderness = options.initialState?.tenderness ?? Math.round(initObjLevel)
-  let prevSpasm = Math.min(4, (options.initialState?.spasm ?? Math.round(initObjLevel)) + medAdjustments.spasmBump)
+  let prevSpasm = Math.min(3, (options.initialState?.spasm ?? Math.min(3, Math.round(initObjLevel))) + medAdjustments.spasmBump)
   let prevRomDeficit = Math.min(0.7, 0.42 + medAdjustments.romDeficitBump)
   let prevStrengthDeficit = 0.35
   // 纵向单调约束追踪变量
@@ -832,6 +834,45 @@ export function generateTXSequenceStates(
   const visits: TXVisitState[] = []
   // V09: 穴位纵向继承 — 首次选定后 100% 复用，保证 Jaccard=1.0
   let fixedNeedlePoints: string[] = options.initialState?.acupoints || []
+
+  // Bounce tracking: 上一次是否 bounce，用于下一次强制回落
+  let prevTightnessBounced = false
+  let prevTendernessBounced = false
+  let prevSpasmBounced = false
+
+  // Goal-driven path: 计算每个维度在哪些 visit 降一级
+  const TIGHTNESS_TO_NUM: Record<string, number> = {
+    'mild': 1, 'mild to moderate': 2, 'moderate': 3,
+    'moderate to severe': 4, 'severe': 5,
+  }
+  const patchedGoals = computePatchedGoals(
+    startPain,
+    initSeverity,
+    context.primaryBodyPart || 'LBP',
+    'soreness',
+    {
+      medicalHistory: medHistory,
+      age: context.age,
+    },
+  )
+  const goalPaths = computeGoalPaths({
+    tightness: {
+      start: prevTightness,
+      st: TIGHTNESS_TO_NUM[patchedGoals.tightness.st] ?? 3,
+      lt: TIGHTNESS_TO_NUM[patchedGoals.tightness.lt] ?? 2,
+    },
+    tenderness: {
+      start: prevTenderness,
+      st: patchedGoals.tenderness.st,
+      lt: patchedGoals.tenderness.lt,
+    },
+    spasm: {
+      start: prevSpasm,
+      st: patchedGoals.spasm.st,
+      lt: patchedGoals.spasm.lt,
+    },
+  }, txCount, rng)
+
 
   for (let i = startIdx; i <= txCount; i++) {
     // progress 基于总疗程进度，而不是当前批次
@@ -939,35 +980,85 @@ export function generateTXSequenceStates(
     const frequencyImproved = nextFrequency < prevFrequency
     prevFrequency = nextFrequency
 
-    // Tightness/Tenderness: 慢于 pain，有随机因子
-    // REAL-01: gates delayed for slower progression
-    const tightnessThreshold = chronicCapsEnabled ? 0.45 : 0.30
-    const tendernessThreshold = chronicCapsEnabled ? 0.50 : 0.35
-    const tightnessGate = progress > tightnessThreshold && rng() > 0.35
-    const nextTightness = Math.max(1, prevTightness - (tightnessGate ? 1 : 0))
-    const tendernessGate = progress > tendernessThreshold && rng() > 0.40
-    // tenderness soft floor: pain 设定初始上界，progress 可以突破
-    // pain >= 7 → 初始 +3，但 progress > 0.5 允许降到 +2
-    // pain >= 5 → 初始 +2，但 progress > 0.6 允许降到 +1
+    // Goal-driven: tightness/tenderness/spasm 由 goal path 驱动
     const snappedForGrade = snapPainToGrid(painScaleCurrent)
     const painInt = parseInt(snappedForGrade.label, 10)
-    const hardFloor = painInt >= 7 ? 3 : painInt >= 5 ? 2 : 1
-    const tenderFloor = progress > 0.6 ? Math.max(1, hardFloor - 1) : hardFloor
-    const nextTenderness = Math.max(tenderFloor, prevTenderness - (tendernessGate ? 1 : 0))
+    // Floor micro-fluctuation: 维度到 goal 附近时偶尔回弹 +1，模拟非线性恢复
+    const bounceRng = rng()
+    const bounceEnabled = txCount >= 12 && i > Math.max(3, Math.round(goalPaths.stBoundary * 0.6))
+    const bounceProbability = 0.25
+    // Tightness
+    let nextTightness: number
+    let tightnessBounced = false
+    const tightIsScheduledDrop = goalPaths.tightness.changeVisits.includes(i)
+    if (tightIsScheduledDrop) {
+      // Goal path drop: always from the non-bounced baseline
+      const baseline = prevTightnessBounced ? prevTightness - 1 : prevTightness
+      nextTightness = Math.max(1, baseline - 1)
+    } else if (prevTightnessBounced) {
+      // Bounce return: go back to pre-bounce value
+      nextTightness = Math.max(1, prevTightness - 1)
+    } else if (bounceEnabled && bounceRng < bounceProbability
+      && prevTightness <= goalPaths.tightness.stGoal
+      && !goalPaths.tightness.changeVisits.includes(i + 1)) {
+      // Don't bounce if next visit is a scheduled drop
+      nextTightness = prevTightness + 1
+      tightnessBounced = true
+    } else {
+      nextTightness = prevTightness
+    }
+    prevTightnessBounced = tightnessBounced
+    // Tenderness
+    const tenderBounceRng = rng()
+    let nextTenderness: number
+    let tendernessBounced = false
+    const tenderIsScheduledDrop = goalPaths.tenderness.changeVisits.includes(i)
+    if (tenderIsScheduledDrop) {
+      const baseline = prevTendernessBounced ? prevTenderness - 1 : prevTenderness
+      nextTenderness = Math.max(1, baseline - 1)
+    } else if (prevTendernessBounced) {
+      nextTenderness = Math.max(1, prevTenderness - 1)
+    } else if (bounceEnabled && tenderBounceRng < bounceProbability
+      && prevTenderness <= goalPaths.tenderness.stGoal
+      && !goalPaths.tenderness.changeVisits.includes(i + 1)) {
+      nextTenderness = prevTenderness + 1
+      tendernessBounced = true
+    } else {
+      nextTenderness = prevTenderness
+    }
+    prevTendernessBounced = tendernessBounced
     const tightnessTrend: 'reduced' | 'slightly reduced' | 'stable' =
-      nextTightness < prevTightness ? (prevTightness - nextTightness >= 1 ? 'reduced' : 'slightly reduced') : 'stable'
+      nextTightness < prevTightness ? 'reduced'
+        : nextTightness > prevTightness ? 'stable' // bounce up 不报告为 reduced
+          : 'stable'
     const tendernessTrend: 'reduced' | 'slightly reduced' | 'stable' =
-      nextTenderness < prevTenderness ? (prevTenderness - nextTenderness >= 1 ? 'reduced' : 'slightly reduced') : 'stable'
+      nextTenderness < prevTenderness ? 'reduced'
+        : nextTenderness > prevTenderness ? 'stable'
+          : 'stable'
     prevTightness = nextTightness
     prevTenderness = nextTenderness
 
-    // Spasm: 基于 progress 分段目标 + rng 随机因子，纵向只降不升
-    // Phase B: 降低阈值让 spasm 更早开始变化
-    const spasmTarget = chronicCapsEnabled
-      ? (progress >= 0.80 ? 0 : progress >= 0.55 ? 1 : progress >= 0.35 ? 2 : 3)
-      : (progress >= 0.70 ? 0 : progress >= 0.45 ? 1 : progress >= 0.25 ? 2 : 3)
-    const spasmGate = rng() > 0.35
-    const nextSpasm = Math.min(prevSpasm, spasmGate ? Math.max(spasmTarget, prevSpasm - 1) : prevSpasm)
+    // Goal-driven spasm with bounce
+    const spasmBounceRng = rng()
+    let nextSpasm: number
+    let spasmBounced = false
+    const spasmIsScheduledDrop = goalPaths.spasm.changeVisits.includes(i)
+    if (spasmIsScheduledDrop) {
+      const baseline = prevSpasmBounced ? prevSpasm - 1 : prevSpasm
+      nextSpasm = Math.max(0, baseline - 1)
+    } else if (prevSpasmBounced) {
+      nextSpasm = Math.max(0, prevSpasm - 1)
+    } else if (bounceEnabled && spasmBounceRng < bounceProbability
+      && prevSpasm <= goalPaths.spasm.stGoal
+      && !goalPaths.spasm.changeVisits.includes(i + 1)) {
+      nextSpasm = prevSpasm + 1
+      spasmBounced = true
+    } else {
+      nextSpasm = prevSpasm
+    }
+    prevSpasmBounced = spasmBounced
+    // Consume rng() to maintain PRNG sequence
+    rng()
     const spasmTrend: 'reduced' | 'slightly reduced' | 'stable' =
       nextSpasm < prevSpasm ? 'reduced' : 'stable'
     prevSpasm = nextSpasm
@@ -989,12 +1080,15 @@ export function generateTXSequenceStates(
         : nextStrengthDeficit < prevStrengthDeficit ? 'slightly improved'
           : 'stable'
 
-    const plateau =
-      (progress > 0.7 && painDelta < 0.2 && adlDelta < 0.12 && !frequencyImproved) ||
-      painScaleLabel === prevPainScaleLabel
+    // Phase 3: plateau 条件修正 — 只在真正停滞时压制 ROM/Strength
+    // 旧逻辑: painSame 就压制 → 13/19 visits 被压制，太激进
+    // 新逻辑: 多条件组合，且后期允许 ROM 或 Strength 其中一个变化
+    const anyDimChanged = tightnessTrend !== 'stable' || tendernessTrend !== 'stable' ||
+      spasmTrend !== 'stable' || frequencyImproved || painDelta > 0.2
+    const plateau = !anyDimChanged && painScaleLabel === prevPainScaleLabel && progress > 0.5
     if (plateau) {
-      if (progress > 0.9) {
-        // 后期: 随机保留 ROM 或 strength 其中一个的自然趋势
+      // 即使 plateau，后期也随机保留一个趋势，避免完全停滞
+      if (progress > 0.7) {
         if (rng() > 0.5) {
           strengthTrend = 'stable'
         } else {
@@ -1156,35 +1250,27 @@ export function generateTXSequenceStates(
     const generalCondition = fixedGeneralCondition
     const treatmentFocus = pickSingle('assessment.treatmentPrinciples.focusOn', ruleContext, progress, rng, 'focus')
 
-    // --- Tightness grading: ceiling-based (pain sets upper bound, progress drives down) ---
-    // Phase B: pain 决定天花板，progress + rng 决定实际值，允许更多变化
+    // --- Tightness grading: goal-driven, derived from numeric nextTightness ---
     const TIGHTNESS_ORDER = ['mild', 'mild to moderate', 'moderate', 'moderate to severe', 'severe']
-    // Pain ceiling: pain 越高天花板越高，但不锁死
-    const tightnessCeiling = painInt >= 8 ? 4 : painInt >= 6 ? 3 : painInt >= 4 ? 2 : 1
-    // Progress-driven drop: progress 越大，从天花板往下降越多
-    const tightnessRoll = rng()
-    const progressDrop = progress >= 0.80 ? 2 : progress >= 0.55 ? 1 : progress >= 0.30 ? (tightnessRoll > 0.5 ? 1 : 0) : 0
-    // Phase B jitter: 即使 progressDrop=0，也有小概率额外降 1 级，避免长期停滞
-    const tightnessJitter = (progressDrop === 0 && progress >= 0.15 && tightnessRoll > 0.75) ? 1 : 0
-    const tightnessIdx = Math.max(0, tightnessCeiling - progressDrop - tightnessJitter)
-    let targetTightnessGrade = TIGHTNESS_ORDER[tightnessIdx]
+    // Consume rng() to maintain PRNG sequence (was used by old ceiling/jitter logic)
+    rng(); rng()
+    // Map numeric value to grading text (nextTightness: 1=mild, 2=mild-mod, 3=moderate, 4=mod-sev, 5=severe)
+    const tightnessIdx = Math.max(0, Math.min(4, nextTightness - 1))
+    let tightnessGrading = TIGHTNESS_ORDER[tightnessIdx]
       .split(' ')
-      .map((w, wi) => wi === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w)
+      .map((w: string, wi: number) => wi === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w)
       .join(' ')
-
-    let tightnessGrading = targetTightnessGrade
     // 纵向约束: tightnessGrading 不允许比上一次更差
     if (prevTightnessGrading !== '') {
       const prevIdx = TIGHTNESS_ORDER.indexOf(prevTightnessGrading.toLowerCase())
       const curIdx = TIGHTNESS_ORDER.indexOf(tightnessGrading.toLowerCase())
       if (prevIdx >= 0 && curIdx > prevIdx) {
-        tightnessGrading = prevTightnessGrading // 强制不回退
+        tightnessGrading = prevTightnessGrading
       }
     }
     prevTightnessGrading = tightnessGrading
 
-    // --- Tenderness grading: 按身体部位过滤 + 纵向单调约束 ---
-    // 修复: SHOULDER 和 KNEE 的 Tenderness 量表不同, 需按身体部位过滤
+    // --- Tenderness grading: goal-driven, derived from numeric nextTenderness ---
     const SHOULDER_TENDERNESS_OPTIONS: Record<string, { order: number; text: string }> = {
       '+4': { order: 4, text: '(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure' },
       '+3': { order: 3, text: '(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure' },
@@ -1199,47 +1285,19 @@ export function generateTXSequenceStates(
       '0': { order: 0, text: '(0) = No tenderness' }
     }
     const tenderOptions = context.primaryBodyPart === 'KNEE' ? KNEE_TENDERNESS_OPTIONS : SHOULDER_TENDERNESS_OPTIONS
-
-    // Phase B: ceiling-based tenderness — pain sets ceiling, progress drives down, soft floor
-    const painForGrade = painInt
-    // Pain ceiling: pain 越高天花板越高
-    const tenderCeiling = painForGrade >= 8 ? 4 : painForGrade >= 6 ? 3 : painForGrade >= 4 ? 2 : 1
-    // Progress-driven drop
-    const tendernessRoll = rng()
-    const tenderProgressDrop = progress >= 0.75 ? 2 : progress >= 0.50 ? 1 : progress >= 0.30 ? (tendernessRoll > 0.5 ? 1 : 0) : 0
-    // Soft floor: progress > 0.6 allows breaking hardFloor by 1
-    const tenderGradeFloor = progress > 0.6 ? Math.max(1, hardFloor - 1) : hardFloor
-    // Phase B jitter: 小概率额外降 1 级
-    const tenderJitter = (tenderProgressDrop === 0 && progress >= 0.15 && tendernessRoll > 0.75) ? 1 : 0
-    const tenderIdx = Math.max(tenderGradeFloor, tenderCeiling - tenderProgressDrop - tenderJitter)
-    let targetTenderGrade = '+' + tenderIdx
-
+    // Consume rng() to maintain PRNG sequence (was used by old ceiling/jitter logic)
+    rng(); rng()
+    // Map numeric nextTenderness to grade key
+    const targetTenderGrade = '+' + nextTenderness
     let tendernessGrading = tenderOptions[targetTenderGrade]?.text
       || tenderOptions['+2']?.text
       || '(+2) = Patient states that the area is moderately tender'
-
-    // Grade floor: 使用 soft floor (Phase B: progress > 0.6 允许突破)
-    const gradeFloor = '+' + tenderGradeFloor
-    const floorOrder = tenderOptions[gradeFloor]?.order ?? 1
-    const curGradeOrder = tenderOptions[targetTenderGrade]?.order ?? 2
-    if (curGradeOrder < floorOrder) {
-      targetTenderGrade = gradeFloor
-      tendernessGrading = tenderOptions[gradeFloor]?.text || tendernessGrading
-    }
-
-    // 纵向约束: tenderness 不允许比上一次更差 (数字不能变大)
+    // 纵向约束: tenderness 不允许比上一次更差
     if (prevTendernessGrade !== '') {
       const prevOrder = tenderOptions[prevTendernessGrade]?.order ?? 3
       const curOrder = tenderOptions[targetTenderGrade]?.order ?? 2
       if (curOrder > prevOrder) {
-        // 但也不能低于 floor
-        if (prevOrder >= floorOrder) {
-          targetTenderGrade = prevTendernessGrade
-          tendernessGrading = tenderOptions[prevTendernessGrade]?.text || tendernessGrading
-        } else {
-          targetTenderGrade = gradeFloor
-          tendernessGrading = tenderOptions[gradeFloor]?.text || tendernessGrading
-        }
+        tendernessGrading = tenderOptions[prevTendernessGrade]?.text || tendernessGrading
       }
     }
     prevTendernessGrade = targetTenderGrade
