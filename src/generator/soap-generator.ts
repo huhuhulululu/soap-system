@@ -1097,14 +1097,22 @@ export function generateObjective(context: GenerationContext, visitState?: TXVis
     // Strength 根据 Pain 计算
     let strength = getStrengthByPainAndDifficulty(effectivePain, rom.difficulty)
     if (visitState) {
-      const step = visitState.progress > 0.7 ? 2 : visitState.progress > 0.45 ? 1 : 0
+      // Phase G: finer progress thresholds + visitIndex alternation
+      const vi = visitState.visitIndex
+      const p = visitState.progress
+      const baseStep = p > 0.80 ? 3 : p > 0.65 ? 2 : p > 0.45 ? 1 : 0
+      // odd visits get +1 step when in transition zone (not at floor/ceiling)
+      const viAlt = (baseStep > 0 && baseStep < 3 && vi % 2 === 1) ? 1 : 0
+      const step = Math.min(3, baseStep + viAlt)
       strength = bumpStrength(strength, step)
     }
     let romValue = calculateRomValue(rom.normalDegrees, effectivePain, rom.difficulty)
 
-    // 右侧/纵向 ROM 微调
-    if (romAdjustment !== 0 && rom.normalDegrees > 0) {
-      romValue = Math.max(Math.round(rom.normalDegrees * 0.25), Math.min(rom.normalDegrees, romValue + romAdjustment))
+    // 右侧/纵向 ROM 微调 + Phase G: visitIndex perturbation
+    const viRomOffset = visitState ? ((visitState.visitIndex % 3) - 1) * 5 : 0
+    const totalRomAdj = romAdjustment + viRomOffset
+    if (totalRomAdj !== 0 && rom.normalDegrees > 0) {
+      romValue = Math.max(Math.round(rom.normalDegrees * 0.25), Math.min(rom.normalDegrees, romValue + totalRomAdj))
       romValue = Math.round(romValue / 5) * 5
     }
 
