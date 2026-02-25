@@ -39,3 +39,4 @@ ccnote/
 
 # Claude worktrees
 .claude/worktrees/
+.worktrees/
