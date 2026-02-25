@@ -231,80 +231,95 @@ export interface TXSequenceOptions {
 
 /** Strength grade ladder (index = numeric level for goal-path-calculator) */
 const STRENGTH_LADDER: readonly string[] = [
-  '3-/5', '3/5', '3+/5', '4-/5', '4/5', '4+/5', '5/5',
-]
+  "3-/5",
+  "3/5",
+  "3+/5",
+  "4-/5",
+  "4/5",
+  "4+/5",
+  "5/5",
+];
 
 /** Base strength grade from pain level (mirrors objective-patch PATCHED_BASE_GRADES) */
 function baseStrengthIndex(painLevel: number): number {
-  const painInt = Math.round(Math.max(0, Math.min(10, painLevel)))
+  const painInt = Math.round(Math.max(0, Math.min(10, painLevel)));
   const BASE: readonly string[] = [
-    '5/5', '4+/5', '4+/5', '4/5', '4/5', '4-/5', '4-/5', '4-/5', '3+/5', '3+/5', '3/5',
-  ]
-  return STRENGTH_LADDER.indexOf(BASE[painInt])
+    "5/5",
+    "4+/5",
+    "4+/5",
+    "4/5",
+    "4/5",
+    "4-/5",
+    "4-/5",
+    "4-/5",
+    "3+/5",
+    "3+/5",
+    "3/5",
+  ];
+  return STRENGTH_LADDER.indexOf(BASE[painInt]);
 }
 
 /** Map strength goal string (from computePatchedGoals) to ladder index */
 function strengthGoalToIndex(goal: string): number {
-  const normalized = goal.includes('/') ? goal : `${goal}/5`
-  const idx = STRENGTH_LADDER.indexOf(normalized)
-  if (idx >= 0) return idx
-  const fuzzy = STRENGTH_LADDER.findIndex(s => s.startsWith(goal))
-  return fuzzy >= 0 ? fuzzy : 4
+  const normalized = goal.includes("/") ? goal : `${goal}/5`;
+  const idx = STRENGTH_LADDER.indexOf(normalized);
+  if (idx >= 0) return idx;
+  const fuzzy = STRENGTH_LADDER.findIndex((s) => s.startsWith(goal));
+  return fuzzy >= 0 ? fuzzy : 4;
 }
 
 /** Parse pain goal string ('3', '3-4', '4-5') to integer (lower bound) */
 function painGoalToInt(goal: string): number {
-  const m = goal.match(/(\d+)/)
-  return m ? parseInt(m[1], 10) : 5
+  const m = goal.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 5;
 }
 
 /** Parse symptomPct goal string ('(30%-40%)', '(40%-50%)') to decade index (3, 4, ...) */
 function symptomGoalToDecade(goal: string): number {
-  const m = goal.match(/(\d+)/)
-  return m ? Math.round(parseInt(m[1], 10) / 10) : 4
+  const m = goal.match(/(\d+)/);
+  return m ? Math.round(parseInt(m[1], 10) / 10) : 4;
 }
 
 /** Map ADL severity string to numeric level */
 const ADL_SEVERITY_TO_NUM: Record<string, number> = {
-  'mild': 1,
-  'mild-moderate': 2,
-  'moderate': 2,
-  'moderate-severe': 3,
-  'severe': 4,
-}
+  mild: 1,
+  "mild-moderate": 2,
+  moderate: 2,
+  "moderate-severe": 3,
+  severe: 4,
+};
 function adlGoalToNum(goal: string): number {
   // Normalize various formats
-  const normalized = goal.toLowerCase().replace(/\s+to\s+/g, '-')
-  return ADL_SEVERITY_TO_NUM[normalized] ?? 2
+  const normalized = goal.toLowerCase().replace(/\s+to\s+/g, "-");
+  return ADL_SEVERITY_TO_NUM[normalized] ?? 2;
 }
 
 /** Map initial severity string to ADL numeric level */
 function severityToAdlLevel(severity: string): number {
   const map: Record<string, number> = {
-    'severe': 4,
-    'moderate to severe': 4,
-    'moderate': 3,
-    'mild to moderate': 2,
-    'mild': 1,
-  }
-  return map[severity] ?? 3
+    severe: 4,
+    "moderate to severe": 4,
+    moderate: 3,
+    "mild to moderate": 2,
+    mild: 1,
+  };
+  return map[severity] ?? 3;
 }
 
 /** Parse initial symptomScale string ('70%-80%', '60%') to decade index */
 function symptomScaleToDecade(scale: string): number {
-  const m = scale.match(/(\d+)/)
-  return m ? Math.round(parseInt(m[1], 10) / 10) : 7
+  const m = scale.match(/(\d+)/);
+  return m ? Math.round(parseInt(m[1], 10) / 10) : 7;
 }
 
 /** Map frequency string to numeric level */
 function frequencyToNum(freq: string): number {
-  if (freq.includes('Constant')) return 3
-  if (freq.includes('Frequent')) return 2
-  if (freq.includes('Occasional')) return 1
-  if (freq.includes('Intermittent')) return 0
-  return 3
+  if (freq.includes("Constant")) return 3;
+  if (freq.includes("Frequent")) return 2;
+  if (freq.includes("Occasional")) return 1;
+  if (freq.includes("Intermittent")) return 0;
+  return 3;
 }
-
 
 export interface TXVisitState {
   visitIndex: number;
@@ -917,10 +932,16 @@ export function generateTXSequenceStates(
   let consecutiveSameLabel = 0;
   // Reason rotation: independent counter for improvement visits
   let improvementCount = 0;
+  let positiveShuffleBag: string[] = [];
+  let neutralShuffleBag: string[] = [];
+  let cameBackShuffleBag: string[] = [];
+  let lastUsedReason = "";
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0;
   let prevAdl = 3.5;
   let prevFrequency = options.initialState?.frequency ?? 3;
-  let prevSymptomDecade = symptomScaleToDecade(options.initialState?.symptomScale || '70%');
+  let prevSymptomDecade = symptomScaleToDecade(
+    options.initialState?.symptomScale || "70%",
+  );
   // Tightness/Tenderness/Spasm 初始值: 从 pain 推导 + 病史修正
   const initSeverity = severityFromPain(startPain);
   const severityToInit: Record<string, number> = {
@@ -1080,7 +1101,12 @@ export function generateTXSequenceStates(
         lt: patchedGoals.spasm.lt,
       },
       strength: {
-        start: baseStrengthIndex(startPain) + (context.chronicityLevel === 'Chronic' || context.baselineCondition === 'poor' ? -1 : 0),
+        start:
+          baseStrengthIndex(startPain) +
+          (context.chronicityLevel === "Chronic" ||
+          context.baselineCondition === "poor"
+            ? -1
+            : 0),
         st: strengthGoalToIndex(patchedGoals.strength.st),
         lt: strengthGoalToIndex(patchedGoals.strength.lt),
       },
@@ -1090,12 +1116,16 @@ export function generateTXSequenceStates(
         lt: painGoalToInt(patchedGoals.pain.lt),
       },
       frequency: {
-        start: options.initialState?.frequency ?? frequencyToNum(context.painFrequency || ''),
-        st: 1,  // Occasional
-        lt: 0,  // Intermittent
+        start:
+          options.initialState?.frequency ??
+          frequencyToNum(context.painFrequency || ""),
+        st: 1, // Occasional
+        lt: 0, // Intermittent
       },
       symptomScale: {
-        start: symptomScaleToDecade(options.initialState?.symptomScale || '70%'),
+        start: symptomScaleToDecade(
+          options.initialState?.symptomScale || "70%",
+        ),
         st: symptomGoalToDecade(patchedGoals.symptomPct.st),
         lt: symptomGoalToDecade(patchedGoals.symptomPct.lt),
       },
@@ -1105,9 +1135,18 @@ export function generateTXSequenceStates(
         lt: adlGoalToNum(patchedGoals.adl.lt),
       },
       adlB: {
-        start: context.primaryBodyPart === 'LBP' ? 0 : severityToAdlLevel(initSeverity),
-        st: context.primaryBodyPart === 'LBP' ? 0 : adlGoalToNum(patchedGoals.adl.st),
-        lt: context.primaryBodyPart === 'LBP' ? 0 : adlGoalToNum(patchedGoals.adl.lt),
+        start:
+          context.primaryBodyPart === "LBP"
+            ? 0
+            : severityToAdlLevel(initSeverity),
+        st:
+          context.primaryBodyPart === "LBP"
+            ? 0
+            : adlGoalToNum(patchedGoals.adl.st),
+        lt:
+          context.primaryBodyPart === "LBP"
+            ? 0
+            : adlGoalToNum(patchedGoals.adl.lt),
       },
     },
     txCount,
@@ -1155,7 +1194,11 @@ export function generateTXSequenceStates(
     const painIsScheduledDrop = goalPaths.pain.changeVisits.includes(i);
     // When scheduled, drop by ~0.8 (enough to cross a grid line); add micro-variation from progress
     const painDropAmount = painIsScheduledDrop ? 0.6 + progress * 0.3 : 0;
-    let painScaleCurrent = clamp(prevPain - painDropAmount, goalPaths.pain.ltGoal, startPain);
+    let painScaleCurrent = clamp(
+      prevPain - painDropAmount,
+      goalPaths.pain.ltGoal,
+      startPain,
+    );
     // Monotonic constraint
     painScaleCurrent = Math.min(prevPain, painScaleCurrent);
     const snapped = snapPainToGrid(painScaleCurrent);
@@ -1177,7 +1220,8 @@ export function generateTXSequenceStates(
     // Preserve rng() calls for PRNG sequence compatibility (was adlExpected + adlNoise)
     const _adlRng1 = 0.18 + rng() * 0.2;
     const _adlRng2 = (rng() - 0.5) * 0.12;
-    void _adlRng1; void _adlRng2;
+    void _adlRng1;
+    void _adlRng2;
 
     // ADL: discrete scheduling from goal-path-calculator
     const adlADrop = goalPaths.adlA.changeVisits.includes(i);
@@ -1348,7 +1392,8 @@ export function generateTXSequenceStates(
     const nextStrengthLevel = strengthIsScheduledRise
       ? Math.min(prevStrengthLevel + 1, STRENGTH_LADDER.length - 1)
       : prevStrengthLevel;
-    const strengthGrade = STRENGTH_LADDER[nextStrengthLevel] ?? STRENGTH_LADDER[prevStrengthLevel];
+    const strengthGrade =
+      STRENGTH_LADDER[nextStrengthLevel] ?? STRENGTH_LADDER[prevStrengthLevel];
 
     let romTrend: "improved" | "slightly improved" | "stable" =
       nextRomDeficit < prevRomDeficit - 0.055
@@ -1357,9 +1402,7 @@ export function generateTXSequenceStates(
           ? "slightly improved"
           : "stable";
     let strengthTrend: "improved" | "slightly improved" | "stable" =
-      nextStrengthLevel > prevStrengthLevel
-        ? "improved"
-        : "stable";
+      nextStrengthLevel > prevStrengthLevel ? "improved" : "stable";
 
     // Phase 3: plateau 条件修正 — 只在真正停滞时压制 ROM/Strength
     // 旧逻辑: painSame 就压制 → 13/19 visits 被压制，太激进
@@ -1477,6 +1520,36 @@ export function generateTXSequenceStates(
     const isSimilar = symptomChange.includes("similar");
     const isCameBack = symptomChange.includes("came back");
 
+    // Body-part-specific positive reasons for diversity
+    const BODY_PART_POSITIVE: Record<string, string[]> = {
+      LBP: [
+        "can bend and lift with less discomfort",
+        "sitting tolerance has improved",
+        "walking distance increased without pain",
+      ],
+      NECK: [
+        "neck rotation range has improved",
+        "less headache related to neck tension",
+        "can look over shoulder more easily",
+      ],
+      SHOULDER: [
+        "overhead reaching is easier",
+        "can reach behind back more comfortably",
+        "shoulder stiffness has decreased",
+      ],
+      KNEE: [
+        "stair climbing is less painful",
+        "can walk longer distances comfortably",
+        "knee stability has improved",
+      ],
+      ELBOW: [
+        "grip strength has improved",
+        "can lift objects with less elbow pain",
+        "forearm tension has decreased",
+      ],
+    };
+    const bodySpecific =
+      BODY_PART_POSITIVE[context.primaryBodyPart] ?? BODY_PART_POSITIVE.LBP;
     const POSITIVE_REASONS = new Set([
       "can move joint more freely and with less pain",
       "physical activity no longer causes distress",
@@ -1485,6 +1558,10 @@ export function generateTXSequenceStates(
       "energy level improved",
       "sleep quality improved",
       "more energy level throughout the day",
+      "overall well-being has improved",
+      "stress level has decreased",
+      "muscle tension has reduced noticeably",
+      ...bodySpecific,
     ]);
     const NEGATIVE_REASONS = new Set([
       "did not have good rest",
@@ -1505,20 +1582,42 @@ export function generateTXSequenceStates(
     const POSITIVE_REASONS_LIST = Array.from(POSITIVE_REASONS);
     const NEUTRAL_REASONS = [
       "maintain regular treatments",
-      "continuous treatment",
       "body is adjusting to treatment",
+      "consistent treatment schedule",
+      "gradual recovery process",
+      "treatment plan is on track",
+      "patient compliance with treatment",
+      "steady progress with current protocol",
+    ];
+    const CAME_BACK_REASONS = [
+      "continuous treatment",
+      "discontinuous treatment",
+      "skipped treatments",
+      "stopped treatment for a while",
+      "did not follow home care instructions",
+      "overexertion between visits",
+      "irregular treatment schedule",
     ];
 
     let finalReason = reason;
     let finalConnector = reasonConnector;
     if (isImprovement) {
-      // 始终用 improvementCount 轮换，避免 energy level improved 过度集中
-      const offset = (options.seed ?? 0) % POSITIVE_REASONS_LIST.length;
-      finalReason =
-        POSITIVE_REASONS_LIST[
-          (improvementCount + offset) % POSITIVE_REASONS_LIST.length
-        ];
-      // Phase D: improvement connector 也可以变化
+      // Shuffle bag with anti-repeat: refill when empty, exclude last-used on refill
+      if (positiveShuffleBag.length === 0) {
+        positiveShuffleBag = POSITIVE_REASONS_LIST.filter(
+          (r) => r !== lastUsedReason,
+        );
+        if (positiveShuffleBag.length === 0)
+          positiveShuffleBag = [...POSITIVE_REASONS_LIST];
+      }
+      const pickIdx = Math.floor(rng() * positiveShuffleBag.length);
+      finalReason = positiveShuffleBag[pickIdx];
+      positiveShuffleBag = [
+        ...positiveShuffleBag.slice(0, pickIdx),
+        ...positiveShuffleBag.slice(pickIdx + 1),
+      ];
+      lastUsedReason = finalReason;
+      // Improvement connector variation
       const improvementConnectors = ["because of", "due to"];
       finalConnector =
         improvementConnectors[
@@ -1531,18 +1630,40 @@ export function generateTXSequenceStates(
       if (finalConnector !== "due to" && finalConnector !== "because of")
         finalConnector = "due to";
     } else if (isSimilar) {
-      // Phase D: similar reason 轮换，不总是 maintain regular treatments
-      if (POSITIVE_REASONS.has(finalReason)) {
-        finalReason = NEUTRAL_REASONS[i % NEUTRAL_REASONS.length];
+      // Shuffle bag with anti-repeat for neutral reasons
+      if (neutralShuffleBag.length === 0) {
+        neutralShuffleBag = NEUTRAL_REASONS.filter((r) => r !== lastUsedReason);
+        if (neutralShuffleBag.length === 0)
+          neutralShuffleBag = [...NEUTRAL_REASONS];
       }
-      // Phase D: similar connector 也可以变化
+      const pickIdx = Math.floor(rng() * neutralShuffleBag.length);
+      finalReason = neutralShuffleBag[pickIdx];
+      neutralShuffleBag = [
+        ...neutralShuffleBag.slice(0, pickIdx),
+        ...neutralShuffleBag.slice(pickIdx + 1),
+      ];
+      lastUsedReason = finalReason;
+      // Similar connector variation
       const similarConnectors = ["and", "may related of"];
       finalConnector =
         similarConnectors[Math.floor(rng() * similarConnectors.length)] ||
         "and";
     } else if (isCameBack) {
-      if (POSITIVE_REASONS.has(finalReason))
-        finalReason = "continuous treatment";
+      // Shuffle bag for came-back reasons
+      if (cameBackShuffleBag.length === 0) {
+        cameBackShuffleBag = CAME_BACK_REASONS.filter(
+          (r) => r !== lastUsedReason,
+        );
+        if (cameBackShuffleBag.length === 0)
+          cameBackShuffleBag = [...CAME_BACK_REASONS];
+      }
+      const pickIdx = Math.floor(rng() * cameBackShuffleBag.length);
+      finalReason = cameBackShuffleBag[pickIdx];
+      cameBackShuffleBag = [
+        ...cameBackShuffleBag.slice(0, pickIdx),
+        ...cameBackShuffleBag.slice(pickIdx + 1),
+      ];
+      lastUsedReason = finalReason;
       finalConnector = "due to";
     }
 
@@ -1768,7 +1889,11 @@ export function generateTXSequenceStates(
       objectiveFactors,
       soaChain: {
         subjective: {
-          painChange: symptomChange.includes("improvement") ? "improved" : symptomChange.includes("similar") ? "similar" : "worsened",
+          painChange: symptomChange.includes("improvement")
+            ? "improved"
+            : symptomChange.includes("similar")
+              ? "similar"
+              : "worsened",
           adlChange: adlImproved ? "improved" : "stable",
           frequencyChange: frequencyImproved ? "improved" : "stable",
         },
@@ -1780,7 +1905,10 @@ export function generateTXSequenceStates(
           strengthTrend,
         },
         assessment: symptomChange.includes("similar")
-          ? { ...assessmentFromChain, present: "similar symptom(s) as last visit." }
+          ? {
+              ...assessmentFromChain,
+              present: "similar symptom(s) as last visit.",
+            }
           : assessmentFromChain,
       },
     });
