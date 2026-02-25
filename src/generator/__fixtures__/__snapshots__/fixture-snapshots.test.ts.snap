@@ -4,7 +4,7 @@ exports[`Fixture Snapshots > snapshot: ELBOW-left-early-3tx 1`] = `
 "Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -56,7 +56,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement after treatment, but pain still came back next day due to continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -108,7 +108,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to energy level improved .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -162,7 +162,7 @@ exports[`Fixture Snapshots > snapshot: ELBOW-left-late-20tx 1`] = `
 "Subjective
 Follow up visit
 Patient reports: there is improvement after treatment, but pain still came back next day due to continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -214,7 +214,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement after treatment, but pain still came back next day due to continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -266,7 +266,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -318,7 +318,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -370,7 +370,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -422,7 +422,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to reduced level of pain .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -474,7 +474,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to less difficulty performing daily activities .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -526,7 +526,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to energy level improved .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -578,7 +578,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) because of sleep quality improved .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -630,7 +630,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit and continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -682,7 +682,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -734,7 +734,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -786,7 +786,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -838,7 +838,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -890,7 +890,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -942,7 +942,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -994,7 +994,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
@@ -1046,7 +1046,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit and continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
@@ -1098,7 +1098,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
@@ -1150,7 +1150,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to reduced level of pain .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
@@ -1204,7 +1204,7 @@ exports[`Fixture Snapshots > snapshot: ELBOW-left-mid-10tx 1`] = `
 "Subjective
 Follow up visit
 Patient reports: there is improvement after treatment, but pain still came back next day due to continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -1256,7 +1256,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement after treatment, but pain still came back next day due to continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Constant (symptoms occur between 76% and 100% of the time)
@@ -1308,7 +1308,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -1360,7 +1360,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) due to sleep quality improved .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -1412,7 +1412,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement after treatment, but pain still came back next day due to continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%-70%), impaired performing ADL's with mild to moderate difficulty of Lifting objects, Carrying bags and mild to moderate difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -1464,7 +1464,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -1516,7 +1516,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Frequent (symptoms occur between 51% and 75% of the time)
@@ -1568,7 +1568,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
@@ -1620,7 +1620,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
@@ -1672,7 +1672,7 @@ Documentation
 Subjective
 Follow up visit
 Patient reports: there is similar symptom(s) as last visit and continuous treatment .
-Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Carrying bags, Opening doors.
+Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%-60%), impaired performing ADL's with mild difficulty of Lifting objects, Carrying bags and mild difficulty of Opening doors, Typing, Writing.
 
 Pain Scale: 5 /10
 Pain frequency: Occasional (symptoms occur between 26% and 50% of the time)
