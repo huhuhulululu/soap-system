@@ -18,6 +18,7 @@ export interface GoalPaths {
   tightness: DimensionPath
   tenderness: DimensionPath
   spasm: DimensionPath
+  strength: DimensionPath
   txCount: number
   stBoundary: number
 }
@@ -26,6 +27,7 @@ interface GoalPathInput {
   tightness: { start: number; st: number; lt: number }
   tenderness: { start: number; st: number; lt: number }
   spasm: { start: number; st: number; lt: number }
+  strength: { start: number; st: number; lt: number }
 }
 
 /**
@@ -87,11 +89,12 @@ function computeDimensionPath(
   txCount: number,
   rng: () => number,
 ): DimensionPath {
-  const stDrops = Math.max(0, start - stGoal)
-  const ltDrops = Math.max(0, stGoal - ltGoal)
+  // Works for both decreasing (tightness: 4→2) and increasing (strength: 2→5) dimensions
+  const stSteps = Math.max(0, Math.abs(start - stGoal))
+  const ltSteps = Math.max(0, Math.abs(stGoal - ltGoal))
 
-  const stVisits = distributeDrops(stDrops, 1, stBoundary, rng)
-  const ltVisits = distributeDrops(ltDrops, stBoundary + 1, txCount, rng)
+  const stVisits = distributeDrops(stSteps, 1, stBoundary, rng)
+  const ltVisits = distributeDrops(ltSteps, stBoundary + 1, txCount, rng)
 
   return {
     dimension,
@@ -128,11 +131,17 @@ export function computeGoalPaths(
     'spasm', input.spasm.start, input.spasm.st, input.spasm.lt,
     stBoundary, txCount, rng,
   )
-
   // 尝试错开不同维度的 changeVisits，减少同一 visit 多维度同时变化
+  // strength 和 ROM 关联，可以同时变，所以不参与 deconflict
   deconflict([tightness, tenderness, spasm], stBoundary, txCount, rng)
 
-  return { tightness, tenderness, spasm, txCount, stBoundary }
+  // Strength computed AFTER deconflict to preserve existing PRNG sequence
+  const strength = computeDimensionPath(
+    'strength', input.strength.start, input.strength.st, input.strength.lt,
+    stBoundary, txCount, rng,
+  )
+
+  return { tightness, tenderness, spasm, strength, txCount, stBoundary }
 }
 
 /**

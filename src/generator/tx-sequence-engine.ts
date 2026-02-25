@@ -229,6 +229,29 @@ export interface TXSequenceOptions {
   };
 }
 
+/** Strength grade ladder (index = numeric level for goal-path-calculator) */
+const STRENGTH_LADDER: readonly string[] = [
+  '3-/5', '3/5', '3+/5', '4-/5', '4/5', '4+/5', '5/5',
+]
+
+/** Base strength grade from pain level (mirrors objective-patch PATCHED_BASE_GRADES) */
+function baseStrengthIndex(painLevel: number): number {
+  const painInt = Math.round(Math.max(0, Math.min(10, painLevel)))
+  const BASE: readonly string[] = [
+    '5/5', '4+/5', '4+/5', '4/5', '4/5', '4-/5', '4-/5', '4-/5', '3+/5', '3+/5', '3/5',
+  ]
+  return STRENGTH_LADDER.indexOf(BASE[painInt])
+}
+
+/** Map strength goal string (from computePatchedGoals) to ladder index */
+function strengthGoalToIndex(goal: string): number {
+  const normalized = goal.includes('/') ? goal : `${goal}/5`
+  const idx = STRENGTH_LADDER.indexOf(normalized)
+  if (idx >= 0) return idx
+  const fuzzy = STRENGTH_LADDER.findIndex(s => s.startsWith(goal))
+  return fuzzy >= 0 ? fuzzy : 4
+}
+
 export interface TXVisitState {
   visitIndex: number;
   progress: number;
@@ -246,6 +269,8 @@ export interface TXVisitState {
   tightnessGrading: string;
   tendernessGrading: string;
   spasmGrading: string;
+  /** Engine-scheduled strength grade (e.g. '3+/5', '4/5') — overrides objective-patch bumpStrength */
+  strengthGrade?: string;
   needlePoints: string[];
   /** 舌脉信息，从 IE 继承保持一致 */
   tonguePulse: {
@@ -999,10 +1024,18 @@ export function generateTXSequenceStates(
         st: patchedGoals.spasm.st,
         lt: patchedGoals.spasm.lt,
       },
+      strength: {
+        start: baseStrengthIndex(startPain) + (context.chronicityLevel === 'Chronic' || context.baselineCondition === 'poor' ? -1 : 0),
+        st: strengthGoalToIndex(patchedGoals.strength.st),
+        lt: strengthGoalToIndex(patchedGoals.strength.lt),
+      },
     },
     txCount,
     rng,
   );
+
+  // Discrete strength level from goal-path-calculator (index into STRENGTH_LADDER)
+  let prevStrengthLevel = Math.max(0, goalPaths.strength.startValue);
 
   for (let i = startIdx; i <= txCount; i++) {
     // progress 基于总疗程进度，而不是当前批次
@@ -1271,15 +1304,17 @@ export function generateTXSequenceStates(
       0.08,
       0.6,
     );
-    const nextStrengthDeficit = clamp(
-      Math.min(
-        prevStrengthDeficit,
-        prevStrengthDeficit -
-          (0.02 + rng() * 0.04) * (strengthProgress > 0.2 ? 1 : 0.3),
-      ),
-      0.06,
-      0.6,
-    );
+    // Preserve rng() call for PRNG sequence compatibility (was used by deficit calc)
+    const _strengthRng = 0.02 + rng() * 0.04;
+    void _strengthRng;
+
+    // Strength: discrete scheduling from goal-path-calculator (no regression possible)
+    const strengthIsScheduledRise = goalPaths.strength.changeVisits.includes(i);
+    const nextStrengthLevel = strengthIsScheduledRise
+      ? Math.min(prevStrengthLevel + 1, STRENGTH_LADDER.length - 1)
+      : prevStrengthLevel;
+    const strengthGrade = STRENGTH_LADDER[nextStrengthLevel] ?? STRENGTH_LADDER[prevStrengthLevel];
+
     let romTrend: "improved" | "slightly improved" | "stable" =
       nextRomDeficit < prevRomDeficit - 0.055
         ? "improved"
@@ -1287,11 +1322,9 @@ export function generateTXSequenceStates(
           ? "slightly improved"
           : "stable";
     let strengthTrend: "improved" | "slightly improved" | "stable" =
-      nextStrengthDeficit < prevStrengthDeficit - 0.045
+      nextStrengthLevel > prevStrengthLevel
         ? "improved"
-        : nextStrengthDeficit < prevStrengthDeficit
-          ? "slightly improved"
-          : "stable";
+        : "stable";
 
     // Phase 3: plateau 条件修正 — 只在真正停滞时压制 ROM/Strength
     // 旧逻辑: painSame 就压制 → 13/19 visits 被压制，太激进
@@ -1319,7 +1352,7 @@ export function generateTXSequenceStates(
     }
     prevPainScaleLabel = painScaleLabel;
     prevRomDeficit = nextRomDeficit;
-    prevStrengthDeficit = nextStrengthDeficit;
+    prevStrengthLevel = nextStrengthLevel;
 
     const isBilateral = context.laterality === "bilateral";
     let sideProgress: TXVisitState["sideProgress"] | undefined = undefined;
@@ -1681,6 +1714,7 @@ export function generateTXSequenceStates(
       tightnessGrading,
       tendernessGrading,
       spasmGrading,
+      strengthGrade,
       needlePoints,
       tonguePulse: fixedTonguePulse,
       painTypes: options.initialState?.painTypes,

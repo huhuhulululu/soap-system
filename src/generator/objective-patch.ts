@@ -172,23 +172,31 @@ function patchedComputeRom(
   baselineCondition?: 'good' | 'fair' | 'poor',
   chronicityLevel?: string,
   adlImproved?: boolean,
+  overrideStrengthGrade?: string,
 ): { strength: string; romValue: number; limitation: string } {
-  // Strength: wider difficulty spread so HARD < MEDIUM < EASY, small jitter breaks ties
-  const STRENGTH_SENS: Record<ROMDifficulty, number> = { HARD: 1.3, MEDIUM: 1.0, EASY: 0.7 }
-  const jitter = ((index * 3 + sideOffset) % 5 - 2) * 0.3
-  const strengthPain = clamp(adjustedPain * STRENGTH_SENS[rom.difficulty] + jitter, 1, 10)
+  let strength: string
 
-  let strength = patchedStrength(strengthPain)
-  strength = applyConditionDowngrade(strength, baselineCondition, chronicityLevel)
+  if (overrideStrengthGrade) {
+    // Engine-scheduled grade: use directly, no independent recalculation
+    strength = overrideStrengthGrade
+  } else {
+    // IE mode or no override: compute from pain level (original logic)
+    const STRENGTH_SENS: Record<ROMDifficulty, number> = { HARD: 1.3, MEDIUM: 1.0, EASY: 0.7 }
+    const jitter = ((index * 3 + sideOffset) % 5 - 2) * 0.3
+    const strengthPain = clamp(adjustedPain * STRENGTH_SENS[rom.difficulty] + jitter, 1, 10)
 
-  if (progress !== undefined && progress > 0) {
-    strength = bumpStrength(strength, progress)
-  }
+    strength = patchedStrength(strengthPain)
+    strength = applyConditionDowngrade(strength, baselineCondition, chronicityLevel)
 
-  if (adlImproved) {
-    const idx = STRENGTH_LADDER.indexOf(strength)
-    if (idx >= 0 && idx < STRENGTH_LADDER.length - 1) {
-      strength = STRENGTH_LADDER[idx + 1]
+    if (progress !== undefined && progress > 0) {
+      strength = bumpStrength(strength, progress)
+    }
+
+    if (adlImproved) {
+      const idx = STRENGTH_LADDER.indexOf(strength)
+      if (idx >= 0 && idx < STRENGTH_LADDER.length - 1) {
+        strength = STRENGTH_LADDER[idx + 1]
+      }
     }
   }
 
@@ -464,6 +472,8 @@ export interface PatchContext {
   adlImproved?: boolean
   /** 是否为 TX visit */
   isTX: boolean
+  /** Engine-scheduled strength grade override (TX only) */
+  strengthGrade?: string
 }
 
 /**
@@ -471,7 +481,7 @@ export interface PatchContext {
  */
 export function buildPatchContext(
   context: GenerationContext,
-  visitState?: { painScaleCurrent?: number; progress?: number; soaChain?: { objective?: { romTrend?: string }; subjective?: { adlChange?: string } } },
+  visitState?: { painScaleCurrent?: number; progress?: number; strengthGrade?: string; soaChain?: { objective?: { romTrend?: string }; subjective?: { adlChange?: string } } },
 ): PatchContext {
   const basePain = deriveBasePain(context)
   const txPain = visitState?.painScaleCurrent ?? basePain
@@ -486,6 +496,7 @@ export function buildPatchContext(
     chronicityLevel: context.chronicityLevel,
     adlImproved: context.noteType === 'TX' && visitState?.soaChain?.subjective?.adlChange === 'improved',
     isTX: context.noteType === 'TX',
+    strengthGrade: visitState?.strengthGrade,
   }
 }
 
@@ -504,7 +515,7 @@ function regenerateGenericRomLine(
 ): string {
   const { strength, romValue, limitation } = patchedComputeRom(
     rom, index, sideOffset, painLevel, romAdj,
-    pctx.progress, pctx.baselineCondition, pctx.chronicityLevel, pctx.adlImproved,
+    pctx.progress, pctx.baselineCondition, pctx.chronicityLevel, pctx.adlImproved, pctx.strengthGrade,
   )
   return `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})`
 }
@@ -522,7 +533,7 @@ function regenerateShoulderRomLine(
 ): string {
   const { strength, romValue } = patchedComputeRom(
     rom, index, sideOffset, painLevel, romAdj,
-    pctx.progress, pctx.baselineCondition, pctx.chronicityLevel, pctx.adlImproved,
+    pctx.progress, pctx.baselineCondition, pctx.chronicityLevel, pctx.adlImproved, pctx.strengthGrade,
   )
   const reductionPct = rom.normalDegrees > 0 ? 1 - (romValue / rom.normalDegrees) : 0
   const options = getShoulderRomOptions(rom.movement)
@@ -564,7 +575,7 @@ function regenerateKneeRomLine(
 ): string {
   const { strength, romValue } = patchedComputeRom(
     rom, index, sideOffset, painLevel, romAdj,
-    pctx.progress, pctx.baselineCondition, pctx.chronicityLevel, pctx.adlImproved,
+    pctx.progress, pctx.baselineCondition, pctx.chronicityLevel, pctx.adlImproved, pctx.strengthGrade,
   )
   const reductionPct = rom.normalDegrees > 0 ? 1 - (romValue / rom.normalDegrees) : 0
 
@@ -673,7 +684,7 @@ function generatePatchedRomBlock(pctx: PatchContext, visitState?: { progress?: n
 export function patchSOAPText(
   fullText: string,
   context: GenerationContext,
-  visitState?: { painScaleCurrent?: number; progress?: number; soaChain?: { objective?: { romTrend?: string }; subjective?: { adlChange?: string } } },
+  visitState?: { painScaleCurrent?: number; progress?: number; strengthGrade?: string; soaChain?: { objective?: { romTrend?: string }; subjective?: { adlChange?: string } } },
 ): string {
   const pctx = buildPatchContext(context, visitState)
 
