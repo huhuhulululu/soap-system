@@ -1457,6 +1457,27 @@ export function generateTXSequenceStates(
       "improvement of symptom(s)",
     );
 
+    // --- Negative events gate ---
+    // Default (allowNegativeEvents=false): block all exacerbate/came-back
+    // When enabled: allow ≤10% negative visits, never on visit 1
+    const isNegativeSC =
+      symptomChange.includes("exacerbate") ||
+      symptomChange.includes("came back");
+    if (isNegativeSC) {
+      if (!context.allowNegativeEvents || i === startIdx) {
+        // Block: replace with similar
+        symptomChange = "similar symptom(s) as last visit";
+      } else {
+        // Cap at ~10%: use rng to probabilistically allow
+        // With bias=-70 for exacerbate and bias=-55/-15 for came-back,
+        // they're already rare; this is a hard cap safety net
+        const negativeRoll = rng();
+        if (negativeRoll > 0.1) {
+          symptomChange = "similar symptom(s) as last visit";
+        }
+      }
+    }
+
     // --- T02/T03 硬约束守卫: symptomChange 与 painDelta + objective trends 一致 ---
     // Phase D: 不仅看 painDelta，也看 objective 维度是否有改善
     const objectiveImproved =
@@ -1588,6 +1609,9 @@ export function generateTXSequenceStates(
       "treatment plan is on track",
       "patient compliance with treatment",
       "steady progress with current protocol",
+      "body needs time to consolidate gains",
+      "recovery plateau is expected at this stage",
+      "maintaining current functional level",
     ];
     const CAME_BACK_REASONS = [
       "continuous treatment",
