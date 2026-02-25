@@ -350,7 +350,7 @@ export interface TXVisitState {
   };
   soaChain: {
     subjective: {
-      painChange: "improved";
+      painChange: "improved" | "similar" | "worsened";
       adlChange: "improved" | "stable";
       frequencyChange: "improved" | "stable";
     };
@@ -1768,7 +1768,7 @@ export function generateTXSequenceStates(
       objectiveFactors,
       soaChain: {
         subjective: {
-          painChange: "improved",
+          painChange: symptomChange.includes("improvement") ? "improved" : symptomChange.includes("similar") ? "similar" : "worsened",
           adlChange: adlImproved ? "improved" : "stable",
           frequencyChange: frequencyImproved ? "improved" : "stable",
         },
@@ -1779,7 +1779,9 @@ export function generateTXSequenceStates(
           romTrend,
           strengthTrend,
         },
-        assessment: assessmentFromChain,
+        assessment: symptomChange.includes("similar")
+          ? { ...assessmentFromChain, present: "similar symptom(s) as last visit." }
+          : assessmentFromChain,
       },
     });
   }

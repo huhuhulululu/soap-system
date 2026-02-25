@@ -271,8 +271,9 @@ describe('随机输入测试 (20 组)', () => {
         for (let i = 0; i < states.length; i++) {
           const s = states[i]
           const present = s.soaChain.assessment.present.toLowerCase()
-          // 所有 TX 都应包含 "improvement" (因为 pain 只降不升)
-          expect(present).toContain('improvement')
+          // TX visits should say "improvement" or "similar" (when no dimension changed)
+          const isValid = present.includes('improvement') || present.includes('similar')
+          expect(isValid, `visit ${i}: "${present}" should contain improvement or similar`).toBe(true)
         }
       })
 
