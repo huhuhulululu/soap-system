@@ -178,17 +178,19 @@ for (const bpDef of BODY_PARTS) {
       const changes = visits.map(v => v.change).filter(Boolean)
       stats.changeVariety += new Set(changes).size
 
-      // S-O-A 冲突：S 说 improvement 但 O 没有任何变化
-      for (let i = 1; i < visits.length; i++) {
-        const prev = visits[i - 1]
-        const curr = visits[i]
-        if (curr.change?.includes('improvement') &&
-          curr.tightness === prev.tightness &&
-          curr.tenderness === prev.tenderness &&
-          curr.spasm === prev.spasm &&
-          curr.rom === prev.rom &&
-          curr.strength === prev.strength &&
-          curr.pain === prev.pain) {
+      // S-O-A 冲突：soaChain.subjective.painChange 说 improved 但 O 全 stable 且 pain 未变
+      for (let i = 1; i < states.length; i++) {
+        const prev = states[i - 1]
+        const curr = states[i]
+        const chain = (curr as any).soaChain
+        if (!chain) continue
+        const oAllStable = chain.objective.tightnessTrend === 'stable' &&
+          chain.objective.tendernessTrend === 'stable' &&
+          chain.objective.spasmTrend === 'stable' &&
+          chain.objective.romTrend === 'stable' &&
+          chain.objective.strengthTrend === 'stable'
+        const painUnchanged = curr.painScaleCurrent === prev.painScaleCurrent
+        if (chain.subjective.painChange === 'improved' && oAllStable && painUnchanged) {
           stats.soaConflicts++
         }
       }
