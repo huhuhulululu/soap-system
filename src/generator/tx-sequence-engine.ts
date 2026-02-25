@@ -859,15 +859,6 @@ export function generateTXSequenceStates(
   let prevTendernessGrade = options.initialState?.tendernessGrade ?? "";
   let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? "";
 
-  const associatedSymptomRank = (symptom: string): number => {
-    const s = symptom.toLowerCase();
-    if (s.includes("numbness") || s.includes("weakness")) return 4;
-    if (s.includes("heaviness")) return 3;
-    if (s.includes("stiffness")) return 2;
-    if (s.includes("soreness")) return 1;
-    return 2;
-  };
-
   // === generalCondition: 基于病史+年龄+证型的固定属性 ===
   const fixedGeneralCondition: string = (() => {
     if (options.initialState?.generalCondition)
@@ -1477,29 +1468,23 @@ export function generateTXSequenceStates(
     }
 
     // Associated Symptom: 继承用户输入(initialState)，后期逐步减轻
-    // 等级: soreness(1) < stiffness(2) < heaviness(3) < weakness/numbness(4)
-    const rankToSymptom: Record<number, string> = {
-      1: "soreness",
-      2: "stiffness",
-      3: "heaviness",
-    };
-    let associatedSymptom: string;
-    if (prevAssociatedSymptom) {
-      const prevRank = associatedSymptomRank(prevAssociatedSymptom);
-      // progress > 0.5 且等级 > 1 时尝试降一级
-      if (progress > 0.5 && prevRank > 1 && rng() > 0.5) {
-        associatedSymptom = findTemplateOption(
-          "subjective.associatedSymptoms",
-          [rankToSymptom[prevRank - 1] || "soreness", prevAssociatedSymptom],
-          prevAssociatedSymptom,
-        );
-      } else {
-        associatedSymptom = prevAssociatedSymptom;
-      }
-    } else {
-      // TX1: 直接用 initialState 传入的值（用户选择）
-      associatedSymptom = options.initialState?.associatedSymptom || "soreness";
+    // associatedSymptom: 种类固定不变，只有 scale % 随 progress 变化
+    // 保留条件 rng() 调用以维持 PRNG 序列（原降级逻辑在此条件下调用 rng()）
+    const _prevSymptomRank = (() => {
+      const s = prevAssociatedSymptom.toLowerCase();
+      if (s.includes("numbness") || s.includes("weakness")) return 4;
+      if (s.includes("heaviness")) return 3;
+      if (s.includes("stiffness")) return 2;
+      if (s.includes("soreness")) return 1;
+      return 2;
+    })();
+    if (progress > 0.5 && _prevSymptomRank > 1) {
+      rng(); // consume to keep PRNG sequence
     }
+    const associatedSymptom =
+      options.initialState?.associatedSymptom ||
+      prevAssociatedSymptom ||
+      "soreness";
     prevAssociatedSymptom = associatedSymptom;
     const painFrequency = pickSingle(
       "subjective.painFrequency",
