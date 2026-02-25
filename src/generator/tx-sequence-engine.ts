@@ -450,6 +450,7 @@ export function deriveAssessmentFromSOA(input: {
   // ASS-02: cumulative context
   cumulativePainDrop: number; // startPain - currentPain (total from IE baseline)
   progress: number; // 0-1 normalized visit progress
+  bodyPart: string; // e.g. "NECK", "SHOULDER", "ELBOW", "LBP", "KNEE"
 }): {
   present: string;
   patientChange: string;
@@ -504,6 +505,12 @@ export function deriveAssessmentFromSOA(input: {
       parts.push(objOptions[input.visitIndex % objOptions.length]);
     }
 
+    // NECK-specific: dizziness/headache/migraine available when O-side improved
+    if (input.bodyPart === "NECK" && hasStrongObjective && parts.length < 3) {
+      const neckOptions = ["dizziness", "headache", "migraine"];
+      parts.push(neckOptions[input.visitIndex % neckOptions.length]);
+    }
+
     // Fallback: at least one item
     if (parts.length === 0) return "pain";
 
@@ -538,8 +545,12 @@ export function deriveAssessmentFromSOA(input: {
     const parts: string[] = [];
 
     if (input.objectiveRomTrend !== "stable") {
+      const isLimitationOnly =
+        input.bodyPart === "SHOULDER" || input.bodyPart === "ELBOW";
       parts.push(
-        input.progress >= 0.6 && input.cumulativePainDrop >= 2.0
+        !isLimitationOnly &&
+          input.progress >= 0.6 &&
+          input.cumulativePainDrop >= 2.0
           ? "joint ROM"
           : "joint ROM limitation",
       );
@@ -1651,6 +1662,7 @@ export function generateTXSequenceStates(
       objectiveStrengthTrend: strengthTrend,
       cumulativePainDrop,
       progress,
+      bodyPart: context.primaryBodyPart || "LBP",
     });
 
     visits.push({
