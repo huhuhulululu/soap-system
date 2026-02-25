@@ -252,6 +252,60 @@ function strengthGoalToIndex(goal: string): number {
   return fuzzy >= 0 ? fuzzy : 4
 }
 
+/** Parse pain goal string ('3', '3-4', '4-5') to integer (lower bound) */
+function painGoalToInt(goal: string): number {
+  const m = goal.match(/(\d+)/)
+  return m ? parseInt(m[1], 10) : 5
+}
+
+/** Parse symptomPct goal string ('(30%-40%)', '(40%-50%)') to decade index (3, 4, ...) */
+function symptomGoalToDecade(goal: string): number {
+  const m = goal.match(/(\d+)/)
+  return m ? Math.round(parseInt(m[1], 10) / 10) : 4
+}
+
+/** Map ADL severity string to numeric level */
+const ADL_SEVERITY_TO_NUM: Record<string, number> = {
+  'mild': 1,
+  'mild-moderate': 2,
+  'moderate': 2,
+  'moderate-severe': 3,
+  'severe': 4,
+}
+function adlGoalToNum(goal: string): number {
+  // Normalize various formats
+  const normalized = goal.toLowerCase().replace(/\s+to\s+/g, '-')
+  return ADL_SEVERITY_TO_NUM[normalized] ?? 2
+}
+
+/** Map initial severity string to ADL numeric level */
+function severityToAdlLevel(severity: string): number {
+  const map: Record<string, number> = {
+    'severe': 4,
+    'moderate to severe': 4,
+    'moderate': 3,
+    'mild to moderate': 2,
+    'mild': 1,
+  }
+  return map[severity] ?? 3
+}
+
+/** Parse initial symptomScale string ('70%-80%', '60%') to decade index */
+function symptomScaleToDecade(scale: string): number {
+  const m = scale.match(/(\d+)/)
+  return m ? Math.round(parseInt(m[1], 10) / 10) : 7
+}
+
+/** Map frequency string to numeric level */
+function frequencyToNum(freq: string): number {
+  if (freq.includes('Constant')) return 3
+  if (freq.includes('Frequent')) return 2
+  if (freq.includes('Occasional')) return 1
+  if (freq.includes('Intermittent')) return 0
+  return 3
+}
+
+
 export interface TXVisitState {
   visitIndex: number;
   progress: number;
@@ -866,6 +920,7 @@ export function generateTXSequenceStates(
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0;
   let prevAdl = 3.5;
   let prevFrequency = options.initialState?.frequency ?? 3;
+  let prevSymptomDecade = symptomScaleToDecade(options.initialState?.symptomScale || '70%');
   // Tightness/Tenderness/Spasm 初始值: 从 pain 推导 + 病史修正
   const initSeverity = severityFromPain(startPain);
   const severityToInit: Record<string, number> = {
@@ -1029,6 +1084,31 @@ export function generateTXSequenceStates(
         st: strengthGoalToIndex(patchedGoals.strength.st),
         lt: strengthGoalToIndex(patchedGoals.strength.lt),
       },
+      pain: {
+        start: Math.round(startPain),
+        st: painGoalToInt(patchedGoals.pain.st),
+        lt: painGoalToInt(patchedGoals.pain.lt),
+      },
+      frequency: {
+        start: options.initialState?.frequency ?? frequencyToNum(context.painFrequency || ''),
+        st: 1,  // Occasional
+        lt: 0,  // Intermittent
+      },
+      symptomScale: {
+        start: symptomScaleToDecade(options.initialState?.symptomScale || '70%'),
+        st: symptomGoalToDecade(patchedGoals.symptomPct.st),
+        lt: symptomGoalToDecade(patchedGoals.symptomPct.lt),
+      },
+      adlA: {
+        start: severityToAdlLevel(initSeverity),
+        st: adlGoalToNum(patchedGoals.adl.st),
+        lt: adlGoalToNum(patchedGoals.adl.lt),
+      },
+      adlB: {
+        start: context.primaryBodyPart === 'LBP' ? 0 : severityToAdlLevel(initSeverity),
+        st: context.primaryBodyPart === 'LBP' ? 0 : adlGoalToNum(patchedGoals.adl.st),
+        lt: context.primaryBodyPart === 'LBP' ? 0 : adlGoalToNum(patchedGoals.adl.lt),
+      },
     },
     txCount,
     rng,
@@ -1067,73 +1147,42 @@ export function generateTXSequenceStates(
       objectiveFactors.adherenceLoad * 0.12 +
       clamp((objectiveFactors.sessionGapDays - 3) / 10, 0, 0.4);
 
-    const expectedPain = startPain - (startPain - targetPain) * progress;
-    // Noise cap at 0.15 to prevent erratic pain changes
-    const NOISE_CAP = 0.15;
-    const painNoise = clamp(
-      (rng() - 0.5) * 0.2 + disruption * 0.08,
-      -NOISE_CAP,
-      NOISE_CAP,
-    );
+    // Preserve rng() call for PRNG sequence compatibility (was painNoise)
+    const _painRng = (rng() - 0.5) * 0.2 + disruption * 0.08;
+    void _painRng;
 
-    // 统一康复曲线: TX1-TX11 使用同一套逻辑，不强制 TX1 降幅
-    // pain 只允许保持或降低（≤ prevPain），允许平稳
-    const rawPain = clamp(
-      Math.min(prevPain, expectedPain + painNoise),
-      targetPain,
-      startPain,
-    );
-    const snapped = snapPainToGrid(rawPain);
-    let painScaleCurrent = Math.min(prevPain, snapped.value);
+    // Pain: discrete scheduling from goal-path-calculator
+    const painIsScheduledDrop = goalPaths.pain.changeVisits.includes(i);
+    // When scheduled, drop by ~0.8 (enough to cross a grid line); add micro-variation from progress
+    const painDropAmount = painIsScheduledDrop ? 0.6 + progress * 0.3 : 0;
+    let painScaleCurrent = clamp(prevPain - painDropAmount, goalPaths.pain.ltGoal, startPain);
+    // Monotonic constraint
+    painScaleCurrent = Math.min(prevPain, painScaleCurrent);
+    const snapped = snapPainToGrid(painScaleCurrent);
+    let painScaleLabel = snapped.label;
 
-    // PLAT-01: plateau breaker — when pain label is identical for consecutive visits,
-    // inject a micro-improvement (0.3-0.5 drop) to break the stall.
-    // REAL-01: chronic patients tolerate longer plateaus (4 vs 3)
-    // Uses progress-derived drop amount (no new rng() calls).
-    let painScaleLabel =
-      painScaleCurrent < snapped.value
-        ? snapPainToGrid(painScaleCurrent).label
-        : snapped.label;
-
-    const plateauThreshold = chronicCapsEnabled ? 4 : 3;
-    if (painScaleLabel === prevPainScaleLabel) {
-      consecutiveSameLabel++;
-      if (
-        consecutiveSameLabel >= plateauThreshold &&
-        painScaleCurrent > targetPain
-      ) {
-        // Micro-drop: 0.3 at early progress, 0.5 at late progress
-        const microDrop = 0.3 + progress * 0.2;
-        painScaleCurrent = clamp(
-          painScaleCurrent - microDrop,
-          targetPain,
-          prevPain,
-        );
-        const reSnapped = snapPainToGrid(painScaleCurrent);
-        painScaleLabel = reSnapped.label;
-        consecutiveSameLabel = 0; // reset after breaking
+    // Between scheduled drops, allow half-step transitions for natural feel
+    if (!painIsScheduledDrop && prevPain - Math.floor(prevPain) > 0.3) {
+      // Snap down to integer if we're in a half-step
+      const intPain = Math.floor(prevPain);
+      if (intPain >= goalPaths.pain.ltGoal) {
+        painScaleCurrent = intPain;
+        painScaleLabel = snapPainToGrid(painScaleCurrent).label;
       }
-    } else {
-      consecutiveSameLabel = 0;
     }
 
     const painDelta = prevPain - painScaleCurrent;
     prevPain = painScaleCurrent;
 
-    const adlExpected = clamp(prevAdl - (0.18 + rng() * 0.2), 0.8, 4.0);
-    const adl = clamp(
-      Math.min(prevAdl, adlExpected + (rng() - 0.5) * 0.12),
-      0.8,
-      4.0,
-    );
-    const adlDelta = prevAdl - adl;
-    // ADL 改善判定: 先计算再更新 prevAdl
-    // 跨过整数等级线 + delta 足够大才视为真正改善
-    const prevAdlLevel = Math.ceil(prevAdl);
-    const curAdlLevel = Math.ceil(adl);
-    const adlLevelChanged = prevAdlLevel > curAdlLevel;
-    const adlImproved = adlLevelChanged && adlDelta > 0.3;
-    prevAdl = adl;
+    // Preserve rng() calls for PRNG sequence compatibility (was adlExpected + adlNoise)
+    const _adlRng1 = 0.18 + rng() * 0.2;
+    const _adlRng2 = (rng() - 0.5) * 0.12;
+    void _adlRng1; void _adlRng2;
+
+    // ADL: discrete scheduling from goal-path-calculator
+    const adlADrop = goalPaths.adlA.changeVisits.includes(i);
+    const adlBDrop = goalPaths.adlB.changeVisits.includes(i);
+    const adlImproved = adlADrop || adlBDrop;
 
     // severityLevel: 基于 pain，ADL 改善时最多降 1 档，纵向只降不升
     const baseSeverity = severityFromPain(painScaleCurrent);
@@ -1159,28 +1208,14 @@ export function generateTXSequenceStates(
     }
     prevSeverity = severityLevel;
 
-    // Frequency 改善: 基于 progress 分段确定目标，与 pain 下降联动
-    // Phase E: 降低阈值让 frequency 更早开始变化，覆盖更多级别
-    // Constant(3) → Frequent(2) → Occasional(1) → Intermittent(0)
-    const frequencyTarget = chronicCapsEnabled
-      ? progress >= 0.85
-        ? 0
-        : progress >= 0.65
-          ? 1
-          : progress >= 0.4
-            ? 2
-            : 3
-      : progress >= 0.75
-        ? 0
-        : progress >= 0.5
-          ? 1
-          : progress >= 0.3
-            ? 2
-            : 3;
-    const nextFrequency = Math.min(
-      prevFrequency,
-      Math.max(frequencyTarget, prevFrequency - (rng() > 0.55 ? 1 : 0)),
-    );
+    // Frequency: discrete scheduling from goal-path-calculator
+    // Preserve rng() call for PRNG sequence compatibility
+    const _freqRng = rng();
+    void _freqRng;
+    const freqIsScheduledDrop = goalPaths.frequency.changeVisits.includes(i);
+    const nextFrequency = freqIsScheduledDrop
+      ? Math.max(0, prevFrequency - 1)
+      : prevFrequency;
     const frequencyImproved = nextFrequency < prevFrequency;
     prevFrequency = nextFrequency;
 
@@ -1683,6 +1718,7 @@ export function generateTXSequenceStates(
     // ASS-02: cumulative pain drop from IE baseline
     const cumulativePainDrop = startPain - painScaleCurrent;
 
+    const adlDelta = adlImproved ? 1 : 0;
     const assessmentFromChain = deriveAssessmentFromSOA({
       painDelta,
       adlDelta,
@@ -1720,15 +1756,11 @@ export function generateTXSequenceStates(
       painTypes: options.initialState?.painTypes,
       inspection: options.initialState?.inspection,
       symptomScale: (() => {
-        const raw = options.initialState?.symptomScale || "70%";
-        const m = raw.match(/(\d+)/);
-        if (!m) return raw;
-        const base = parseInt(m[1], 10);
-        // REAL-01: gentler reduction for chronic patients (25 vs 40 multiplier)
-        const reductionFactor = chronicCapsEnabled ? 25 : 40;
-        const reduction = Math.round(progress * progress * reductionFactor);
-        const reduced = Math.max(10, base - reduction);
-        return snapSymptomToGrid(reduced);
+        const symptomDrop = goalPaths.symptomScale.changeVisits.includes(i);
+        if (symptomDrop) {
+          prevSymptomDecade = Math.max(1, prevSymptomDecade - 1);
+        }
+        return snapSymptomToGrid(prevSymptomDecade * 10);
       })(),
       electricalStimulation: options.initialState?.electricalStimulation,
       treatmentTime: options.initialState?.treatmentTime,

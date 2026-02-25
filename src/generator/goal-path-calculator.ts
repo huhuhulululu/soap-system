@@ -19,15 +19,25 @@ export interface GoalPaths {
   tenderness: DimensionPath
   spasm: DimensionPath
   strength: DimensionPath
+  pain: DimensionPath
+  frequency: DimensionPath
+  symptomScale: DimensionPath
+  adlA: DimensionPath
+  adlB: DimensionPath
   txCount: number
   stBoundary: number
 }
 
-interface GoalPathInput {
+export interface GoalPathInput {
   tightness: { start: number; st: number; lt: number }
   tenderness: { start: number; st: number; lt: number }
   spasm: { start: number; st: number; lt: number }
   strength: { start: number; st: number; lt: number }
+  pain: { start: number; st: number; lt: number }
+  frequency: { start: number; st: number; lt: number }
+  symptomScale: { start: number; st: number; lt: number }
+  adlA: { start: number; st: number; lt: number }
+  adlB: { start: number; st: number; lt: number }
 }
 
 /**
@@ -141,7 +151,32 @@ export function computeGoalPaths(
     stBoundary, txCount, rng,
   )
 
-  return { tightness, tenderness, spasm, strength, txCount, stBoundary }
+  // New dimensions (appended after strength to preserve PRNG sequence)
+  const pain = computeDimensionPath(
+    'pain', input.pain.start, input.pain.st, input.pain.lt,
+    stBoundary, txCount, rng,
+  )
+  const frequency = computeDimensionPath(
+    'frequency', input.frequency.start, input.frequency.st, input.frequency.lt,
+    stBoundary, txCount, rng,
+  )
+  const symptomScale = computeDimensionPath(
+    'symptomScale', input.symptomScale.start, input.symptomScale.st, input.symptomScale.lt,
+    stBoundary, txCount, rng,
+  )
+  const adlA = computeDimensionPath(
+    'adlA', input.adlA.start, input.adlA.st, input.adlA.lt,
+    stBoundary, txCount, rng,
+  )
+  const adlB = computeDimensionPath(
+    'adlB', input.adlB.start, input.adlB.st, input.adlB.lt,
+    stBoundary, txCount, rng,
+  )
+
+  // ADL-A and ADL-B are mutually exclusive: same visit can only change one
+  deconflictPair(adlA, adlB, stBoundary, txCount, rng)
+
+  return { tightness, tenderness, spasm, strength, pain, frequency, symptomScale, adlA, adlB, txCount, stBoundary }
 }
 
 /**
@@ -201,4 +236,56 @@ function deconflict(
       }
     }
   }
+}
+
+/**
+ * Ensure two dimensions never change on the same visit.
+ * If overlap found, move one of them ±1.
+ */
+function deconflictPair(
+  pathA: DimensionPath,
+  pathB: DimensionPath,
+  stBoundary: number,
+  txCount: number,
+  rng: () => number,
+): void {
+  for (let bi = 0; bi < pathB.changeVisits.length; bi++) {
+    const visit = pathB.changeVisits[bi]
+    if (!pathA.changeVisits.includes(visit)) continue
+
+    // Conflict: try to move pathB's visit
+    const inST = visit <= stBoundary
+    const rangeMin = inST ? 1 : stBoundary + 1
+    const rangeMax = inST ? stBoundary : txCount
+
+    const direction = rng() > 0.5 ? 1 : -1
+    const candidates = [visit + direction, visit - direction]
+
+    let moved = false
+    for (const candidate of candidates) {
+      if (candidate < rangeMin || candidate > rangeMax) continue
+      if (pathA.changeVisits.includes(candidate)) continue
+      if (pathB.changeVisits.includes(candidate)) continue
+      pathB.changeVisits[bi] = candidate
+      moved = true
+      break
+    }
+
+    // If can't move ±1, try wider range
+    if (!moved) {
+      for (let offset = 2; offset <= 3; offset++) {
+        for (const dir of [direction, -direction]) {
+          const candidate = visit + dir * offset
+          if (candidate < rangeMin || candidate > rangeMax) continue
+          if (pathA.changeVisits.includes(candidate)) continue
+          if (pathB.changeVisits.includes(candidate)) continue
+          pathB.changeVisits[bi] = candidate
+          moved = true
+          break
+        }
+        if (moved) break
+      }
+    }
+  }
+  pathB.changeVisits.sort((a, b) => a - b)
 }

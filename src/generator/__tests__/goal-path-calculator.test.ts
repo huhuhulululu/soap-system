@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeGoalPaths } from '../goal-path-calculator'
+import { computeGoalPaths, type GoalPathInput } from '../goal-path-calculator'
 
 // Deterministic PRNG (mulberry32)
 function mulberry32(seed: number) {
@@ -12,18 +12,18 @@ function mulberry32(seed: number) {
   }
 }
 
-/** Standard 4-dimension input for tests */
-function makeInput(overrides?: Partial<{
-  tightness: { start: number; st: number; lt: number }
-  tenderness: { start: number; st: number; lt: number }
-  spasm: { start: number; st: number; lt: number }
-  strength: { start: number; st: number; lt: number }
-}>) {
+/** Full 9-dimension input for tests */
+function makeInput(overrides?: Partial<GoalPathInput>): GoalPathInput {
   return {
     tightness: { start: 4, st: 3, lt: 2 },
     tenderness: { start: 4, st: 2, lt: 1 },
     spasm: { start: 3, st: 2, lt: 1 },
-    strength: { start: 2, st: 4, lt: 5 }, // 3+/5 → 4/5 → 4+/5
+    strength: { start: 2, st: 4, lt: 5 },
+    pain: { start: 8, st: 5, lt: 3 },
+    frequency: { start: 3, st: 1, lt: 0 },
+    symptomScale: { start: 7, st: 4, lt: 2 },
+    adlA: { start: 4, st: 3, lt: 2 },
+    adlB: { start: 4, st: 3, lt: 2 },
     ...overrides,
   }
 }
@@ -239,10 +239,97 @@ describe('Goal Path Calculator', () => {
       const paths = computeGoalPaths(makeInput(), 1, rng)
 
       expect(paths.stBoundary).toBe(1)
-      for (const dim of [paths.tightness, paths.tenderness, paths.spasm, paths.strength]) {
+      for (const dim of [paths.tightness, paths.tenderness, paths.spasm, paths.strength,
+        paths.pain, paths.frequency, paths.symptomScale, paths.adlA, paths.adlB]) {
         expect(dim.changeVisits.length).toBeLessThanOrEqual(
           Math.abs(dim.startValue - dim.ltGoal)
         )
+      }
+    })
+  })
+
+  describe('new dimensions: pain, frequency, symptomScale, adlA, adlB', () => {
+    it('pain changeVisits count matches total drops', () => {
+      const rng = mulberry32(42)
+      // pain: start=8, st=5, lt=3 → 3 ST drops + 2 LT drops = 5
+      const paths = computeGoalPaths(makeInput(), 20, rng)
+      expect(paths.pain.changeVisits.length).toBe(5)
+      expect(paths.pain.dimension).toBe('pain')
+    })
+
+    it('frequency changeVisits count matches total drops', () => {
+      const rng = mulberry32(42)
+      // frequency: start=3, st=1, lt=0 → 2 ST drops + 1 LT drop = 3
+      const paths = computeGoalPaths(makeInput(), 20, rng)
+      expect(paths.frequency.changeVisits.length).toBe(3)
+    })
+
+    it('symptomScale changeVisits count matches total drops', () => {
+      const rng = mulberry32(42)
+      // symptomScale: start=7, st=4, lt=2 → 3 ST drops + 2 LT drops = 5
+      const paths = computeGoalPaths(makeInput(), 20, rng)
+      expect(paths.symptomScale.changeVisits.length).toBe(5)
+    })
+
+    it('adlA and adlB changeVisits count matches total drops', () => {
+      const rng = mulberry32(42)
+      // adlA/B: start=4, st=3, lt=2 → 1 ST drop + 1 LT drop = 2
+      const paths = computeGoalPaths(makeInput(), 20, rng)
+      expect(paths.adlA.changeVisits.length).toBe(2)
+      expect(paths.adlB.changeVisits.length).toBe(2)
+    })
+
+    it('adlA and adlB are mutually exclusive (no same-visit overlap)', () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        const rng = mulberry32(seed)
+        const paths = computeGoalPaths(makeInput(), 20, rng)
+        const overlap = paths.adlA.changeVisits.filter(v =>
+          paths.adlB.changeVisits.includes(v)
+        )
+        expect(overlap).toEqual([])
+      }
+    })
+
+    it('all new dimensions within [1, txCount]', () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const rng = mulberry32(seed)
+        const paths = computeGoalPaths(makeInput(), 20, rng)
+        for (const dim of [paths.pain, paths.frequency, paths.symptomScale, paths.adlA, paths.adlB]) {
+          for (const v of dim.changeVisits) {
+            expect(v).toBeGreaterThanOrEqual(1)
+            expect(v).toBeLessThanOrEqual(20)
+          }
+        }
+      }
+    })
+
+    it('pain monotonically decreasing across visits (10 seeds)', () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const rng = mulberry32(seed)
+        const paths = computeGoalPaths(makeInput(), 11, rng)
+        let level = paths.pain.startValue
+        for (let v = 1; v <= 11; v++) {
+          if (paths.pain.changeVisits.includes(v)) level--
+          expect(level).toBeLessThanOrEqual(paths.pain.startValue)
+          expect(level).toBeGreaterThanOrEqual(paths.pain.ltGoal)
+        }
+      }
+    })
+
+    it('no drops when adlB start === ltGoal (LBP has no ADL-B)', () => {
+      const rng = mulberry32(1)
+      const paths = computeGoalPaths(makeInput({
+        adlB: { start: 0, st: 0, lt: 0 },
+      }), 20, rng)
+      expect(paths.adlB.changeVisits).toEqual([])
+    })
+
+    it('determinism: same seed → same output for all dimensions', () => {
+      const paths1 = computeGoalPaths(makeInput(), 20, mulberry32(12345))
+      const paths2 = computeGoalPaths(makeInput(), 20, mulberry32(12345))
+
+      for (const key of ['pain', 'frequency', 'symptomScale', 'adlA', 'adlB'] as const) {
+        expect(paths1[key].changeVisits).toEqual(paths2[key].changeVisits)
       }
     })
   })
