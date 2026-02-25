@@ -278,6 +278,7 @@ export interface TXVisitState {
     objective: {
       tightnessTrend: "reduced" | "slightly reduced" | "stable";
       tendernessTrend: "reduced" | "slightly reduced" | "stable";
+      spasmTrend: "reduced" | "slightly reduced" | "stable";
       romTrend: "improved" | "slightly improved" | "stable";
       strengthTrend: "improved" | "slightly improved" | "stable";
     };
@@ -1711,6 +1712,7 @@ export function generateTXSequenceStates(
         objective: {
           tightnessTrend,
           tendernessTrend,
+          spasmTrend,
           romTrend,
           strengthTrend,
         },
