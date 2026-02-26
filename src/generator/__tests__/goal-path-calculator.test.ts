@@ -433,7 +433,7 @@ describe("Goal Path Calculator", () => {
       }
     });
 
-    it("painEarlyGuard does not affect other dimensions", () => {
+    it("painEarlyGuard does not change drop counts for other dimensions", () => {
       for (let seed = 1; seed <= 10; seed++) {
         const rng1 = mulberry32(seed);
         const rng2 = mulberry32(seed);
@@ -441,19 +441,17 @@ describe("Goal Path Calculator", () => {
         const withGuard = computeGoalPaths(makeInput(), 20, rng2, {
           painEarlyGuard: 5,
         });
-        // Dimensions computed before pain are identical
-        expect(withGuard.tightness.changeVisits).toEqual(
-          without.tightness.changeVisits,
-        );
-        expect(withGuard.tenderness.changeVisits).toEqual(
-          without.tenderness.changeVisits,
-        );
-        expect(withGuard.spasm.changeVisits).toEqual(
-          without.spasm.changeVisits,
-        );
-        expect(withGuard.strength.changeVisits).toEqual(
-          without.strength.changeVisits,
-        );
+        // Total drop counts are preserved (globalDeconflict may shift positions)
+        for (const key of [
+          "tightness",
+          "tenderness",
+          "spasm",
+          "strength",
+        ] as const) {
+          expect(withGuard[key].changeVisits.length).toBe(
+            without[key].changeVisits.length,
+          );
+        }
       }
     });
 
@@ -469,6 +467,173 @@ describe("Goal Path Calculator", () => {
         }
       }
       expect(hasEarlyDrop).toBe(true);
+    });
+  });
+
+  describe("global deconflict: max dimensions per visit", () => {
+    /** Count how many dimensions change on each visit */
+    function countDimsPerVisit(
+      paths: ReturnType<typeof computeGoalPaths>,
+      txCount: number,
+    ): Map<number, string[]> {
+      const visitDims = new Map<number, string[]>();
+      const allDims = [
+        paths.tightness,
+        paths.tenderness,
+        paths.spasm,
+        paths.strength,
+        paths.pain,
+        paths.frequency,
+        paths.symptomScale,
+        paths.adlA,
+        paths.adlB,
+      ];
+      for (let v = 1; v <= txCount; v++) {
+        const dims: string[] = [];
+        for (const d of allDims) {
+          if (d.changeVisits.includes(v)) dims.push(d.dimension);
+        }
+        if (dims.length > 0) visitDims.set(v, dims);
+      }
+      return visitDims;
+    }
+
+    it("no visit has more than 3 dimensions changing (100 seeds, txCount=11)", () => {
+      for (let seed = 1; seed <= 100; seed++) {
+        const rng = mulberry32(seed);
+        const paths = computeGoalPaths(
+          makeInput({
+            tightness: { start: 4, st: 3, lt: 2 },
+            tenderness: { start: 3, st: 2, lt: 1 },
+            spasm: { start: 2, st: 1, lt: 0 },
+            strength: { start: 3, st: 4, lt: 5 },
+            pain: { start: 7, st: 5, lt: 3 },
+            frequency: { start: 3, st: 2, lt: 1 },
+            symptomScale: { start: 4, st: 2, lt: 1 },
+            adlA: { start: 3, st: 2, lt: 1 },
+            adlB: { start: 3, st: 2, lt: 1 },
+          }),
+          11,
+          rng,
+          { painEarlyGuard: 4 },
+        );
+
+        const visitDims = countDimsPerVisit(paths, 11);
+        for (const [visit, dims] of visitDims) {
+          expect(
+            dims.length,
+            `seed=${seed} visit=${visit}: ${dims.join(",")} (${dims.length} dims)`,
+          ).toBeLessThanOrEqual(3);
+        }
+      }
+    });
+
+    it("total drop count is preserved after global deconflict (20 seeds)", () => {
+      const input = makeInput({
+        tightness: { start: 4, st: 3, lt: 2 },
+        tenderness: { start: 3, st: 2, lt: 1 },
+        spasm: { start: 2, st: 1, lt: 0 },
+        strength: { start: 3, st: 4, lt: 5 },
+        pain: { start: 7, st: 5, lt: 3 },
+        frequency: { start: 3, st: 2, lt: 1 },
+        symptomScale: { start: 4, st: 2, lt: 1 },
+        adlA: { start: 3, st: 2, lt: 1 },
+        adlB: { start: 3, st: 2, lt: 1 },
+      });
+
+      for (let seed = 1; seed <= 20; seed++) {
+        const rng = mulberry32(seed);
+        const paths = computeGoalPaths(input, 11, rng, { painEarlyGuard: 4 });
+
+        // Each dimension should have exactly the expected number of drops
+        for (const key of [
+          "tightness",
+          "tenderness",
+          "spasm",
+          "strength",
+          "pain",
+          "frequency",
+          "symptomScale",
+          "adlA",
+          "adlB",
+        ] as const) {
+          const d = paths[key];
+          const expectedTotal =
+            Math.abs(d.startValue - d.stGoal) + Math.abs(d.stGoal - d.ltGoal);
+          expect(
+            d.changeVisits.length,
+            `seed=${seed} ${key}: expected ${expectedTotal} drops, got ${d.changeVisits.length}`,
+          ).toBe(expectedTotal);
+        }
+      }
+    });
+
+    it("TX1-TX2 average ≤ 1.5 dims changing (100 seeds, txCount=11)", () => {
+      let totalTX1 = 0;
+      let totalTX2 = 0;
+      const N = 100;
+
+      for (let seed = 1; seed <= N; seed++) {
+        const rng = mulberry32(seed);
+        const paths = computeGoalPaths(
+          makeInput({
+            tightness: { start: 4, st: 3, lt: 2 },
+            tenderness: { start: 3, st: 2, lt: 1 },
+            spasm: { start: 2, st: 1, lt: 0 },
+            strength: { start: 3, st: 4, lt: 5 },
+            pain: { start: 7, st: 5, lt: 3 },
+            frequency: { start: 3, st: 2, lt: 1 },
+            symptomScale: { start: 4, st: 2, lt: 1 },
+            adlA: { start: 3, st: 2, lt: 1 },
+            adlB: { start: 3, st: 2, lt: 1 },
+          }),
+          11,
+          rng,
+          { painEarlyGuard: 4 },
+        );
+
+        const visitDims = countDimsPerVisit(paths, 11);
+        totalTX1 += (visitDims.get(1) || []).length;
+        totalTX2 += (visitDims.get(2) || []).length;
+      }
+
+      expect(totalTX1 / N).toBeLessThanOrEqual(1.5);
+      expect(totalTX2 / N).toBeLessThanOrEqual(1.5);
+    });
+
+    it("determinism preserved after global deconflict", () => {
+      const input = makeInput({
+        tightness: { start: 4, st: 3, lt: 2 },
+        tenderness: { start: 3, st: 2, lt: 1 },
+        spasm: { start: 2, st: 1, lt: 0 },
+        strength: { start: 3, st: 4, lt: 5 },
+        pain: { start: 7, st: 5, lt: 3 },
+        frequency: { start: 3, st: 2, lt: 1 },
+        symptomScale: { start: 4, st: 2, lt: 1 },
+        adlA: { start: 3, st: 2, lt: 1 },
+        adlB: { start: 3, st: 2, lt: 1 },
+      });
+
+      const paths1 = computeGoalPaths(input, 11, mulberry32(42), {
+        painEarlyGuard: 4,
+      });
+      const paths2 = computeGoalPaths(input, 11, mulberry32(42), {
+        painEarlyGuard: 4,
+      });
+
+      for (const key of [
+        "tightness",
+        "tenderness",
+        "spasm",
+        "strength",
+        "pain",
+        "frequency",
+        "symptomScale",
+        "adlA",
+        "adlB",
+      ] as const) {
+        expect(paths1[key].changeVisits).toEqual(paths2[key].changeVisits);
+      }
     });
   });
 });
