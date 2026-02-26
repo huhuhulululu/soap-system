@@ -942,6 +942,7 @@ export function generateTXSequenceStates(
     },
     txCount,
     rng,
+    { painEarlyGuard: Math.ceil(txCount * (chronicCapsEnabled ? 0.30 : 0.20)) },
   );
 
   // Discrete strength level from goal-path-calculator (index into STRENGTH_LADDER)

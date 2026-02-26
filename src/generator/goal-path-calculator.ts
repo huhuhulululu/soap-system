@@ -98,12 +98,13 @@ function computeDimensionPath(
   stBoundary: number,
   txCount: number,
   rng: () => number,
+  stRangeStart: number = 1,
 ): DimensionPath {
   // Works for both decreasing (tightness: 4→2) and increasing (strength: 2→5) dimensions
   const stSteps = Math.max(0, Math.abs(start - stGoal))
   const ltSteps = Math.max(0, Math.abs(stGoal - ltGoal))
 
-  const stVisits = distributeDrops(stSteps, 1, stBoundary, rng)
+  const stVisits = distributeDrops(stSteps, stRangeStart, stBoundary, rng)
   const ltVisits = distributeDrops(ltSteps, stBoundary + 1, txCount, rng)
 
   return {
@@ -115,17 +116,28 @@ function computeDimensionPath(
   }
 }
 
+export interface GoalPathOptions {
+  /**
+   * Pain 维度 ST 阶段的最早 drop visit (1-based)。
+   * 默认 1（无保护）。设为 N 表示 pain 的 ST drops 不会安排在 visit N 之前。
+   * 临床意义: 前几次治疗身体适应期，pain 不应快速下降。
+   */
+  painEarlyGuard?: number
+}
+
 /**
  * 计算所有维度的 goal paths。
  *
  * @param input - 每个维度的 start/st/lt 值
  * @param txCount - 总治疗次数
  * @param rng - PRNG 函数 (0-1)
+ * @param options - 可选配置 (painEarlyGuard 等)
  */
 export function computeGoalPaths(
   input: GoalPathInput,
   txCount: number,
   rng: () => number,
+  options?: GoalPathOptions,
 ): GoalPaths {
   const stBoundary = Math.round(txCount * 0.6)
 
@@ -152,9 +164,11 @@ export function computeGoalPaths(
   )
 
   // New dimensions (appended after strength to preserve PRNG sequence)
+  // Pain: earlyGuard 推迟 ST 阶段的 rangeStart，让前期不安排 pain drop
+  const painSTStart = Math.min(options?.painEarlyGuard ?? 1, stBoundary)
   const pain = computeDimensionPath(
     'pain', input.pain.start, input.pain.st, input.pain.lt,
-    stBoundary, txCount, rng,
+    stBoundary, txCount, rng, painSTStart,
   )
   const frequency = computeDimensionPath(
     'frequency', input.frequency.start, input.frequency.st, input.frequency.lt,
