@@ -8,6 +8,22 @@ import {
 } from "../knowledge/medical-history-engine";
 import { computeGoalPaths, type GoalPaths } from "./goal-path-calculator";
 import { computePatchedGoals } from "./objective-patch";
+import {
+  STRENGTH_LADDER,
+  strengthToIndex,
+  strengthFromPain,
+} from "../shared/strength-table";
+import { createSeededRng } from "../shared/seeded-rng";
+import {
+  TEMPLATE_MUSCLES,
+  TEMPLATE_ADL,
+  type BodyPartKey,
+} from "../shared/template-options";
+import { selectInitialMuscles, reduceMuscles } from "./muscle-selector";
+import {
+  getADLWeightsByMuscles,
+  getAggravatingWeightsByMuscles,
+} from "../shared/muscle-adl-affinity";
 
 /**
  * Body part specific muscle mapping for objective findings
@@ -229,45 +245,6 @@ export interface TXSequenceOptions {
   };
 }
 
-/** Strength grade ladder (index = numeric level for goal-path-calculator) */
-const STRENGTH_LADDER: readonly string[] = [
-  "3-/5",
-  "3/5",
-  "3+/5",
-  "4-/5",
-  "4/5",
-  "4+/5",
-  "5/5",
-];
-
-/** Base strength grade from pain level (mirrors objective-patch PATCHED_BASE_GRADES) */
-function baseStrengthIndex(painLevel: number): number {
-  const painInt = Math.round(Math.max(0, Math.min(10, painLevel)));
-  const BASE: readonly string[] = [
-    "5/5",
-    "4+/5",
-    "4+/5",
-    "4/5",
-    "4/5",
-    "4-/5",
-    "4-/5",
-    "4-/5",
-    "3+/5",
-    "3+/5",
-    "3/5",
-  ];
-  return STRENGTH_LADDER.indexOf(BASE[painInt]);
-}
-
-/** Map strength goal string (from computePatchedGoals) to ladder index */
-function strengthGoalToIndex(goal: string): number {
-  const normalized = goal.includes("/") ? goal : `${goal}/5`;
-  const idx = STRENGTH_LADDER.indexOf(normalized);
-  if (idx >= 0) return idx;
-  const fuzzy = STRENGTH_LADDER.findIndex((s) => s.startsWith(goal));
-  return fuzzy >= 0 ? fuzzy : 4;
-}
-
 /** Parse pain goal string ('3', '3-4', '4-5') to integer (lower bound) */
 function painGoalToInt(goal: string): number {
   const m = goal.match(/(\d+)/);
@@ -338,6 +315,11 @@ export interface TXVisitState {
   tightnessGrading: string;
   tendernessGrading: string;
   spasmGrading: string;
+  tightMuscles: readonly string[];
+  tenderMuscles: readonly string[];
+  spasmMuscles: readonly string[];
+  adlItems: readonly string[];
+  aggravatingItems: readonly string[];
   /** Engine-scheduled strength grade (e.g. '3+/5', '4/5') — overrides objective-patch bumpStrength */
   strengthGrade?: string;
   needlePoints: string[];
@@ -393,41 +375,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6d2b79f5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
- * 创建 RNG。
- * - 传入 seed: 纯确定性，可复现
- * - 不传 seed: 混合运行时熵，不可复现
- * 返回 { rng, seed } — seed 用于记录和复现
- */
-function createSeededRng(seed?: number): { rng: () => number; seed: number } {
-  if (seed != null) {
-    // 确定性模式：相同 seed 产生相同序列
-    return { rng: mulberry32(seed >>> 0), seed: seed >>> 0 };
-  }
-  // 熵模式：生成随机 seed
-  const now = Date.now();
-  const randomBits = Math.floor(Math.random() * 0xffffffff);
-  const perfBits = (() => {
-    try {
-      return Number(process.hrtime.bigint() % BigInt(0xffffffff));
-    } catch {
-      return Math.floor(Math.random() * 0xffffffff);
-    }
-  })();
-  const generatedSeed = (now ^ randomBits ^ perfBits) >>> 0;
-  return { rng: mulberry32(generatedSeed), seed: generatedSeed };
-}
-
 function parsePainTarget(target: string | undefined, fallback: number): number {
   if (!target) return fallback;
   const nums = (target.match(/\d+/g) || [])
@@ -436,6 +383,32 @@ function parsePainTarget(target: string | undefined, fallback: number): number {
   if (nums.length === 0) return fallback;
   if (nums.length === 1) return nums[0];
   return (nums[0] + nums[1]) / 2;
+}
+
+/**
+ * Map severity level to deterministic count for ADL / aggravating selection.
+ * Uses the base (lower) count per severity tier.
+ */
+function severityToCount(
+  severity: string,
+  type: "adl" | "aggravating",
+): number {
+  const ADL_COUNTS: Record<string, number> = {
+    severe: 5,
+    "moderate to severe": 4,
+    moderate: 3,
+    "mild to moderate": 2,
+    mild: 1,
+  };
+  const AGG_COUNTS: Record<string, number> = {
+    severe: 3,
+    "moderate to severe": 2,
+    moderate: 2,
+    "mild to moderate": 1,
+    mild: 1,
+  };
+  const map = type === "adl" ? ADL_COUNTS : AGG_COUNTS;
+  return map[severity] ?? 3;
 }
 
 /**
@@ -884,7 +857,7 @@ export function generateTXSequenceStates(
 
   const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8;
   const startPain = options.initialState?.pain ?? ieStartPain;
-  // 与 goals-calculator 对齐: pain<=3 最优, pain<=6 积极目标, pain>=7 康复曲线
+  // 与 objective-patch 对齐: pain<=3 最优, pain<=6 积极目标, pain>=7 康复曲线
   const stFallback =
     ieStartPain <= 3
       ? 1
@@ -944,6 +917,19 @@ export function generateTXSequenceStates(
   );
   // Tightness/Tenderness/Spasm 初始值: 从 pain 推导 + 病史修正
   const initSeverity = severityFromPain(startPain);
+  // Muscle selection: separate seed to avoid shifting main PRNG sequence
+  const hasMuscleTemplate = context.primaryBodyPart in TEMPLATE_MUSCLES;
+  const initialMuscles = hasMuscleTemplate
+    ? selectInitialMuscles(
+        context.primaryBodyPart,
+        initSeverity,
+        actualSeed + 1000,
+      )
+    : {
+        tightness: [] as string[],
+        tenderness: [] as string[],
+        spasm: [] as string[],
+      };
   const severityToInit: Record<string, number> = {
     severe: 4,
     "moderate to severe": 3.5,
@@ -1007,7 +993,6 @@ export function generateTXSequenceStates(
       tongue: "thin white coat",
       pulse: "superficial, tense",
     },
-    "Wind-Cold-Damp Bi": { tongue: "thin white coat", pulse: "string-taut" },
     "Cold-Damp + Wind-Cold": { tongue: "thick, white coat", pulse: "deep" },
     "LV/GB Damp-Heat": {
       tongue: "yellow, sticky (red), thick coat",
@@ -1102,13 +1087,13 @@ export function generateTXSequenceStates(
       },
       strength: {
         start:
-          baseStrengthIndex(startPain) +
+          strengthToIndex(strengthFromPain(startPain)) +
           (context.chronicityLevel === "Chronic" ||
           context.baselineCondition === "poor"
             ? -1
             : 0),
-        st: strengthGoalToIndex(patchedGoals.strength.st),
-        lt: strengthGoalToIndex(patchedGoals.strength.lt),
+        st: strengthToIndex(patchedGoals.strength.st),
+        lt: strengthToIndex(patchedGoals.strength.lt),
       },
       pain: {
         start: Math.round(startPain),
@@ -1251,6 +1236,31 @@ export function generateTXSequenceStates(
       severityLevel = prevSeverity;
     }
     prevSeverity = severityLevel;
+
+    // Muscle reduction: pure (no RNG), trims based on current severity
+    const visitMuscles = reduceMuscles(initialMuscles, severityLevel);
+
+    // ADL/aggravating: deterministic from muscle weights (no RNG)
+    const bp = context.primaryBodyPart as BodyPartKey;
+    const validADL = new Set(TEMPLATE_ADL[bp] ?? []);
+    const adlWeights = getADLWeightsByMuscles(
+      visitMuscles.tightness as string[],
+      context.primaryBodyPart,
+    );
+    const adlCount = severityToCount(severityLevel, "adl");
+    const adlItems = adlWeights
+      .filter((w) => validADL.has(w.adl))
+      .slice(0, adlCount)
+      .map((w) => w.adl);
+
+    const aggWeights = getAggravatingWeightsByMuscles(
+      visitMuscles.tightness as string[],
+      context.primaryBodyPart,
+    );
+    const aggCount = severityToCount(severityLevel, "aggravating");
+    const aggravatingItems = aggWeights
+      .slice(0, aggCount)
+      .map((w) => w.aggravating);
 
     // Frequency: discrete scheduling from goal-path-calculator
     // Preserve rng() call for PRNG sequence compatibility
@@ -1895,6 +1905,11 @@ export function generateTXSequenceStates(
       tightnessGrading,
       tendernessGrading,
       spasmGrading,
+      tightMuscles: visitMuscles.tightness,
+      tenderMuscles: visitMuscles.tenderness,
+      spasmMuscles: visitMuscles.spasm,
+      adlItems,
+      aggravatingItems,
       strengthGrade,
       needlePoints,
       tonguePulse: fixedTonguePulse,

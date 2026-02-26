@@ -4,7 +4,6 @@
  */
 
 import type {
-  SOAPNote,
   NoteType,
   InsuranceType,
   BodyPart,
@@ -25,7 +24,8 @@ import {
   type TXSequenceOptions,
   type TXVisitState,
 } from "./tx-sequence-engine";
-import { calculateDynamicGoals } from "./goals-calculator";
+import { computePatchedGoals } from "./objective-patch";
+import { computeSpasm, SPASM_GRADE_TEXT } from "./spasm-model";
 import {
   BODY_PART_MUSCLES,
   BODY_PART_ADL,
@@ -831,12 +831,6 @@ const TONE_MAP: Record<
     pulseDefault: "superficial, tense",
     pulseOptions: ["superficial, tense"],
   },
-  "Wind-Cold-Damp Bi": {
-    tongueDefault: "thin white coat",
-    tongueOptions: ["thin white coat", "white coat"],
-    pulseDefault: "string-taut",
-    pulseOptions: ["string-taut", "superficial, tense", "wiry"],
-  },
   "Cold-Damp + Wind-Cold": {
     tongueDefault: "thick, white coat",
     tongueOptions: ["white coat", "slippery coat"],
@@ -1476,7 +1470,19 @@ export function generateObjective(
   objective += `${tenderLabel}: ${visitState?.tendernessGrading || tenderScales[ieTenderGrade] || tenderScales["+3"]}.\n\n`;
 
   objective += `Muscles spasm noted along ${spasmMuscles.join(", ")}\n`;
-  objective += `Frequency Grading Scale:${visitState?.spasmGrading || "(+3)=>1 but < 10 spontaneous spasms per hour."}\n\n`;
+  if (visitState?.spasmGrading) {
+    objective += `Frequency Grading Scale:${visitState.spasmGrading}\n\n`;
+  } else {
+    const tenderGradeNum = parseInt(ieTenderGrade.replace("+", "")) || 3;
+    const spasmGrade = computeSpasm({
+      tightness: effectiveSeverity,
+      tenderness: tenderGradeNum,
+      chronicity: context.chronicityLevel,
+      bodyPart: bp,
+      age: context.age,
+    });
+    objective += `Frequency Grading Scale:${SPASM_GRADE_TEXT[spasmGrade]}\n\n`;
+  }
 
   // ==================== ROM评估 (v9.0 引擎) ====================
   const romData = ROM_MAP[bp];
@@ -1815,15 +1821,11 @@ export function generatePlanIE(context: GenerationContext): string {
 
   // 动态计算 Goals (使用 context 中的 associatedSymptom 和实际 pain)
   const symptomType = context.associatedSymptom || "soreness";
-  const isChronicAware =
-    context.chronicityLevel === "Chronic" && !context.disableChronicCaps;
-  const goals = calculateDynamicGoals(
-    severity,
-    bp,
-    symptomType,
-    context.painCurrent,
-    isChronicAware,
-  );
+  const painCurrent = context.painCurrent ?? 8;
+  const goals = computePatchedGoals(painCurrent, severity, bp, symptomType, {
+    medicalHistory: context.medicalHistory,
+    age: context.age,
+  });
   const isMainBP =
     bp === "KNEE" ||
     bp === "SHOULDER" ||
@@ -1842,7 +1844,7 @@ export function generatePlanIE(context: GenerationContext): string {
 
   if (isMainBP) {
     plan += `Decrease Pain Scale to ${goals.pain.st}.\n`;
-    plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.st}\n`;
+    plan += `Decrease ${symptomType} sensation Scale to ${goals.symptomPct.st}\n`;
     plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`;
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`;
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`;
@@ -1850,7 +1852,7 @@ export function generatePlanIE(context: GenerationContext): string {
   } else {
     // 其他部位: 有空格格式
     plan += `Decrease Pain Scale to ${goals.pain.st}.\n`;
-    plan += `Decrease ${goals.symptomType} sensation Scale to 50%\n`;
+    plan += `Decrease ${symptomType} sensation Scale to 50%\n`;
     plan += `Decrease Muscles Tightness to ${goals.tightness.st}\n`;
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.st}\n`;
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.st}\n`;
@@ -1865,7 +1867,7 @@ export function generatePlanIE(context: GenerationContext): string {
 
   if (isMainBP) {
     plan += `Decrease Pain Scale to ${goals.pain.lt}\n`;
-    plan += `Decrease ${goals.symptomType} sensation Scale to ${goals.symptomPct.lt}\n`;
+    plan += `Decrease ${symptomType} sensation Scale to ${goals.symptomPct.lt}\n`;
     plan += `Decrease Muscles Tightness to ${tightnessLT}\n`;
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}\n`;
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.lt}\n`;
@@ -1874,7 +1876,7 @@ export function generatePlanIE(context: GenerationContext): string {
     plan += `Decrease impaired Activities of Daily Living to ${goals.adl.lt}.`;
   } else {
     plan += `Decrease Pain Scale to ${goals.pain.lt}\n`;
-    plan += `Decrease ${goals.symptomType} sensation Scale to 30%\n`;
+    plan += `Decrease ${symptomType} sensation Scale to 30%\n`;
     plan += `Decrease Muscles Tightness to ${tightnessLT}\n`;
     plan += `Decrease Muscles Tenderness to Grade ${goals.tenderness.lt}\n`;
     plan += `Decrease Muscles Spasms to Grade ${goals.spasm.lt}\n`;
@@ -2858,148 +2860,6 @@ export function generateNeedleProtocol(
 
     return protocol;
   }
-}
-
-/**
- * 生成完整的 SOAP 笔记
- */
-export function generateSOAPNote(context: GenerationContext): SOAPNote {
-  assertTemplateSupported(context);
-  const subjective = generateSubjective(context);
-  const objective = generateObjective(context);
-  const assessment = generateAssessment(context);
-  const planContent = context.noteType === "IE" ? generatePlanIE(context) : "";
-  const needleProtocol = generateNeedleProtocol(context);
-
-  // 组合 Plan: 基本计划 + 针刺协议
-  const fullPlan =
-    context.noteType === "IE"
-      ? `${planContent}\n\n${needleProtocol}`
-      : needleProtocol;
-
-  return {
-    header: {
-      patientId: "",
-      visitDate: new Date().toISOString().split("T")[0],
-      noteType: context.noteType,
-      insuranceType: context.insuranceType,
-    },
-    subjective: {
-      visitType:
-        context.noteType === "IE" ? "INITIAL EVALUATION" : "Follow up visit",
-      chronicityLevel: context.chronicityLevel,
-      primaryBodyPart: {
-        bodyPart: context.primaryBodyPart,
-        laterality: context.laterality,
-      },
-      secondaryBodyParts: (context.secondaryBodyParts || []).map((bp) => ({
-        bodyPart: bp,
-        laterality: "unspecified" as Laterality,
-      })),
-      painTypes: ["Dull", "Aching"],
-      painRadiation: "without radiation",
-      symptomDuration: { value: 3, unit: "month(s)" },
-      associatedSymptoms: ["soreness", "stiffness"],
-      symptomPercentage: "70%",
-      causativeFactors: ["age related/degenerative changes"],
-      exacerbatingFactors: [
-        "Standing after sitting for long time",
-        "Prolong walking",
-      ],
-      relievingFactors: ["Changing positions", "Resting", "Massage"],
-      adlDifficulty: {
-        level: context.severityLevel,
-        activities: [
-          "Standing for long periods of time",
-          "Walking for long periods of time",
-        ],
-      },
-      activityChanges: ["decrease outside activity", "decrease walking time"],
-      painScale: { worst: 8, best: 4, current: 7 },
-      painFrequency:
-        "Frequent (symptoms occur between 51% and 75% of the time)",
-    },
-    objective: {
-      muscleTesting: {
-        tightness: {
-          muscles: ["longissimus", "Gluteal Muscles"],
-          gradingScale: context.severityLevel,
-        },
-        tenderness: {
-          muscles: ["Iliopsoas Muscle", "Quadratus Lumborum"],
-          gradingScale: "+3",
-        },
-        spasm: {
-          muscles: ["longissimus", "Iliopsoas Muscle"],
-          gradingScale: "+3",
-        },
-      },
-      rom: [
-        {
-          movement: "Flexion",
-          strength: "4-/5",
-          degrees: "60 Degrees(moderate)",
-        },
-        {
-          movement: "Extension",
-          strength: "3+/5",
-          degrees: "15 Degrees(moderate)",
-        },
-      ],
-      inspection: ["weak muscles and dry skin without luster"],
-      tonguePulse: {
-        tongue: TCM_PATTERNS[context.localPattern]?.tongue[0] || "normal",
-        pulse: TCM_PATTERNS[context.localPattern]?.pulse[0] || "normal",
-      },
-    },
-    assessment: {
-      tcmDiagnosis: {
-        localPattern: context.localPattern,
-        systemicPattern: context.systemicPattern,
-        bodyPart: BODY_PART_NAMES[context.primaryBodyPart],
-      },
-      treatmentPrinciples: {
-        focusOn:
-          TCM_PATTERNS[context.localPattern]?.treatmentPrinciples[0] ||
-          "promote circulation",
-        harmonize: "yin/yang",
-        purpose: "promote good essence",
-      },
-      evaluationArea: `${LATERALITY_NAMES[context.laterality]} ${BODY_PART_NAMES[context.primaryBodyPart]}`,
-    },
-    plan: {
-      evaluationType:
-        context.noteType === "IE" ? "Initial Evaluation" : "Re-Evaluation",
-      contactTime:
-        INSURANCE_NEEDLE_MAP[context.insuranceType] === "full" ? "60" : "15",
-      steps: [
-        "Greeting patient",
-        "Review of the chart",
-        "Examination",
-        "Treatment",
-      ],
-      shortTermGoal: {
-        treatmentFrequency: 12,
-        weeksDuration: "5-6",
-        painScaleTarget: "5-6",
-        symptomTargets: [{ symptom: "soreness", targetValue: "50%" }],
-      },
-      longTermGoal: {
-        treatmentFrequency: 8,
-        weeksDuration: "5-6",
-        painScaleTarget: "3",
-        symptomTargets: [{ symptom: "soreness", targetValue: "30%" }],
-      },
-      needleProtocol: {
-        needleSizes: ['34#x1"', '30#x1.5"', '30#x2"', '30#x3"'],
-        totalTime:
-          INSURANCE_NEEDLE_MAP[context.insuranceType] === "full" ? 60 : 15,
-        sections: [],
-      },
-    },
-    diagnosisCodes: [],
-    procedureCodes: [],
-  };
 }
 
 /**
