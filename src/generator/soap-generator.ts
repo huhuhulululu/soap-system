@@ -863,9 +863,9 @@ export function generateSubjective(context: GenerationContext): string {
           const pool =
             TEMPLATE_CAUSATIVES[context.primaryBodyPart as BodyPartKey] ||
             TEMPLATE_CAUSATIVES["LBP"];
-          const count = context.chronicityLevel === "Chronic" ? 2 : 1;
+          const count = context.chronicityLevel === "Chronic" ? 3 : 2;
           const weighted = calculateWeights(
-            "subjective.causatives",
+            "subjective.causativeFactors",
             [...pool],
             weightContext,
           );
