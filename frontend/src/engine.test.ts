@@ -9,9 +9,9 @@ import { computePatchedGoals } from "../../src/generator/objective-patch";
 import { setWhitelist } from "../../src/parser/template-rule-whitelist.browser";
 import {
   filterADLByDemographics,
-  ADL_MUSCLE_MAP,
   MUSCLE_SEVERITY_ORDER,
 } from "../../src/generator/soap-generator";
+import { MUSCLE_ADL_AFFINITY } from "../../src/shared/muscle-adl-affinity";
 import whitelistData from "./data/whitelist.json";
 
 // 初始化 whitelist (测试前必须)
@@ -471,20 +471,34 @@ describe("Phase 3: ADL/Muscle 模型", () => {
   });
 
   describe("3.5 ADL-Muscle 关联映射", () => {
+    // Helper: reverse Muscle→ADL to ADL→Muscle for a body part
+    function reverseAffinity(bp: string): Record<string, string[]> {
+      const muscleMap = MUSCLE_ADL_AFFINITY[bp] ?? {};
+      const result: Record<string, string[]> = {};
+      for (const [muscle, adls] of Object.entries(muscleMap)) {
+        for (const adl of adls) {
+          if (!result[adl]) result[adl] = [];
+          result[adl].push(muscle);
+        }
+      }
+      return result;
+    }
+
     it("LBP 所有 ADL 都有 muscle 映射", () => {
-      const lbpMap = ADL_MUSCLE_MAP["LBP"];
+      const lbpMap = reverseAffinity("LBP");
       expect(lbpMap).toBeDefined();
       expect(Object.keys(lbpMap).length).toBeGreaterThanOrEqual(5);
     });
 
-    it('KNEE "Going up and down stairs" 映射到 Rectus Femoris', () => {
-      const muscles = ADL_MUSCLE_MAP["KNEE"]["Going up and down stairs"];
+    it('KNEE "bending knee to sit position" 映射到 Rectus Femoris', () => {
+      const kneeMap = reverseAffinity("KNEE");
+      const muscles = kneeMap["bending knee to sit position"];
       expect(muscles).toContain("Rectus Femoris");
     });
 
-    it('SHOULDER "reach top of cabinet" 映射到 supraspinatus', () => {
-      const muscles =
-        ADL_MUSCLE_MAP["SHOULDER"]["reach top of cabinet to get object(s)"];
+    it('SHOULDER "Overhead activities" 映射到 supraspinatus', () => {
+      const shoulderMap = reverseAffinity("SHOULDER");
+      const muscles = shoulderMap["Overhead activities"];
       expect(muscles).toContain("supraspinatus");
     });
 

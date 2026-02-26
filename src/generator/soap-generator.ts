@@ -33,6 +33,14 @@ import {
   romLimitFactor,
   type ROMMovement,
 } from "../shared/body-part-constants";
+import type { BodyPartKey } from "../shared/template-options";
+import {
+  hasTemplateROM,
+  resolveTemplateMovementName,
+  getTemplateSeverityForPain,
+  pickTemplateROMDegrees,
+  getTemplateSeverityLabel,
+} from "../shared/rom-from-template";
 
 /**
  * 保险类型到针刺模板的映射
@@ -110,12 +118,6 @@ const LATERALITY_NAMES: Record<Laterality, string> = {
   bilateral: "bilateral",
   unspecified: "",
 };
-
-/** @deprecated 使用 BODY_PART_MUSCLES (from body-part-constants) */
-export const MUSCLE_MAP = BODY_PART_MUSCLES;
-
-/** @deprecated 使用 BODY_PART_ADL (from body-part-constants) */
-export const ADL_MAP = BODY_PART_ADL;
 
 /**
  * ADL 年龄+性别过滤规则
@@ -225,155 +227,6 @@ export function filterADLByDemographics(
     .filter((adl) => (weightMap.get(adl) ?? 0) > -50)
     .sort((a, b) => (weightMap.get(b) ?? 0) - (weightMap.get(a) ?? 0));
 }
-
-/**
- * ADL → Muscle 关联映射
- * 当患者报告某 ADL 困难时，优先关注哪些肌肉
- */
-export const ADL_MUSCLE_MAP: Record<string, Record<string, string[]>> = {
-  LBP: {
-    "Standing for long periods of time": [
-      "Iliopsoas Muscle",
-      "Quadratus Lumborum",
-    ],
-    "Walking for long periods of time": ["Gluteal Muscles", "Iliopsoas Muscle"],
-    "Bending over to wear/tie a shoe": [
-      "longissimus",
-      "The Multifidus muscles",
-    ],
-    "Rising from a chair": [
-      "Gluteal Muscles",
-      "Quadratus Lumborum",
-      "Iliopsoas Muscle",
-    ],
-    "Getting out of bed": ["The Multifidus muscles", "iliocostalis"],
-    "Going up and down stairs": ["Gluteal Muscles", "Iliopsoas Muscle"],
-    "Lifting objects": ["spinalis", "longissimus", "The Multifidus muscles"],
-  },
-  KNEE: {
-    "Going up and down stairs": [
-      "Rectus Femoris",
-      "Gluteus Maximus",
-      "Gastronemius muscle",
-    ],
-    "Rising from a chair": ["Rectus Femoris", "Gluteus Maximus"],
-    "Standing for long periods of time": [
-      "Rectus Femoris",
-      "Iliotibial Band ITB",
-      "Gluteus medius / minimus",
-    ],
-    "Walking for long periods of time": [
-      "Rectus Femoris",
-      "Hamstrings muscle group",
-      "Tibialis Post/ Anterior",
-    ],
-    "Bending over to wear/tie a shoe": [
-      "Hamstrings muscle group",
-      "Gastronemius muscle",
-    ],
-    "bending knee to sit position": [
-      "Rectus Femoris",
-      "Hamstrings muscle group",
-    ],
-    "bending down put in/out of the shoes": [
-      "Hamstrings muscle group",
-      "Gastronemius muscle",
-    ],
-  },
-  SHOULDER: {
-    "holding the pot for cooking": [
-      "middle deltoid",
-      "supraspinatus",
-      "bicep long head",
-    ],
-    "performing household chores": ["upper trapezius", "rhomboids"],
-    "working long time in front of computer": [
-      "upper trapezius",
-      "levator scapula",
-      "rhomboids",
-    ],
-    "reach top of cabinet to get object(s)": [
-      "supraspinatus",
-      "middle deltoid",
-      "upper trapezius",
-    ],
-    "raising up the hand to comb hair": [
-      "supraspinatus",
-      "greater tuberosity",
-      "middle deltoid",
-    ],
-    "put on/take off the clothes": [
-      "supraspinatus",
-      "greater tuberosity",
-      "lesser tuberosity",
-    ],
-    "pushing/pulling cart, box, door": [
-      "deltoid ant fibres",
-      "triceps short head",
-      "bicep long head",
-    ],
-  },
-  NECK: {
-    "Sit and watching TV over 20 mins": [
-      "Semispinalis capitis",
-      "Splenius capitis",
-    ],
-    "Tilting head to talking the phone": [
-      "Scalene anterior / med / posterior",
-      "Levator Scapulae",
-    ],
-    "Turning the head when crossing the street": [
-      "sternocleidomastoid muscles",
-      "Splenius capitis",
-    ],
-    "Looking down watching steps": [
-      "Semispinalis capitis",
-      "Suboccipital muscles",
-    ],
-    "Driving for long periods": [
-      "Trapezius",
-      "Levator Scapulae",
-      "Scalene anterior / med / posterior",
-    ],
-  },
-  HIP: {
-    "Walking for long periods": [
-      "Gluteus Maximus",
-      "Gluteus Medius",
-      "Iliopsoas",
-    ],
-    "Sitting for long periods": ["Iliopsoas", "Piriformis"],
-    "Getting in/out of car": ["Iliopsoas", "Gluteus Maximus", "Adductors"],
-    "Climbing stairs": ["Gluteus Maximus", "Gluteus Medius", "TFL"],
-    "Putting on socks/shoes": ["Iliopsoas", "Piriformis", "Adductors"],
-  },
-  ELBOW: {
-    "Lifting objects": ["Biceps", "Brachioradialis"],
-    "Carrying bags": ["Biceps", "Brachioradialis"],
-    "Opening doors": ["Supinator", "Pronator teres"],
-    Typing: ["Pronator teres", "Brachioradialis"],
-    Writing: ["Pronator teres", "Triceps"],
-  },
-  MID_LOW_BACK: {
-    "Standing for long periods of time": [
-      "Iliopsoas Muscle",
-      "Quadratus Lumborum",
-    ],
-    "Walking for long periods of time": ["Gluteal Muscles", "Iliopsoas Muscle"],
-    "Bending over to wear/tie a shoe": [
-      "longissimus",
-      "The Multifidus muscles",
-    ],
-    "Rising from a chair": [
-      "Gluteal Muscles",
-      "Quadratus Lumborum",
-      "Iliopsoas Muscle",
-    ],
-    "Getting out of bed": ["The Multifidus muscles", "iliocostalis"],
-    "Going up and down stairs": ["Gluteal Muscles", "Iliopsoas Muscle"],
-    "Lifting objects": ["spinalis", "longissimus", "The Multifidus muscles"],
-  },
-};
 
 /**
  * 每个部位的肌肉严重度排序 (受累时影响 ADL 最多的排前面)
@@ -1045,7 +898,7 @@ export function generateSubjective(context: GenerationContext): string {
     context.exacerbatingFactors && context.exacerbatingFactors.length > 0
       ? context.exacerbatingFactors
       : EXACERBATING_FACTORS_MAP[bp] || EXACERBATING_FACTORS_MAP["LBP"];
-  const rawAdl = ADL_MAP[bp] || ADL_MAP["LBP"];
+  const rawAdl = BODY_PART_ADL[bp] || BODY_PART_ADL["LBP"];
   const adlActivities = filterADLByDemographics(
     rawAdl,
     context.age,
@@ -1380,7 +1233,7 @@ function getKneeRomLabel(
 }
 
 /**
- * 生成 Objective 部分 (使用全局 MUSCLE_MAP 和 ROM_MAP)
+ * 生成 Objective 部分 (使用全局 BODY_PART_MUSCLES 和 ROM_MAP)
  * KNEE 模板段落顺序: Muscles Testing → ROM(左右分别) → Inspection
  * SHOULDER 模板段落顺序: Inspection → Muscles Testing → ROM
  */
@@ -1394,8 +1247,8 @@ export function generateObjective(
   const bp = context.primaryBodyPart;
   const effectiveSeverity = visitState?.severityLevel || context.severityLevel;
 
-  // 使用全局 MUSCLE_MAP
-  const muscles = MUSCLE_MAP[bp] || ["local muscles"];
+  // 使用全局 BODY_PART_MUSCLES
+  const muscles = BODY_PART_MUSCLES[bp] || ["local muscles"];
 
   // 获取身体部位特有配置
   const tenderLabel = getConfig(TENDERNESS_LABEL_MAP, bp);
@@ -1571,67 +1424,96 @@ export function generateObjective(
   };
 
   if (bp === "KNEE" && laterality === "bilateral") {
-    // KNEE 双侧
+    // KNEE 双侧 — pick from TEMPLATE_ROM discrete options
     const sides = ["Right", "Left"] as const;
     sides.forEach((side) => {
       const adjustedPain =
         side === "Left" ? painLevel : Math.max(1, painLevel - 1);
       const sideOffset = side === "Left" ? 0 : 1;
-      const romAdj = side === "Left" ? 0 : 5;
       objective += `${side} Knee Muscles Strength and Joint ROM:\n\n`;
       if (romData) {
         romData.forEach((rom, i) => {
-          const { strength, romValue, limitation } = computeRom(
+          const { strength } = computeRom(
             rom,
             i,
             sideOffset,
             adjustedPain,
-            romAdj,
+            side === "Left" ? 0 : 5,
           );
-          // KNEE ROM 吸附到下拉框选项
+          const templateMovName = resolveTemplateMovementName(
+            "KNEE",
+            rom.movement,
+          );
+          const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
+          const severity = getTemplateSeverityForPain(adjustedPain);
+          const templateDegrees = pickTemplateROMDegrees(
+            "KNEE",
+            templateMovName,
+            severity,
+            rngValue,
+          );
           const reductionPct =
-            rom.normalDegrees > 0 ? 1 - romValue / rom.normalDegrees : 0;
+            rom.normalDegrees > 0 ? 1 - templateDegrees / rom.normalDegrees : 0;
           objective += `${strength} ${rom.movement}: ${getKneeRomLabel(rom, reductionPct)}\n`;
         });
       }
       objective += `\n`;
     });
   } else if (bp === "KNEE") {
-    // KNEE 单侧
+    // KNEE 单侧 — pick from TEMPLATE_ROM discrete options
     const sideLabel = laterality === "left" ? "Left" : "Right";
     objective += `${sideLabel} Knee Muscles Strength and Joint ROM:\n\n`;
     if (romData) {
       romData.forEach((rom, i) => {
         const { strength } = computeRom(rom, i, 0, painLevel, 0);
+        const templateMovName = resolveTemplateMovementName(
+          "KNEE",
+          rom.movement,
+        );
+        const rngValue = [0.3, 0.5, 0.7][i % 3];
+        const severity = getTemplateSeverityForPain(painLevel);
+        const templateDegrees = pickTemplateROMDegrees(
+          "KNEE",
+          templateMovName,
+          severity,
+          rngValue,
+        );
         const reductionPct =
-          rom.normalDegrees > 0
-            ? 1 -
-              calculateRomValue(rom.normalDegrees, painLevel, rom.difficulty) /
-                rom.normalDegrees
-            : 0;
+          rom.normalDegrees > 0 ? 1 - templateDegrees / rom.normalDegrees : 0;
         objective += `${strength} ${rom.movement}: ${getKneeRomLabel(rom, reductionPct)}\n`;
       });
     }
     objective += `\n`;
   } else if (bp === "SHOULDER") {
-    // SHOULDER: 模板格式精确匹配 + v9.0 计算引擎
+    // SHOULDER: 模板格式精确匹配 — pick from TEMPLATE_ROM discrete options
     const renderShoulderRom = (side: string) => {
       const isLeft = side === "Left";
       const adjustedPain = isLeft ? painLevel : Math.max(1, painLevel - 1);
       const sideOffset = isLeft ? 0 : 1;
-      const romAdj = isLeft ? 0 : 5;
       objective += `${side} Shoulder Muscles Strength and Joint ROM\n`;
       if (romData) {
         romData.forEach((rom, i) => {
-          const { strength, romValue, limitation } = computeRom(
+          const { strength } = computeRom(
             rom,
             i,
             sideOffset,
             adjustedPain,
-            romAdj,
+            isLeft ? 0 : 5,
+          );
+          const templateMovName = resolveTemplateMovementName(
+            "SHOULDER",
+            rom.movement,
+          );
+          const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
+          const severity = getTemplateSeverityForPain(adjustedPain);
+          const templateDegrees = pickTemplateROMDegrees(
+            "SHOULDER",
+            templateMovName,
+            severity,
+            rngValue,
           );
           const reductionPct =
-            rom.normalDegrees > 0 ? 1 - romValue / rom.normalDegrees : 0;
+            rom.normalDegrees > 0 ? 1 - templateDegrees / rom.normalDegrees : 0;
           const label = getShoulderRomLabel(
             rom.movement,
             rom.normalDegrees,
@@ -1698,7 +1580,36 @@ export function generateObjective(
           painLevel,
           romAdj,
         );
-        objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})\n`;
+
+        // Use TEMPLATE_ROM discrete options when available
+        if (hasTemplateROM(bp)) {
+          const templateMovName = resolveTemplateMovementName(bp, rom.movement);
+          const variationSeed = index % 3;
+          const rngValue = [0.3, 0.5, 0.7][variationSeed];
+          const effectivePainForTemplate = visitState
+            ? Math.max(1, painLevel - romAdj * 0.3)
+            : painLevel;
+          const severity = getTemplateSeverityForPain(effectivePainForTemplate);
+          const templateDegrees = pickTemplateROMDegrees(
+            bp as BodyPartKey,
+            templateMovName,
+            severity,
+            rngValue,
+          );
+          if (templateDegrees !== null) {
+            const templateSeverity = getTemplateSeverityLabel(
+              bp as BodyPartKey,
+              templateMovName,
+              templateDegrees,
+            );
+            objective += `${strength} ${rom.movement}: ${templateDegrees} ${degreeLabel}(${templateSeverity})\n`;
+          } else {
+            // Movement not in TEMPLATE_ROM — fall back to formula
+            objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})\n`;
+          }
+        } else {
+          objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})\n`;
+        }
       });
     }
     objective += `\n`;
@@ -2235,7 +2146,7 @@ export function generateSubjectiveTX(
     visitState?.associatedSymptom || selectBestOption(weightedSymptoms);
 
   // 权重选择: ADL 活动 (TX KNEE 有两组)
-  const adlActivities = ADL_MAP[bp] || ADL_MAP["LBP"];
+  const adlActivities = BODY_PART_ADL[bp] || BODY_PART_ADL["LBP"];
   const weightedAdl = calculateWeights(
     "subjective.adlDifficulty.activities",
     adlActivities,

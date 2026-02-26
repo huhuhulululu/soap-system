@@ -2,8 +2,7 @@
  * Muscle → ADL affinity mapping.
  *
  * When specific muscles are tight/tender, certain ADL activities
- * are more likely to be impaired. This is the reverse direction of
- * the old ADL_MUSCLE_MAP in soap-generator.ts (ADL→Muscle).
+ * are more likely to be impaired (reverse direction: Muscle→ADL).
  *
  * All muscle names and ADL names MUST match template-options.ts exactly.
  */
