@@ -1418,7 +1418,8 @@ export function generateTXSequenceStates(
     // Phase D: reason 轮换 — 避免总是同一个 reason
     const POSITIVE_REASONS_LIST = Array.from(POSITIVE_REASONS);
     const NEUTRAL_REASONS = [
-      "maintain regular treatments",
+      "continuous treatment",
+      "still need more treatments to reach better effect",
       "body is adjusting to treatment",
       "consistent treatment schedule",
       "gradual recovery process",
