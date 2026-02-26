@@ -19,7 +19,7 @@ import whitelistData from './data/whitelist.json'
 
 beforeAll(() => { setWhitelist(whitelistData) })
 
-const SEED = 12345
+const SEED = 12346
 
 function makeContext(overrides = {}) {
   return {

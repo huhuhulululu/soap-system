@@ -41,8 +41,13 @@ export interface GoalPathInput {
 }
 
 /**
- * 在一个 visit 范围内均匀分配 drops 次降级，加 rng ±1 抖动。
- * 返回降级发生的 visit index 列表。
+ * 在一个 visit 范围内随机分配 drops 次降级，保证最小间距。
+ * 每个 drop 消耗恰好 1 次 rng() 调用（与旧策略一致，不偏移 PRNG 序列长度）。
+ * 返回降级发生的 visit index 列表（升序）。
+ *
+ * 旧策略 (center-biased) 用 interval = rangeLen / (drops+1)，
+ * 导致 drops 集中在范围中央，头尾 visit 永远空。
+ * 新策略: 从全范围候选中随机选取，保证 minGap 间距，覆盖更均匀。
  */
 function distributeDrops(
   drops: number,
@@ -58,33 +63,32 @@ function distributeDrops(
     return Array.from({ length: rangeLen }, (_, i) => rangeStart + i);
   }
 
-  // 均匀间隔分配
-  const interval = rangeLen / (drops + 1);
+  // 最小间距: 保证 drops 不会挤在一起，但不要太大以免限制覆盖范围
+  const minGap =
+    drops === 1 ? 0 : Math.max(1, Math.floor(rangeLen / (drops + 1)) - 1);
   const visits: number[] = [];
+  const used = new Set<number>();
 
-  for (let d = 1; d <= drops; d++) {
-    const base = Math.round(rangeStart + interval * d - 1);
-    // ±1 抖动
-    const r = rng();
-    const jitter = r < 0.33 ? -1 : r < 0.67 ? 1 : 0;
-    const visit = Math.max(rangeStart, Math.min(rangeEnd, base + jitter));
-    visits.push(visit);
-  }
-
-  // 去重 + 排序
-  const unique = Array.from(new Set(visits)).sort((a, b) => a - b);
-
-  // 如果去重后少了，尝试补回
-  if (unique.length < drops) {
-    for (let v = rangeStart; v <= rangeEnd && unique.length < drops; v++) {
-      if (!unique.includes(v)) {
-        unique.push(v);
-        unique.sort((a, b) => a - b);
+  for (let d = 0; d < drops; d++) {
+    const candidates: number[] = [];
+    for (let v = rangeStart; v <= rangeEnd; v++) {
+      if (used.has(v)) continue;
+      let tooClose = false;
+      for (const u of used) {
+        if (Math.abs(v - u) < minGap) {
+          tooClose = true;
+          break;
+        }
       }
+      if (!tooClose) candidates.push(v);
     }
+    if (candidates.length === 0) break;
+    const pick = candidates[Math.floor(rng() * candidates.length)];
+    visits.push(pick);
+    used.add(pick);
   }
 
-  return unique.slice(0, drops);
+  return visits.sort((a, b) => a - b);
 }
 
 /**
@@ -208,18 +212,29 @@ export function computeGoalPaths(
   {
     const stDrops = pain.changeVisits.filter((v) => v <= stBoundary);
     const ltDrops = pain.changeVisits.filter((v) => v > stBoundary);
-    const enforceGap = (drops: number[], maxV: number): number[] => {
+    const enforceGap = (
+      drops: number[],
+      minV: number,
+      maxV: number,
+    ): number[] => {
       const sorted = [...drops].sort((a, b) => a - b);
+      // Forward pass: push later drops forward
       for (let i = 1; i < sorted.length; i++) {
         if (sorted[i] - sorted[i - 1] < 2) {
           sorted[i] = Math.min(sorted[i - 1] + 2, maxV);
         }
       }
+      // Backward pass: if forward push hit maxV, pull earlier drops back
+      for (let i = sorted.length - 2; i >= 0; i--) {
+        if (sorted[i + 1] - sorted[i] < 2) {
+          sorted[i] = Math.max(sorted[i + 1] - 2, minV);
+        }
+      }
       return sorted;
     };
     pain.changeVisits = [
-      ...enforceGap(stDrops, stBoundary),
-      ...enforceGap(ltDrops, txCount),
+      ...enforceGap(stDrops, painSTStart, stBoundary),
+      ...enforceGap(ltDrops, stBoundary + 1, txCount),
     ];
   }
 
