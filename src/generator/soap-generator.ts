@@ -1452,8 +1452,9 @@ export function generateObjective(
             severity,
             rngValue,
           );
+          const degrees = templateDegrees ?? rom.normalDegrees;
           const reductionPct =
-            rom.normalDegrees > 0 ? 1 - templateDegrees / rom.normalDegrees : 0;
+            rom.normalDegrees > 0 ? 1 - degrees / rom.normalDegrees : 0;
           objective += `${strength} ${rom.movement}: ${getKneeRomLabel(rom, reductionPct)}\n`;
         });
       }
@@ -1478,8 +1479,9 @@ export function generateObjective(
           severity,
           rngValue,
         );
+        const degrees = templateDegrees ?? rom.normalDegrees;
         const reductionPct =
-          rom.normalDegrees > 0 ? 1 - templateDegrees / rom.normalDegrees : 0;
+          rom.normalDegrees > 0 ? 1 - degrees / rom.normalDegrees : 0;
         objective += `${strength} ${rom.movement}: ${getKneeRomLabel(rom, reductionPct)}\n`;
       });
     }
@@ -1513,7 +1515,7 @@ export function generateObjective(
             rngValue,
           );
           const reductionPct =
-            rom.normalDegrees > 0 ? 1 - templateDegrees / rom.normalDegrees : 0;
+            rom.normalDegrees > 0 ? 1 - (templateDegrees ?? rom.normalDegrees) / rom.normalDegrees : 0;
           const label = getShoulderRomLabel(
             rom.movement,
             rom.normalDegrees,
