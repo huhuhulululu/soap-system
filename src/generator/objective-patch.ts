@@ -1104,7 +1104,7 @@ function patchPlanGoals(fullText: string, context: GenerationContext): string {
     deriveBasePain(context),
     context.severityLevel || "moderate to severe",
     context.primaryBodyPart,
-    context.associatedSymptom || "soreness",
+    context.associatedSymptoms?.[0] || "soreness",
     {
       medicalHistory: context.medicalHistory,
       age: context.age,
@@ -1130,7 +1130,7 @@ function patchPlanGoals(fullText: string, context: GenerationContext): string {
   );
   planText = planText.replace(
     /Decrease \w+ sensation Scale to [^\n]+/,
-    `Decrease ${context.associatedSymptom || "soreness"} sensation Scale to ${goals.symptomPct.st}`,
+    `Decrease ${context.associatedSymptoms?.[0] || "soreness"} sensation Scale to ${goals.symptomPct.st}`,
   );
   planText = planText.replace(
     /Decrease Muscles Tightness to [^\n]+/,
@@ -1159,7 +1159,7 @@ function patchPlanGoals(fullText: string, context: GenerationContext): string {
     );
     ltPart = ltPart.replace(
       /Decrease \w+ sensation Scale to [^\n]+/,
-      `Decrease ${context.associatedSymptom || "soreness"} sensation Scale to ${goals.symptomPct.lt}`,
+      `Decrease ${context.associatedSymptoms?.[0] || "soreness"} sensation Scale to ${goals.symptomPct.lt}`,
     );
     const tightnessLT = goals.tightness.lt.replace(/ to /g, "-");
     ltPart = ltPart.replace(

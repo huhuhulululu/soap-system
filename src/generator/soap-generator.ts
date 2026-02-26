@@ -35,6 +35,11 @@ import {
 } from "../shared/body-part-constants";
 import type { BodyPartKey } from "../shared/template-options";
 import {
+  TEMPLATE_CAUSATIVES,
+  TEMPLATE_CONDITION_IMPACT,
+  TEMPLATE_RELIEVING,
+} from "../shared/template-options";
+import {
   hasTemplateROM,
   resolveTemplateMovementName,
   getTemplateSeverityForPain,
@@ -823,16 +828,6 @@ export function generateSubjective(context: GenerationContext): string {
     context.medicalHistory && context.medicalHistory.length > 0
       ? context.medicalHistory.join(", ")
       : "N/A";
-  // 病因和缓解因素: 优先用户选择，回退到部位推导
-  const causatives =
-    context.causativeFactors && context.causativeFactors.length > 0
-      ? context.causativeFactors
-      : ["age related/degenerative changes"];
-  const relievers =
-    context.relievingFactors && context.relievingFactors.length > 0
-      ? context.relievingFactors
-      : ["Changing positions", "Resting", "Massage"];
-
   // 根据证型选择疼痛类型
   const painTypeOptions = [
     "Dull",
@@ -860,6 +855,45 @@ export function generateSubjective(context: GenerationContext): string {
     hasPacemaker: context.hasPacemaker,
   };
 
+  // 病因: 优先用户选择，回退到权重系统
+  const causatives =
+    context.causativeFactors && context.causativeFactors.length > 0
+      ? context.causativeFactors
+      : (() => {
+          const pool =
+            TEMPLATE_CAUSATIVES[context.primaryBodyPart as BodyPartKey] ||
+            TEMPLATE_CAUSATIVES["LBP"];
+          const count = context.chronicityLevel === "Chronic" ? 2 : 1;
+          const weighted = calculateWeights(
+            "subjective.causatives",
+            [...pool],
+            weightContext,
+          );
+          return selectBestOptions(weighted, count);
+        })();
+
+  // 缓解因素: 优先用户选择，回退到权重系统
+  const relievers =
+    context.relievingFactors && context.relievingFactors.length > 0
+      ? context.relievingFactors
+      : (() => {
+          const pool =
+            TEMPLATE_RELIEVING[context.primaryBodyPart as BodyPartKey] ||
+            TEMPLATE_RELIEVING["LBP"];
+          const count =
+            context.primaryBodyPart === "SHOULDER"
+              ? 1
+              : context.primaryBodyPart === "NECK"
+                ? 2
+                : 3;
+          const weighted = calculateWeights(
+            "subjective.relievingFactors",
+            [...pool],
+            weightContext,
+          );
+          return selectBestOptions(weighted, count);
+        })();
+
   // Pain Types: 优先使用用户选择，回退到权重系统
   const selectedPainTypes =
     context.painTypes && context.painTypes.length > 0
@@ -874,9 +908,10 @@ export function generateSubjective(context: GenerationContext): string {
         );
 
   // 获取身体部位特有配置 — 优先使用用户输入
-  const associatedSymptoms = context.associatedSymptom
-    ? [context.associatedSymptom]
-    : getConfig(ASSOCIATED_SYMPTOMS_MAP, context.primaryBodyPart);
+  const associatedSymptoms =
+    context.associatedSymptoms && context.associatedSymptoms.length > 0
+      ? context.associatedSymptoms
+      : getConfig(ASSOCIATED_SYMPTOMS_MAP, context.primaryBodyPart);
   const symptomScale =
     context.symptomScale ??
     getConfig(SYMPTOM_SCALE_MAP, context.primaryBodyPart);
@@ -936,7 +971,22 @@ export function generateSubjective(context: GenerationContext): string {
 
     subjective += `${relievers.join(", ")} can temporarily relieve the pain slightly but limited. `;
 
-    subjective += `Patient has decrease outside activity, `;
+    const shoulderImpactPool =
+      TEMPLATE_CONDITION_IMPACT[bp as BodyPartKey] ||
+      TEMPLATE_CONDITION_IMPACT["LBP"];
+    const shoulderImpactOptions = [...shoulderImpactPool].filter(
+      (opt) => !["normal activity", "maintain regular schedule"].includes(opt),
+    );
+    const weightedShoulderImpact = calculateWeights(
+      "subjective.conditionImpact",
+      shoulderImpactOptions,
+      weightContext,
+    );
+    const selectedShoulderImpacts = selectBestOptions(
+      weightedShoulderImpact,
+      2,
+    );
+    subjective += `Patient has ${selectedShoulderImpacts.join(", ")}, `;
     subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`;
 
     if (context.secondaryBodyParts && context.secondaryBodyParts.length > 0) {
@@ -975,7 +1025,19 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `${relievers.join(", ")} can temporarily relieve the pain slightly but limited. `;
 
     // 活动变化 + 未改善
-    subjective += `Patient has decrease outside activity, `;
+    const neckImpactPool =
+      TEMPLATE_CONDITION_IMPACT[bp as BodyPartKey] ||
+      TEMPLATE_CONDITION_IMPACT["LBP"];
+    const neckImpactOptions = [...neckImpactPool].filter(
+      (opt) => !["normal activity", "maintain regular schedule"].includes(opt),
+    );
+    const weightedNeckImpact = calculateWeights(
+      "subjective.conditionImpact",
+      neckImpactOptions,
+      weightContext,
+    );
+    const selectedNeckImpacts = selectBestOptions(weightedNeckImpact, 2);
+    subjective += `Patient has ${selectedNeckImpacts.join(", ")}, `;
     subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`;
 
     // 次要部位 - NECK 比较区域用 "Cervical" 或 "neck and upper back"
@@ -998,10 +1060,29 @@ export function generateSubjective(context: GenerationContext): string {
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(", ")} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(", ")}.\n\n`;
 
     const selectedAdl = selectBestOptions(weightedAdl, 3);
-    subjective += `The pain is aggravated by ${exacerbatingFactors.slice(0, 1).join(", ")} . There is ${context.severityLevel} difficulty with ADLs like ${selectedAdl.join(", ")}.\n\n`;
+    const exacCount = bp === "KNEE" ? 1 : bp === "LBP" ? 3 : 2;
+    const weightedExac = calculateWeights(
+      "subjective.exacerbatingFactors",
+      exacerbatingFactors,
+      weightContext,
+    );
+    const selectedExac = selectBestOptions(weightedExac, exacCount);
+    subjective += `The pain is aggravated by ${selectedExac.join(", ")} . There is ${context.severityLevel} difficulty with ADLs like ${selectedAdl.join(", ")}.\n\n`;
 
     subjective += `${relievers.join(", ")} can temporarily relieve the pain. `;
-    subjective += `Due to this condition patient has decrease outside activity. `;
+    const defaultImpactPool =
+      TEMPLATE_CONDITION_IMPACT[bp as BodyPartKey] ||
+      TEMPLATE_CONDITION_IMPACT["LBP"];
+    const defaultImpactOptions = [...defaultImpactPool].filter(
+      (opt) => !["normal activity", "maintain regular schedule"].includes(opt),
+    );
+    const weightedDefaultImpact = calculateWeights(
+      "subjective.conditionImpact",
+      defaultImpactOptions,
+      weightContext,
+    );
+    const selectedDefaultImpacts = selectBestOptions(weightedDefaultImpact, 2);
+    subjective += `Due to this condition patient has ${selectedDefaultImpacts.join(", ")}. `;
     subjective += `The pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`;
 
     // 次要部位
@@ -1515,7 +1596,9 @@ export function generateObjective(
             rngValue,
           );
           const reductionPct =
-            rom.normalDegrees > 0 ? 1 - (templateDegrees ?? rom.normalDegrees) / rom.normalDegrees : 0;
+            rom.normalDegrees > 0
+              ? 1 - (templateDegrees ?? rom.normalDegrees) / rom.normalDegrees
+              : 0;
           const label = getShoulderRomLabel(
             rom.movement,
             rom.normalDegrees,
@@ -1732,8 +1815,8 @@ export function generatePlanIE(context: GenerationContext): string {
   const bp = context.primaryBodyPart;
   const severity = context.severityLevel || "moderate to severe";
 
-  // 动态计算 Goals (使用 context 中的 associatedSymptom 和实际 pain)
-  const symptomType = context.associatedSymptom || "soreness";
+  // 动态计算 Goals (使用 context 中的 associatedSymptoms 和实际 pain)
+  const symptomType = context.associatedSymptoms?.[0] || "soreness";
   const painCurrent = context.painCurrent ?? 8;
   const goals = computePatchedGoals(painCurrent, severity, bp, symptomType, {
     medicalHistory: context.medicalHistory,
@@ -1949,6 +2032,12 @@ const TX_MAINTENANCE_REASON_OPTIONS = [
   "uncertain reason",
 ];
 
+const TX_SIMILAR_REASON_OPTIONS = [
+  "continuous treatment",
+  "still need more treatments to reach better effect",
+  "uncertain reason",
+];
+
 function applyTxReasonChain(
   weightedReasons: WeightedOption[],
   selectedChange: string,
@@ -1999,7 +2088,7 @@ function applyTxReasonChain(
         bonus += 35;
         extraReasons.push("复诊加重优先匹配模板负向原因");
       }
-      if (isSimilar && TX_MAINTENANCE_REASON_OPTIONS.includes(item.option)) {
+      if (isSimilar && TX_SIMILAR_REASON_OPTIONS.includes(item.option)) {
         bonus += 30;
         extraReasons.push("症状相近优先匹配模板维持/待观察原因");
       }
@@ -2402,13 +2491,10 @@ export function generatePlanTX(context: GenerationContext): string {
   );
   const selectedVerb = selectBestOption(weightedVerb);
 
-  // 权重选择: 治则内容 (基于证型)
-  const weightedTreatment = calculateWeights(
-    "plan.treatmentPrinciples",
-    TX_TREATMENT_OPTIONS,
-    weightContext,
-  );
-  const selectedTreatment = selectBestOption(weightedTreatment);
+  // 治则内容: 直接使用 localPattern 的 treatmentPrinciples（与 IE Assessment 一致）
+  const selectedTreatment =
+    localPattern?.treatmentPrinciples?.[0] ||
+    "promote circulation, relieves pain";
 
   let plan = `Today's treatment principles:\n`;
   plan += `${selectedVerb} on ${selectedTreatment} to speed up the recovery, soothe the tendon.`;

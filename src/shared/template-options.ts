@@ -1017,6 +1017,34 @@ export const TEMPLATE_RELIEVING: Record<BodyPartKey, readonly string[]> = {
   THIGH: RELIEVING_WITHOUT_MEDICATIONS,
 } as const;
 
+// ─── Condition Impact ────────────────────────────────────────────────
+
+const CONDITION_IMPACT_OPTIONS = [
+  "decrease outside activity",
+  "stay in bed",
+  "decrease housework",
+  "decrease standing time",
+  "decrease walking time",
+  "decrease sitting time",
+  "decrease time working with computer",
+  "decrease climb stairs",
+  "decrease exercise",
+  "normal activity",
+  "maintain regular schedule",
+  "irregular schedule",
+] as const;
+
+export const TEMPLATE_CONDITION_IMPACT: Record<BodyPartKey, readonly string[]> =
+  {
+    LBP: CONDITION_IMPACT_OPTIONS,
+    NECK: CONDITION_IMPACT_OPTIONS,
+    SHOULDER: CONDITION_IMPACT_OPTIONS,
+    KNEE: CONDITION_IMPACT_OPTIONS,
+    ELBOW: CONDITION_IMPACT_OPTIONS,
+    HIP: CONDITION_IMPACT_OPTIONS,
+    THIGH: CONDITION_IMPACT_OPTIONS,
+  } as const;
+
 // ─── Causative Factors ───────────────────────────────────────────────
 
 const CAUSATIVES_FULL = [
