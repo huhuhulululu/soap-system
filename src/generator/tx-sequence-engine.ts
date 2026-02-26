@@ -756,6 +756,7 @@ export function generateTXSequenceStates(
   let prevRomDeficit = Math.min(0.7, 0.42 + medAdjustments.romDeficitBump);
   let prevStrengthDeficit = 0.35;
   // 纵向单调约束追踪变量
+  let prevPainForSeverity = startPain;
   let prevSeverity: SeverityLevel = severityFromPain(
     options.initialState?.pain ?? 8,
   );
@@ -1024,7 +1025,7 @@ export function generateTXSequenceStates(
     const adlImproved = adlADrop || adlBDrop;
 
     // severityLevel: 基于 pain，ADL 改善时最多降 1 档，纵向只降不升
-    const baseSeverity = severityFromPain(painScaleCurrent);
+    const baseSeverity = severityFromPain(prevPainForSeverity);
     const severityOrder: SeverityLevel[] = [
       "mild",
       "mild to moderate",
@@ -1046,6 +1047,7 @@ export function generateTXSequenceStates(
       severityLevel = prevSeverity;
     }
     prevSeverity = severityLevel;
+    prevPainForSeverity = painScaleCurrent;
 
     // Muscle reduction: pure (no RNG), trims based on current severity
     const visitMuscles = reduceMuscles(initialMuscles, severityLevel);
