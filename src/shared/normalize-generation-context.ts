@@ -110,11 +110,18 @@ export function normalizeGenerationContext(
   const chronicityLevel = input.chronicityLevel ?? "Chronic";
   const painTypes = input.painTypes ? [...input.painTypes] : ["Dull", "Aching"];
   const associatedSymptom = input.associatedSymptom ?? "soreness";
+  const associatedSymptoms: Array<
+    "soreness" | "weakness" | "stiffness" | "heaviness" | "numbness"
+  > = input.associatedSymptoms
+    ? ([...input.associatedSymptoms] as Array<
+        "soreness" | "weakness" | "stiffness" | "heaviness" | "numbness"
+      >)
+    : ([associatedSymptom] as Array<
+        "soreness" | "weakness" | "stiffness" | "heaviness" | "numbness"
+      >);
 
   // TCM inference (overridable by compose user selections)
-  const symptomsForInference = input.associatedSymptoms
-    ? [...input.associatedSymptoms]
-    : [associatedSymptom];
+  const symptomsForInference = [...associatedSymptoms];
   const localCandidates = inferLocalPatterns(
     painTypes,
     symptomsForInference,
@@ -160,7 +167,7 @@ export function normalizeGenerationContext(
     painWorst: input.painWorst,
     painBest: input.painBest,
     painTypes,
-    associatedSymptom,
+    associatedSymptoms,
     symptomDuration: input.symptomDuration
       ? { ...input.symptomDuration }
       : undefined,

@@ -299,12 +299,9 @@ export interface GenerationContext {
    * - 'heaviness': 沉重
    * - 'numbness': 麻木
    */
-  associatedSymptom?:
-    | "soreness"
-    | "weakness"
-    | "stiffness"
-    | "heaviness"
-    | "numbness";
+  associatedSymptoms?: Array<
+    "soreness" | "weakness" | "stiffness" | "heaviness" | "numbness"
+  >;
   /** 用户实际输入的当前疼痛值 (数字, 0-10) */
   painCurrent?: number;
   /** 用户输入的最痛评分 (数字, 0-10) */
