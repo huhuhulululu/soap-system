@@ -412,6 +412,101 @@ export function weightAdl(
 /**
  * 根据字段路径选择合适的权重函数
  */
+
+/**
+ * 计算病因权重 — 根据 bodyPart、chronicityLevel、pattern 差异化选择
+ */
+function weightCausativeFactors(
+  options: string[],
+  context: WeightContext,
+): WeightedOption[] {
+  const bp = context.bodyPart;
+  const isChronic = context.chronicityLevel === "Chronic";
+  const isHighPain = context.painScale >= 7;
+
+  // Body-part specific boosts
+  const NECK_BOOST = new Set([
+    "overworking in computer",
+    "excessive used of phone/tablet",
+    "sitting over 30 mins with bad posture",
+    "prolong sitting",
+  ]);
+  const LBP_BOOST = new Set([
+    "prolong sitting",
+    "lifting too much weight",
+    "strain when pick up heavy object from floor",
+    "prolong walking",
+    "longtime driving",
+  ]);
+  const KNEE_BOOST = new Set([
+    "prolong walking",
+    "climb too much stairs",
+    "intense excise",
+  ]);
+  const SHOULDER_BOOST = new Set([
+    "over used due to nature of work",
+    "over used due to heavy household chores",
+    "repetitive strain from activities in the past",
+    "hurt myself during exercise",
+  ]);
+
+  const bpBoostMap: Record<string, Set<string>> = {
+    NECK: NECK_BOOST,
+    LBP: LBP_BOOST,
+    KNEE: KNEE_BOOST,
+    SHOULDER: SHOULDER_BOOST,
+    ELBOW: SHOULDER_BOOST,
+  };
+  const bpBoost = bpBoostMap[bp] || LBP_BOOST;
+
+  // Cold-pattern boost
+  const coldPatterns = new Set(["Wind-Cold Invasion", "Phlegm-Damp", "Kidney Yang Deficiency"]);
+  const hasColdPattern = coldPatterns.has(context.localPattern) || coldPatterns.has(context.systemicPattern);
+  const COLD_OPTIONS = new Set([
+    "expose to the cold air for more than 20 mins",
+    "live in too cold environment",
+    "weather change",
+  ]);
+
+  return options.map((option) => {
+    let weight = 40;
+    const reasons: string[] = [];
+
+    // Chronic always boosts age-related
+    if (option === "age related/degenerative changes" && isChronic) {
+      weight += 30;
+      reasons.push("chronic + degenerative");
+    }
+
+    // Body-part specific
+    if (bpBoost.has(option)) {
+      weight += 25;
+      reasons.push(`${bp} relevant`);
+    }
+
+    // Cold pattern boosts cold-related causatives
+    if (hasColdPattern && COLD_OPTIONS.has(option)) {
+      weight += 20;
+      reasons.push("cold pattern");
+    }
+
+    // High pain boosts overuse/strain
+    if (isHighPain && (option.includes("over used") || option.includes("strain") || option.includes("sprain"))) {
+      weight += 15;
+      reasons.push("high pain + overuse/strain");
+    }
+
+    // Poor sleep is common across all
+    if (option === "poor sleep" && isHighPain) {
+      weight += 10;
+      reasons.push("high pain + poor sleep");
+    }
+
+    if (reasons.length === 0) reasons.push("base weight");
+    return { option, weight, reasons };
+  });
+}
+
 export function calculateWeights(
   fieldPath: string,
   options: string[],
@@ -446,6 +541,10 @@ export function calculateWeights(
   }
   if (options.some((o) => ["15", "30", "45", "60"].includes(o))) {
     return weightOperationTime(options, context);
+  }
+
+  if (fieldPath.includes("causative")) {
+    return weightCausativeFactors(options, context);
   }
 
   // 默认权重
