@@ -1583,7 +1583,9 @@ export function generateTXSequenceStates(
         finalReason = "did not have good rest";
       if (finalConnector !== "due to" && finalConnector !== "because of")
         finalConnector = "due to";
-      rng(); // consume to match 2nd-reason pick in other branches
+      rng(); // consume: match 1st-reason pick in other branches
+      rng(); // consume: match 2nd-reason pick in other branches
+      rng(); // consume: match connector pick in other branches
     } else if (isSimilar) {
       // Shuffle bag with anti-repeat for neutral reasons
       if (neutralShuffleBag.length === 0) {
@@ -1646,6 +1648,7 @@ export function generateTXSequenceStates(
       finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
       lastUsedReason = finalReason;
       finalConnector = "due to";
+      rng(); // consume: match connector pick in improvement/similar branches
     }
 
     // Associated Symptom: 继承用户输入(initialState)，后期逐步减轻
