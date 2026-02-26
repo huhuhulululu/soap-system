@@ -3,7 +3,7 @@
 exports[`Fixture Snapshots > snapshot: ELBOW-left-early-3tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of recovery plateau is expected at this stage .
+Patient reports: there is similar symptom(s) as last visit may related of body needs time to consolidate gains .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 5-4 /10
@@ -265,7 +265,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of holding the pot for cooking, performing household chores and mild to moderate difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 5-4 /10
@@ -317,7 +317,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintaining current functional level .
+Patient reports: there is similar symptom(s) as last visit may related of body needs time to consolidate gains .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of holding the pot for cooking, performing household chores and mild to moderate difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 4 /10
@@ -369,7 +369,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 4 /10
@@ -629,7 +629,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit and still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 3 /10
@@ -681,7 +681,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 3 /10
@@ -889,7 +889,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of body needs time to consolidate gains .
+Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 3 /10
@@ -1149,7 +1149,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 2 /10
@@ -1463,7 +1463,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit and treatment plan is on track .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 3 /10
@@ -1671,7 +1671,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of holding the pot for cooking, performing household chores and mild difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 2 /10
@@ -2191,7 +2191,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
 Patient still c/o Dull, Aching pain in left Knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Going up and down stairs, Rising from a chair and mild difficulty Standing for long periods of time, Walking for long periods of time, bending knee to sit position.
 
 Pain Scale: 4 /10
@@ -2397,7 +2397,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: KNEE-right-early-3tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of steady progress with current protocol .
+Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
 Patient still c/o Dull, Aching pain in right Knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty Going up and down stairs, Rising from a chair and moderate difficulty Standing for long periods of time, Walking for long periods of time, bending knee to sit position.
 
 Pain Scale: 9-8 /10
@@ -2603,7 +2603,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
 Patient still c/o Dull, Aching pain in right Knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8-7 /10
@@ -3472,7 +3472,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: KNEE-right-mid-10tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of steady progress with current protocol .
+Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
 Patient still c/o Dull, Aching pain in right Knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 9-8 /10
@@ -3523,7 +3523,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit and still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain in right Knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8-7 /10
@@ -3931,7 +3931,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit and treatment plan is on track .
 Patient still c/o Dull, Aching pain in right Knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Going up and down stairs, Rising from a chair and mild difficulty Standing for long periods of time, Walking for long periods of time, bending knee to sit position.
 
 Pain Scale: 3 /10
@@ -4148,7 +4148,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: LBP-bilateral-late-20tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Lifting objects, Standing for long periods of time.
 
 Pain Scale: 8 /10
@@ -4256,7 +4256,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Lifting objects, Standing for long periods of time.
 
 Pain Scale: 8-7 /10
@@ -4472,7 +4472,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -4526,7 +4526,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -4634,7 +4634,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of recovery plateau is expected at this stage .
+Patient reports: there is similar symptom(s) as last visit may related of body needs time to consolidate gains .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -4688,7 +4688,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit and still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -4742,7 +4742,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body needs time to consolidate gains .
+Patient reports: there is similar symptom(s) as last visit and recovery plateau is expected at this stage .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -4850,7 +4850,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and steady progress with current protocol .
+Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -5446,7 +5446,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 7-6 /10
@@ -5880,7 +5880,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: LBP-bilateral-medhx-DM-HTN-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 7-6 /10
@@ -5988,7 +5988,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -6042,7 +6042,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5-4 /10
@@ -6096,7 +6096,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit and still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4-3 /10
@@ -6366,7 +6366,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 2 /10
@@ -6692,7 +6692,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of steady progress with current protocol .
+Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -6746,7 +6746,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit and continuous treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -6800,7 +6800,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -6854,7 +6854,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit and steady progress with current protocol .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 5 /10
@@ -7558,7 +7558,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit may related of still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -7612,7 +7612,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit and continuous treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -8044,7 +8044,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Lifting objects, Bending over to wear/tie a shoe, Standing for long periods of time.
 
 Pain Scale: 3 /10
@@ -8318,7 +8318,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: MID_LOW_BACK-bilateral-late-20tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Rising from a chair, Going up and down stairs.
 
 Pain Scale: 7 /10
@@ -8426,7 +8426,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of recovery plateau is expected at this stage .
+Patient reports: there is similar symptom(s) as last visit may related of body needs time to consolidate gains .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 6 /10
@@ -8696,7 +8696,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit and continuous treatment .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 5-4 /10
@@ -8912,7 +8912,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit may related of still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 3 /10
@@ -9290,7 +9290,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 2 /10
@@ -10046,7 +10046,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward.
 
 Pain Scale: 5 /10
@@ -10202,7 +10202,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of steady progress with current protocol .
+Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward.
 
 Pain Scale: 4-3 /10
@@ -10254,7 +10254,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward.
 
 Pain Scale: 3 /10
@@ -10410,7 +10410,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward.
 
 Pain Scale: 2 /10
@@ -10622,7 +10622,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5-4 /10
@@ -10786,7 +10786,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of looking down watching steps, turning the head when crossing the street and mild to moderate difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 6-5 /10
@@ -10894,7 +10894,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit and continuous treatment .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5 /10
@@ -10948,7 +10948,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit may related of still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5-4 /10
@@ -11056,7 +11056,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5-4 /10
@@ -11164,7 +11164,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintaining current functional level .
+Patient reports: there is similar symptom(s) as last visit may related of recovery plateau is expected at this stage .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5-4 /10
@@ -11326,7 +11326,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of recovery plateau is expected at this stage .
+Patient reports: there is similar symptom(s) as last visit may related of maintaining current functional level .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 3 /10
@@ -11380,7 +11380,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 3 /10
@@ -11814,7 +11814,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: NECK-bilateral-mid-8tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of looking down watching steps, turning the head when crossing the street and mild to moderate difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 6-5 /10
@@ -11868,7 +11868,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5 /10
@@ -11922,7 +11922,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit and still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5-4 /10
@@ -12680,7 +12680,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 4 /10
@@ -13086,7 +13086,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: SHOULDER-bilateral-late-18tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 8-7 /10
@@ -13706,7 +13706,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 6-5 /10
@@ -15012,7 +15012,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit and treatment plan is on track .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -15074,7 +15074,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and treatment plan is on track .
+Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -15322,7 +15322,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintaining current functional level .
+Patient reports: there is similar symptom(s) as last visit and recovery plateau is expected at this stage .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -15508,7 +15508,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit and still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -15632,7 +15632,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and recovery plateau is expected at this stage .
+Patient reports: there is similar symptom(s) as last visit and maintaining current functional level .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 2 /10
@@ -15750,7 +15750,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and body needs time to consolidate gains .
+Patient reports: there is similar symptom(s) as last visit and steady progress with current protocol .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 6-5 /10
@@ -16292,7 +16292,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 4 /10
@@ -16778,7 +16778,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit and consistent treatment schedule .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 2 /10
@@ -16832,7 +16832,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of body is adjusting to treatment .
+Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 2 /10
@@ -16886,7 +16886,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit may related of continuous treatment .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 2 /10
@@ -17700,7 +17700,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
+Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 8 /10
@@ -17754,7 +17754,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and steady progress with current protocol .
+Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 8 /10
@@ -17970,7 +17970,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and recovery plateau is expected at this stage .
+Patient reports: there is similar symptom(s) as last visit and steady progress with current protocol .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 6 /10
@@ -18078,7 +18078,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit may related of gradual recovery process .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 5 /10
@@ -18132,7 +18132,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintaining current functional level .
+Patient reports: there is similar symptom(s) as last visit and recovery plateau is expected at this stage .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 5 /10
@@ -18186,7 +18186,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and maintain regular treatments .
+Patient reports: there is similar symptom(s) as last visit and continuous treatment .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 5 /10
@@ -18294,7 +18294,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit may related of consistent treatment schedule .
+Patient reports: there is similar symptom(s) as last visit may related of still need more treatments to reach better effect .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 5 /10
@@ -18510,7 +18510,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is similar symptom(s) as last visit and patient compliance with treatment .
+Patient reports: there is similar symptom(s) as last visit and maintaining current functional level .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
