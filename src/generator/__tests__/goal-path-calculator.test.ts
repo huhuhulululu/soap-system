@@ -601,6 +601,28 @@ describe("Goal Path Calculator", () => {
       expect(totalTX2 / N).toBeLessThanOrEqual(1.5);
     });
 
+    it("symptomScaleEarlyGuard delays symptomScale drops", () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        const rng = mulberry32(seed);
+        const paths = computeGoalPaths(
+          makeInput({
+            symptomScale: { start: 4, st: 2, lt: 1 },
+          }),
+          11,
+          rng,
+          { painEarlyGuard: 4, symptomScaleEarlyGuard: 3 },
+        );
+        const stB = paths.stBoundary;
+        const stDrops = paths.symptomScale.changeVisits.filter((v) => v <= stB);
+        for (const v of stDrops) {
+          expect(
+            v,
+            `seed=${seed}: symptomScale ST drop at visit ${v} < 3`,
+          ).toBeGreaterThanOrEqual(3);
+        }
+      }
+    });
+
     it("determinism preserved after global deconflict", () => {
       const input = makeInput({
         tightness: { start: 4, st: 3, lt: 2 },

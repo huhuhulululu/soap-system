@@ -123,6 +123,11 @@ export interface GoalPathOptions {
    * 临床意义: 前几次治疗身体适应期，pain 不应快速下降。
    */
   painEarlyGuard?: number;
+  /**
+   * SymptomScale 维度 ST 阶段的最早 drop visit (1-based)。
+   * 默认 1（无保护）。前几次治疗 symptomScale 不应快速下降。
+   */
+  symptomScaleEarlyGuard?: number;
 }
 
 /**
@@ -205,6 +210,7 @@ export function computeGoalPaths(
     txCount,
     rng,
   );
+  const ssSTStart = Math.min(options?.symptomScaleEarlyGuard ?? 1, stBoundary);
   const symptomScale = computeDimensionPath(
     "symptomScale",
     input.symptomScale.start,
@@ -213,6 +219,7 @@ export function computeGoalPaths(
     stBoundary,
     txCount,
     rng,
+    ssSTStart,
   );
   const adlA = computeDimensionPath(
     "adlA",
@@ -238,6 +245,10 @@ export function computeGoalPaths(
 
   // Global deconflict: cap simultaneous dimension changes per visit
   // ST phase: max 2, LT phase: max 3 (fewer slots available)
+  // Pass earlyGuard boundaries so protected dims aren't moved into early visits
+  const earlyGuardMap: Record<string, number> = {};
+  if (painSTStart > 1) earlyGuardMap.pain = painSTStart;
+  if (ssSTStart > 1) earlyGuardMap.symptomScale = ssSTStart;
   globalDeconflict(
     [
       tightness,
@@ -253,6 +264,7 @@ export function computeGoalPaths(
     stBoundary,
     txCount,
     rng,
+    earlyGuardMap,
   );
 
   return {
@@ -398,6 +410,7 @@ function globalDeconflict(
   stBoundary: number,
   txCount: number,
   rng: () => number,
+  earlyGuardMap: Record<string, number> = {},
 ): void {
   // Priority: higher = harder to move (stays put)
   const priority: Record<string, number> = {
@@ -454,10 +467,14 @@ function globalDeconflict(
       let bestCandidate = -1;
       let bestCount = Infinity;
 
+      // Respect earlyGuard: don't move this dim before its protected boundary
+      const dimEarlyGuard = earlyGuardMap[dimName] ?? rangeMin;
+      const effectiveMin = inST ? Math.max(rangeMin, dimEarlyGuard) : rangeMin;
+
       for (let offset = 1; offset <= rangeMax - rangeMin; offset++) {
         for (const dir of [direction, -direction]) {
           const candidate = v + dir * offset;
-          if (candidate < rangeMin || candidate > rangeMax) continue;
+          if (candidate < effectiveMin || candidate > rangeMax) continue;
 
           const occupants = visitMap.get(candidate) || [];
           if (occupants.length < phaseCap && occupants.length < bestCount) {
