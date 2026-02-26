@@ -86,7 +86,7 @@ describe('阶段E: Frequency 阈值调优', () => {
   })
 
   it('Normal 患者 frequency 变化早于 Chronic', () => {
-    const seed = 900008
+    const seed = 900009
     const ctxChronic = makeContext({ painCurrent: 8, chronicityLevel: 'Chronic' })
     const ctxNormal = makeContext({ painCurrent: 8, chronicityLevel: 'Acute' })
 

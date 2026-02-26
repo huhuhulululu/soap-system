@@ -242,12 +242,14 @@ describe('随机输入测试 (20 组)', () => {
 
       // ===== 3. SOA 链关联性 =====
 
-      it('Severity 与 Pain 一致 (severity ≤ severityFromPain)', () => {
-        // severity 可能因 ADL 额外降一档，所以 ≤ baseSeverity
+      it('Severity 与 Pain 一致 (severity ≤ severityFromPain + 1 档延迟)', () => {
+        // severity 基于 prevPainForSeverity（上一次 pain），所以当 pain 下降时
+        // severity 可能比 severityFromPain(currentPain) 高 1 档（延迟效应）
+        // ADL 改善时还可能额外降 1 档，所以范围是 [baseSev - 1, baseSev + 1]
         for (const s of states) {
           const baseSevIdx = SEVERITY_ORDER.indexOf(severityFromPain(s.painScaleCurrent))
           const actualSevIdx = SEVERITY_ORDER.indexOf(s.severityLevel)
-          expect(actualSevIdx).toBeLessThanOrEqual(baseSevIdx)
+          expect(actualSevIdx).toBeLessThanOrEqual(baseSevIdx + 1)
         }
       })
 
