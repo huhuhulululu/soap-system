@@ -942,7 +942,10 @@ export function generateTXSequenceStates(
     },
     txCount,
     rng,
-    { painEarlyGuard: Math.ceil(txCount * (chronicCapsEnabled ? 0.30 : 0.20)) },
+    {
+      painEarlyGuard: Math.ceil(txCount * (chronicCapsEnabled ? 0.30 : 0.20)),
+      symptomScaleEarlyGuard: Math.ceil(txCount * 0.20),
+    },
   );
 
   // Discrete strength level from goal-path-calculator (index into STRENGTH_LADDER)
@@ -1030,7 +1033,7 @@ export function generateTXSequenceStates(
       "severe",
     ];
     let severityLevel = baseSeverity;
-    if (adlImproved && progress > 0.3) {
+    if (adlImproved && progress > 0.5) {
       const baseIdx = severityOrder.indexOf(baseSeverity);
       if (baseIdx > 0) {
         severityLevel = severityOrder[baseIdx - 1];

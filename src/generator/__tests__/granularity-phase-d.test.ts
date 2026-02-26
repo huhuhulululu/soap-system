@@ -169,3 +169,39 @@ describe("阶段D: reason 变化", () => {
     }
   });
 });
+
+describe("early visit stability: severity and symptomScale", () => {
+  it("severity does not drop in first 2 visits (v1-v2) across 20 seeds", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const result = generateTXSequenceStates(makeContext(), {
+        txCount: 11,
+        seed,
+        initialState: { pain: 8, associatedSymptom: "soreness" },
+      });
+
+      const v1Severity = result.states[0].severityLevel;
+      const v2Severity = result.states[1].severityLevel;
+      expect(
+        v2Severity,
+        `seed=${seed}: severity changed from ${v1Severity} to ${v2Severity} at v2`,
+      ).toBe(v1Severity);
+    }
+  });
+
+  it("symptomScale does not drop in first 2 visits (v1-v2) across 20 seeds", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const result = generateTXSequenceStates(makeContext(), {
+        txCount: 11,
+        seed,
+        initialState: { pain: 8, associatedSymptom: "soreness" },
+      });
+
+      const v1Scale = result.states[0].symptomScale;
+      const v2Scale = result.states[1].symptomScale;
+      expect(
+        v2Scale,
+        `seed=${seed}: symptomScale changed from ${v1Scale} to ${v2Scale} at v2`,
+      ).toBe(v1Scale);
+    }
+  });
+});
