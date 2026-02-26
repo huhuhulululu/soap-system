@@ -87,6 +87,7 @@ describe('Assessment cumulative tracking (ASS-02)', () => {
     const VALID_PRESENT = [
       'slight improvement of symptom(s).',
       'improvement of symptom(s).',
+      'similar symptom(s) as last visit.',
       'exacerbate of symptom(s).',
       'no change.'
     ]
