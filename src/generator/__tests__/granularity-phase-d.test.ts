@@ -188,6 +188,38 @@ describe("early visit stability: severity and symptomScale", () => {
     }
   });
 
+  it("no visit has more than 4 output dimensions changing (100 seeds)", () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const result = generateTXSequenceStates(makeContext(), {
+        txCount: 11,
+        seed,
+        initialState: { pain: 8, associatedSymptom: "soreness" },
+      });
+
+      for (let i = 1; i < result.states.length; i++) {
+        const s = result.states[i];
+        const prev = result.states[i - 1];
+        const changes: string[] = [];
+        if (s.painScaleCurrent !== prev.painScaleCurrent) changes.push("pain");
+        if (s.severityLevel !== prev.severityLevel) changes.push("sev");
+        if (s.symptomScale !== prev.symptomScale) changes.push("symScale");
+        if (s.painFrequency !== prev.painFrequency) changes.push("freq");
+        if (s.strengthGrade !== prev.strengthGrade) changes.push("str");
+        if ((s.adlItems?.length ?? 0) !== (prev.adlItems?.length ?? 0))
+          changes.push("adl");
+        if (s.tightnessGrading !== prev.tightnessGrading) changes.push("tight");
+        if (s.tendernessGrading !== prev.tendernessGrading)
+          changes.push("tend");
+        if (s.spasmGrading !== prev.spasmGrading) changes.push("spasm");
+
+        expect(
+          changes.length,
+          `seed=${seed} TX${i}: ${changes.join(",")} (${changes.length} dims)`,
+        ).toBeLessThanOrEqual(4);
+      }
+    }
+  });
+
   it("symptomScale does not drop in first 2 visits (v1-v2) across 20 seeds", () => {
     for (let seed = 1; seed <= 20; seed++) {
       const result = generateTXSequenceStates(makeContext(), {

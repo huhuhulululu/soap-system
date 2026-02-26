@@ -623,6 +623,36 @@ describe("Goal Path Calculator", () => {
       }
     });
 
+    it("pain drops have gap ≥ 2 within each phase (100 seeds)", () => {
+      for (let seed = 1; seed <= 100; seed++) {
+        const rng = mulberry32(seed);
+        const paths = computeGoalPaths(
+          makeInput({
+            pain: { start: 7, st: 5, lt: 3 },
+          }),
+          11,
+          rng,
+          { painEarlyGuard: 4 },
+        );
+
+        const stB = paths.stBoundary;
+        const painV = paths.pain.changeVisits;
+
+        for (let j = 1; j < painV.length; j++) {
+          // Only check within same phase
+          const samePhase =
+            (painV[j] <= stB && painV[j - 1] <= stB) ||
+            (painV[j] > stB && painV[j - 1] > stB);
+          if (samePhase) {
+            expect(
+              painV[j] - painV[j - 1],
+              `seed=${seed}: pain drops at ${painV[j - 1]},${painV[j]} gap=${painV[j] - painV[j - 1]}`,
+            ).toBeGreaterThanOrEqual(2);
+          }
+        }
+      }
+    });
+
     it("determinism preserved after global deconflict", () => {
       const input = makeInput({
         tightness: { start: 4, st: 3, lt: 2 },

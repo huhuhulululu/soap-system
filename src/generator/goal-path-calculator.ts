@@ -201,6 +201,28 @@ export function computeGoalPaths(
     rng,
     painSTStart,
   );
+
+  // Pain gap constraint: ensure pain drops are ≥ 2 visits apart within each phase.
+  // This prevents severity/adl cascade from stacking on consecutive visits.
+  // No rng calls — pure post-processing of existing changeVisits.
+  {
+    const stDrops = pain.changeVisits.filter((v) => v <= stBoundary);
+    const ltDrops = pain.changeVisits.filter((v) => v > stBoundary);
+    const enforceGap = (drops: number[], maxV: number): number[] => {
+      const sorted = [...drops].sort((a, b) => a - b);
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] - sorted[i - 1] < 2) {
+          sorted[i] = Math.min(sorted[i - 1] + 2, maxV);
+        }
+      }
+      return sorted;
+    };
+    pain.changeVisits = [
+      ...enforceGap(stDrops, stBoundary),
+      ...enforceGap(ltDrops, txCount),
+    ];
+  }
+
   const frequency = computeDimensionPath(
     "frequency",
     input.frequency.start,
@@ -440,7 +462,7 @@ function globalDeconflict(
     const dims = visitMap.get(v);
     if (!dims) continue;
 
-    const cap = v <= stBoundary ? 2 : 3;
+    const cap = 3;
     if (dims.length <= cap) continue;
 
     // Sort dims by priority ascending (lowest priority = move first)
@@ -460,7 +482,7 @@ function globalDeconflict(
       const inST = v <= stBoundary;
       const rangeMin = inST ? 1 : stBoundary + 1;
       const rangeMax = inST ? stBoundary : txCount;
-      const phaseCap = inST ? 2 : 3;
+      const phaseCap = 3;
 
       // Find best candidate: nearest visit with fewest occupants below cap
       const direction = rng() > 0.5 ? 1 : -1;

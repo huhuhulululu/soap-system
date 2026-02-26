@@ -760,6 +760,8 @@ export function generateTXSequenceStates(
   let prevSeverity: SeverityLevel = severityFromPain(
     options.initialState?.pain ?? 8,
   );
+  let prevSeverityForAdl: SeverityLevel = prevSeverity;
+  let prevAdlImproved = false;
   let prevTightnessGrading = options.initialState?.tightnessGrading ?? "";
   let prevTendernessGrade = options.initialState?.tendernessGrade ?? "";
   let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? "";
@@ -944,8 +946,8 @@ export function generateTXSequenceStates(
     txCount,
     rng,
     {
-      painEarlyGuard: Math.ceil(txCount * (chronicCapsEnabled ? 0.30 : 0.20)),
-      symptomScaleEarlyGuard: Math.ceil(txCount * 0.20),
+      painEarlyGuard: Math.ceil(txCount * (chronicCapsEnabled ? 0.3 : 0.2)),
+      symptomScaleEarlyGuard: Math.ceil(txCount * 0.2),
     },
   );
 
@@ -1034,7 +1036,7 @@ export function generateTXSequenceStates(
       "severe",
     ];
     let severityLevel = baseSeverity;
-    if (adlImproved && progress > 0.5) {
+    if (prevAdlImproved && progress > 0.5) {
       const baseIdx = severityOrder.indexOf(baseSeverity);
       if (baseIdx > 0) {
         severityLevel = severityOrder[baseIdx - 1];
@@ -1048,6 +1050,7 @@ export function generateTXSequenceStates(
     }
     prevSeverity = severityLevel;
     prevPainForSeverity = painScaleCurrent;
+    prevAdlImproved = adlImproved;
 
     // Muscle reduction: pure (no RNG), trims based on current severity
     const visitMuscles = reduceMuscles(initialMuscles, severityLevel);
@@ -1059,7 +1062,7 @@ export function generateTXSequenceStates(
       visitMuscles.tightness as string[],
       context.primaryBodyPart,
     );
-    const adlCount = severityToCount(severityLevel, "adl");
+    const adlCount = severityToCount(prevSeverityForAdl, "adl");
     const adlItems = adlWeights
       .filter((w) => validADL.has(w.adl))
       .slice(0, adlCount)
@@ -1069,7 +1072,8 @@ export function generateTXSequenceStates(
       visitMuscles.tightness as string[],
       context.primaryBodyPart,
     );
-    const aggCount = severityToCount(severityLevel, "aggravating");
+    const aggCount = severityToCount(prevSeverityForAdl, "aggravating");
+    prevSeverityForAdl = severityLevel;
     const aggravatingItems = aggWeights
       .slice(0, aggCount)
       .map((w) => w.aggravating);
@@ -1214,7 +1218,7 @@ export function generateTXSequenceStates(
     const nextStrengthLevel = strengthIsScheduledRise
       ? Math.min(prevStrengthLevel + 1, STRENGTH_LADDER.length - 1)
       : prevStrengthLevel;
-    const strengthGrade =
+    let strengthGrade =
       STRENGTH_LADDER[nextStrengthLevel] ?? STRENGTH_LADDER[prevStrengthLevel];
 
     let romTrend: "improved" | "slightly improved" | "stable" =
@@ -1669,7 +1673,7 @@ export function generateTXSequenceStates(
       "(+3)=>1 but < 10 spontaneous spasms per hour.",
       "(+4)=>10 spontaneous spasms per hour.",
     ];
-    const spasmGrading = SPASM_TEXTS[nextSpasm] || SPASM_TEXTS[3];
+    let spasmGrading = SPASM_TEXTS[nextSpasm] || SPASM_TEXTS[3];
 
     const frequencyByLevel = [
       "Intermittent (symptoms occur less than 25% of the time)",
@@ -1677,7 +1681,7 @@ export function generateTXSequenceStates(
       "Frequent (symptoms occur between 51% and 75% of the time)",
       "Constant (symptoms occur between 76% and 100% of the time)",
     ];
-    const chainFrequency = findTemplateOption(
+    let chainFrequency = findTemplateOption(
       "subjective.painFrequency",
       [frequencyByLevel[prevFrequency]],
       painFrequency,
@@ -1701,6 +1705,74 @@ export function generateTXSequenceStates(
       progress,
       bodyPart: context.primaryBodyPart || "LBP",
     });
+
+    // SymptomScale: extract from inline to allow output-layer cap
+    const symptomDrop = goalPaths.symptomScale.changeVisits.includes(i);
+    if (symptomDrop) {
+      prevSymptomDecade = Math.max(1, prevSymptomDecade - 1);
+    }
+    let visitSymptomScale = snapSymptomToGrid(prevSymptomDecade * 10);
+
+    const OUTPUT_CAP = 4;
+    // --- Output-layer cap: max 4 output dimension changes per visit ---
+    // goalPaths scheduling is preserved; we only defer the *display* of low-priority dims.
+    if (visits.length > 0) {
+      const prev = visits[visits.length - 1];
+      const outputChanges: string[] = [];
+      if (painScaleCurrent !== prev.painScaleCurrent)
+        outputChanges.push("pain");
+      if (severityLevel !== prev.severityLevel) outputChanges.push("sev");
+      if (visitSymptomScale !== prev.symptomScale)
+        outputChanges.push("symScale");
+      if (chainFrequency !== prev.painFrequency) outputChanges.push("freq");
+      if (strengthGrade !== prev.strengthGrade) outputChanges.push("str");
+      if (adlItems.length !== (prev.adlItems?.length ?? 0))
+        outputChanges.push("adl");
+      if (tightnessGrading !== prev.tightnessGrading)
+        outputChanges.push("tight");
+      if (tendernessGrading !== prev.tendernessGrading)
+        outputChanges.push("tend");
+      if (spasmGrading !== prev.spasmGrading) outputChanges.push("spasm");
+
+      if (outputChanges.length > OUTPUT_CAP) {
+        // Defer lowest-priority goalPaths dims by reverting to previous values
+        // Priority (defer first → last): spasm, tenderness, tightness, strength, frequency, symptomScale
+        // Never defer: pain, severity, adl (cascade-critical)
+        const deferOrder = [
+          "spasm",
+          "tend",
+          "tight",
+          "str",
+          "freq",
+          "symScale",
+        ];
+        let excess = outputChanges.length - OUTPUT_CAP;
+        for (const dim of deferOrder) {
+          if (excess <= 0) break;
+          if (!outputChanges.includes(dim)) continue;
+          switch (dim) {
+            case "spasm":
+              spasmGrading = prev.spasmGrading;
+              break;
+            case "tend":
+              tendernessGrading = prev.tendernessGrading;
+              break;
+            case "tight":
+              tightnessGrading = prev.tightnessGrading;
+              break;
+            case "str": // strength can't easily revert (ladder index), skip
+              continue;
+            case "freq":
+              chainFrequency = prev.painFrequency;
+              break;
+            case "symScale":
+              visitSymptomScale = prev.symptomScale ?? visitSymptomScale;
+              break;
+          }
+          excess--;
+        }
+      }
+    }
 
     visits.push({
       visitIndex: i,
@@ -1728,13 +1800,7 @@ export function generateTXSequenceStates(
       tonguePulse: fixedTonguePulse,
       painTypes: options.initialState?.painTypes,
       inspection: options.initialState?.inspection,
-      symptomScale: (() => {
-        const symptomDrop = goalPaths.symptomScale.changeVisits.includes(i);
-        if (symptomDrop) {
-          prevSymptomDecade = Math.max(1, prevSymptomDecade - 1);
-        }
-        return snapSymptomToGrid(prevSymptomDecade * 10);
-      })(),
+      symptomScale: visitSymptomScale,
       electricalStimulation: options.initialState?.electricalStimulation,
       treatmentTime: options.initialState?.treatmentTime,
       sideProgress,
