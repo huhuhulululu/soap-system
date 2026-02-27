@@ -855,44 +855,53 @@ export function generateSubjective(context: GenerationContext): string {
     hasPacemaker: context.hasPacemaker,
   };
 
-  // 病因: 优先用户选择，回退到权重系统
-  const causatives =
-    context.causativeFactors && context.causativeFactors.length > 0
-      ? context.causativeFactors
-      : (() => {
-          const pool =
-            TEMPLATE_CAUSATIVES[context.primaryBodyPart as BodyPartKey] ||
-            TEMPLATE_CAUSATIVES["LBP"];
-          const count = context.chronicityLevel === "Chronic" ? 3 : 2;
-          const weighted = calculateWeights(
-            "subjective.causativeFactors",
-            [...pool],
-            weightContext,
-          );
-          return selectBestOptions(weighted, count);
-        })();
+  // 病因: 优先用户选择，不足时用权重系统补充到 minimum count
+  const causatives = (() => {
+    const pool =
+      TEMPLATE_CAUSATIVES[context.primaryBodyPart as BodyPartKey] ||
+      TEMPLATE_CAUSATIVES["LBP"];
+    const count = context.chronicityLevel === "Chronic" ? 3 : 2;
+    const userPicked =
+      context.causativeFactors && context.causativeFactors.length > 0
+        ? [...context.causativeFactors]
+        : [];
+    if (userPicked.length >= count) return userPicked;
+    // Supplement from weighted pool, excluding already-picked items
+    const remaining = [...pool].filter((p) => !userPicked.includes(p));
+    const weighted = calculateWeights(
+      "subjective.causativeFactors",
+      remaining,
+      weightContext,
+    );
+    const extras = selectBestOptions(weighted, count - userPicked.length);
+    return [...userPicked, ...extras];
+  })();
 
-  // 缓解因素: 优先用户选择，回退到权重系统
-  const relievers =
-    context.relievingFactors && context.relievingFactors.length > 0
-      ? context.relievingFactors
-      : (() => {
-          const pool =
-            TEMPLATE_RELIEVING[context.primaryBodyPart as BodyPartKey] ||
-            TEMPLATE_RELIEVING["LBP"];
-          const count =
-            context.primaryBodyPart === "SHOULDER"
-              ? 1
-              : context.primaryBodyPart === "NECK"
-                ? 2
-                : 3;
-          const weighted = calculateWeights(
-            "subjective.relievingFactors",
-            [...pool],
-            weightContext,
-          );
-          return selectBestOptions(weighted, count);
-        })();
+  // 缓解因素: 优先用户选择，不足时用权重系统补充到 minimum count
+  const relievers = (() => {
+    const pool =
+      TEMPLATE_RELIEVING[context.primaryBodyPart as BodyPartKey] ||
+      TEMPLATE_RELIEVING["LBP"];
+    const count =
+      context.primaryBodyPart === "SHOULDER"
+        ? 1
+        : context.primaryBodyPart === "NECK"
+          ? 2
+          : 3;
+    const userPicked =
+      context.relievingFactors && context.relievingFactors.length > 0
+        ? [...context.relievingFactors]
+        : [];
+    if (userPicked.length >= count) return userPicked;
+    const remaining = [...pool].filter((p) => !userPicked.includes(p));
+    const weighted = calculateWeights(
+      "subjective.relievingFactors",
+      remaining,
+      weightContext,
+    );
+    const extras = selectBestOptions(weighted, count - userPicked.length);
+    return [...userPicked, ...extras];
+  })();
 
   // Pain Types: 优先使用用户选择，回退到权重系统
   const selectedPainTypes =
