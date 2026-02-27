@@ -27,6 +27,7 @@ const VALID_WHAT_CHANGED = [
   "difficulty in performing ADLs",
   "muscles soreness sensation",
   "severity level",
+  "overall condition",
   "as last time visit",
 ];
 const VALID_PHYSICAL_CHANGE = [
@@ -107,8 +108,8 @@ describe("deriveAssessmentFromSOA", () => {
         objectiveRomTrend: "improved",
         objectiveTightnessTrend: "reduced",
       });
-      // With S-side only whatChanged, no S-side signals → fallback to "pain"
-      expect(result.whatChanged).toBe("pain");
+      // With no S-side signals, only O-side improved → fallback to "overall condition"
+      expect(result.whatChanged).toBe("overall condition");
     });
 
     it('falls back to "pain" when no strong signal', () => {

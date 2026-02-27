@@ -113,6 +113,7 @@ describe("Assessment cumulative tracking (ASS-02)", () => {
       "heaviness sensation",
       "difficulty in performing ADLs",
       "severity level",
+      "overall condition",
       "as last time visit",
     ];
 
