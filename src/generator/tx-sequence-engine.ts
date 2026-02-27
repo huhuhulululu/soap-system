@@ -1231,51 +1231,37 @@ export function generateTXSequenceStates(
     }
     prevTendernessBounced = tendernessBounced;
     const tightnessTrend: "reduced" | "slightly reduced" | "stable" =
-      prevTightnessBounced
-        ? "stable" // bounce return 不是真正改善
-        : nextTightness < prevTightness
-          ? "reduced"
-          : "stable";
-    const tendernessTrend: "reduced" | "slightly reduced" | "stable" =
-      prevTendernessBounced
-        ? "stable" // bounce return 不是真正改善
-        : nextTenderness < prevTenderness
-          ? "reduced"
-          : "stable";
+      nextTightness < prevTightness
+        ? "reduced"
+        : "stable";
+    let tendernessTrend: "reduced" | "slightly reduced" | "stable" =
+      nextTenderness < prevTenderness
+        ? "reduced"
+        : "stable";
     prevTightness = nextTightness;
     prevTenderness = nextTenderness;
 
-    // Goal-driven spasm with bounce
+    // Goal-driven spasm — monotonic only (no bounce allowed, V6 fix)
     const spasmBounceRng = rng();
+    void spasmBounceRng; // consume rng to maintain PRNG sequence
     let nextSpasm: number;
-    let spasmBounced = false;
+    const spasmBounced = false;
     const spasmIsScheduledDrop = goalPaths.spasm.changeVisits.includes(i);
     if (spasmIsScheduledDrop) {
       const baseline = prevSpasmBounced ? prevSpasm - 1 : prevSpasm;
       nextSpasm = Math.max(0, baseline - 1);
     } else if (prevSpasmBounced) {
       nextSpasm = Math.max(0, prevSpasm - 1);
-    } else if (
-      bounceEnabled &&
-      spasmBounceRng < bounceProbability &&
-      prevSpasm <= goalPaths.spasm.stGoal &&
-      !goalPaths.spasm.changeVisits.includes(i + 1) &&
-      i < txCount
-    ) {
-      nextSpasm = prevSpasm + 1;
-      spasmBounced = true;
     } else {
       nextSpasm = prevSpasm;
     }
     prevSpasmBounced = spasmBounced;
     // Consume rng() to maintain PRNG sequence
     rng();
-    const spasmTrend: "reduced" | "slightly reduced" | "stable" =
-      prevSpasmBounced
-        ? "stable" // bounce return 不是真正改善
-        : nextSpasm < prevSpasm
-          ? "reduced"
-          : "stable";
+    let spasmTrend: "reduced" | "slightly reduced" | "stable" =
+      nextSpasm < prevSpasm
+        ? "reduced"
+        : "stable";
     prevSpasm = nextSpasm;
 
     // ROM/Strength: 独立进度，滞后于 pain，互相联动
@@ -1844,6 +1830,21 @@ export function generateTXSequenceStates(
       prevTendernessGrade = targetTenderGrade;
     }
 
+    // O2/O3 fix: reconcile trend with actual displayed grading
+    // When bounce causes internal value to rise but display is clamped,
+    // trend must reflect the displayed grading, not the internal value.
+    const displayedTenderNum = parseInt(prevTendernessGrade.replace("+", ""));
+    if (i > 0 && visits.length > 0) {
+      const prevDisplayedTender = parseInt(
+        (visits[visits.length - 1].tendernessGrading?.match(/\+(\d)/)?.[1]) ?? String(displayedTenderNum),
+      );
+      if (displayedTenderNum < prevDisplayedTender) {
+        tendernessTrend = "reduced";
+      } else {
+        tendernessTrend = "stable";
+      }
+    }
+
     // V09: 穴位纵向继承 — 首次选穴后所有 TX 复用
     if (fixedNeedlePoints.length === 0) {
       fixedNeedlePoints = pickMultiple(
@@ -1864,6 +1865,18 @@ export function generateTXSequenceStates(
       "(+4)=>10 spontaneous spasms per hour.",
     ];
     let spasmGrading = SPASM_TEXTS[nextSpasm] || SPASM_TEXTS[3];
+
+    // Reconcile spasm trend with displayed grading
+    if (i > 0 && visits.length > 0) {
+      const prevDisplayedSpasm = parseInt(
+        (visits[visits.length - 1].spasmGrading?.match(/\+(\d)/)?.[1]) ?? String(nextSpasm),
+      );
+      if (nextSpasm < prevDisplayedSpasm) {
+        spasmTrend = "reduced";
+      } else {
+        spasmTrend = "stable";
+      }
+    }
 
     const frequencyByLevel = [
       "Intermittent (symptoms occur less than 25% of the time)",
