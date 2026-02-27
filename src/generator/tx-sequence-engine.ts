@@ -844,6 +844,7 @@ export function generateTXSequenceStates(
   );
   let prevSeverityForAdl: SeverityLevel = prevSeverity;
   let prevAdlImproved = false;
+  let prevAdlItemCount = -1; // track actual ADL item count for adlImproved
   let prevTightnessGrading = options.initialState?.tightnessGrading ?? "";
   let prevTendernessGrade = options.initialState?.tendernessGrade ?? "";
   let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? "";
@@ -1106,7 +1107,8 @@ export function generateTXSequenceStates(
     // ADL: discrete scheduling from goal-path-calculator
     const adlADrop = goalPaths.adlA.changeVisits.includes(i);
     const adlBDrop = goalPaths.adlB.changeVisits.includes(i);
-    const adlImproved = adlADrop || adlBDrop;
+    // adlImproved is tentative here; will be corrected after actual adlItems count
+    let adlImproved = adlADrop || adlBDrop;
 
     // severityLevel: 基于当前 pain，ADL 改善时最多降 1 档，纵向只降不升
     const baseSeverity = severityFromPain(painScaleCurrent);
@@ -1150,6 +1152,12 @@ export function generateTXSequenceStates(
       .filter((w) => validADL.has(w.adl))
       .slice(0, adlCount)
       .map((w) => w.adl);
+
+    // Correct adlImproved based on actual ADL item count change
+    if (prevAdlItemCount >= 0 && adlItems.length >= prevAdlItemCount) {
+      adlImproved = false; // no actual ADL improvement visible
+    }
+    prevAdlItemCount = adlItems.length;
 
     const aggWeights = getAggravatingWeightsByMuscles(
       visitMuscles.tightness as string[],
@@ -1510,7 +1518,6 @@ export function generateTXSequenceStates(
       "more energy level throughout the day",
       "overall well-being has improved",
       "stress level has decreased",
-      "physical activity no longer causes distress",
     ];
     // Pain-gated: only when painDelta > 0.2
     const PAIN_GATED = [
@@ -1521,6 +1528,7 @@ export function generateTXSequenceStates(
     // ADL-gated: only when adlImproved
     const ADL_GATED = [
       "less difficulty performing daily activities",
+      "physical activity no longer causes distress",
       ...(BODY_PART_ADL[context.primaryBodyPart] ?? BODY_PART_ADL.LBP),
     ];
     // O-side-gated: only when objectiveImproved

@@ -36,6 +36,7 @@ const ADL_REASONS = [
   "can reach behind back more comfortably",
   "stair climbing is less painful",
   "can lift objects with less elbow pain",
+  "physical activity no longer causes distress",
 ];
 
 // Pain-related reasons: should only appear when painChange=improved with actual delta
