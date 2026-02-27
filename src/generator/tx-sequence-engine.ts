@@ -1239,13 +1239,9 @@ export function generateTXSequenceStates(
     }
     prevTendernessBounced = tendernessBounced;
     const tightnessTrend: "reduced" | "slightly reduced" | "stable" =
-      nextTightness < prevTightness
-        ? "reduced"
-        : "stable";
+      nextTightness < prevTightness ? "reduced" : "stable";
     let tendernessTrend: "reduced" | "slightly reduced" | "stable" =
-      nextTenderness < prevTenderness
-        ? "reduced"
-        : "stable";
+      nextTenderness < prevTenderness ? "reduced" : "stable";
     prevTightness = nextTightness;
     prevTenderness = nextTenderness;
 
@@ -1267,9 +1263,7 @@ export function generateTXSequenceStates(
     // Consume rng() to maintain PRNG sequence
     rng();
     let spasmTrend: "reduced" | "slightly reduced" | "stable" =
-      nextSpasm < prevSpasm
-        ? "reduced"
-        : "stable";
+      nextSpasm < prevSpasm ? "reduced" : "stable";
     prevSpasm = nextSpasm;
 
     // ROM/Strength: 独立进度，滞后于 pain，互相联动
@@ -1472,19 +1466,13 @@ export function generateTXSequenceStates(
         "can bend and lift with less discomfort",
         "sitting tolerance has improved",
       ],
-      NECK: [
-        "can look over shoulder more easily",
-      ],
+      NECK: ["can look over shoulder more easily"],
       SHOULDER: [
         "overhead reaching is easier",
         "can reach behind back more comfortably",
       ],
-      KNEE: [
-        "stair climbing is less painful",
-      ],
-      ELBOW: [
-        "can lift objects with less elbow pain",
-      ],
+      KNEE: ["stair climbing is less painful"],
+      ELBOW: ["can lift objects with less elbow pain"],
     };
     const BODY_PART_OBJ: Record<string, string[]> = {
       LBP: [],
@@ -1492,16 +1480,9 @@ export function generateTXSequenceStates(
         "neck rotation range has improved",
         "less headache related to neck tension",
       ],
-      SHOULDER: [
-        "shoulder stiffness has decreased",
-      ],
-      KNEE: [
-        "knee stability has improved",
-      ],
-      ELBOW: [
-        "grip strength has improved",
-        "forearm tension has decreased",
-      ],
+      SHOULDER: ["shoulder stiffness has decreased"],
+      KNEE: ["knee stability has improved"],
+      ELBOW: ["grip strength has improved", "forearm tension has decreased"],
     };
     const BODY_PART_PAIN: Record<string, string[]> = {
       LBP: ["walking distance increased without pain"],
@@ -1844,7 +1825,8 @@ export function generateTXSequenceStates(
     const displayedTenderNum = parseInt(prevTendernessGrade.replace("+", ""));
     if (i > 0 && visits.length > 0) {
       const prevDisplayedTender = parseInt(
-        (visits[visits.length - 1].tendernessGrading?.match(/\+(\d)/)?.[1]) ?? String(displayedTenderNum),
+        visits[visits.length - 1].tendernessGrading?.match(/\+(\d)/)?.[1] ??
+          String(displayedTenderNum),
       );
       if (displayedTenderNum < prevDisplayedTender) {
         tendernessTrend = "reduced";
@@ -1877,7 +1859,8 @@ export function generateTXSequenceStates(
     // Reconcile spasm trend with displayed grading
     if (i > 0 && visits.length > 0) {
       const prevDisplayedSpasm = parseInt(
-        (visits[visits.length - 1].spasmGrading?.match(/\+(\d)/)?.[1]) ?? String(nextSpasm),
+        visits[visits.length - 1].spasmGrading?.match(/\+(\d)/)?.[1] ??
+          String(nextSpasm),
       );
       if (nextSpasm < prevDisplayedSpasm) {
         spasmTrend = "reduced";
@@ -1898,7 +1881,9 @@ export function generateTXSequenceStates(
       // objectiveImproved was true pre-correction but false post-correction
       // Purge OBJ_GATED reasons from shuffle bag
       const objGatedSet = new Set(OBJ_GATED);
-      positiveShuffleBag = positiveShuffleBag.filter((r) => !objGatedSet.has(r));
+      positiveShuffleBag = positiveShuffleBag.filter(
+        (r) => !objGatedSet.has(r),
+      );
       // Also fix finalReason if it contains an OBJ_GATED reason
       if (isImprovement) {
         const parts = finalReason.split(" and ");
@@ -1907,7 +1892,8 @@ export function generateTXSequenceStates(
           finalReason = cleaned.join(" and ");
         } else if (cleaned.length === 0) {
           // All reasons were OBJ_GATED, pick from GENERIC_POSITIVE
-          finalReason = GENERIC_POSITIVE[Math.floor(GENERIC_POSITIVE.length / 2)];
+          finalReason =
+            GENERIC_POSITIVE[Math.floor(GENERIC_POSITIVE.length / 2)];
         }
       }
     }
@@ -1928,7 +1914,7 @@ export function generateTXSequenceStates(
     const cumulativePainDrop = startPain - painScaleCurrent;
 
     const adlDelta = adlImproved ? 1 : 0;
-    const assessmentFromChain = deriveAssessmentFromSOA({
+    let assessmentFromChain = deriveAssessmentFromSOA({
       painDelta,
       adlDelta,
       frequencyImproved,
@@ -2013,6 +1999,25 @@ export function generateTXSequenceStates(
           excess--;
         }
       }
+    }
+
+    // Post-cap: if symptomScale was deferred by output cap, strip "muscles soreness sensation" from Assessment
+    const finalSymptomScaleChanged =
+      visits.length > 0
+        ? visitSymptomScale !== visits[visits.length - 1].symptomScale
+        : visitSymptomScale !== (options.initialState?.symptomScale || "70%");
+    if (!finalSymptomScaleChanged && symptomScaleChanged) {
+      // symptomScaleChanged was true pre-cap but false post-cap — patch Assessment
+      const wc = assessmentFromChain.whatChanged;
+      const patched = wc
+        .replace(/,?\s*muscles soreness sensation/, "")
+        .replace(/muscles soreness sensation(?:\s*and\s*)?/, "")
+        .replace(/\s*and\s*$/, "")
+        .trim();
+      assessmentFromChain = {
+        ...assessmentFromChain,
+        whatChanged: patched || "as last time visit",
+      };
     }
 
     visits.push({
