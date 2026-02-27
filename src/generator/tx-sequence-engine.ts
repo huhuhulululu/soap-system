@@ -324,6 +324,11 @@ export function deriveAssessmentFromSOA(input: {
   cumulativePainDrop: number; // startPain - currentPain (total from IE baseline)
   progress: number; // 0-1 normalized visit progress
   bodyPart: string; // e.g. "NECK", "SHOULDER", "ELBOW", "LBP", "KNEE"
+  // Task 4: multi-dimension inputs
+  dimScore: number; // composite dimension change score from computeDimensionScore
+  changedDims: string[]; // which dimensions changed
+  symptomScaleChanged: boolean;
+  severityChanged: boolean;
 }): {
   present: string;
   patientChange: string;
@@ -334,20 +339,26 @@ export function deriveAssessmentFromSOA(input: {
   response: string;
   adverseEffect: string;
 } {
-  // ASS-02: cumulative + visit-level evidence gates language strength
+  // ASS-02: cumulative + visit-level + dimScore gates language strength
   const strongCumulative =
-    input.cumulativePainDrop >= 3.0 && input.progress >= 0.5;
-  const visitLevelStrong = input.painDelta >= 0.7;
+    input.cumulativePainDrop >= 2.5 && input.progress >= 0.4;
+  const visitLevelStrong = input.dimScore >= 0.3;
 
   const present =
-    strongCumulative || visitLevelStrong
-      ? "improvement of symptom(s)."
-      : "slight improvement of symptom(s).";
+    input.dimScore === 0
+      ? "similar symptom(s) as last visit."
+      : strongCumulative || visitLevelStrong
+        ? "improvement of symptom(s)."
+        : "slight improvement of symptom(s).";
 
   const patientChange =
-    strongCumulative || visitLevelStrong ? "decreased" : "slightly decreased";
+    input.dimScore === 0
+      ? "remained the same"
+      : strongCumulative || visitLevelStrong
+        ? "decreased"
+        : "slightly decreased";
 
-  // ASS-01 + REAL-01: evidence-based whatChanged — collect ALL improved dimensions
+  // ASS-01 + REAL-01: evidence-based whatChanged — collect ALL S-side improved dimensions
   const whatChanged = (() => {
     const parts: string[] = [];
 
@@ -364,30 +375,36 @@ export function deriveAssessmentFromSOA(input: {
       parts.push("difficulty in performing ADLs");
     }
 
-    // Objective findings strongly improved
+    // S-side: symptomScale changed
+    if (input.symptomScaleChanged) {
+      parts.push("muscles soreness sensation");
+    }
+
+    // S-side: severity changed
+    if (input.severityChanged) {
+      parts.push("severity level");
+    }
+
+    // NECK-specific: dizziness/headache/migraine available when O-side improved
     const hasStrongObjective =
       input.objectiveRomTrend === "improved" ||
       input.objectiveStrengthTrend === "improved" ||
       input.objectiveTightnessTrend === "reduced";
 
-    if (hasStrongObjective && parts.length < 2) {
-      const objOptions = [
-        "muscles stiffness sensation",
-        "muscles soreness sensation",
-      ];
-      parts.push(objOptions[input.visitIndex % objOptions.length]);
-    }
-
-    // NECK-specific: dizziness/headache/migraine available when O-side improved
     if (input.bodyPart === "NECK" && hasStrongObjective && parts.length < 3) {
       const neckOptions = ["dizziness", "headache", "migraine"];
       parts.push(neckOptions[input.visitIndex % neckOptions.length]);
     }
 
+    // Fallback: dimScore > 0 but no S-side parts collected
+    if (parts.length === 0 && input.dimScore > 0) {
+      parts.push("pain");
+    }
+
     // Fallback: at least one item
     if (parts.length === 0) return "pain";
 
-    // Join: "pain frequency and difficulty in performing ADLs"
+    // Join: "pain frequency, difficulty in performing ADLs and muscles soreness sensation"
     if (parts.length === 1) return parts[0];
     return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
   })();
@@ -532,6 +549,68 @@ function buildRuleContext(
       medicalHistory: ctx.hasPacemaker ? ["Pacemaker"] : [],
     },
   };
+}
+
+export function computeDimensionScore(input: {
+  painDelta: number;
+  symptomScaleChanged: boolean;
+  severityChanged: boolean;
+  frequencyImproved: boolean;
+  adlImproved: boolean;
+  tightnessTrend: "reduced" | "slightly reduced" | "stable";
+  tendernessTrend: "reduced" | "slightly reduced" | "stable";
+  spasmTrend: "reduced" | "slightly reduced" | "stable";
+  romTrend: "improved" | "slightly improved" | "stable";
+  strengthTrend: "improved" | "slightly improved" | "stable";
+}): { score: number; changedDims: string[] } {
+  const changedDims: string[] = [];
+  let score = 0;
+
+  if (input.painDelta > 0) {
+    const painContrib = Math.min(input.painDelta / 2.0, 1.0) * 0.25;
+    score += painContrib;
+    changedDims.push("pain");
+  }
+
+  if (input.symptomScaleChanged) {
+    score += 0.12;
+    changedDims.push("symptomScale");
+  }
+
+  if (input.severityChanged) {
+    score += 0.12;
+    changedDims.push("severity");
+  }
+
+  if (input.frequencyImproved) {
+    score += 0.15;
+    changedDims.push("frequency");
+  }
+
+  if (input.adlImproved) {
+    score += 0.1;
+    changedDims.push("ADL");
+  }
+
+  const trendDims = [
+    { name: "tightness", trend: input.tightnessTrend, full: "reduced" },
+    { name: "tenderness", trend: input.tendernessTrend, full: "reduced" },
+    { name: "spasm", trend: input.spasmTrend, full: "reduced" },
+    { name: "ROM", trend: input.romTrend, full: "improved" },
+    { name: "strength", trend: input.strengthTrend, full: "improved" },
+  ];
+
+  for (const d of trendDims) {
+    if (d.trend === d.full) {
+      score += 0.1;
+      changedDims.push(d.name);
+    } else if (d.trend !== "stable") {
+      score += 0.05;
+      changedDims.push(d.name);
+    }
+  }
+
+  return { score: Math.round(score * 1000) / 1000, changedDims };
 }
 
 function addProgressBias(
@@ -1048,6 +1127,7 @@ export function generateTXSequenceStates(
     if (curSevIdx > prevSevIdx && prevSevIdx >= 0) {
       severityLevel = prevSeverity;
     }
+    const prevSeveritySnapshot = prevSeverity;
     prevSeverity = severityLevel;
     prevPainForSeverity = painScaleCurrent;
     prevAdlImproved = adlImproved;
@@ -1304,36 +1384,46 @@ export function generateTXSequenceStates(
       }
     }
 
-    // --- T02/T03 硬约束守卫: symptomChange 与 painDelta + objective trends 一致 ---
-    // Phase D: 不仅看 painDelta，也看 objective 维度是否有改善
+    // --- T02/T03 硬约束守卫: symptomChange 与综合维度变化一致 ---
     const objectiveImproved =
       tightnessTrend !== "stable" ||
       tendernessTrend !== "stable" ||
       romTrend !== "stable" ||
       strengthTrend !== "stable" ||
       spasmTrend !== "stable";
-    if (
-      (painDelta < 0.3 &&
-        !objectiveImproved &&
-        !frequencyImproved &&
-        !adlImproved) ||
-      (painDelta <= 0 && !objectiveImproved)
-    ) {
-      // painDelta < 0.3 且无任何维度改善，或 pain 未降且 objective 无变化: 不能说 improvement
-      if (symptomChange.includes("improvement")) {
+    const symptomScaleChanged = goalPaths.symptomScale.changeVisits.includes(i);
+    const severityChanged = severityLevel !== prevSeveritySnapshot;
+
+    const dimScore = computeDimensionScore({
+      painDelta,
+      symptomScaleChanged,
+      severityChanged,
+      frequencyImproved,
+      adlImproved,
+      tightnessTrend,
+      tendernessTrend,
+      spasmTrend,
+      romTrend,
+      strengthTrend,
+    });
+
+    if (dimScore.score === 0) {
+      // 所有维度都没变: 强制 similar
+      if (!symptomChange.includes("similar")) {
         symptomChange = "similar symptom(s) as last visit";
       }
-    } else if (painDelta >= 0.5) {
-      // pain 明显下降: 不能说 exacerbate
-      if (symptomChange.includes("exacerbate")) {
-        symptomChange = "improvement of symptom(s)";
-      }
+    } else if (dimScore.score > 0 && symptomChange.includes("similar")) {
+      // 有维度变化但 pickSingle 选了 similar: 纠正为 improvement
+      symptomChange = "improvement of symptom(s)";
+    } else if (dimScore.score >= 0.15 && symptomChange.includes("exacerbate")) {
+      // 明显改善但说 exacerbate: 纠正
+      symptomChange = "improvement of symptom(s)";
     }
 
-    // 后期强制改善 — painDelta > 0 或 objective 有改善时生效
+    // 后期强制改善
     if (
       progress > 0.7 &&
-      (painDelta > 0 || objectiveImproved) &&
+      dimScore.score > 0 &&
       !symptomChange.includes("improvement of symptom")
     ) {
       symptomChange = "improvement of symptom(s)";
@@ -1467,6 +1557,19 @@ export function generateTXSequenceStates(
         ...positiveShuffleBag.slice(0, pickIdx),
         ...positiveShuffleBag.slice(pickIdx + 1),
       ];
+      // 2nd reason pick
+      let reason2 = "";
+      if (positiveShuffleBag.length > 0) {
+        const pickIdx2 = Math.floor(rng() * positiveShuffleBag.length);
+        reason2 = positiveShuffleBag[pickIdx2];
+        positiveShuffleBag = [
+          ...positiveShuffleBag.slice(0, pickIdx2),
+          ...positiveShuffleBag.slice(pickIdx2 + 1),
+        ];
+      } else {
+        rng(); // consume to keep PRNG sequence
+      }
+      finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
       lastUsedReason = finalReason;
       // Improvement connector variation
       const improvementConnectors = ["because of", "due to"];
@@ -1480,6 +1583,9 @@ export function generateTXSequenceStates(
         finalReason = "did not have good rest";
       if (finalConnector !== "due to" && finalConnector !== "because of")
         finalConnector = "due to";
+      rng(); // consume: match 1st-reason pick in other branches
+      rng(); // consume: match 2nd-reason pick in other branches
+      rng(); // consume: match connector pick in other branches
     } else if (isSimilar) {
       // Shuffle bag with anti-repeat for neutral reasons
       if (neutralShuffleBag.length === 0) {
@@ -1493,6 +1599,19 @@ export function generateTXSequenceStates(
         ...neutralShuffleBag.slice(0, pickIdx),
         ...neutralShuffleBag.slice(pickIdx + 1),
       ];
+      // 2nd reason pick
+      let reason2 = "";
+      if (neutralShuffleBag.length > 0) {
+        const pickIdx2 = Math.floor(rng() * neutralShuffleBag.length);
+        reason2 = neutralShuffleBag[pickIdx2];
+        neutralShuffleBag = [
+          ...neutralShuffleBag.slice(0, pickIdx2),
+          ...neutralShuffleBag.slice(pickIdx2 + 1),
+        ];
+      } else {
+        rng(); // consume to keep PRNG sequence
+      }
+      finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
       lastUsedReason = finalReason;
       // Similar connector variation
       const similarConnectors = ["and", "may related of"];
@@ -1514,8 +1633,22 @@ export function generateTXSequenceStates(
         ...cameBackShuffleBag.slice(0, pickIdx),
         ...cameBackShuffleBag.slice(pickIdx + 1),
       ];
+      // 2nd reason pick
+      let reason2 = "";
+      if (cameBackShuffleBag.length > 0) {
+        const pickIdx2 = Math.floor(rng() * cameBackShuffleBag.length);
+        reason2 = cameBackShuffleBag[pickIdx2];
+        cameBackShuffleBag = [
+          ...cameBackShuffleBag.slice(0, pickIdx2),
+          ...cameBackShuffleBag.slice(pickIdx2 + 1),
+        ];
+      } else {
+        rng(); // consume to keep PRNG sequence
+      }
+      finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
       lastUsedReason = finalReason;
       finalConnector = "due to";
+      rng(); // consume: match connector pick in improvement/similar branches
     }
 
     // Associated Symptom: 继承用户输入(initialState)，后期逐步减轻
@@ -1704,6 +1837,10 @@ export function generateTXSequenceStates(
       cumulativePainDrop,
       progress,
       bodyPart: context.primaryBodyPart || "LBP",
+      dimScore: dimScore.score,
+      changedDims: dimScore.changedDims,
+      symptomScaleChanged,
+      severityChanged,
     });
 
     // SymptomScale: extract from inline to allow output-layer cap
@@ -1822,12 +1959,13 @@ export function generateTXSequenceStates(
           romTrend,
           strengthTrend,
         },
-        assessment: symptomChange.includes("similar")
-          ? {
-              ...assessmentFromChain,
-              present: "similar symptom(s) as last visit.",
-            }
-          : assessmentFromChain,
+        assessment:
+          dimScore.score === 0
+            ? {
+                ...assessmentFromChain,
+                present: "similar symptom(s) as last visit.",
+              }
+            : assessmentFromChain,
       },
     });
   }
