@@ -508,6 +508,46 @@ function isLongField(path) {
 
 <template>
   <div class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Compact Header Bar -->
+    <div class="mb-4 flex items-center justify-between gap-3 flex-wrap">
+      <h2 class="font-display text-lg font-bold text-ink-800">SOAP Writer</h2>
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
+          <button v-for="m in [{k:'IE',l:'IE 初诊'},{k:'TX',l:'TX 复诊'}]" :key="m.k"
+            @click="noteType = m.k"
+            class="px-3 py-1.5 font-medium transition-colors cursor-pointer"
+            :class="noteType === m.k ? 'bg-ink-800 text-white' : 'bg-white text-ink-500 hover:bg-paper-100'">
+            {{ m.l }}
+          </button>
+        </div>
+        <div v-if="noteType === 'TX'" class="flex items-center gap-1 text-xs">
+          <span class="text-ink-500">TX:</span>
+          <input type="number" v-model.number="txCount" min="1" max="11"
+            class="w-12 px-1 py-1 border border-ink-200 rounded text-xs text-center" />
+        </div>
+        <div v-if="noteType === 'IE'" class="flex items-center gap-1 text-xs">
+          <span class="text-ink-500">IE后TX:</span>
+          <input type="number" v-model.number="ieTxCount" min="1" max="20"
+            class="w-12 px-1 py-1 border border-ink-200 rounded text-xs text-center" />
+        </div>
+        <span class="text-ink-200">|</span>
+        <label class="flex items-center gap-1.5 cursor-pointer select-none">
+          <button @click="realisticPatch = !realisticPatch" type="button"
+            class="relative w-9 h-5 rounded-full transition-colors duration-200 ring-2"
+            :class="realisticPatch ? 'bg-green-500 ring-green-300' : 'bg-red-400 ring-red-200'"
+            role="switch" :aria-checked="realisticPatch">
+            <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+              :class="realisticPatch ? 'translate-x-4' : ''"></span>
+          </button>
+          <span class="text-xs font-medium" :class="realisticPatch ? 'text-green-600' : 'text-red-500'">
+            {{ realisticPatch ? '✓ Realistic' : '✗ Original' }}
+          </span>
+        </label>
+        <span class="text-ink-200">|</span>
+        <input v-model="seedInput" type="text" placeholder="Seed"
+          class="w-20 px-2 py-1 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
+      </div>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- 左栏: 三步 填写 → 审核 → 生成 -->
       <div class="lg:col-span-5 space-y-4">
@@ -520,7 +560,7 @@ function isLongField(path) {
         </Transition>
 
         <!-- ① 第一步：填写必填项 -->
-        <div data-step1 class="space-y-3 mt-6">
+        <div data-step1 class="space-y-2 mt-6">
           <h2 class="text-sm font-semibold text-ink-800 flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">1</span>
             填写必填项 <span class="text-red-500 text-[11px] font-normal">*</span>
@@ -529,7 +569,7 @@ function isLongField(path) {
             </span>
           </h2>
         <!-- 基础设置 -->
-        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-3">
+        <div class="bg-white rounded-xl border border-ink-200 p-3 space-y-3">
           <h3 class="text-xs font-medium text-ink-600">基础设置</h3>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -596,31 +636,19 @@ function isLongField(path) {
                 </button>
               </div>
             </div>
-            <div>
-              <label class="text-xs text-ink-500 mb-1 block">笔记类型</label>
-              <select v-model="noteType" aria-label="笔记类型" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-                <option value="IE">IE (初诊)</option>
-                <option value="TX">TX (复诊)</option>
-              </select>
-            </div>
+
           </div>
-          <div v-if="noteType === 'TX'" class="flex items-center gap-2">
-            <label class="text-xs text-ink-500">TX数量:</label>
-            <input type="number" v-model.number="txCount" min="1" max="11" class="w-16 px-2 py-1 border border-ink-200 rounded text-sm text-center" />
-          </div>
-          <div v-if="noteType === 'IE'" class="flex items-center gap-2">
-            <label class="text-xs text-ink-500">IE后TX数量:</label>
-            <input type="number" v-model.number="ieTxCount" min="1" max="20" class="w-16 px-2 py-1 border border-ink-200 rounded text-sm text-center" />
-          </div>
+
+
         </div>
 
         <!-- 患者信息 -->
-        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-3">
+        <div class="bg-white rounded-xl border border-ink-200 p-3 space-y-3">
           <h3 class="text-xs font-medium text-ink-600">患者信息</h3>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs text-ink-500 mb-1 block">年龄</label>
-              <input type="number" v-model.number="patientAge" min="1" max="120" class="w-20 px-3 py-2 border border-ink-200 rounded-lg text-sm text-center" />
+              <input type="number" v-model.number="patientAge" min="1" max="120" class="w-16 px-3 py-1.5 border border-ink-200 rounded-lg text-sm text-center" />
             </div>
             <div>
               <label class="text-xs text-ink-500 mb-1 block">性别</label>
@@ -628,7 +656,7 @@ function isLongField(path) {
                 <button v-for="g in GENDER_OPTIONS" :key="g" @click="patientGender = g"
                   class="flex-1 py-2 text-xs font-medium rounded-md border transition-colors cursor-pointer"
                   :class="patientGender === g ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                  {{ g }}
+                  {{ g === 'Male' ? 'M' : g === 'Female' ? 'F' : g }}
                 </button>
               </div>
             </div>
@@ -700,10 +728,10 @@ function isLongField(path) {
           <!-- 慢性程度 -->
           <div class="space-y-1">
             <label class="text-xs text-ink-500">慢性程度</label>
-            <div class="grid grid-cols-3 gap-1">
+            <div class="flex flex-wrap gap-1">
               <button v-for="opt in whitelist['subjective.chronicityLevel']" :key="opt"
                 @click="fields['subjective.chronicityLevel'] = opt"
-                class="py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer text-center"
                 :class="fields['subjective.chronicityLevel'] === opt
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
                   : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -720,7 +748,7 @@ function isLongField(path) {
         </div>
 
         <!-- 评估参数 -->
-        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
+        <div class="bg-white rounded-xl border border-ink-200 p-3 space-y-2.5">
           <h3 class="text-xs font-medium text-ink-600">评估参数</h3>
           <p class="text-[11px] text-ink-600">
             <span class="text-red-500">*</span> 用户必填
@@ -732,19 +760,19 @@ function isLongField(path) {
             <div class="grid grid-cols-3 gap-2">
               <div>
                 <span class="text-[11px] text-ink-600 block mb-0.5">最痛</span>
-                <select v-model="fields['subjective.painScale.worst']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                <select v-model="fields['subjective.painScale.worst']" class="w-[60px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
               <div>
                 <span class="text-[11px] text-ink-600 block mb-0.5">最轻</span>
-                <select v-model="fields['subjective.painScale.best']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                <select v-model="fields['subjective.painScale.best']" class="w-[60px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
               <div>
                 <span class="text-[11px] text-ink-600 block mb-0.5">当前</span>
-                <select v-model="fields['subjective.painScale.current']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+                <select v-model="fields['subjective.painScale.current']" class="w-[60px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
                   <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
@@ -782,10 +810,10 @@ function isLongField(path) {
           <!-- 疼痛频率：四个平行按钮 -->
           <div class="space-y-1">
             <label class="text-xs text-ink-500">疼痛频率 <span class="text-red-500">*</span></label>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1">
+            <div class="flex flex-wrap gap-1">
               <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
                 @click="fields['subjective.painFrequency'] = opt"
-                class="py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer text-center"
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer text-center"
                 :class="fields['subjective.painFrequency'] === opt
                   ? 'bg-ink-800 text-paper-50 border-ink-800'
                   : 'border-ink-200 text-ink-500 hover:border-ink-400'"
@@ -797,7 +825,7 @@ function isLongField(path) {
         </div>
 
         <!-- 主观必填 -->
-        <div class="bg-white rounded-xl border border-ink-200 p-4 space-y-2.5">
+        <div class="bg-white rounded-xl border border-ink-200 p-3 space-y-2.5">
           <h3 class="text-xs font-medium text-ink-600">主观必填 <span class="text-red-500">*</span></h3>
           <div v-for="fieldPath in STEP1_SUBJECTIVE_FIELDS" :key="fieldPath" class="space-y-1">
             <!-- 伴随症状 / 疼痛类型：直接展示按钮组 (多选) -->
@@ -806,7 +834,7 @@ function isLongField(path) {
               <div class="flex flex-wrap gap-1.5">
                 <button v-for="opt in whitelist[fieldPath]" :key="opt"
                   @click="toggleOption(fieldPath, opt)"
-                  class="px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+                  class="px-2.5 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer"
                   :class="fields[fieldPath].includes(opt)
                     ? 'bg-ink-800 text-paper-50 border-ink-800'
                     : 'border-ink-200 text-ink-500 hover:border-ink-400'">
@@ -815,25 +843,46 @@ function isLongField(path) {
               </div>
             </div>
             <template v-else-if="MULTI_SELECT_FIELDS.has(fieldPath)">
-              <div class="flex items-center justify-between">
+              <!-- 选项少(≤15)：直接平铺 pills -->
+              <div v-if="(whitelist[fieldPath] || []).length <= 15" class="space-y-1">
                 <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
-                <button @click="togglePanel(fieldPath)" class="text-xs text-ink-600 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">{{ expandedPanels[fieldPath] ? '收起' : '编辑' }}</button>
-              </div>
-              <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
-                <span v-for="opt in fields[fieldPath]" :key="opt" class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
-                  {{ shortLabel(opt, 28) }}
-                  <button @click="removeOption(fieldPath, opt)" class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
-                    <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                <div class="flex flex-wrap gap-1.5">
+                  <button v-for="opt in whitelist[fieldPath]" :key="opt"
+                    @click="toggleOption(fieldPath, opt)"
+                    class="px-2.5 py-1 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer"
+                    :class="fields[fieldPath].includes(opt)
+                      ? 'bg-ink-800 text-paper-50 border-ink-800'
+                      : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+                    {{ shortLabel(opt, 28) }}
                   </button>
-                </span>
-                <span v-if="fields[fieldPath].length === 0" class="text-[11px] text-ink-500 italic py-0.5">未选择</span>
+                </div>
               </div>
-              <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
-                <div class="flex flex-wrap gap-1">
-                  <button v-for="opt in whitelist[fieldPath]" :key="opt" @click="toggleOption(fieldPath, opt)"
-                    class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
-                    :class="fields[fieldPath].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
-                    :title="opt">{{ shortLabel(opt) }}</button>
+              <!-- 选项多(>15)：保留折叠面板 -->
+              <div v-else class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs text-ink-500 font-medium">{{ fieldLabel(fieldPath) }}</label>
+                  <button @click="togglePanel(fieldPath)" class="text-xs text-ink-600 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">
+                    {{ expandedPanels[fieldPath] ? '收起' : '编辑' }}
+                  </button>
+                </div>
+                <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
+                  <span v-for="opt in fields[fieldPath]" :key="opt"
+                    class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
+                    {{ shortLabel(opt, 28) }}
+                    <button @click="removeOption(fieldPath, opt)"
+                      class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-ink-600 transition-colors">
+                      <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </span>
+                  <span v-if="fields[fieldPath].length === 0" class="text-[11px] text-ink-500 italic py-0.5">未选择</span>
+                </div>
+                <div v-show="expandedPanels[fieldPath]" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
+                  <div class="flex flex-wrap gap-1">
+                    <button v-for="opt in whitelist[fieldPath]" :key="opt" @click="toggleOption(fieldPath, opt)"
+                      class="text-[11px] px-2 py-1 rounded-full border transition-colors duration-150 cursor-pointer"
+                      :class="fields[fieldPath].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
+                      :title="opt">{{ shortLabel(opt) }}</button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -862,7 +911,7 @@ function isLongField(path) {
             <span class="w-6 h-6 rounded-full bg-ink-800 text-paper-50 text-xs flex items-center justify-center">2</span>
             审核 R 项 <span class="text-blue-400 text-[11px] font-normal">R 引擎推导，可点「改」修改</span>
           </h2>
-          <div v-for="group in step2Groups" :key="group.key" class="bg-white rounded-xl border border-ink-200 p-4">
+          <div v-for="group in step2Groups" :key="group.key" class="bg-white rounded-xl border border-ink-200 p-3">
             <h4 class="text-[11px] font-medium text-ink-600 uppercase tracking-wide mb-2">{{ group.label }}</h4>
             <div v-for="item in group.resolvedItems" :key="item.path"
               class="flex gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
@@ -946,29 +995,7 @@ function isLongField(path) {
             </svg>
             {{ isGenerating ? '生成中...' : `生成 ${noteType === 'TX' ? `${txCount} 个 TX` : 'IE'}` }}
           </button>
-          <!-- 高级选项 (折叠) -->
-          <details class="text-xs">
-            <summary class="text-ink-400 hover:text-ink-600 cursor-pointer py-1 select-none">高级选项</summary>
-            <div class="space-y-2 mt-1.5">
-              <div class="flex items-center gap-2">
-                <input v-model="seedInput" type="text" placeholder="Seed (留空随机)"
-                  aria-label="随机种子"
-                  class="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs font-mono text-ink-600 placeholder:text-ink-300" />
-              </div>
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <button @click="realisticPatch = !realisticPatch" type="button"
-                  class="relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ring-2"
-                  :class="realisticPatch ? 'bg-green-500 ring-green-300' : 'bg-red-400 ring-red-200'"
-                  role="switch" :aria-checked="realisticPatch">
-                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-                    :class="realisticPatch ? 'translate-x-4' : ''"></span>
-                </button>
-                <span class="text-xs font-medium" :class="realisticPatch ? 'text-green-600' : 'text-red-500'">
-                  {{ realisticPatch ? '✓ Realistic' : '✗ Original' }}
-                </span>
-              </label>
-            </div>
-          </details>
+
         </div>
       </div>
 
