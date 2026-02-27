@@ -396,13 +396,16 @@ export function deriveAssessmentFromSOA(input: {
       parts.push(neckOptions[input.visitIndex % neckOptions.length]);
     }
 
-    // Fallback: dimScore > 0 but no S-side parts collected
+    // Fallback: dimScore > 0 but no S-side parts collected (only O-side improved)
+    // Use "overall condition" instead of misleading "pain"
     if (parts.length === 0 && input.dimScore > 0) {
-      parts.push("pain");
+      parts.push("overall condition");
     }
 
-    // Fallback: at least one item
-    if (parts.length === 0) return "pain";
+    // Fallback: dimScore === 0 (similar) → "as last time visit"
+    // dimScore > 0 should have been caught above; this is a safety net
+    if (parts.length === 0)
+      return input.dimScore === 0 ? "as last time visit" : "pain";
 
     // Join: "pain frequency, difficulty in performing ADLs and muscles soreness sensation"
     if (parts.length === 1) return parts[0];
