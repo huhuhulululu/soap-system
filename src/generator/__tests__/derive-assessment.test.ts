@@ -29,6 +29,9 @@ const VALID_WHAT_CHANGED = [
   "severity level",
   "overall condition",
   "as last time visit",
+  "dizziness",
+  "headache",
+  "migraine",
 ];
 const VALID_PHYSICAL_CHANGE = [
   "reduced",

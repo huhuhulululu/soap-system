@@ -115,6 +115,9 @@ describe("Assessment cumulative tracking (ASS-02)", () => {
       "severity level",
       "overall condition",
       "as last time visit",
+      "dizziness",
+      "headache",
+      "migraine",
     ];
 
     const ctx = makeContext();
