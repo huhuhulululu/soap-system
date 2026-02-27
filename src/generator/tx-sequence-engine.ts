@@ -1878,6 +1878,32 @@ export function generateTXSequenceStates(
       }
     }
 
+    // Post-reconciliation: re-check objectiveImproved with corrected trends
+    // and purge any OBJ_GATED reasons that slipped into the bag
+    const correctedObjImproved =
+      tightnessTrend !== "stable" ||
+      tendernessTrend !== "stable" ||
+      spasmTrend !== "stable" ||
+      romTrend !== "stable" ||
+      strengthTrend !== "stable";
+    if (!correctedObjImproved && objectiveImproved) {
+      // objectiveImproved was true pre-correction but false post-correction
+      // Purge OBJ_GATED reasons from shuffle bag
+      const objGatedSet = new Set(OBJ_GATED);
+      positiveShuffleBag = positiveShuffleBag.filter((r) => !objGatedSet.has(r));
+      // Also fix finalReason if it contains an OBJ_GATED reason
+      if (isImprovement) {
+        const parts = finalReason.split(" and ");
+        const cleaned = parts.filter((p) => !objGatedSet.has(p.trim()));
+        if (cleaned.length > 0 && cleaned.length < parts.length) {
+          finalReason = cleaned.join(" and ");
+        } else if (cleaned.length === 0) {
+          // All reasons were OBJ_GATED, pick from GENERIC_POSITIVE
+          finalReason = GENERIC_POSITIVE[Math.floor(GENERIC_POSITIVE.length / 2)];
+        }
+      }
+    }
+
     const frequencyByLevel = [
       "Intermittent (symptoms occur less than 25% of the time)",
       "Occasional (symptoms occur between 26% and 50% of the time)",
