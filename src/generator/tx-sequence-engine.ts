@@ -1391,7 +1391,19 @@ export function generateTXSequenceStates(
       romTrend !== "stable" ||
       strengthTrend !== "stable" ||
       spasmTrend !== "stable";
-    const symptomScaleChanged = goalPaths.symptomScale.changeVisits.includes(i);
+    // symptomScaleChanged: 用实际显示值比较，而非 goalPaths 调度
+    // goalPaths 调度可能不包含 visit 0，但 IE "70-80%" → TX1 "70%" 是真实变化
+    const pendingSymptomDecade = goalPaths.symptomScale.changeVisits.includes(i)
+      ? Math.max(1, prevSymptomDecade - 1)
+      : prevSymptomDecade;
+    const pendingSymptomScale = snapSymptomToGrid(pendingSymptomDecade * 10);
+    // TX1 (visits.length=0): 用 IE 原始字符串比较，避免 decade 转换丢失格式
+    // IE "70%-80%" 经过 symptomScaleToDecade→snapSymptomToGrid 会变成 "70%"，丢失差异
+    const prevVisitSymptomScale =
+      visits.length > 0
+        ? visits[visits.length - 1].symptomScale
+        : options.initialState?.symptomScale || "70%";
+    const symptomScaleChanged = pendingSymptomScale !== prevVisitSymptomScale;
     const severityChanged = severityLevel !== prevSeveritySnapshot;
 
     const dimScore = computeDimensionScore({
