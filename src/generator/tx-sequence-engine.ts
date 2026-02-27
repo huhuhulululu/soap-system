@@ -1472,49 +1472,87 @@ export function generateTXSequenceStates(
     const isSimilar = symptomChange.includes("similar");
     const isCameBack = symptomChange.includes("came back");
 
-    // Body-part-specific positive reasons for diversity
-    const BODY_PART_POSITIVE: Record<string, string[]> = {
+    // Body-part-specific reasons — categorized by dimension gate
+    const BODY_PART_ADL: Record<string, string[]> = {
       LBP: [
         "can bend and lift with less discomfort",
         "sitting tolerance has improved",
-        "walking distance increased without pain",
       ],
       NECK: [
-        "neck rotation range has improved",
-        "less headache related to neck tension",
         "can look over shoulder more easily",
       ],
       SHOULDER: [
         "overhead reaching is easier",
         "can reach behind back more comfortably",
-        "shoulder stiffness has decreased",
       ],
       KNEE: [
         "stair climbing is less painful",
-        "can walk longer distances comfortably",
+      ],
+      ELBOW: [
+        "can lift objects with less elbow pain",
+      ],
+    };
+    const BODY_PART_OBJ: Record<string, string[]> = {
+      LBP: [],
+      NECK: [
+        "neck rotation range has improved",
+        "less headache related to neck tension",
+      ],
+      SHOULDER: [
+        "shoulder stiffness has decreased",
+      ],
+      KNEE: [
         "knee stability has improved",
       ],
       ELBOW: [
         "grip strength has improved",
-        "can lift objects with less elbow pain",
         "forearm tension has decreased",
       ],
     };
-    const bodySpecific =
-      BODY_PART_POSITIVE[context.primaryBodyPart] ?? BODY_PART_POSITIVE.LBP;
-    const POSITIVE_REASONS = new Set([
-      "can move joint more freely and with less pain",
-      "physical activity no longer causes distress",
-      "reduced level of pain",
-      "less difficulty performing daily activities",
+    const BODY_PART_PAIN: Record<string, string[]> = {
+      LBP: ["walking distance increased without pain"],
+      NECK: [],
+      SHOULDER: [],
+      KNEE: ["can walk longer distances comfortably"],
+      ELBOW: [],
+    };
+
+    // Always-available generic positive reasons
+    const GENERIC_POSITIVE = [
       "energy level improved",
       "sleep quality improved",
       "more energy level throughout the day",
       "overall well-being has improved",
       "stress level has decreased",
+      "physical activity no longer causes distress",
+    ];
+    // Pain-gated: only when painDelta > 0.2
+    const PAIN_GATED = [
+      "reduced level of pain",
+      "can move joint more freely and with less pain",
+      ...(BODY_PART_PAIN[context.primaryBodyPart] ?? []),
+    ];
+    // ADL-gated: only when adlImproved
+    const ADL_GATED = [
+      "less difficulty performing daily activities",
+      ...(BODY_PART_ADL[context.primaryBodyPart] ?? BODY_PART_ADL.LBP),
+    ];
+    // O-side-gated: only when objectiveImproved
+    const OBJ_GATED = [
       "muscle tension has reduced noticeably",
-      ...bodySpecific,
-    ]);
+      ...(BODY_PART_OBJ[context.primaryBodyPart] ?? []),
+    ];
+
+    // Dynamic pool: filter by current visit dimensions
+    const positivePool = [
+      ...GENERIC_POSITIVE,
+      ...(painDelta > 0.2 ? PAIN_GATED : []),
+      ...(adlImproved ? ADL_GATED : []),
+      ...(objectiveImproved ? OBJ_GATED : []),
+    ];
+    const POSITIVE_REASONS = new Set(
+      positivePool.length > 0 ? positivePool : GENERIC_POSITIVE,
+    );
     const NEGATIVE_REASONS = new Set([
       "did not have good rest",
       "intense work",
@@ -1558,6 +1596,10 @@ export function generateTXSequenceStates(
     let finalReason = reason;
     let finalConnector = reasonConnector;
     if (isImprovement) {
+      // Purge stale reasons from bag that don't belong in current visit's pool
+      positiveShuffleBag = positiveShuffleBag.filter((r) =>
+        POSITIVE_REASONS.has(r),
+      );
       // Shuffle bag with anti-repeat: refill when empty, exclude last-used on refill
       if (positiveShuffleBag.length === 0) {
         positiveShuffleBag = POSITIVE_REASONS_LIST.filter(
