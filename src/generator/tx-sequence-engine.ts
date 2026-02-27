@@ -1108,8 +1108,8 @@ export function generateTXSequenceStates(
     const adlBDrop = goalPaths.adlB.changeVisits.includes(i);
     const adlImproved = adlADrop || adlBDrop;
 
-    // severityLevel: 基于 pain，ADL 改善时最多降 1 档，纵向只降不升
-    const baseSeverity = severityFromPain(prevPainForSeverity);
+    // severityLevel: 基于当前 pain，ADL 改善时最多降 1 档，纵向只降不升
+    const baseSeverity = severityFromPain(painScaleCurrent);
     const severityOrder: SeverityLevel[] = [
       "mild",
       "mild to moderate",
