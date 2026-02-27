@@ -506,12 +506,13 @@ function isLongField(path) {
 }
 </script>
 
+
 <template>
-  <div class="max-w-4xl mx-auto px-6 py-8">
-    <!-- Compact Header Bar -->
-    <div class="mb-4 flex items-center justify-between gap-3 flex-wrap">
-      <h2 class="font-display text-lg font-bold text-ink-800">SOAP Writer</h2>
-      <div class="flex items-center gap-2 flex-wrap">
+  <div class="max-w-4xl mx-auto px-6 py-6">
+    <!-- Header -->
+    <div class="mb-3 flex items-center gap-2 flex-wrap">
+      <h2 class="text-lg font-bold text-ink-800">SOAP Writer</h2>
+      <div class="flex items-center gap-2 flex-wrap ml-auto">
         <div class="flex rounded-lg border border-ink-200 overflow-hidden text-xs">
           <button v-for="m in [{k:'IE',l:'IE 初诊'},{k:'TX',l:'TX 复诊'}]" :key="m.k"
             @click="noteType = m.k"
@@ -551,138 +552,116 @@ function isLongField(path) {
 
     <!-- 内联校验提示 -->
     <Transition name="panel">
-      <div v-if="validationMsg" class="validation-toast flex items-center gap-2 mb-4" role="alert">
+      <div v-if="validationMsg" class="validation-toast flex items-center gap-2 mb-3" role="alert">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
         {{ validationMsg }}
       </div>
     </Transition>
 
-    <!-- 表单区: 全宽单列 -->
-    <div class="space-y-3" data-step1>
+    <!-- 表单区: 单卡片流式行布局 -->
+    <div class="space-y-2" data-step1>
+      <div class="bg-white rounded-xl border border-ink-200 p-3 divide-y divide-ink-50">
 
-      <!-- Card 1: 基础设置 + 患者信息 -->
-      <div class="bg-white rounded-xl border border-ink-200 p-3 space-y-3">
-        <!-- Row 1: 保险 + 部位/侧别 -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-xs text-ink-500 mb-1 block">保险类型</label>
-            <select v-model="insuranceType" aria-label="保险类型" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-              <option v-for="t in INSURANCE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
-            </select>
+        <!-- Row 1: 保险 + 部位 -->
+        <div class="flex items-center gap-3 py-2 first:pt-0 flex-wrap">
+          <span class="text-xs text-ink-500">保险类型</span>
+          <select v-model="insuranceType" aria-label="保险类型" class="px-2 py-1.5 border border-ink-200 rounded-lg text-sm">
+            <option v-for="t in INSURANCE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
+          </select>
+          <span class="text-xs text-ink-500">部位</span>
+          <div class="flex gap-1">
+            <button @click="selectionMode = 'bodypart'"
+              class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="selectionMode === 'bodypart' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              直选
+            </button>
+            <button @click="selectionMode = 'icd10'"
+              class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="selectionMode === 'icd10' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              ICD-10
+            </button>
           </div>
-          <div>
-            <label class="text-xs text-ink-500 mb-1 block">部位</label>
-            <!-- 模式切换 -->
-            <div class="flex gap-1 mb-1.5">
-              <button @click="selectionMode = 'bodypart'"
-                class="flex-1 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
-                :class="selectionMode === 'bodypart' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                直选
-              </button>
-              <button @click="selectionMode = 'icd10'"
-                class="flex-1 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
-                :class="selectionMode === 'icd10' ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                ICD-10
-              </button>
+          <select v-if="selectionMode === 'bodypart'" v-model="bodyPart" aria-label="部位" class="px-2 py-1.5 border border-ink-200 rounded-lg text-sm">
+            <option v-for="p in availableBodyParts" :key="p" :value="p">{{ bodyPartLabel(p) }}</option>
+          </select>
+          <template v-else>
+            <div class="flex flex-wrap gap-1">
+              <span v-for="(item, idx) in selectedIcds" :key="item.icd10"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
+                :class="item.bodyPart ? 'bg-ink-800 text-paper-50' : 'bg-ink-100 text-ink-600'">
+                {{ item.icd10 }}
+                <button @click="removeIcdCode(idx)" class="hover:text-red-400 cursor-pointer">&times;</button>
+              </span>
             </div>
-            <!-- 直选模式 -->
-            <select v-if="selectionMode === 'bodypart'" v-model="bodyPart" aria-label="部位" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm">
-              <option v-for="p in availableBodyParts" :key="p" :value="p">{{ bodyPartLabel(p) }}</option>
-            </select>
-            <!-- ICD-10 多选模式 -->
-            <div v-else>
-              <!-- 已选标签 -->
-              <div v-if="selectedIcds.length" class="flex flex-wrap gap-1 mb-1.5">
-                <span v-for="(item, idx) in selectedIcds" :key="item.icd10"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
-                  :class="item.bodyPart ? 'bg-ink-800 text-paper-50' : 'bg-ink-100 text-ink-600'">
-                  {{ item.icd10 }}
-                  <button @click="removeIcdCode(idx)" class="hover:text-red-400 cursor-pointer">&times;</button>
-                </span>
-              </div>
-              <!-- 搜索输入 -->
-              <div v-if="selectedIcds.length < 4" class="relative">
-                <input v-model="icdSearch" @focus="icdDropdownOpen = true" @blur="icdDropdownOpen = false"
-                  placeholder="输入 ICD-10 编码或描述..."
-                  class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm" />
-                <div v-if="icdDropdownOpen && filteredIcdOptions.length"
-                  class="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-ink-200 rounded-lg shadow-lg">
-                  <button v-for="item in filteredIcdOptions" :key="item.icd10"
-                    @mousedown.prevent="selectIcdCode(item)"
-                    class="w-full px-3 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between cursor-pointer">
-                    <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
-                    <span class="text-ink-500 truncate ml-2">{{ item.desc }}</span>
-                  </button>
-                </div>
+            <div v-if="selectedIcds.length < 4" class="relative">
+              <input v-model="icdSearch" @focus="icdDropdownOpen = true" @blur="icdDropdownOpen = false"
+                placeholder="ICD-10..."
+                class="w-36 px-2 py-1.5 border border-ink-200 rounded-lg text-xs" />
+              <div v-if="icdDropdownOpen && filteredIcdOptions.length"
+                class="absolute z-50 mt-1 w-64 max-h-48 overflow-y-auto bg-white border border-ink-200 rounded-lg shadow-lg">
+                <button v-for="item in filteredIcdOptions" :key="item.icd10"
+                  @mousedown.prevent="selectIcdCode(item)"
+                  class="w-full px-3 py-1.5 text-left text-sm hover:bg-ink-50 flex justify-between cursor-pointer">
+                  <span class="font-mono text-xs text-ink-600">{{ item.icd10 }}</span>
+                  <span class="text-ink-500 truncate ml-2">{{ item.desc }}</span>
+                </button>
               </div>
             </div>
-            <!-- 侧别选择 (仅四肢关节部位显示) -->
-            <div v-if="lateralityOptions" class="flex gap-1 mt-1.5">
-              <button v-for="opt in lateralityOptions" :key="opt.value"
-                @click="laterality = opt.value"
-                class="flex-1 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
-                :class="laterality === opt.value
-                  ? 'bg-ink-800 text-paper-50 border-ink-800'
-                  : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                {{ opt.label }}
-              </button>
-            </div>
+          </template>
+          <div v-if="lateralityOptions" class="flex gap-1">
+            <button v-for="opt in lateralityOptions" :key="opt.value"
+              @click="laterality = opt.value"
+              class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="laterality === opt.value ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              {{ opt.label }}
+            </button>
           </div>
         </div>
 
         <!-- Row 2: 年龄 + 性别 + 次要部位 -->
-        <div class="flex items-end gap-3 flex-wrap">
-          <div>
-            <label class="text-xs text-ink-500 mb-1 block">年龄</label>
-            <input type="number" v-model.number="patientAge" min="1" max="120" class="w-16 px-3 py-1.5 border border-ink-200 rounded-lg text-sm text-center" />
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <span class="text-xs text-ink-500">年龄</span>
+          <input type="number" v-model.number="patientAge" min="1" max="120" class="w-14 px-2 py-1.5 border border-ink-200 rounded text-sm text-center" />
+          <span class="text-xs text-ink-500">性别</span>
+          <div class="flex gap-1">
+            <button v-for="g in GENDER_OPTIONS" :key="g" @click="patientGender = g"
+              class="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors cursor-pointer"
+              :class="patientGender === g ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              {{ g === 'Male' ? 'M' : g === 'Female' ? 'F' : g }}
+            </button>
           </div>
-          <div>
-            <label class="text-xs text-ink-500 mb-1 block">性别</label>
-            <div class="flex gap-1">
-              <button v-for="g in GENDER_OPTIONS" :key="g" @click="patientGender = g"
-                class="px-3 py-1.5 text-xs font-medium rounded-md border transition-colors cursor-pointer"
-                :class="patientGender === g ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                {{ g === 'Male' ? 'M' : g === 'Female' ? 'F' : g }}
-              </button>
-            </div>
-          </div>
-          <div class="flex-1 min-w-0">
-            <label class="text-xs text-ink-500 mb-1 block">次要部位 <span class="text-ink-300">(可选)</span></label>
-            <div class="flex flex-wrap gap-1">
-              <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
-                @click="toggleSecondaryPart(bp)"
-                class="px-2.5 py-1 text-[11px] rounded-md border transition-colors cursor-pointer"
-                :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                {{ bodyPartLabel(bp) }}
-              </button>
-            </div>
+          <span class="text-xs text-ink-500">次要部位 <span class="text-ink-300">(可选)</span></span>
+          <div class="flex flex-wrap gap-1">
+            <button v-for="bp in BODY_PARTS.filter(b => b !== bodyPart)" :key="bp"
+              @click="toggleSecondaryPart(bp)"
+              class="px-2 py-1 text-[11px] rounded-md border transition-colors cursor-pointer"
+              :class="secondaryBodyParts.includes(bp) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              {{ bodyPartLabel(bp) }}
+            </button>
           </div>
         </div>
-        <!-- 已选次要部位的侧别选择 -->
-        <div v-for="bp in secondaryBodyParts.filter(b => LATERALITY_MAP[b])" :key="'lat-'+bp" class="flex items-center gap-1.5">
-          <span class="text-[11px] text-ink-400 w-16 flex-shrink-0">{{ bp }}</span>
+
+        <!-- Row 2b: 次要部位侧别 (conditional) -->
+        <div v-for="bp in secondaryBodyParts.filter(b => LATERALITY_MAP[b])" :key="'lat-'+bp"
+          class="flex items-center gap-2 py-2">
+          <span class="text-[11px] text-ink-400">↳ {{ bp }}</span>
           <button v-for="opt in LATERALITY_MAP[bp]" :key="opt.value"
             @click="secondaryLaterality[bp] = opt.value"
-            class="px-2 py-0.5 text-xs font-medium rounded border transition-colors cursor-pointer"
-            :class="secondaryLaterality[bp] === opt.value
-              ? 'bg-ink-800 text-paper-50 border-ink-800'
-              : 'border-ink-200 text-ink-400 hover:border-ink-400'">
+            class="px-2 py-0.5 text-[11px] font-medium rounded border transition-colors cursor-pointer"
+            :class="secondaryLaterality[bp] === opt.value ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-400 hover:border-ink-400'">
             {{ opt.label }}
           </button>
         </div>
 
-        <!-- Row 3: 病史 (折叠面板, 分组) -->
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between">
-            <label class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.length || '无' }})</span></label>
-            <button @click="togglePanel('medicalHistory')" class="text-xs text-ink-600 hover:text-ink-600 transition-colors px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]"
+        <!-- Row 3: 病史 -->
+        <div class="py-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-ink-500 font-medium">病史 <span class="text-ink-300 font-normal">({{ medicalHistory.length || '无' }})</span></span>
+            <button @click="togglePanel('medicalHistory')" class="text-xs text-ink-500 hover:text-ink-700 px-2 py-0.5 rounded-md hover:bg-paper-100 cursor-pointer border border-ink-200"
               :aria-expanded="!!expandedPanels['medicalHistory']" aria-controls="panel-medicalHistory">
               {{ expandedPanels['medicalHistory'] ? '收起' : '编辑' }}
             </button>
-          </div>
-          <!-- 已选标签 -->
-          <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
-            <span v-if="medicalHistory.length === 0" class="text-[11px] text-ink-500 italic py-0.5">无病史</span>
+            <span v-if="medicalHistory.length === 0" class="text-[11px] text-ink-400 italic">无病史</span>
             <span v-for="h in medicalHistory" :key="h"
               class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
               {{ h }}
@@ -692,8 +671,7 @@ function isLongField(path) {
               </button>
             </span>
           </div>
-          <!-- 展开面板 (分组) -->
-          <div v-show="expandedPanels['medicalHistory']" id="panel-medicalHistory" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2">
+          <div v-show="expandedPanels['medicalHistory']" id="panel-medicalHistory" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-48 overflow-y-auto space-y-2 mt-2">
             <div v-for="group in MEDICAL_HISTORY_GROUPS" :key="group.label">
               <p class="text-[11px] text-ink-600 font-medium mb-1">{{ group.label }}</p>
               <div class="flex flex-wrap gap-1">
@@ -706,151 +684,127 @@ function isLongField(path) {
               </div>
             </div>
             <button v-if="medicalHistory.length > 0" @click="medicalHistory.splice(0)"
-              class="text-[11px] text-ink-600 hover:text-red-500 transition-colors cursor-pointer mt-1">
+              class="text-[11px] text-ink-500 hover:text-red-500 transition-colors cursor-pointer mt-1">
               清空全部
             </button>
           </div>
         </div>
 
-        <!-- Row 4: 慢性程度 + Severity 推导 -->
-        <div class="flex items-center gap-4 flex-wrap">
-          <div class="space-y-1">
-            <label class="text-xs text-ink-500">慢性程度</label>
-            <div class="flex flex-wrap gap-1">
-              <button v-for="opt in whitelist['subjective.chronicityLevel']" :key="opt"
-                @click="fields['subjective.chronicityLevel'] = opt"
-                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer text-center"
-                :class="fields['subjective.chronicityLevel'] === opt
-                  ? 'bg-ink-800 text-paper-50 border-ink-800'
-                  : 'border-ink-200 text-ink-500 hover:border-ink-400'">
-                {{ opt }}
-              </button>
-            </div>
+        <!-- Row 4: 慢性程度 + Severity -->
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <span class="text-xs text-ink-500">慢性程度</span>
+          <div class="flex flex-wrap gap-1">
+            <button v-for="opt in whitelist['subjective.chronicityLevel']" :key="opt"
+              @click="fields['subjective.chronicityLevel'] = opt"
+              class="px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="fields['subjective.chronicityLevel'] === opt ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              {{ opt }}
+            </button>
           </div>
-          <div class="flex items-center gap-2 text-xs text-ink-400 bg-paper-50 rounded-lg px-3 py-2">
+          <div class="flex items-center gap-1.5 text-xs text-ink-400 bg-ink-100 rounded-md px-2.5 py-1.5 ml-auto">
             <span>Severity:</span>
-            <span class="font-medium text-ink-600">{{ derivedSeverity }}</span>
+            <span class="font-medium text-ink-700">{{ derivedSeverity }}</span>
             <span class="text-ink-300">(Pain {{ currentPain }} 推导)</span>
           </div>
         </div>
-      </div>
 
-      <!-- Card 2: 评估参数 + 主观必填 -->
-      <div class="bg-white rounded-xl border border-ink-200 p-3 space-y-2.5">
-        <!-- Row 1: Pain Scale W/B/C + Frequency + Duration + Scale -->
-        <div class="grid grid-cols-12 gap-2 items-end">
-          <!-- Pain W/B/C -->
-          <div class="col-span-2">
-            <span class="text-[11px] text-ink-600 block mb-0.5">最痛 <span class="text-red-500">*</span></span>
-            <select v-model="fields['subjective.painScale.worst']" class="w-[60px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+        <!-- Row 5: 疼痛评分 + 频率 -->
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[11px] text-ink-500">最痛 <span class="text-red-500">*</span></span>
+            <select v-model="fields['subjective.painScale.worst']" class="w-[56px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.painScale.worst']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
-          <div class="col-span-2">
-            <span class="text-[11px] text-ink-600 block mb-0.5">最轻</span>
-            <select v-model="fields['subjective.painScale.best']" class="w-[60px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[11px] text-ink-500">最轻</span>
+            <select v-model="fields['subjective.painScale.best']" class="w-[56px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
               <option v-for="opt in whitelist['subjective.painScale.best']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
-          <div class="col-span-2">
-            <span class="text-[11px] text-ink-600 block mb-0.5">当前</span>
-            <select v-model="fields['subjective.painScale.current']" class="w-[60px] px-1 py-1.5 border border-ink-200 rounded text-xs text-center">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[11px] text-ink-500">当前</span>
+            <select v-model="fields['subjective.painScale.current']" class="w-[56px] px-1 py-1.5 border border-ink-200 rounded-lg text-xs text-center font-semibold border-ink-700 border-2">
               <option v-for="opt in whitelist['subjective.painScale.current']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
           </div>
-          <!-- Frequency -->
-          <div class="col-span-6">
-            <span class="text-[11px] text-ink-600 block mb-0.5">疼痛频率 <span class="text-red-500">*</span></span>
-            <div class="flex flex-wrap gap-1">
-              <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
-                @click="fields['subjective.painFrequency'] = opt"
-                class="px-2.5 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer text-center"
-                :class="fields['subjective.painFrequency'] === opt
-                  ? 'bg-ink-800 text-paper-50 border-ink-800'
-                  : 'border-ink-200 text-ink-500 hover:border-ink-400'"
-                :title="opt">
-                {{ painFreqShort(opt) }}
-              </button>
-            </div>
-          </div>
-        </div>
-        <!-- Row 1b: Duration + RecentWorse + SymptomScale -->
-        <div class="grid grid-cols-12 gap-2 items-end">
-          <div class="col-span-4">
-            <span class="text-[11px] text-ink-600 block mb-0.5">病程时长 <span class="text-red-500">*</span></span>
-            <div class="flex gap-1">
-              <input v-model="fields['subjective.symptomDuration.value']" type="text" placeholder="如: 3"
-                class="flex-1 px-2 py-1.5 border border-ink-200 rounded text-xs text-center" />
-              <select v-model="fields['subjective.symptomDuration.unit']" class="flex-[2] px-1 py-1.5 border border-ink-200 rounded text-xs">
-                <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="col-span-4">
-            <span class="text-[11px] text-ink-600 block mb-0.5">近期加重 <span class="text-red-500">*</span></span>
-            <div class="flex gap-1">
-              <input v-model="recentWorseValue" type="text" placeholder="如: 1"
-                class="flex-1 px-2 py-1.5 border border-ink-200 rounded text-xs text-center" />
-              <select v-model="recentWorseUnit" class="flex-[2] px-1 py-1.5 border border-ink-200 rounded text-xs">
-                <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="col-span-4">
-            <span class="text-[11px] text-ink-600 block mb-0.5">症状量表 <span class="text-red-500">*</span></span>
-            <select v-model="fields['subjective.symptomScale']" class="w-full px-1 py-1.5 border border-ink-200 rounded text-xs">
-              <option v-for="opt in [...whitelist['subjective.symptomScale']].reverse()" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
+          <span class="text-xs text-ink-500">疼痛频率 <span class="text-red-500">*</span></span>
+          <div class="flex flex-wrap gap-1">
+            <button v-for="opt in whitelist['subjective.painFrequency']" :key="opt"
+              @click="fields['subjective.painFrequency'] = opt"
+              class="px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="fields['subjective.painFrequency'] === opt ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'"
+              :title="opt">
+              {{ painFreqShort(opt) }}
+            </button>
           </div>
         </div>
 
-        <!-- Row 2: Radiation + RecentWorse (painRadiation is a select) -->
-        <div class="space-y-1">
-          <label class="text-xs text-ink-500 font-medium">{{ fieldLabel('subjective.painRadiation') }}</label>
-          <select v-model="fields['subjective.painRadiation']" class="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-xs">
+        <!-- Row 6: 时长 + 加重 + 量表 -->
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <span class="text-xs text-ink-500">病程时长 <span class="text-red-500">*</span></span>
+          <div class="flex gap-1">
+            <input v-model="fields['subjective.symptomDuration.value']" type="text" placeholder="如: 3"
+              class="w-10 px-1 py-1.5 border border-ink-200 rounded text-xs text-center" />
+            <select v-model="fields['subjective.symptomDuration.unit']" class="px-1 py-1.5 border border-ink-200 rounded text-xs">
+              <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+          <span class="text-xs text-ink-500">近期加重 <span class="text-red-500">*</span></span>
+          <div class="flex gap-1">
+            <input v-model="recentWorseValue" type="text" placeholder="如: 1"
+              class="w-10 px-1 py-1.5 border border-ink-200 rounded text-xs text-center" />
+            <select v-model="recentWorseUnit" class="px-1 py-1.5 border border-ink-200 rounded text-xs">
+              <option v-for="opt in whitelist['subjective.symptomDuration.unit']" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </div>
+          <span class="text-xs text-ink-500">症状量表 <span class="text-red-500">*</span></span>
+          <select v-model="fields['subjective.symptomScale']" class="px-1 py-1.5 border border-ink-200 rounded text-xs">
+            <option v-for="opt in [...whitelist['subjective.symptomScale']].reverse()" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </div>
+
+        <!-- Row 7: 放射痛 -->
+        <div class="flex items-center gap-3 py-2">
+          <span class="text-xs text-ink-500">{{ fieldLabel('subjective.painRadiation') }}</span>
+          <select v-model="fields['subjective.painRadiation']" class="px-2 py-1.5 border border-ink-200 rounded-lg text-xs">
             <option v-for="opt in radiationOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
         </div>
 
-        <!-- Row 3: Pain Types (pills) -->
-        <div class="space-y-1">
-          <label class="text-xs text-ink-500 font-medium">{{ fieldLabel('subjective.painTypes') }}</label>
-          <div class="flex flex-wrap gap-1.5">
+        <!-- Row 8: 疼痛类型 -->
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <span class="text-xs text-ink-500">{{ fieldLabel('subjective.painTypes') }}</span>
+          <div class="flex flex-wrap gap-1">
             <button v-for="opt in whitelist['subjective.painTypes']" :key="opt"
               @click="toggleOption('subjective.painTypes', opt)"
-              class="px-2.5 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer"
-              :class="fields['subjective.painTypes'].includes(opt)
-                ? 'bg-ink-800 text-paper-50 border-ink-800'
-                : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              class="px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="fields['subjective.painTypes'].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
               {{ opt }}
             </button>
           </div>
         </div>
 
-        <!-- Row 4: Associated Symptoms (pills) -->
-        <div class="space-y-1">
-          <label class="text-xs text-ink-500 font-medium">{{ fieldLabel('subjective.associatedSymptoms') }}</label>
-          <div class="flex flex-wrap gap-1.5">
+        <!-- Row 9: 伴随症状 -->
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <span class="text-xs text-ink-500">{{ fieldLabel('subjective.associatedSymptoms') }}</span>
+          <div class="flex flex-wrap gap-1">
             <button v-for="opt in whitelist['subjective.associatedSymptoms']" :key="opt"
               @click="toggleOption('subjective.associatedSymptoms', opt)"
-              class="px-2.5 py-1.5 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer"
-              :class="fields['subjective.associatedSymptoms'].includes(opt)
-                ? 'bg-ink-800 text-paper-50 border-ink-800'
-                : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              class="px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="fields['subjective.associatedSymptoms'].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
               {{ opt }}
             </button>
           </div>
         </div>
 
-        <!-- Row 5: Causative Factors (折叠, 28个选项) -->
-        <div class="space-y-1">
-          <div class="flex items-center justify-between">
-            <label class="text-xs text-ink-500 font-medium">{{ fieldLabel('subjective.causativeFactors') }}</label>
-            <button @click="togglePanel('subjective.causativeFactors')" class="text-xs text-ink-600 hover:text-ink-600 px-2 py-1 rounded-md hover:bg-paper-100 cursor-pointer min-h-[28px]">
+        <!-- Row 10: 病因 -->
+        <div class="py-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-ink-500 font-medium">{{ fieldLabel('subjective.causativeFactors') }}</span>
+            <button @click="togglePanel('subjective.causativeFactors')" class="text-xs text-ink-500 hover:text-ink-700 px-2 py-0.5 rounded-md hover:bg-paper-100 cursor-pointer border border-ink-200">
               {{ expandedPanels['subjective.causativeFactors'] ? '收起' : '编辑' }}
             </button>
-          </div>
-          <div class="flex flex-wrap gap-1 min-h-[1.5rem]">
             <span v-for="opt in fields['subjective.causativeFactors']" :key="opt"
               class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-0.5 rounded-full bg-ink-800 text-paper-50">
               {{ shortLabel(opt, 28) }}
@@ -859,49 +813,48 @@ function isLongField(path) {
                 <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </span>
-            <span v-if="fields['subjective.causativeFactors'].length === 0" class="text-[11px] text-ink-500 italic py-0.5">未选择</span>
+            <span v-if="fields['subjective.causativeFactors'].length === 0" class="text-[11px] text-ink-400 italic">未选择</span>
           </div>
-          <div v-show="expandedPanels['subjective.causativeFactors']" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto">
+          <div v-show="expandedPanels['subjective.causativeFactors']" class="border border-ink-150 rounded-lg p-2 bg-paper-50 max-h-32 overflow-y-auto mt-2">
             <div class="flex flex-wrap gap-1">
               <button v-for="opt in whitelist['subjective.causativeFactors']" :key="opt" @click="toggleOption('subjective.causativeFactors', opt)"
-                class="text-[11px] px-2 py-1 rounded-full border transition-colors duration-150 cursor-pointer"
+                class="text-[11px] px-2 py-1 rounded-md border transition-colors duration-150 cursor-pointer"
                 :class="fields['subjective.causativeFactors'].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-600 hover:border-ink-400 hover:bg-paper-100'"
                 :title="opt">{{ shortLabel(opt) }}</button>
             </div>
           </div>
         </div>
 
-        <!-- Row 6: Relieving Factors (pills, 11个选项) -->
-        <div class="space-y-1">
-          <label class="text-xs text-ink-500 font-medium">{{ fieldLabel('subjective.relievingFactors') }}</label>
-          <div class="flex flex-wrap gap-1.5">
+        <!-- Row 11: 缓解因素 -->
+        <div class="flex items-center gap-3 py-2 flex-wrap">
+          <span class="text-xs text-ink-500">{{ fieldLabel('subjective.relievingFactors') }}</span>
+          <div class="flex flex-wrap gap-1">
             <button v-for="opt in whitelist['subjective.relievingFactors']" :key="opt"
               @click="toggleOption('subjective.relievingFactors', opt)"
-              class="px-2.5 py-1 text-xs font-medium rounded-full border transition-colors duration-150 cursor-pointer"
-              :class="fields['subjective.relievingFactors'].includes(opt)
-                ? 'bg-ink-800 text-paper-50 border-ink-800'
-                : 'border-ink-200 text-ink-500 hover:border-ink-400'">
+              class="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors duration-150 cursor-pointer"
+              :class="fields['subjective.relievingFactors'].includes(opt) ? 'bg-ink-800 text-paper-50 border-ink-800' : 'border-ink-200 text-ink-500 hover:border-ink-400'">
               {{ shortLabel(opt, 28) }}
             </button>
           </div>
         </div>
-      </div>
+
+      </div><!-- end single form card -->
 
       <!-- R项审核 (折叠面板, 默认收起) -->
       <details class="bg-white rounded-xl border border-ink-200">
-        <summary class="px-3 py-2 text-xs font-medium text-ink-600 cursor-pointer select-none flex items-center justify-between">
-          <span>R 引擎推导项 <span class="text-blue-400 font-normal">可点「改」修改</span></span>
-          <span class="text-ink-400">{{ step2Groups.length }} 组</span>
+        <summary class="px-3 py-2.5 text-xs font-medium text-ink-700 cursor-pointer select-none flex items-center justify-between">
+          <span>引擎推导项 <span class="text-ink-400 font-normal">可点「改」修改</span></span>
+          <span class="text-ink-400 bg-ink-100 px-2 py-0.5 rounded-md text-[11px]">{{ step2Groups.length }} 组</span>
         </summary>
         <div class="px-3 pb-3 space-y-2">
           <div v-for="group in step2Groups" :key="group.key" class="border-b border-ink-100 pb-2 last:border-b-0 last:pb-0">
-            <h4 class="text-[11px] font-medium text-ink-600 uppercase tracking-wide mb-2">{{ group.label }}</h4>
+            <h4 class="text-[11px] font-medium text-ink-500 uppercase tracking-wide mb-2">{{ group.label }}</h4>
             <div v-for="item in group.resolvedItems" :key="item.path"
-              class="flex gap-2 py-2 border-b border-ink-50 text-xs last:border-b-0"
+              class="flex gap-2 py-1.5 border-b border-ink-50 text-xs last:border-b-0"
               :class="[item.readOnly ? 'bg-paper-50' : '', isLongField(item.path) ? 'flex-wrap items-start' : 'items-center']">
-              <span class="text-ink-500 w-20 flex-shrink-0">{{ item.label }}</span>
+              <span class="text-ink-400 w-20 flex-shrink-0 text-[11px]">{{ item.label }}</span>
               <template v-if="item.readOnly">
-                <span class="font-medium text-ink-600 flex-1">{{ item.value }}</span>
+                <span class="font-medium text-ink-700 flex-1">{{ item.value }}</span>
               </template>
               <template v-else-if="derivedEditing === item.path">
                 <template v-if="item.isMulti">
@@ -916,12 +869,12 @@ function isLongField(path) {
                   <select v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                     <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt }}</option>
                   </select>
-                  <button @click="derivedEditing = ''" class="text-xs text-ink-600 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
+                  <button @click="derivedEditing = ''" class="text-xs text-ink-500 hover:text-ink-700 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
                 </div>
                 <select v-else v-model="fields[item.path]" class="flex-1 px-2 py-1 border border-ink-300 rounded text-xs" @change="derivedEditing = ''; onPatternFieldChange(item.path)">
                   <option v-for="opt in item.options" :key="opt" :value="opt">{{ opt.length > 50 ? opt.substring(0, 50) + '...' : opt }}</option>
                 </select>
-                <button v-if="!isLongField(item.path)" @click="derivedEditing = ''" class="text-xs text-ink-600 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
+                <button v-if="!isLongField(item.path)" @click="derivedEditing = ''" class="text-xs text-ink-500 hover:text-ink-700 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">确定</button>
               </template>
               <template v-else>
                 <span class="font-medium text-ink-700 flex-1 min-w-0"
@@ -933,14 +886,14 @@ function isLongField(path) {
                       : '未选择')
                     : (isLongField(item.path) ? String(item.value || '') : shortLabel(String(item.value || ''), 35)) }}
                 </span>
-                <button @click="toggleDerivedEdit(item.path)" class="text-xs text-ink-600 hover:text-ink-600 hover:bg-paper-100 px-2 py-1 rounded-md flex-shrink-0 cursor-pointer min-h-[28px] transition-colors">改</button>
+                <button @click="toggleDerivedEdit(item.path)" class="text-xs text-ink-400 hover:text-ink-700 hover:bg-paper-100 px-2 py-0.5 rounded-md flex-shrink-0 cursor-pointer border border-ink-200 transition-colors">改</button>
               </template>
             </div>
-            <!-- 病史推荐证型 (仅中医组显示) -->
+            <!-- 病史推荐证型 -->
             <div v-if="group.key === 'tcm' && recommendedPatterns.length > 0" class="border-t border-ink-100 pt-2 mt-2">
-              <p class="text-[11px] text-ink-600 mb-1">病史推荐整体证型:</p>
+              <p class="text-[11px] text-ink-500 mb-1">病史推荐整体证型:</p>
               <div v-for="rec in recommendedPatterns.slice(0, 3)" :key="rec.pattern" class="text-[11px] text-ink-600">
-                <span class="font-mono text-ink-600">{{ rec.pattern }}</span>
+                <span class="font-mono">{{ rec.pattern }}</span>
                 <span class="text-ink-300 ml-1">(+{{ rec.weight }})</span>
               </div>
             </div>
@@ -952,14 +905,14 @@ function isLongField(path) {
       <div class="flex items-center gap-2 text-xs">
         <span class="text-ink-500">填写进度:</span>
         <div class="flex-1 h-1.5 bg-ink-100 rounded-full overflow-hidden">
-          <div class="h-full bg-ink-800 rounded-full transition-all" :style="{ width: requiredProgress.pct + '%' }"></div>
+          <div class="h-full bg-ink-700 rounded-full transition-all" :style="{ width: requiredProgress.pct + '%' }"></div>
         </div>
-        <span :class="requiredProgress.pct === 100 ? 'text-green-600' : 'text-ink-400'">
+        <span :class="requiredProgress.pct === 100 ? 'text-green-600 font-semibold' : 'text-ink-400'">
           {{ requiredProgress.filled }}/{{ requiredProgress.total }}
         </span>
       </div>
 
-      <!-- 交叉校验警告 (非阻塞) -->
+      <!-- 交叉校验警告 -->
       <template v-if="crossFieldWarnings.length > 0">
         <div v-for="w in crossFieldWarnings" :key="w.id"
           class="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700" role="status">
