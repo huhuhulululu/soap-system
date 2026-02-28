@@ -389,7 +389,7 @@ function copySection(key) {
       </div>
 
       <!-- SOAP Sections -->
-      <div v-for="(key, label) in { subjective: 'Subjective', objective: 'Objective', assessment: 'Assessment', plan: 'Plan' }"
+      <div v-for="(label, key) in { subjective: 'Subjective', objective: 'Objective', assessment: 'Assessment', plan: 'Plan' }"
         :key="key" class="bg-white rounded-xl border border-ink-200 overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2 bg-ink-50 border-b border-ink-100">
           <span class="text-xs font-semibold text-ink-600">{{ label }}</span>
