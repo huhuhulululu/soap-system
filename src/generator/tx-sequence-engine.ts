@@ -864,7 +864,21 @@ export function generateTXSequenceStates(
   );
   let prevSeverityForAdl: SeverityLevel = prevSeverity;
   let prevAdlImproved = false;
-  let prevAdlItemCount = -1; // track actual ADL item count for adlImproved
+  // Compute IE's ADL count so TX1 can compare against IE baseline
+  const ieAdlItemCount = (() => {
+    const bp = context.primaryBodyPart as BodyPartKey;
+    const validADL = new Set(TEMPLATE_ADL[bp] ?? []);
+    const ieMuscles = reduceMuscles(initialMuscles, prevSeverity);
+    const ieAdlWeights = getADLWeightsByMuscles(
+      ieMuscles.tightness as string[],
+      context.primaryBodyPart,
+    );
+    const count = severityToCount(prevSeverity, "adl");
+    return ieAdlWeights
+      .filter((w) => validADL.has(w.adl))
+      .slice(0, count).length;
+  })();
+  let prevAdlItemCount = ieAdlItemCount; // IE's ADL count as baseline for TX1
   let prevTightnessGrading = options.initialState?.tightnessGrading ?? "";
   let prevTendernessGrade = options.initialState?.tendernessGrade ?? "";
   let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? "";
@@ -1173,8 +1187,9 @@ export function generateTXSequenceStates(
       .slice(0, adlCount)
       .map((w) => w.adl);
 
-    // Correct adlImproved based on actual ADL item count change
-    if (prevAdlItemCount >= 0 && adlItems.length >= prevAdlItemCount) {
+    // Correct adlImproved based on actual ADL item count change (compare against prev visit or IE baseline)
+
+    if (adlItems.length >= prevAdlItemCount) {
       adlImproved = false; // no actual ADL improvement visible
     }
     prevAdlItemCount = adlItems.length;
