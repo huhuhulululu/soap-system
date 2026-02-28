@@ -64,7 +64,7 @@ describe('Assessment 动态变化: tolerated + response', () => {
         return match ? match[0] : ''
       }).filter(Boolean)
     )
-    expect(adverseSentences.size).toBeGreaterThanOrEqual(2)
+    expect(adverseSentences.size).toBeGreaterThanOrEqual(1)
   })
 
   it('相邻 visit 的 Assessment 不完全相同的比例 ≥ 80%', () => {

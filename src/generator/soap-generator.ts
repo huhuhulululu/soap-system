@@ -1372,22 +1372,39 @@ export function generateObjective(
       const adjustedPain =
         side === "Left" ? painLevel : Math.max(1, painLevel - 1);
       const sideOffset = side === "Left" ? 0 : 1;
+
+      // M-03 fix: apply romAdj for TX visits (same formula as generic path)
+      const kneeRomAdj = visitState
+        ? Math.min(
+            10,
+            Math.round(
+              visitState.progress * 8 +
+                (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
+            ),
+          )
+        : 0;
+      const effectivePainForKnee = visitState
+        ? Math.max(1, adjustedPain - kneeRomAdj * 0.3)
+        : adjustedPain;
+
       objective += `${side} Knee Muscles Strength and Joint ROM:\n\n`;
       if (romData) {
         romData.forEach((rom, i) => {
-          const { strength } = computeRom(
+          const { strength: computedStrength } = computeRom(
             rom,
             i,
             sideOffset,
             adjustedPain,
             side === "Left" ? 0 : 5,
           );
+          // M-04 fix: use engine's strengthGrade when available
+          const strength = visitState?.strengthGrade ?? computedStrength;
           const templateMovName = resolveTemplateMovementName(
             "KNEE",
             rom.movement,
           );
           const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
-          const severity = getTemplateSeverityForPain(adjustedPain);
+          const severity = getTemplateSeverityForPain(effectivePainForKnee);
           const templateDegrees = pickTemplateROMDegrees(
             "KNEE",
             templateMovName,
@@ -1408,13 +1425,28 @@ export function generateObjective(
     objective += `${sideLabel} Knee Muscles Strength and Joint ROM:\n\n`;
     if (romData) {
       romData.forEach((rom, i) => {
-        const { strength } = computeRom(rom, i, 0, painLevel, 0);
+        const { strength: computedStrength } = computeRom(rom, i, 0, painLevel, 0);
+        // M-04 fix: use engine's strengthGrade when available
+        const strength = visitState?.strengthGrade ?? computedStrength;
         const templateMovName = resolveTemplateMovementName(
           "KNEE",
           rom.movement,
         );
         const rngValue = [0.3, 0.5, 0.7][i % 3];
-        const severity = getTemplateSeverityForPain(painLevel);
+        // M-03 fix: apply romAdj for TX visits
+        const kneeUniRomAdj = visitState
+          ? Math.min(
+              10,
+              Math.round(
+                visitState.progress * 8 +
+                  (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
+              ),
+            )
+          : 0;
+        const effectivePainForKneeUni = visitState
+          ? Math.max(1, painLevel - kneeUniRomAdj * 0.3)
+          : painLevel;
+        const severity = getTemplateSeverityForPain(effectivePainForKneeUni);
         const templateDegrees = pickTemplateROMDegrees(
           "KNEE",
           templateMovName,
@@ -1434,22 +1466,39 @@ export function generateObjective(
       const isLeft = side === "Left";
       const adjustedPain = isLeft ? painLevel : Math.max(1, painLevel - 1);
       const sideOffset = isLeft ? 0 : 1;
+
+      // M-03 fix: apply romAdj for TX visits (same formula as generic path)
+      const shoulderRomAdj = visitState
+        ? Math.min(
+            10,
+            Math.round(
+              visitState.progress * 8 +
+                (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
+            ),
+          )
+        : 0;
+      const effectivePainForShoulder = visitState
+        ? Math.max(1, adjustedPain - shoulderRomAdj * 0.3)
+        : adjustedPain;
+
       objective += `${side} Shoulder Muscles Strength and Joint ROM\n`;
       if (romData) {
         romData.forEach((rom, i) => {
-          const { strength } = computeRom(
+          const { strength: computedStrength } = computeRom(
             rom,
             i,
             sideOffset,
             adjustedPain,
             isLeft ? 0 : 5,
           );
+          // M-04 fix: use engine's strengthGrade when available
+          const strength = visitState?.strengthGrade ?? computedStrength;
           const templateMovName = resolveTemplateMovementName(
             "SHOULDER",
             rom.movement,
           );
           const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
-          const severity = getTemplateSeverityForPain(adjustedPain);
+          const severity = getTemplateSeverityForPain(effectivePainForShoulder);
           const templateDegrees = pickTemplateROMDegrees(
             "SHOULDER",
             templateMovName,
@@ -1508,7 +1557,7 @@ export function generateObjective(
     objective += `${romLabel} Muscles Strength and ${romType}${romSuffix}\n`;
 
     if (romData) {
-      const degreeLabel = isSpine ? "Degrees" : "degree";
+      const degreeLabel = (isSpine || bp === "HIP") ? "Degrees" : "degree";
       const romAdj = visitState
         ? Math.min(
             10,
@@ -1519,13 +1568,15 @@ export function generateObjective(
           )
         : 0;
       romData.forEach((rom, index) => {
-        const { strength, romValue, limitation } = computeRom(
+        const { strength: computedStrength, romValue, limitation } = computeRom(
           rom,
           index,
           0,
           painLevel,
           romAdj,
         );
+        // M-04 fix: use engine's strengthGrade when available
+        const strength = visitState?.strengthGrade ?? computedStrength;
 
         // Use TEMPLATE_ROM discrete options when available
         if (hasTemplateROM(bp)) {
@@ -1548,13 +1599,13 @@ export function generateObjective(
               templateMovName,
               templateDegrees,
             );
-            objective += `${strength} ${rom.movement}: ${templateDegrees} ${degreeLabel}(${templateSeverity})\n`;
+            objective += `${strength} ${rom.movement}: ${templateDegrees} ${degreeLabel} (${templateSeverity})\n`;
           } else {
             // Movement not in TEMPLATE_ROM — fall back to formula
-            objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})\n`;
+            objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel} (${limitation})\n`;
           }
         } else {
-          objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel}(${limitation})\n`;
+          objective += `${strength} ${rom.movement}: ${romValue} ${degreeLabel} (${limitation})\n`;
         }
       });
     }
