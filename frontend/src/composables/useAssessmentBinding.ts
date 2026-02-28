@@ -18,111 +18,173 @@
  */
 
 export interface SBinding {
-  sField: string
-  sFrom: string
-  sTo: string
-  aField: string | null
+  sField: string;
+  sFrom: string;
+  sTo: string;
+  aField: string | null;
 }
 
 export interface OBinding {
-  oField: string
-  trend: string
-  oFrom: string
-  oTo: string
-  aField: string | null
+  oField: string;
+  trend: string;
+  oFrom: string;
+  oTo: string;
+  aField: string | null;
 }
 
 export interface AssessmentBindingResult {
-  present: string
-  patientChange: string
-  whatChanged: string
-  physicalChange: string
-  findingType: string
-  sBindings: SBinding[]
-  oBindings: OBinding[]
-  hasMismatch: boolean
+  present: string;
+  patientChange: string;
+  whatChanged: string;
+  physicalChange: string;
+  findingType: string;
+  sBindings: SBinding[];
+  oBindings: OBinding[];
+  hasMismatch: boolean;
 }
 
 export function getAssessmentBinding(
   state: Record<string, unknown>,
   prevState: Record<string, unknown> | null,
 ): AssessmentBindingResult | null {
-  const soaChain = state?.soaChain as Record<string, Record<string, string>> | undefined
-  if (!soaChain?.assessment) return null
-  const chain = soaChain
-  const s = state
-  const prev = prevState
+  const soaChain = state?.soaChain as
+    | Record<string, Record<string, string>>
+    | undefined;
+  if (!soaChain?.assessment) return null;
+  const chain = soaChain;
+  const s = state;
+  const prev = prevState;
 
-  const sBindings: SBinding[] = []
+  const sBindings: SBinding[] = [];
   if (prev && s.painScaleCurrent !== prev.painScaleCurrent) {
     sBindings.push({
-      sField: 'Pain',
+      sField: "Pain",
       sFrom: String(prev.painScaleLabel || prev.painScaleCurrent),
       sTo: String(s.painScaleLabel || s.painScaleCurrent),
-      aField: (chain.assessment.whatChanged || '').includes('pain') ? 'pain' : null,
-    })
+      aField: (chain.assessment.whatChanged || "").includes("pain")
+        ? "pain"
+        : null,
+    });
   }
-  if (chain.subjective?.frequencyChange === 'improved') {
+  const curFreqText = String(s.painFrequency || "")
+    .split("(")[0]
+    .trim();
+  const prevFreqText = String(prev?.painFrequency || "")
+    .split("(")[0]
+    .trim();
+  if (prev && curFreqText !== prevFreqText) {
     sBindings.push({
-      sField: 'Freq',
-      sFrom: String(prev?.painFrequency || '').split('(')[0].trim(),
-      sTo: String(s.painFrequency || '').split('(')[0].trim(),
-      aField: (chain.assessment.whatChanged || '').includes('pain frequency') ? 'pain frequency' : null,
-    })
+      sField: "Freq",
+      sFrom: prevFreqText,
+      sTo: curFreqText,
+      aField: (chain.assessment.whatChanged || "").includes("pain frequency")
+        ? "pain frequency"
+        : null,
+    });
   }
-  if (chain.subjective?.adlChange === 'improved') {
+  const curAdlCount = (s.adlItems as string[])?.length ?? null;
+  const prevAdlCount = (prev?.adlItems as string[])?.length ?? null;
+  if (
+    prev &&
+    curAdlCount !== null &&
+    prevAdlCount !== null &&
+    curAdlCount !== prevAdlCount
+  ) {
     sBindings.push({
-      sField: 'ADL',
-      sFrom: `${(prev?.adlItems as string[])?.length ?? '?'}项`,
-      sTo: `${(s.adlItems as string[])?.length ?? '?'}项`,
-      aField: (chain.assessment.whatChanged || '').includes('ADLs') ? 'difficulty in performing ADLs' : null,
-    })
+      sField: "ADL",
+      sFrom: `${prevAdlCount}项`,
+      sTo: `${curAdlCount}项`,
+      aField: (chain.assessment.whatChanged || "").includes("ADLs")
+        ? "difficulty in performing ADLs"
+        : null,
+    });
   }
   if (prev && s.symptomScale !== prev.symptomScale) {
     sBindings.push({
-      sField: 'SxScale',
-      sFrom: String(prev.symptomScale || ''),
-      sTo: String(s.symptomScale || ''),
-      aField: (chain.assessment.whatChanged || '').includes('soreness') ? 'muscles soreness sensation' : null,
-    })
+      sField: "SxScale",
+      sFrom: String(prev.symptomScale || ""),
+      sTo: String(s.symptomScale || ""),
+      aField: (chain.assessment.whatChanged || "").includes("soreness")
+        ? "muscles soreness sensation"
+        : null,
+    });
   }
   if (prev && s.severityLevel !== prev.severityLevel) {
     sBindings.push({
-      sField: 'Severity',
-      sFrom: String(prev.severityLevel || ''),
-      sTo: String(s.severityLevel || ''),
-      aField: (chain.assessment.whatChanged || '').includes('stiffness') ? 'muscles stiffness sensation' : null,
-    })
+      sField: "Severity",
+      sFrom: String(prev.severityLevel || ""),
+      sTo: String(s.severityLevel || ""),
+      aField: (chain.assessment.whatChanged || "").includes("stiffness")
+        ? "muscles stiffness sensation"
+        : null,
+    });
   }
 
-  const oBindings: OBinding[] = []
+  const oBindings: OBinding[] = [];
   const oTrends = [
-    { field: 'Tight', trend: chain.objective?.tightnessTrend, aLabel: 'local muscles tightness', from: prev?.tightnessGrading, to: s.tightnessGrading },
-    { field: 'Tender', trend: chain.objective?.tendernessTrend, aLabel: 'local muscles tenderness', from: prev?.tendernessGrading, to: s.tendernessGrading },
-    { field: 'Spasm', trend: chain.objective?.spasmTrend, aLabel: 'local muscles spasms', from: prev?.spasmGrading, to: s.spasmGrading },
-    { field: 'ROM', trend: chain.objective?.romTrend, aLabel: 'joint ROM', from: null, to: null },
-    { field: 'Strength', trend: chain.objective?.strengthTrend, aLabel: 'muscles strength', from: prev?.strengthGrade, to: s.strengthGrade },
-  ]
+    {
+      field: "Tight",
+      aLabel: "local muscles tightness",
+      from: prev?.tightnessGrading,
+      to: s.tightnessGrading,
+    },
+    {
+      field: "Tender",
+      aLabel: "local muscles tenderness",
+      from: prev?.tendernessGrading,
+      to: s.tendernessGrading,
+    },
+    {
+      field: "Spasm",
+      aLabel: "local muscles spasms",
+      from: prev?.spasmGrading,
+      to: s.spasmGrading,
+    },
+    { field: "ROM", aLabel: "joint ROM", from: null, to: null },
+    {
+      field: "Strength",
+      aLabel: "muscles strength",
+      from: prev?.strengthGrade,
+      to: s.strengthGrade,
+    },
+  ];
+  const trendKeyMap: Record<string, string> = {
+    Tight: "tightnessTrend",
+    Tender: "tendernessTrend",
+    Spasm: "spasmTrend",
+    ROM: "romTrend",
+    Strength: "strengthTrend",
+  };
   for (const t of oTrends) {
-    if (t.trend && t.trend !== 'stable') {
+    const fromStr = String(t.from || "");
+    const toStr = String(t.to || "");
+    // ROM has no direct grading field — fall back to engine trend
+    const hasVisibleChange =
+      t.field === "ROM"
+        ? chain.objective?.romTrend && chain.objective.romTrend !== "stable"
+        : prev && fromStr !== toStr && fromStr !== "" && toStr !== "";
+    if (hasVisibleChange) {
       oBindings.push({
         oField: t.field,
-        trend: t.trend,
-        oFrom: String(t.from || ''),
-        oTo: String(t.to || ''),
-        aField: (chain.assessment.findingType || '').includes(t.aLabel) ? t.aLabel : null,
-      })
+        trend: chain.objective?.[trendKeyMap[t.field]] || "changed",
+        oFrom: fromStr,
+        oTo: toStr,
+        aField: (chain.assessment.findingType || "").includes(t.aLabel)
+          ? t.aLabel
+          : null,
+      });
     }
   }
 
   return {
-    present: chain.assessment.present || '',
-    patientChange: chain.assessment.patientChange || '',
-    whatChanged: chain.assessment.whatChanged || '',
-    physicalChange: chain.assessment.physicalChange || '',
-    findingType: chain.assessment.findingType || '',
+    present: chain.assessment.present || "",
+    patientChange: chain.assessment.patientChange || "",
+    whatChanged: chain.assessment.whatChanged || "",
+    physicalChange: chain.assessment.physicalChange || "",
+    findingType: chain.assessment.findingType || "",
     sBindings,
     oBindings,
-    hasMismatch: sBindings.some(b => !b.aField) || oBindings.some(b => !b.aField),
-  }
+    hasMismatch:
+      sBindings.some((b) => !b.aField) || oBindings.some((b) => !b.aField),
+  };
 }

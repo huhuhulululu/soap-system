@@ -59,7 +59,7 @@ describe("getAssessmentBinding", () => {
     expect(result.sBindings[0].aField).toBe("pain");
   });
 
-  it("S-side: frequency improved → sBindings includes frequency with aField mapped", () => {
+  it("S-side: frequency text changed → sBindings includes frequency with aField mapped", () => {
     const chain = {
       subjective: {
         painChange: "improved",
@@ -94,7 +94,36 @@ describe("getAssessmentBinding", () => {
     expect(freqBinding!.aField).toBe("pain frequency");
   });
 
-  it("S-side: ADL improved → sBindings includes ADL with aField mapped", () => {
+  it("S-side: frequency text unchanged → no frequency binding even if engine says improved", () => {
+    const chain = {
+      subjective: {
+        painChange: "improved",
+        frequencyChange: "improved",
+        adlChange: "stable",
+      },
+      objective: {
+        tightnessTrend: "stable",
+        tendernessTrend: "stable",
+        spasmTrend: "stable",
+        romTrend: "stable",
+        strengthTrend: "stable",
+      },
+      assessment: {
+        present: "improvement of symptom(s).",
+        patientChange: "decreased",
+        whatChanged: "pain frequency",
+        physicalChange: "remained the same",
+        findingType: "joint ROM limitation",
+      },
+    };
+    // same painFrequency text as basePrev → no visible change
+    const state = makeState({}, chain);
+    const result = getAssessmentBinding(state, basePrev)!;
+    const freqBinding = result.sBindings.find((b) => b.sField === "Freq");
+    expect(freqBinding).toBeUndefined();
+  });
+
+  it("S-side: ADL count changed → sBindings includes ADL with aField mapped", () => {
     const chain = {
       subjective: {
         painChange: "similar",
@@ -121,6 +150,35 @@ describe("getAssessmentBinding", () => {
     const adlBinding = result.sBindings.find((b) => b.sField === "ADL");
     expect(adlBinding).toBeTruthy();
     expect(adlBinding!.aField).toBe("difficulty in performing ADLs");
+  });
+
+  it("S-side: ADL count unchanged → no ADL binding even if engine says improved", () => {
+    const chain = {
+      subjective: {
+        painChange: "similar",
+        frequencyChange: "stable",
+        adlChange: "improved",
+      },
+      objective: {
+        tightnessTrend: "stable",
+        tendernessTrend: "stable",
+        spasmTrend: "stable",
+        romTrend: "stable",
+        strengthTrend: "stable",
+      },
+      assessment: {
+        present: "slight improvement of symptom(s).",
+        patientChange: "slightly decreased",
+        whatChanged: "difficulty in performing ADLs",
+        physicalChange: "remained the same",
+        findingType: "joint ROM limitation",
+      },
+    };
+    // same adlItems count as basePrev (4) → no visible change
+    const state = makeState({}, chain);
+    const result = getAssessmentBinding(state, basePrev)!;
+    const adlBinding = result.sBindings.find((b) => b.sField === "ADL");
+    expect(adlBinding).toBeUndefined();
   });
 
   it("S-side: symptomScale changed → sBindings includes with aField mapped to soreness", () => {
@@ -152,7 +210,7 @@ describe("getAssessmentBinding", () => {
     expect(sxBinding!.aField).toBe("muscles soreness sensation");
   });
 
-  it("O-side: tightness reduced → oBindings includes with aField mapped", () => {
+  it("O-side: tightness grading changed → oBindings includes with aField mapped", () => {
     const chain = {
       subjective: {
         painChange: "similar",
@@ -179,6 +237,35 @@ describe("getAssessmentBinding", () => {
     expect(result.oBindings).toHaveLength(1);
     expect(result.oBindings[0].oField).toBe("Tight");
     expect(result.oBindings[0].aField).toBe("local muscles tightness");
+  });
+
+  it("O-side: tightness grading unchanged → no binding even if engine says reduced", () => {
+    const chain = {
+      subjective: {
+        painChange: "similar",
+        frequencyChange: "stable",
+        adlChange: "stable",
+      },
+      objective: {
+        tightnessTrend: "reduced",
+        tendernessTrend: "stable",
+        spasmTrend: "stable",
+        romTrend: "stable",
+        strengthTrend: "stable",
+      },
+      assessment: {
+        present: "similar symptom(s) as last visit.",
+        patientChange: "remained the same",
+        whatChanged: "as last time visit",
+        physicalChange: "reduced",
+        findingType: "local muscles tightness",
+      },
+    };
+    // same tightnessGrading as basePrev ("moderate") → no visible change
+    const state = makeState({}, chain);
+    const result = getAssessmentBinding(state, basePrev)!;
+    const tightBinding = result.oBindings.find((b) => b.oField === "Tight");
+    expect(tightBinding).toBeUndefined();
   });
 
   it("O-side: multiple trends → oBindings lists all with aField mapped", () => {
@@ -319,6 +406,8 @@ describe("getAssessmentBinding", () => {
       {
         painScaleCurrent: 5,
         painScaleLabel: "5",
+        painFrequency:
+          "Occasional (symptoms occur between 26% and 50% of the time)",
         adlItems: ["a", "b"],
         tightnessGrading: "mild",
         tendernessGrading: "(+1)",
@@ -327,7 +416,7 @@ describe("getAssessmentBinding", () => {
       chain,
     );
     const result = getAssessmentBinding(state, basePrev)!;
-    // S-side bindings for UI display
+    // S-side bindings for UI display: Pain, Freq, ADL = 3
     expect(result.sBindings.length).toBeGreaterThanOrEqual(3);
     for (const b of result.sBindings) {
       expect(b).toHaveProperty("sField");
