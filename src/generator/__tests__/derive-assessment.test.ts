@@ -235,13 +235,34 @@ describe("deriveAssessmentFromSOA", () => {
         for (const part of whatParts) {
           expect(VALID_WHAT_CHANGED).toContain(part);
         }
-        expect(VALID_PHYSICAL_CHANGE).toContain(result.physicalChange);
-        // REAL-02: findingType can be combined; validate each part
-        const findingParts = result.findingType
-          .split(/ and |, /)
-          .map((p) => p.trim());
-        for (const part of findingParts) {
-          expect(VALID_FINDING_TYPE).toContain(part);
+        // REAL-03: physicalChange can be compound when mixed directions
+        // e.g. "reduced joint ROM limitation and increased muscles strength"
+        // Simple case: physicalChange is a single valid option
+        // Compound case: contains direction words + finding labels
+        if (VALID_PHYSICAL_CHANGE.includes(result.physicalChange)) {
+          // simple — ok
+        } else {
+          // compound — must contain at least one direction word and one finding label
+          const hasDirection = VALID_PHYSICAL_CHANGE.some(
+            (d) =>
+              d !== "remained the same" && result.physicalChange.includes(d),
+          );
+          const hasFinding = VALID_FINDING_TYPE.some((f) =>
+            result.physicalChange.includes(f),
+          );
+          expect(hasDirection).toBe(true);
+          expect(hasFinding).toBe(true);
+        }
+        // REAL-02: findingType can be combined or empty (when embedded in physicalChange)
+        if (result.findingType === "") {
+          // findings embedded in physicalChange — ok
+        } else {
+          const findingParts = result.findingType
+            .split(/ and |, /)
+            .map((p) => p.trim());
+          for (const part of findingParts) {
+            expect(VALID_FINDING_TYPE).toContain(part);
+          }
         }
       }
     });
@@ -273,18 +294,80 @@ describe("deriveAssessmentFromSOA", () => {
       expect(result.physicalChange).toBe("slightly reduced");
     });
 
-    it('strength trend non-stable → findingType "muscles strength"', () => {
+    it('strength trend non-stable → physicalChange contains "muscles strength"', () => {
       const result = deriveAssessmentFromSOA({
         ...baseInput,
         objectiveRomTrend: "stable",
+        objectiveTightnessTrend: "stable",
         objectiveStrengthTrend: "improved",
       });
+      // strength-only: increase direction, findingType has the label
       expect(result.findingType).toContain("muscles strength");
     });
   });
 
+  describe("REAL-03: physicalChange direction matches each findingType dimension", () => {
+    it("strength only → physicalChange is 'increased'", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: "stable",
+        objectiveStrengthTrend: "improved",
+        objectiveTightnessTrend: "stable",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+      });
+      expect(result.physicalChange).toBe("increased");
+      expect(result.findingType).toContain("muscles strength");
+    });
+
+    it("ROM + strength → physicalChange pairs each with correct direction", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: "improved",
+        objectiveStrengthTrend: "improved",
+        objectiveTightnessTrend: "stable",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+        progress: 0.3,
+        cumulativePainDrop: 1.0,
+      });
+      // physicalChange + findingType should read like:
+      // "reduced joint ROM limitation and increased muscles strength"
+      expect(result.physicalChange).toContain("reduced");
+      expect(result.physicalChange).toContain("increased");
+    });
+
+    it("tightness + strength → reduced tightness, increased strength", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: "stable",
+        objectiveStrengthTrend: "improved",
+        objectiveTightnessTrend: "reduced",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+      });
+      expect(result.physicalChange).toContain("reduced");
+      expect(result.physicalChange).toContain("increased");
+    });
+
+    it("all reduce-type dimensions only → physicalChange is single 'reduced'", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: "improved",
+        objectiveStrengthTrend: "stable",
+        objectiveTightnessTrend: "reduced",
+        objectiveTendernessTrend: "reduced",
+        objectiveSpasmTrend: "reduced",
+        progress: 0.5,
+        cumulativePainDrop: 2.0,
+      });
+      // All are reduce-direction, no strength → single physicalChange
+      expect(result.physicalChange).not.toContain("increased");
+    });
+  });
+
   describe("REAL-02: findingType lists ALL changed dimensions", () => {
-    it("ROM + Strength + Tightness all changed → findingType mentions all three", () => {
+    it("ROM + Strength + Tightness all changed → physicalChange pairs directions", () => {
       const result = deriveAssessmentFromSOA({
         ...baseInput,
         objectiveRomTrend: "improved",
@@ -295,9 +378,12 @@ describe("deriveAssessmentFromSOA", () => {
         progress: 0.3,
         cumulativePainDrop: 1.0,
       });
-      expect(result.findingType).toContain("joint ROM");
-      expect(result.findingType).toContain("muscles strength");
-      expect(result.findingType).toContain("local muscles tightness");
+      // Mixed direction: findings embedded in physicalChange
+      expect(result.physicalChange).toContain("joint ROM");
+      expect(result.physicalChange).toContain("muscles strength");
+      expect(result.physicalChange).toContain("local muscles tightness");
+      expect(result.physicalChange).toContain("reduced");
+      expect(result.physicalChange).toContain("increased");
     });
 
     it("ROM + Tenderness changed → findingType mentions both", () => {
@@ -315,7 +401,7 @@ describe("deriveAssessmentFromSOA", () => {
       expect(result.findingType).toContain("local muscles tenderness");
     });
 
-    it("all five dimensions changed → findingType mentions all", () => {
+    it("all five dimensions changed → physicalChange pairs all with directions", () => {
       const result = deriveAssessmentFromSOA({
         ...baseInput,
         objectiveRomTrend: "improved",
@@ -326,11 +412,14 @@ describe("deriveAssessmentFromSOA", () => {
         progress: 0.7,
         cumulativePainDrop: 3.0,
       });
-      expect(result.findingType).toContain("joint ROM");
-      expect(result.findingType).toContain("muscles strength");
-      expect(result.findingType).toContain("local muscles tightness");
-      expect(result.findingType).toContain("local muscles tenderness");
-      expect(result.findingType).toContain("local muscles spasms");
+      // Mixed direction: all findings embedded in physicalChange
+      expect(result.physicalChange).toContain("joint ROM");
+      expect(result.physicalChange).toContain("local muscles tightness");
+      expect(result.physicalChange).toContain("local muscles tenderness");
+      expect(result.physicalChange).toContain("local muscles spasms");
+      expect(result.physicalChange).toContain("muscles strength");
+      expect(result.physicalChange).toContain("reduced");
+      expect(result.physicalChange).toContain("increased");
     });
 
     it("single dimension changed → findingType is just that one", () => {

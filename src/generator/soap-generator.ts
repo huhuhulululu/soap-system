@@ -2309,7 +2309,7 @@ export function generateAssessmentTX(
     weightContext,
   );
   const selectedFinding =
-    visitState?.soaChain.assessment.findingType ||
+    visitState?.soaChain.assessment.findingType ??
     selectBestOption(weightedFinding);
 
   // 权重选择: 耐受描述 — Phase F: 优先使用引擎生成的值
@@ -2360,7 +2360,9 @@ export function generateAssessmentTX(
   assessment += `The patient's general condition is ${selectedCondition}, `;
   assessment += `compared with last treatment, the patient presents with ${selectedPresent} `;
   assessment += `The patient has ${selectedPatientChange} ${selectedWhat}, `;
-  assessment += `physical finding has ${selectedPhysical} ${selectedFinding}. `;
+  assessment += selectedFinding
+    ? `physical finding has ${selectedPhysical} ${selectedFinding}. `
+    : `physical finding has ${selectedPhysical}. `;
   assessment += `Patient tolerated ${selectedTolerated} ${selectedResponse}. `;
   assessment += `${adverseEffect}\n`;
 

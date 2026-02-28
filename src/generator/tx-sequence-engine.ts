@@ -433,39 +433,59 @@ export function deriveAssessmentFromSOA(input: {
     input.objectiveTendernessTrend !== "stable" ||
     input.objectiveSpasmTrend !== "stable";
 
-  const physicalChange = !hasAnyObjectiveImprove
-    ? "remained the same"
-    : strongPhysicalImprove
-      ? "reduced"
-      : "slightly reduced";
+  // REAL-03: physicalChange + findingType paired by direction
+  // reduce-direction: ROM limitation, tightness, tenderness, spasm
+  // increase-direction: muscles strength
+  const reduceParts: string[] = [];
+  const increaseParts: string[] = [];
 
-  // ASS-01 + REAL-02: findingType lists ALL changed dimensions
-  const findingType = (() => {
-    const parts: string[] = [];
+  if (input.objectiveRomTrend !== "stable") {
+    const isLimitationOnly =
+      input.bodyPart === "SHOULDER" || input.bodyPart === "ELBOW";
+    reduceParts.push(
+      !isLimitationOnly &&
+        input.progress >= 0.6 &&
+        input.cumulativePainDrop >= 2.0
+        ? "joint ROM"
+        : "joint ROM limitation",
+    );
+  }
+  if (input.objectiveTightnessTrend !== "stable")
+    reduceParts.push("local muscles tightness");
+  if (input.objectiveTendernessTrend !== "stable")
+    reduceParts.push("local muscles tenderness");
+  if (input.objectiveSpasmTrend !== "stable")
+    reduceParts.push("local muscles spasms");
+  if (input.objectiveStrengthTrend !== "stable")
+    increaseParts.push("muscles strength");
 
-    if (input.objectiveRomTrend !== "stable") {
-      const isLimitationOnly =
-        input.bodyPart === "SHOULDER" || input.bodyPart === "ELBOW";
-      parts.push(
-        !isLimitationOnly &&
-          input.progress >= 0.6 &&
-          input.cumulativePainDrop >= 2.0
-          ? "joint ROM"
-          : "joint ROM limitation",
-      );
-    }
-    if (input.objectiveStrengthTrend !== "stable")
-      parts.push("muscles strength");
-    if (input.objectiveTightnessTrend !== "stable")
-      parts.push("local muscles tightness");
-    if (input.objectiveTendernessTrend !== "stable")
-      parts.push("local muscles tenderness");
-    if (input.objectiveSpasmTrend !== "stable")
-      parts.push("local muscles spasms");
+  const reduceWord = strongPhysicalImprove ? "reduced" : "slightly reduced";
+  const increaseWord = strongPhysicalImprove ? "increased" : "slight increased";
 
-    if (parts.length === 0) return "joint ROM limitation";
+  const joinParts = (parts: string[]) => {
     if (parts.length === 1) return parts[0];
     return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+  };
+
+  // physicalChange: when mixed directions, embed "direction + findings" inline
+  // e.g. "reduced joint ROM limitation and increased muscles strength"
+  const physicalChange = (() => {
+    if (!hasAnyObjectiveImprove) return "remained the same";
+    if (reduceParts.length > 0 && increaseParts.length > 0) {
+      return `${reduceWord} ${joinParts(reduceParts)} and ${increaseWord} ${joinParts(increaseParts)}`;
+    }
+    if (increaseParts.length > 0) return increaseWord;
+    return reduceWord;
+  })();
+
+  // findingType: when physicalChange already embeds the findings (mixed direction),
+  // findingType is empty so the sentence reads naturally.
+  // Otherwise, list all parts as before.
+  const findingType = (() => {
+    if (reduceParts.length > 0 && increaseParts.length > 0) return "";
+    const allParts = [...reduceParts, ...increaseParts];
+    if (allParts.length === 0) return "joint ROM limitation";
+    return joinParts(allParts);
   })();
 
   // Phase F: tolerated/response/adverseEffect 按 visitIndex 轮换
