@@ -17,6 +17,7 @@ services:
       - "3001"
     volumes:
       - batch-data:/app/data
+      - /home/ubuntu/vertex-sa-key.json:/app/vertex-sa-key.json:ro
     environment:
       - PORT=3001
       - NODE_ENV=production
@@ -25,6 +26,10 @@ services:
       - COOKIE_ENCRYPTION_KEY=${COOKIE_ENCRYPTION_KEY:-}
       - CORS_ORIGIN=https://rbmeds.com
       - SHARED_JWT_SECRET=${SHARED_JWT_SECRET:-}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/vertex-sa-key.json
+      - VERTEX_PROJECT=tenfu-data-sync
+      - VERTEX_LOCATION=us-central1
+      - VERTEX_ENDPOINT=projects/625662508139/locations/us-central1/endpoints/4778460491884265472
     restart: unless-stopped
 
 volumes:
