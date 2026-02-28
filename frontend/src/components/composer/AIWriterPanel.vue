@@ -3,6 +3,11 @@ import { ref, computed } from 'vue'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
+function csrfHeader() {
+  const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/)
+  return m ? { 'x-csrf-token': m[1] } : {}
+}
+
 // ── Form Fields ─────────────────────────────────
 const bodyPart = ref('SHOULDER')
 const laterality = ref('right')
@@ -160,7 +165,7 @@ async function doGenerate() {
   try {
     const res = await fetch(`${API_BASE}/ai/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify(payload),
     })
     const data = await res.json()

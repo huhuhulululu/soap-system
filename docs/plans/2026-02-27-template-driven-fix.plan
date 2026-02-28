@@ -1,0 +1,1145 @@
+# Template-Driven Engine Fix — Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 消除引擎中所有硬编码自创值，切换到模板驱动的规范数据源，修复38个审计问题
+
+**Architecture:** 三层修复：(1) template-corrections.ts 修正表 (2) template-options.ts 补全缺失映射 (3) 引擎切换数据源。不重写架构，改动集中在数据层。
+
+**Tech Stack:** TypeScript, Jest, tsx
+
+**Audit Reference:** docs/audit-2026-02-27.json + docs/solution-research.json
+
+---
+
+## Phase 1: 修正表 + 数据层补全 (template-options.ts)
+
+### Task 1: 创建 template-corrections.ts
+
+**Files:**
+- Create: `src/shared/template-corrections.ts`
+- Test: `src/shared/__tests__/template-corrections.test.ts`
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/shared/__tests__/template-corrections.test.ts
+import { applyCorrection, TEMPLATE_CORRECTIONS } from '../template-corrections';
+
+describe('template-corrections', () => {
+  test('corrects known typos', () => {
+    expect(applyCorrection('RE-EVALUATIOIN')).toBe('RE-EVALUATION');
+    expect(applyCorrection('Prolonge walking')).toBe('Prolonged walking');
+    expect(applyCorrection('continue to be emphasize')).toBe('continue to emphasize');
+  });
+
+  test('passes through unknown values unchanged', () => {
+    expect(applyCorrection('some normal text')).toBe('some normal text');
+  });
+
+  test('corrections map has no duplicate keys', () => {
+    const keys = Object.keys(TEMPLATE_CORRECTIONS);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  test('no correction maps to itself', () => {
+    for (const [original, entry] of Object.entries(TEMPLATE_CORRECTIONS)) {
+      expect(entry.corrected).not.toBe(original);
+    }
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+Run: `npx jest src/shared/__tests__/template-corrections.test.ts --no-coverage`
+Expected: FAIL — module not found
+
+**Step 3: Write minimal implementation**
+
+```typescript
+// src/shared/template-corrections.ts
+export interface CorrectionEntry {
+  readonly corrected: string;
+  readonly type: 'typo' | 'grammar' | 'duplication' | 'punctuation' | 'anatomy' | 'template-bug';
+  readonly reason: string;
+}
+
+export const TEMPLATE_CORRECTIONS: Record<string, CorrectionEntry> = {
+  // === Typos ===
+  'RE-EVALUATIOIN': { corrected: 'RE-EVALUATION', type: 'typo', reason: 'misspelling' },
+  'Prolonge walking': { corrected: 'Prolonged walking', type: 'typo', reason: 'misspelling' },
+  'Assesment': { corrected: 'Assessment', type: 'typo', reason: 'misspelling' },
+  'assitant': { corrected: 'assistant', type: 'typo', reason: 'misspelling' },
+  'Lattisimus dorsi': { corrected: 'Latissimus dorsi', type: 'typo', reason: 'anatomy misspelling' },
+  'Illiac Crest': { corrected: 'Iliac Crest', type: 'typo', reason: 'anatomy misspelling' },
+  'Gastronemius muscle': { corrected: 'Gastrocnemius muscle', type: 'typo', reason: 'anatomy misspelling' },
+  'intense excise': { corrected: 'intense exercise', type: 'typo', reason: 'misspelling' },
+  'dusk': { corrected: 'dusky', type: 'typo', reason: 'TCM tongue term' },
+
+  // === Grammar ===
+  'continue to be emphasize': { corrected: 'continue to emphasize', type: 'grammar', reason: 'incorrect be + base form' },
+  'may related of': { corrected: 'may be related to', type: 'grammar', reason: 'missing be, of→to' },
+  'exacerbate of symptom(s)': { corrected: 'exacerbation of symptom(s)', type: 'grammar', reason: 'verb→noun' },
+  'slight increased': { corrected: 'slightly increased', type: 'grammar', reason: 'adj→adv' },
+  'over used due to nature of work': { corrected: 'overuse due to nature of work', type: 'grammar', reason: 'verb→noun' },
+  'over used due to heavy household chores': { corrected: 'overuse due to heavy household chores', type: 'grammar', reason: 'verb→noun' },
+  'excessive used of phone/tablet': { corrected: 'excessive use of phone/tablet', type: 'grammar', reason: 'past tense→noun' },
+  'activating Blood circulation to dissipate blood stagnant': { corrected: 'activating Blood circulation to dissipate blood stagnation', type: 'grammar', reason: 'adj→noun' },
+  'with excellent outcome due reducing pain': { corrected: 'with excellent outcome due to reducing pain', type: 'grammar', reason: 'missing to' },
+  'with increase ease with functional mobility': { corrected: 'with increased ease with functional mobility', type: 'grammar', reason: 'base→past participle' },
+  'with increase ease with function': { corrected: 'with increased ease with function', type: 'grammar', reason: 'base→past participle' },
+  'Patient also complaints of': { corrected: 'Patient also complains of', type: 'grammar', reason: 'noun→verb' },
+  'which promoted the patient to seek': { corrected: 'which prompted the patient to seek', type: 'grammar', reason: 'promoted→prompted' },
+  'handing/carrying moderate objects': { corrected: 'handling/carrying moderate objects', type: 'grammar', reason: 'handing→handling' },
+  'Contraindication or Precision': { corrected: 'Contraindication or Precaution', type: 'grammar', reason: 'Precision→Precaution' },
+  'Detail explanation from patient': { corrected: 'Detailed explanation from patient', type: 'grammar', reason: 'noun→adj' },
+
+  // === Duplication ===
+  'in order to to reduce stagnation': { corrected: 'in order to reduce stagnation', type: 'duplication', reason: 'double to' },
+
+  // === Anatomy ===
+  'greater tubercle': { corrected: 'greater trochanter', type: 'anatomy', reason: 'tubercle is shoulder, trochanter is hip' },
+  'lesser tubercle': { corrected: 'lesser trochanter', type: 'anatomy', reason: 'tubercle is shoulder, trochanter is hip' },
+} as const;
+
+export function applyCorrection(value: string): string {
+  return TEMPLATE_CORRECTIONS[value]?.corrected ?? value;
+}
+
+export function applyCorrections(values: readonly string[]): string[] {
+  return values.map(applyCorrection);
+}
+```
+
+**Step 4: Run test to verify it passes**
+Run: `npx jest src/shared/__tests__/template-corrections.test.ts --no-coverage`
+Expected: PASS
+
+**Step 5: Commit**
+```bash
+git add src/shared/template-corrections.ts src/shared/__tests__/template-corrections.test.ts
+git commit -m "feat: add template-corrections.ts with 28 correction entries"
+```
+
+---
+
+### Task 2: 补全 template-options.ts — Needle 映射
+
+**Files:**
+- Modify: `src/shared/template-options.ts`
+- Test: `src/shared/__tests__/template-options.test.ts`
+
+**Context:** 当前 template-options.ts 有 TEMPLATE_PAIN_TYPES, TEMPLATE_MUSCLES, TEMPLATE_ROM, TEMPLATE_ADL, TEMPLATE_AGGRAVATING, TEMPLATE_RELIEVING, TEMPLATE_CONDITION_IMPACT, TEMPLATE_CAUSATIVES。缺少 Needle、Tenderness、Assessment 相关映射。
+
+**Step 1: Write the failing test**
+
+```typescript
+// 追加到 src/shared/__tests__/template-options.test.ts
+import {
+  TEMPLATE_NEEDLE_POINTS,
+  TEMPLATE_NEEDLE_SIZE,
+  TEMPLATE_TENDERNESS_SCALE,
+  TEMPLATE_TENDERNESS_TEXT,
+  TEMPLATE_HARMONIZE,
+  TEMPLATE_TREATMENT_PURPOSE,
+  TEMPLATE_TREATMENT_VERB,
+  TEMPLATE_TX_REASON,
+  TEMPLATE_TX_ADVERSE,
+} from '../template-options';
+
+describe('TEMPLATE_NEEDLE_POINTS', () => {
+  const ALL_PARTS: BodyPartKey[] = ['SHOULDER', 'KNEE', 'LBP', 'NECK', 'ELBOW', 'HIP', 'THIGH'];
+  test.each(ALL_PARTS)('%s has frontPool and backPool', (bp) => {
+    const entry = TEMPLATE_NEEDLE_POINTS[bp];
+    expect(entry).toBeDefined();
+    expect(entry.frontPool.length).toBeGreaterThan(0);
+    expect(entry.backPool.length).toBeGreaterThan(0);
+  });
+
+  test('ELBOW frontPool contains SJ and LI points', () => {
+    const pool = TEMPLATE_NEEDLE_POINTS.ELBOW.frontPool;
+    expect(pool).toContain('LI10');
+    expect(pool).toContain('SJ5');
+    expect(pool).not.toContain('SI8'); // SI8 is NOT in elbow template
+  });
+
+  test('HIP pools use UB naming (not BL)', () => {
+    const front = TEMPLATE_NEEDLE_POINTS.HIP.frontPool;
+    expect(front).toContain('UB31');
+    expect(front).not.toContain('BL54'); // BL54 is NOT in hip template
+  });
+});
+
+describe('TEMPLATE_NEEDLE_SIZE', () => {
+  test.each(['SHOULDER', 'KNEE', 'LBP', 'NECK', 'ELBOW', 'HIP'] as const)('%s has needle size', (bp) => {
+    expect(TEMPLATE_NEEDLE_SIZE[bp]).toBeDefined();
+    expect(TEMPLATE_NEEDLE_SIZE[bp]).toContain('Select Needle Size');
+  });
+});
+
+describe('TEMPLATE_TENDERNESS_SCALE', () => {
+  test('HIP uses KNEE-style scale (not SHOULDER-style)', () => {
+    expect(TEMPLATE_TENDERNESS_SCALE.HIP['+3']).toContain('There is severe tenderness');
+    expect(TEMPLATE_TENDERNESS_SCALE.HIP['+3']).not.toContain('Patient complains');
+  });
+});
+
+describe('TEMPLATE_TX_REASON', () => {
+  test('has exactly 24 options', () => {
+    expect(TEMPLATE_TX_REASON.length).toBe(24);
+  });
+  test('does not contain fabricated values', () => {
+    expect(TEMPLATE_TX_REASON).not.toContain('stress level has decreased');
+    expect(TEMPLATE_TX_REASON).not.toContain('shoulder stiffness has decreased');
+    expect(TEMPLATE_TX_REASON).not.toContain('muscle tension has reduced noticeably');
+  });
+});
+
+describe('TEMPLATE_TX_ADVERSE', () => {
+  test('is a single static string', () => {
+    expect(typeof TEMPLATE_TX_ADVERSE).toBe('string');
+    expect(TEMPLATE_TX_ADVERSE).toBe('No adverse side effect post treatment.');
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+Run: `npx jest src/shared/__tests__/template-options.test.ts --no-coverage`
+Expected: FAIL — imports not found
+
+**Step 3: Write implementation — add new exports to template-options.ts**
+
+在 template-options.ts 末尾追加以下导出（数据全部来自 docs/solution-research.json 中的模板提取结果）：
+
+```typescript
+// ─── Needle Points ───────────────────────────────────────────────────
+
+export interface NeedlePointsEntry {
+  readonly frontPool: readonly string[];
+  readonly backPool: readonly string[];
+  readonly frontPoolStep2?: readonly string[]; // 如果 step2 pool 与 step1 不同
+  readonly hasSide: boolean;
+}
+
+export const TEMPLATE_NEEDLE_POINTS: Record<BodyPartKey, NeedlePointsEntry> = {
+  SHOULDER: {
+    frontPool: ['JIAN QIAN','PC2','LU3','LU4','LU5','LI4','LI11','ST3','GB34','SI3','ST38'],
+    backPool: ['GB21','BL10','BL11','BL17','LI15','LI16','SI9','SI10','SI11','SI12','SI14','SI15','SJ10','A SHI POINTS'],
+    hasSide: true,
+  },
+  KNEE: {
+    frontPool: ['GB33','GB34','GB36','GB39','UB40','ST34','ST35','ST36','ST40','SP3','SP9','SP10','KD3','KD10','XI YAN','LV4','REN4','HE DING','A SHI POINT'],
+    frontPoolStep2: ['GB33','GB34','GB36','GB39','ST34','ST35','ST36','ST40','SP3','SP9','SP10','KD3','KD10','XI YAN','LV4','REN4','HE DING','A SHI POINT'],
+    backPool: ['BL23','BL20','BL40','BL55','BL38','BL56','A SHI POINTS','BL57'],
+    hasSide: true,
+  },
+  LBP: {
+    frontPool: ['ST40','REN4','REN6','GB26','GB34','ST36','KD3','SP6','LV3','SI3','YAO TONG XUE'],
+    backPool: ['BL22','BL23','BL24','BL25','BL26','BL29','BL40','BL52','BL53','BL54','DU4','GB30','YAO JIA JI','A SHI POINTS'],
+    hasSide: false,
+  },
+  NECK: {
+    frontPool: ['GB34','ST36','SI3','SJ5','SP6','REN4','REN6','LV3','LI11','DU20'],
+    backPool: ['BAI LAO','GB14','GB20','GB21','BL9','BL10','BL11','BL12','BL13','BL14','SI13','SI14','DU14','JIN JIA JI','A SHI POINTS'],
+    hasSide: false,
+  },
+  ELBOW: {
+    frontPool: ['SJ5','SJ6','SJ7','SJ8','SJ9','SJ12','LI6','LI7','LI8','LI9','LI10','LI11','LI12','LI13','LU3','LU4','LU7','LU8','LU9','A SHI POINTS'],
+    frontPoolStep2: ['SJ5','SJ6','SJ7','SJ8','SJ9','SJ12','LI6','LI7','LI8','LI9','LI10','LI11','LI12','LI13','LU3','LU4','LU5','LU6','LU7','LU8','LU9','A SHI POINTS'],
+    backPool: ['LU5','LU6','PC3','PC4','HT2','HT3','A SHI POINTS'],
+    hasSide: true,
+  },
+  HIP: {
+    frontPool: ['GB30','GB29','GB31','GB34','UB31','UB32','UB33','UB34','UB25','UB27','A SHI POINTS'],
+    backPool: ['GB30','GB29','GB31','GB34','UB31','UB32','UB33','UB34','UB25','UB27','A SHI POINTS'],
+    hasSide: false,
+  },
+  THIGH: {
+    frontPool: ['GB30','GB29','GB31','GB34','UB31','UB32','UB33','UB34','UB25','UB27','A SHI POINTS'],
+    backPool: ['GB30','GB29','GB31','GB34','UB31','UB32','UB33','UB34','UB25','UB27','A SHI POINTS'],
+    hasSide: false,
+  },
+};
+
+// ─── Needle Size ─────────────────────────────────────────────────────
+
+export const TEMPLATE_NEEDLE_SIZE: Record<BodyPartKey, string> = {
+  SHOULDER: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  KNEE: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2"',
+  LBP: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+  NECK: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  ELBOW: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  HIP: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+  THIGH: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+};
+
+// ─── Tenderness Scale ────────────────────────────────────────────────
+
+export const TEMPLATE_TENDERNESS_SCALE: Record<string, Record<string, string>> = {
+  SHOULDER: {
+    '+4': '(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure',
+    '+3': '(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure',
+    '+2': '(+2) = Patient states that the area is moderately tender',
+    '+1': '(+1)=Patient states that the area is mildly tender-annoying',
+  },
+  KNEE: {
+    '+4': '(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus',
+    '+3': '(+3) = There is severe tenderness with withdrawal',
+    '+2': '(+2) = There is mild tenderness with grimace and flinch to moderate palpation',
+    '+1': '(+1)= There is mild tenderness to palpation',
+    '0': '(0) = No tenderness',
+  },
+  // HIP, LBP, NECK, ELBOW, THIGH all use KNEE-style scale
+  HIP: undefined as any, // will be set below
+  LBP: undefined as any,
+  NECK: undefined as any,
+  ELBOW: undefined as any,
+  THIGH: undefined as any,
+};
+// Share KNEE-style scale for body parts that use it
+TEMPLATE_TENDERNESS_SCALE.HIP = TEMPLATE_TENDERNESS_SCALE.KNEE;
+TEMPLATE_TENDERNESS_SCALE.LBP = TEMPLATE_TENDERNESS_SCALE.KNEE;
+TEMPLATE_TENDERNESS_SCALE.NECK = TEMPLATE_TENDERNESS_SCALE.KNEE;
+TEMPLATE_TENDERNESS_SCALE.ELBOW = TEMPLATE_TENDERNESS_SCALE.KNEE;
+TEMPLATE_TENDERNESS_SCALE.THIGH = TEMPLATE_TENDERNESS_SCALE.KNEE;
+
+// ─── Tenderness Text ─────────────────────────────────────────────────
+
+export const TEMPLATE_TENDERNESS_TEXT: Record<BodyPartKey, string> = {
+  SHOULDER: 'Tenderness muscles noted along',
+  KNEE: 'Tenderness muscle noted along',
+  LBP: 'Tenderness muscle noted along',
+  NECK: 'Tenderness muscle noted along',
+  ELBOW: 'Tenderness muscle noted along',
+  HIP: 'Tenderness muscle noted along',
+  THIGH: 'Tenderness muscle noted along',
+};
+
+// ─── Assessment Mappings ─────────────────────────────────────────────
+
+export const TEMPLATE_HARMONIZE: Record<BodyPartKey, string> = {
+  SHOULDER: 'healthy qi and to expel pathogen factor to promote',
+  KNEE: 'Liver and Kidney',
+  LBP: 'yin/yang',
+  NECK: 'Liver and Kidney',
+  ELBOW: 'healthy qi and to expel pathogen factor to promote',
+  HIP: 'healthy qi and to expel pathogen factor to promote',
+  THIGH: 'yin/yang',
+};
+
+export const TEMPLATE_TREATMENT_PURPOSE: Record<BodyPartKey, string> = {
+  SHOULDER: 'to reduce stagnation and improve circulation',
+  KNEE: 'promote healthy joint and lessen dysfunction in all aspects',
+  LBP: 'promote good essence',
+  NECK: 'promote good essence',
+  ELBOW: 'promote healthy joint and lessen dysfunction in all aspects',
+  HIP: 'promote healthy joint and lessen dysfunction in all aspects',
+  THIGH: 'promote good essence',
+};
+
+export const TEMPLATE_TREATMENT_VERB: Record<BodyPartKey, string> = {
+  SHOULDER: 'emphasize',
+  KNEE: 'focus',
+  LBP: 'promote',
+  NECK: 'pay attention',
+  ELBOW: 'emphasize',
+  HIP: 'focus',
+  THIGH: 'promote',
+};
+
+// ─── TX-specific ─────────────────────────────────────────────────────
+
+export const TEMPLATE_TX_REASON: readonly string[] = [
+  'can move joint more freely and with less pain',
+  'physical activity no longer causes distress',
+  'reduced level of pain',
+  'reduced joint stiffness and swelling',
+  'less difficulty performing daily activities',
+  'energy level improved',
+  'sleep quality improved',
+  'more energy level throughout the day',
+  'continuous treatment',
+  'maintain regular treatments',
+  'still need more treatments to reach better effect',
+  'weak constitution',
+  'skipped treatments',
+  'stopped treatment for a while',
+  'discontinuous treatment',
+  'did not have good rest',
+  'intense work',
+  'excessive time using cell phone',
+  'excessive time using computer',
+  'bad posture',
+  'carrying/lifting heavy object(s)',
+  'lack of exercise',
+  'exposure to cold air',
+  'uncertain reason',
+] as const;
+
+export const TEMPLATE_TX_ADVERSE: string = 'No adverse side effect post treatment.';
+
+export const TEMPLATE_TX_WHAT_CHANGED: readonly string[] = [
+  'pain',
+  'pain frequency',
+  'pain duration',
+  'numbness sensation',
+  'muscles weakness',
+  'muscles soreness sensation',
+  'muscles stiffness sensation',
+  'heaviness sensation',
+  'difficulty in performing ADLs',
+  'as last time visit',
+] as const;
+
+export const TEMPLATE_TX_VERB: readonly string[] = [
+  'continue to emphasize',
+  'emphasize',
+  'consist of promoting',
+  'promote',
+  'focus',
+  'pay attention',
+] as const;
+
+export const TEMPLATE_PAIN_FREQUENCY: readonly { label: string; range: string }[] = [
+  { label: 'Intermittent', range: 'symptoms occur less than 25% of the time' },
+  { label: 'Occasional', range: 'symptoms occur between 26% and 50% of the time' },
+  { label: 'Frequent', range: 'symptoms occur between 51% and 75% of the time' },
+  { label: 'Constant', range: 'symptoms occur between 76% and 100% of the time' },
+] as const;
+```
+
+注意：TEMPLATE_HARMONIZE, TEMPLATE_TREATMENT_PURPOSE 的 NECK/ELBOW/HIP 值需要从模板确认。上面的值基于模板默认选中值。
+
+**Step 4: Run test to verify it passes**
+Run: `npx jest src/shared/__tests__/template-options.test.ts --no-coverage`
+Expected: PASS
+
+**Step 5: Commit**
+```bash
+git add src/shared/template-options.ts src/shared/__tests__/template-options.test.ts
+git commit -m "feat: add TEMPLATE_NEEDLE_POINTS, TEMPLATE_TENDERNESS_SCALE, TEMPLATE_TX_* to template-options"
+```
+
+---
+
+## Phase 2: 引擎切换数据源 (soap-generator.ts)
+
+### Task 3: 替换 EXACERBATING_FACTORS_MAP → TEMPLATE_AGGRAVATING
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L314-404, L941-944)
+
+**Why:** C-05/C-06/C-07 — NECK/ELBOW/HIP 的 aggravating factors 全部自创
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/aggravating-template.test.ts
+import { TEMPLATE_AGGRAVATING } from '../../shared/template-options';
+import { exportSOAPAsText } from '../soap-generator';
+import { patchSOAPText } from '../objective-patch';
+import { setWhitelist } from '../../parser/template-rule-whitelist';
+
+// 对 NECK/ELBOW/HIP 生成输出，检查 aggravating factors 都在模板选项中
+describe('aggravating factors use template values', () => {
+  const cases = [
+    { bp: 'NECK', laterality: 'bilateral' },
+    { bp: 'ELBOW', laterality: 'right' },
+    { bp: 'HIP', laterality: 'left' },
+  ] as const;
+
+  test.each(cases)('$bp aggravating factors are all in TEMPLATE_AGGRAVATING', ({ bp, laterality }) => {
+    const ctx = {
+      noteType: 'IE' as const, insuranceType: 'NONE' as const,
+      primaryBodyPart: bp, laterality,
+      localPattern: 'Qi Stagnation', systemicPattern: 'Qi Deficiency',
+      chronicityLevel: 'Chronic' as const, severityLevel: 'moderate' as const,
+      painCurrent: 6, painWorst: 8, painBest: 3, age: 50, gender: 'Male' as const,
+    };
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    // 提取 "exacerbated by" 后面的因素列表
+    const match = text.match(/exacerbated by (.+?)[\.\n]/);
+    if (match) {
+      const factors = match[1].split(', ').map(f => f.trim());
+      const validOptions = TEMPLATE_AGGRAVATING[bp as keyof typeof TEMPLATE_AGGRAVATING];
+      for (const factor of factors) {
+        expect(validOptions).toContain(factor);
+      }
+    }
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+Run: `npx jest src/generator/__tests__/aggravating-template.test.ts --no-coverage`
+Expected: FAIL — NECK/ELBOW/HIP factors not in TEMPLATE_AGGRAVATING
+
+**Step 3: Implement — replace EXACERBATING_FACTORS_MAP usage**
+
+In `soap-generator.ts`:
+1. Add import: `import { TEMPLATE_AGGRAVATING } from '../shared/template-options';`
+2. Delete the entire `EXACERBATING_FACTORS_MAP` constant (L314-404)
+3. At L941-944, replace:
+   ```typescript
+   // OLD:
+   const factors = ctx.exacerbatingFactors?.length
+     ? ctx.exacerbatingFactors
+     : EXACERBATING_FACTORS_MAP[bp] || EXACERBATING_FACTORS_MAP["LBP"];
+   // NEW:
+   const factors = ctx.exacerbatingFactors?.length
+     ? ctx.exacerbatingFactors
+     : [...TEMPLATE_AGGRAVATING[bp as BodyPartKey] || TEMPLATE_AGGRAVATING.LBP];
+   ```
+4. Apply corrections: import `applyCorrections` from template-corrections, wrap the fallback values.
+
+**Step 4: Run test to verify it passes**
+Run: `npx jest src/generator/__tests__/aggravating-template.test.ts --no-coverage`
+Expected: PASS
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-05/C-06/C-07): replace EXACERBATING_FACTORS_MAP with TEMPLATE_AGGRAVATING"
+```
+
+---
+
+### Task 4: 替换 TENDERNESS_SCALE_MAP / TENDERNESS_TEXT_MAP → TEMPLATE_TENDERNESS_*
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L539-577)
+
+**Why:** C-12/H-08 — HIP 用了 SHOULDER 风格 tenderness，文本 muscles/muscle 不匹配
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/tenderness-template.test.ts
+describe('HIP tenderness uses KNEE-style scale', () => {
+  test('HIP output contains "There is severe tenderness" not "Patient complains"', () => {
+    const ctx = {
+      noteType: 'IE' as const, insuranceType: 'NONE' as const,
+      primaryBodyPart: 'HIP', laterality: 'left',
+      localPattern: 'Qi Stagnation', systemicPattern: 'Qi Deficiency',
+      chronicityLevel: 'Chronic' as const, severityLevel: 'moderate to severe' as const,
+      painCurrent: 7, painWorst: 9, painBest: 4, age: 65, gender: 'Female' as const,
+    };
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    expect(text).toContain('There is severe tenderness');
+    expect(text).not.toContain('Patient complains of considerable tenderness');
+  });
+
+  test('HIP output uses "muscle" (singular)', () => {
+    // same ctx as above
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    expect(text).toContain('Tenderness muscle noted along');
+    expect(text).not.toContain('Tenderness muscles noted along');
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+In `soap-generator.ts`:
+1. Add import: `import { TEMPLATE_TENDERNESS_SCALE, TEMPLATE_TENDERNESS_TEXT } from '../shared/template-options';`
+2. Delete `TENDERNESS_SCALE_MAP` and `TENDERNESS_TEXT_MAP` constants
+3. Replace all references:
+   - `TENDERNESS_SCALE_MAP[bp] || TENDERNESS_SCALE_MAP.SHOULDER` → `TEMPLATE_TENDERNESS_SCALE[bp] || TEMPLATE_TENDERNESS_SCALE.KNEE`
+   - `TENDERNESS_TEXT_MAP[bp] || TENDERNESS_TEXT_MAP.DEFAULT` → `TEMPLATE_TENDERNESS_TEXT[bp as BodyPartKey] || TEMPLATE_TENDERNESS_TEXT.KNEE`
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-12/H-08): replace TENDERNESS_SCALE/TEXT_MAP with TEMPLATE_TENDERNESS_*"
+```
+
+---
+
+### Task 5: 替换 NEEDLE_SIZE_MAP + frontPoints/backPoints → TEMPLATE_NEEDLE_*
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L587-594, L2556-2610, L2723-2730, L2823-2847)
+
+**Why:** C-13/C-14/C-15/C-16/H-06/H-07 — ELBOW/HIP needle 穴位和尺寸全部错误
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/needle-template.test.ts
+import { TEMPLATE_NEEDLE_POINTS } from '../../shared/template-options';
+
+describe('needle points use template values', () => {
+  const cases = ['SHOULDER', 'KNEE', 'LBP', 'NECK', 'ELBOW', 'HIP'] as const;
+
+  test.each(cases)('%s needle output only contains template-valid points', (bp) => {
+    const ctx = { /* standard IE ctx for bp */ };
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    // Extract needle section, parse point names
+    const needleSection = text.split('Needle Protocol')[1] || text.split('Select Needle Size')[1] || '';
+    const pointPattern = /[A-Z]{1,3}[\s]?\d+|A SHI POINTS?|JIAN QIAN|XI YAN|HE DING|YAO TONG XUE|YAO JIA JI|BAI LAO|JIN JIA JI|DU\d+|REN\d+/g;
+    const outputPoints = [...new Set(needleSection.match(pointPattern) || [])];
+    const validPool = [
+      ...TEMPLATE_NEEDLE_POINTS[bp].frontPool,
+      ...TEMPLATE_NEEDLE_POINTS[bp].backPool,
+    ];
+    for (const point of outputPoints) {
+      expect(validPool).toContain(point);
+    }
+  });
+
+  test('ELBOW step 4 is not empty', () => {
+    // Generate ELBOW IE, check step 4 has points
+    const text = /* generate ELBOW IE */;
+    expect(text).toMatch(/4\..+?(LU5|PC3|PC4|HT2|HT3)/);
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+In `soap-generator.ts`:
+1. Add import: `import { TEMPLATE_NEEDLE_POINTS, TEMPLATE_NEEDLE_SIZE } from '../shared/template-options';`
+2. Delete `NEEDLE_SIZE_MAP` constant, replace with: `const needleSize = TEMPLATE_NEEDLE_SIZE[bp as BodyPartKey] || TEMPLATE_NEEDLE_SIZE.LBP;`
+3. Delete `frontPoints` and `backPoints` local objects (L2556-2610)
+4. Replace with:
+   ```typescript
+   const needleEntry = TEMPLATE_NEEDLE_POINTS[bp as BodyPartKey];
+   const frontPool = needleEntry?.frontPool || TEMPLATE_NEEDLE_POINTS.LBP.frontPool;
+   const backPool = needleEntry?.backPool || TEMPLATE_NEEDLE_POINTS.LBP.backPool;
+   ```
+5. Fix step point selection to use frontPool/backPool correctly:
+   - Step 1: frontPool.slice(0, 3)
+   - Step 2: frontPool.slice(3, 6) or remaining
+   - Step 3: backPool.slice(0, 3)
+   - Step 4: backPool.slice(3, 6) or remaining
+6. For LBP special path (L2723-2730), use same pools
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-13~C-16/H-06/H-07): replace hardcoded needle points/size with TEMPLATE_NEEDLE_*"
+```
+
+---
+
+### Task 6: 替换 Assessment MAP → TEMPLATE_HARMONIZE / TEMPLATE_TREATMENT_*
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L599-628)
+
+**Why:** M-01/M-02 — NECK/ELBOW/HIP 的 harmonize/treatment purpose fallback 不匹配模板默认
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/assessment-template.test.ts
+describe('assessment uses template values for all body parts', () => {
+  test.each(['NECK', 'ELBOW', 'HIP'] as const)('%s harmonize matches template default', (bp) => {
+    const ctx = { /* standard IE ctx for bp */ };
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    // Check harmonize value is in template options
+    expect(text).toMatch(/harmonize/);
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+1. Add import: `import { TEMPLATE_HARMONIZE, TEMPLATE_TREATMENT_PURPOSE, TEMPLATE_TREATMENT_VERB } from '../shared/template-options';`
+2. Delete `HARMONIZE_MAP`, `TREATMENT_PURPOSE_MAP`, `TREATMENT_VERB_MAP`
+3. Replace references:
+   - `HARMONIZE_MAP[bp] || HARMONIZE_MAP.DEFAULT` → `TEMPLATE_HARMONIZE[bp as BodyPartKey] || TEMPLATE_HARMONIZE.LBP`
+   - `TREATMENT_PURPOSE_MAP[bp] || TREATMENT_PURPOSE_MAP.DEFAULT` → `TEMPLATE_TREATMENT_PURPOSE[bp as BodyPartKey]`
+   - `TREATMENT_VERB_MAP[bp] || TREATMENT_VERB_MAP.DEFAULT` → `TEMPLATE_TREATMENT_VERB[bp as BodyPartKey]`
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(M-01/M-02): replace HARMONIZE/TREATMENT_* MAPs with TEMPLATE_* versions"
+```
+
+---
+
+### Task 7: 修正 ELBOW/HIP ROM 运动列表 + 统一走 pickTemplateROMDegrees
+
+**Files:**
+- Modify: `src/shared/body-part-constants.ts` (BODY_PART_ROM.ELBOW, BODY_PART_ROM.HIP)
+- Modify: `src/generator/soap-generator.ts` (ROM 计算路径)
+- Modify: `src/shared/template-options.ts` (确认 TEMPLATE_ROM.ELBOW/HIP 运动列表)
+
+**Why:** C-08/C-09/C-10/C-11/C-17/H-04/H-05/H-09 — ROM 运动名、度数、severity 标签、格式全部不匹配
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/rom-template.test.ts
+import { TEMPLATE_ROM } from '../../shared/template-options';
+
+describe('ROM output matches template discrete options', () => {
+  test('ELBOW ROM movements match template', () => {
+    const ctx = { /* ELBOW IE ctx */ };
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    // Should NOT contain Supination/Pronation
+    expect(text).not.toMatch(/Supination/);
+    expect(text).not.toMatch(/Pronation/);
+    // Should contain template movements
+    const elbowMovements = TEMPLATE_ROM.ELBOW.map(m => m.name);
+    // At least Flexion and Extension should appear
+    expect(text).toMatch(/Flexion/);
+    expect(text).toMatch(/Extension/);
+  });
+
+  test('HIP ROM does not contain Adduction', () => {
+    const ctx = { /* HIP IE ctx */ };
+    const text = patchSOAPText(exportSOAPAsText(ctx), ctx);
+    expect(text).not.toMatch(/Adduction/);
+  });
+
+  test('all ROM degree(severity) pairs are in TEMPLATE_ROM', () => {
+    // For each body part, generate IE, extract all "N degree(severity)" patterns,
+    // verify each pair exists in TEMPLATE_ROM
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+1. In `body-part-constants.ts`, fix BODY_PART_ROM.ELBOW:
+   - Remove Supination/Pronation
+   - Add: Left side flexion, Rt side flexion, Left side rotation, Right side rotation (from template)
+   - Fix normalDegrees to match template normal values
+
+2. In `body-part-constants.ts`, fix BODY_PART_ROM.HIP:
+   - Remove Adduction
+   - Keep: Abduction, Flexion, Extension, External Rotation, Internal Rotation
+
+3. In `soap-generator.ts`, ensure ALL ROM paths go through `pickTemplateROMDegrees()`:
+   - Remove any remaining formula-based ROM calculation fallbacks
+   - Use `getTemplateSeverityLabel()` for severity text
+   - Handle HIP's mixed "degree"/"Degrees" format via per-movement lookup
+
+4. In `rom-from-template.ts`, add MOVEMENT_NAME_MAP entries for ELBOW's new movements
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-08~C-11/C-17/H-04/H-05/H-09): fix ELBOW/HIP ROM movements, unify pickTemplateROMDegrees"
+```
+
+---
+
+## Phase 3: TX 引擎修复 (tx-sequence-engine.ts + soap-generator.ts TX 部分)
+
+### Task 8: 修复 TX reason — 删除自创值，单选模板值
+
+**Files:**
+- Modify: `src/generator/tx-sequence-engine.ts` (L1464-1680)
+
+**Why:** C-02 — reason 拼接了非模板文本（9 个 TX 输出全部受影响）
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/tx-reason-template.test.ts
+import { TEMPLATE_TX_REASON } from '../../shared/template-options';
+
+describe('TX reason uses only template values', () => {
+  test('SHOULDER TX1-3 reasons are all in TEMPLATE_TX_REASON', () => {
+    const ieCtx = { /* SHOULDER IE ctx */ };
+    const txItems = exportTXSeriesAsText(ieCtx, { txCount: 3, seed: 42 });
+    const txCtx = { ...ieCtx, noteType: 'TX' as const };
+    for (const item of txItems) {
+      const text = patchSOAPText(item.text, txCtx);
+      const match = text.match(/(because of|due to|may be related to|and) (.+?) \./);
+      if (match) {
+        const reason = match[2].trim();
+        // Should be a single value from TEMPLATE_TX_REASON, not a compound "X and Y"
+        expect(reason).not.toContain(' and ');
+        expect(TEMPLATE_TX_REASON).toContain(reason);
+      }
+    }
+  });
+
+  test('no fabricated reason text appears', () => {
+    const fabricated = [
+      'stress level has decreased',
+      'shoulder stiffness has decreased',
+      'muscle tension has reduced noticeably',
+      'walking distance increased without pain',
+      'can walk longer distances comfortably',
+    ];
+    // Generate all body parts TX, check none contain fabricated text
+    for (const bp of ['SHOULDER', 'LBP', 'KNEE']) {
+      const ieCtx = { /* ctx for bp */ };
+      const txItems = exportTXSeriesAsText(ieCtx, { txCount: 3, seed: 42 });
+      const txCtx = { ...ieCtx, noteType: 'TX' as const };
+      for (const item of txItems) {
+        const text = patchSOAPText(item.text, txCtx);
+        for (const f of fabricated) {
+          expect(text).not.toContain(f);
+        }
+      }
+    }
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+In `tx-sequence-engine.ts`:
+1. Add import: `import { TEMPLATE_TX_REASON } from '../shared/template-options';`
+2. Delete `BODY_PART_ADL`, `BODY_PART_PAIN`, `GENERIC_POSITIVE`, `OBJ_GATED` constants (L1464-1530)
+3. Replace the positive/neutral/negative reason pools:
+   - Positive reasons: filter TEMPLATE_TX_REASON for positive items (first 8: "can move joint...", "physical activity...", etc.)
+   - Negative reasons: filter TEMPLATE_TX_REASON for negative items ("skipped treatments", "stopped treatment...", etc.)
+   - Neutral reasons: filter TEMPLATE_TX_REASON for neutral items ("continuous treatment", "maintain regular treatments", etc.)
+4. Remove `reason1 and reason2` concatenation (L1593-1604, L1635-1646, L1669-1680):
+   - Only pick ONE reason from the pool
+   - `finalReason = pool[pickIdx]` — no concatenation
+5. Remove the OBJ_GATED purge logic (L1873-1896)
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-02): TX reason uses single TEMPLATE_TX_REASON value, no fabricated text"
+```
+
+---
+
+### Task 9: 修复 TX adverse effect — 删除变体，用固定静态文本
+
+**Files:**
+- Modify: `src/generator/tx-sequence-engine.ts` (L486-507)
+
+**Why:** C-03 — 3 个 adverse 变体全部自创
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/tx-adverse-template.test.ts
+describe('TX adverse effect is fixed template text', () => {
+  test('all visits use "No adverse side effect post treatment."', () => {
+    const ieCtx = { /* SHOULDER IE ctx */ };
+    const txItems = exportTXSeriesAsText(ieCtx, { txCount: 5, seed: 42 });
+    const txCtx = { ...ieCtx, noteType: 'TX' as const };
+    for (const item of txItems) {
+      const text = patchSOAPText(item.text, txCtx);
+      expect(text).toContain('No adverse side effect post treatment.');
+      expect(text).not.toContain('No adverse reaction reported');
+      expect(text).not.toContain('Patient reported no adverse effects');
+      expect(text).not.toContain('No negative side effects observed');
+    }
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+In `tx-sequence-engine.ts`:
+1. Add import: `import { TEMPLATE_TX_ADVERSE } from '../shared/template-options';`
+2. Delete `ADVERSE_OPTIONS` array (L486-491)
+3. Replace L507: `const adverseEffect = TEMPLATE_TX_ADVERSE;`
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-03): TX adverse effect uses fixed TEMPLATE_TX_ADVERSE"
+```
+
+---
+
+### Task 10: 修复 TX whatChanged — 删除 "severity level"
+
+**Files:**
+- Modify: `src/generator/tx-sequence-engine.ts` (TX_WHAT_CHANGED_OPTIONS 或 whatChanged 生成逻辑)
+
+**Why:** C-04 — "severity level" 不在模板 whatChanged 下拉框中
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/tx-whatchanged-template.test.ts
+import { TEMPLATE_TX_WHAT_CHANGED } from '../../shared/template-options';
+
+describe('TX whatChanged uses only template values', () => {
+  test('no output contains "severity level"', () => {
+    for (const bp of ['SHOULDER', 'LBP', 'KNEE']) {
+      const ieCtx = { /* ctx for bp */ };
+      const txItems = exportTXSeriesAsText(ieCtx, { txCount: 5, seed: 42 });
+      const txCtx = { ...ieCtx, noteType: 'TX' as const };
+      for (const item of txItems) {
+        const text = patchSOAPText(item.text, txCtx);
+        expect(text).not.toContain('severity level');
+      }
+    }
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+In `tx-sequence-engine.ts`:
+1. Add import: `import { TEMPLATE_TX_WHAT_CHANGED } from '../shared/template-options';`
+2. Find where whatChanged items are assembled, replace the pool with `TEMPLATE_TX_WHAT_CHANGED`
+3. Remove "severity level" from any hardcoded list
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-04): TX whatChanged uses TEMPLATE_TX_WHAT_CHANGED, remove severity level"
+```
+
+---
+
+### Task 11: 修复 TX Plan verb — "continue to emphasize"
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L2118 TX_VERB_OPTIONS)
+
+**Why:** C-01 — "continue to emphasize" 不在模板中（模板原文 "continue to be emphasize" 经修正后为 "continue to emphasize"）
+
+**Step 1: Write the failing test**
+
+```typescript
+// src/generator/__tests__/tx-verb-template.test.ts
+import { TEMPLATE_TX_VERB } from '../../shared/template-options';
+
+describe('TX verb options match template', () => {
+  test('TX plan uses verbs from TEMPLATE_TX_VERB', () => {
+    const ieCtx = { /* SHOULDER IE ctx */ };
+    const txItems = exportTXSeriesAsText(ieCtx, { txCount: 3, seed: 42 });
+    const txCtx = { ...ieCtx, noteType: 'TX' as const };
+    for (const item of txItems) {
+      const text = patchSOAPText(item.text, txCtx);
+      // Extract verb from plan section
+      const verbMatch = text.match(/Treatment will (continue to emphasize|emphasize|consist of promoting|promote|focus|pay attention)/);
+      if (verbMatch) {
+        expect(TEMPLATE_TX_VERB).toContain(verbMatch[1]);
+      }
+    }
+  });
+});
+```
+
+**Step 2: Run test → FAIL (current TX_VERB_OPTIONS has wrong values)**
+
+**Step 3: Implement**
+
+In `soap-generator.ts`:
+1. Add import: `import { TEMPLATE_TX_VERB } from '../shared/template-options';`
+2. Delete `TX_VERB_OPTIONS` (L2118)
+3. Replace with: `const txVerb = TEMPLATE_TX_VERB[visitIndex % TEMPLATE_TX_VERB.length];`
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(C-01): TX verb uses TEMPLATE_TX_VERB"
+```
+
+---
+
+### Task 12: 修复 TX Assessment laterality + KNEE 大小写
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L2451, L491)
+
+**Why:** H-01/H-02 — laterality 缺 "in" 前缀，KNEE 大写
+
+**Step 1: Write the failing test**
+
+```typescript
+describe('TX assessment laterality', () => {
+  test('SHOULDER bilateral uses "in bilateral"', () => {
+    const text = /* generate SHOULDER TX */;
+    expect(text).toContain('in bilateral shoulder area');
+    expect(text).not.toMatch(/for bilateral shoulder/);
+  });
+
+  test('KNEE uses lowercase "knee"', () => {
+    const text = /* generate KNEE TX */;
+    expect(text).toContain('knee area');
+    expect(text).not.toContain('Knee area');
+  });
+});
+```
+
+**Step 2: Run test → FAIL**
+
+**Step 3: Implement**
+
+1. L491: Change `KNEE: "Knee area"` → `KNEE: "knee area"`
+2. L2451: Change laterality output to use template dropdown value format:
+   ```typescript
+   // OLD: `for ${laterality} ${bodyPartArea}`
+   // NEW: `${lateralityPrefix} ${bodyPartArea}`
+   // where lateralityPrefix = "in bilateral" | "in left" | "in right" | "along bilateral" etc.
+   ```
+
+**Step 4: Run test → PASS**
+
+**Step 5: Commit**
+```bash
+git commit -m "fix(H-01/H-02): TX assessment laterality prefix + KNEE lowercase"
+```
+
+---
+
+### Task 13: 修复 TX LBP ADL 组数
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L2306-2308)
+
+**Why:** H-03 — LBP TX 只输出单组 ADL，但模板确实只有 1 组
+
+**Step 1: Verify**
+
+实际上 LBP 模板确实只有 1 组 ADL（与 SHOULDER/KNEE 的 2 组不同）。
+检查当前代码是否已经正确处理 LBP 的单组情况。
+如果 H-03 是误报（LBP 模板本身就是 1 组），则标记为 PASS。
+
+LBP TX 模板确认：1 组 ADL，连接词 "difficulty with ADLs like"。
+当前代码 L2306-2308 的 else 分支处理 LBP 单组 — 这是正确的。
+
+**结论：H-03 是误报，LBP 模板本身就是 1 组。但需要确认连接词是否正确。**
+
+如果连接词不对，修正为 "difficulty with ADLs like"。
+
+**Step 2: Commit (if any fix needed)**
+```bash
+git commit -m "fix(H-03): verify LBP single ADL group matches template"
+```
+
+---
+
+## Phase 4: 收尾 — 格式修正 + 全量验证
+
+### Task 14: 修复 LOW 级别格式问题
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts`
+
+**Why:** L-01/L-02/L-03
+
+**Changes:**
+1. L-01: Tenderness scale 值末尾多余句号 — 删除追加的 "."
+2. L-02: 标题双换行 — 改为单换行
+3. L-03: TCM "slippery" → "rolling" — 在 TONE_MAP 中修正
+
+**Commit:**
+```bash
+git commit -m "fix(L-01/L-02/L-03): format fixes — trailing period, double newline, TCM pulse term"
+```
+
+---
+
+### Task 15: 修复 NECK needle step 3/4 穴位分配
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (needle generation for NECK)
+
+**Why:** H-10 — NECK step 3 穴位属于 step 4 下拉框
+
+**Note:** NECK 模板 step 3 的 HTML 下拉框选项是腰部穴位（模板 bug），但默认值是颈部穴位。
+TEMPLATE_NEEDLE_POINTS.NECK.backPool 已经用 step 4 的正确穴位池。
+引擎从 backPool 选穴位时，step 3 和 step 4 都从同一个 backPool 选，所以不会出现非法值。
+只需确认 step 3 默认值 (SI13, JIN JIA JI, A SHI POINTS) 在 backPool 中。
+
+**Commit:**
+```bash
+git commit -m "fix(H-10): NECK step 3 uses backPool (step 4 pool) to avoid template HTML bug"
+```
+
+---
+
+### Task 16: 修复 97810 section label
+
+**Files:**
+- Modify: `src/generator/soap-generator.ts` (L2859)
+
+**Why:** H-11 — ELBOW/KNEE 97810 section label "Back Points" 应为 "Front Points"
+
+**Implement:**
+Add per-body-part 97810 section label:
+```typescript
+const SECTION_97810_LABEL: Record<string, string> = {
+  SHOULDER: 'Back Points:',
+  LBP: 'Back Points:',
+  NECK: 'Back Points:',
+  KNEE: 'Front Points:',
+  ELBOW: 'Front Points:',
+  DEFAULT: 'Back Points:',
+};
+```
+
+**Commit:**
+```bash
+git commit -m "fix(H-11): 97810 section label per body part"
+```
+
+---
+
+### Task 17: 全量验证 — 重新生成所有输出并对比
+
+**Files:**
+- Use: `scripts/_audit_all.ts` (临时脚本，验证后删除)
+
+**Steps:**
+1. 重新运行审计脚本生成所有 6 个 IE + 3 个 TX 系列输出
+2. 对比每个输出中的动态值是否都在 TEMPLATE_* 中
+3. 运行全量测试: `npx jest --no-coverage`
+4. 确认 0 个 CRITICAL/HIGH 问题
+5. 删除临时脚本
+
+**Commit:**
+```bash
+git commit -m "chore: verify all 38 audit issues resolved"
+```
+
+---
+
+## 执行顺序总结
+
+| Phase | Tasks | 解决的审计问题 | 预估时间 |
+|-------|-------|--------------|---------|
+| 1 | Task 1-2 | 基础设施 | 30 min |
+| 2 | Task 3-7 | C-05~C-17, H-04~H-10, M-01~M-02 | 2 hr |
+| 3 | Task 8-13 | C-01~C-04, H-01~H-03 | 1.5 hr |
+| 4 | Task 14-17 | L-01~L-03, H-10~H-12, 验证 | 30 min |
+
+Total: ~4.5 hr
+
+## 依赖关系
+
+```
+Task 1 (corrections) ──┐
+                       ├── Task 3-7 (引擎切换，依赖 Task 1+2 的数据)
+Task 2 (template-options) ┘
+                              │
+                              ├── Task 8-13 (TX 修复，依赖 Task 2 的 TX 数据)
+                              │
+                              └── Task 14-17 (收尾，依赖全部完成)
+```
+
+Task 3-7 之间互相独立，可以并行。
+Task 8-13 之间互相独立，可以并行。
