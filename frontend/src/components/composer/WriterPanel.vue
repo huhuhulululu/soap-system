@@ -6,6 +6,7 @@ import { inferSystemicPatterns, inferLocalPatterns } from '../../../../src/knowl
 import { useWriterFields } from '../../composables/useWriterFields'
 import { useSOAPGeneration } from '../../composables/useSOAPGeneration'
 import { useDiffHighlight } from '../../composables/useDiffHighlight'
+import { getAssessmentBinding } from '../../composables/useAssessmentBinding'
 import { isPainTypeConsistentWithPattern } from '../../../../src/shared/tcm-mappings'
 import { isAdlConsistentWithBodyPart } from '../../../../src/shared/adl-mappings'
 import { BODY_PART_ADL } from '../../../../src/shared/body-part-constants'
@@ -202,6 +203,14 @@ const {
 
 const diffHighlight = useDiffHighlight(generatedNotes)
 const { getNoteSummary, getDiffLines } = diffHighlight
+
+const noteBindings = computed(() =>
+  generatedNotes.value.map((note, idx) => {
+    if (!note.state || note.type === 'IE' || idx === 0) return null
+    const prevNote = idx > 0 ? generatedNotes.value[idx - 1] : null
+    return getAssessmentBinding(note.state, prevNote?.state || null)
+  })
+)
 const showValidationDetails = ref(false)
 
 // 病史推荐的整体证型
@@ -1052,6 +1061,43 @@ function isLongField(path) {
                   : 'border-ink-200 text-ink-500 hover:bg-paper-100 hover:border-ink-300'">
                 {{ copiedIndex === idx ? '✓ 已复制' : '全部' }}
               </button>
+            </div>
+            <!-- S↔A / O↔A 绑定映射面板 -->
+            <div v-if="noteBindings[idx]" class="mb-3 rounded-lg border text-[11px] font-mono"
+              :class="noteBindings[idx].hasMismatch ? 'border-amber-300 bg-amber-50/50' : 'border-ink-150 bg-paper-50'">
+              <div class="px-3 py-1.5 border-b border-ink-100 flex items-center gap-2">
+                <span class="font-semibold text-ink-600">S → A</span>
+                <span class="text-ink-400">{{ noteBindings[idx].present }}</span>
+                <span class="text-ink-400">|</span>
+                <span class="text-ink-500">{{ noteBindings[idx].patientChange }} {{ noteBindings[idx].whatChanged }}</span>
+              </div>
+              <div v-if="noteBindings[idx].sBindings.length" class="px-3 py-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                <span v-for="b in noteBindings[idx].sBindings" :key="b.sField"
+                  class="inline-flex items-center gap-1">
+                  <span class="text-ink-400">{{ b.sField }}</span>
+                  <span class="text-ink-300">{{ b.sFrom }}</span>
+                  <span class="text-ink-300">&rarr;</span>
+                  <span :class="b.sFrom !== b.sTo ? 'text-green-600 font-medium' : 'text-ink-400'">{{ b.sTo }}</span>
+                  <span v-if="b.aField" class="text-green-500">&check;</span>
+                  <span v-else class="text-amber-500" title="A 未提及此变化">&times;</span>
+                </span>
+              </div>
+              <div class="px-3 py-1.5 border-t border-ink-100 flex items-center gap-2">
+                <span class="font-semibold text-ink-600">O → A</span>
+                <span class="text-ink-400">{{ noteBindings[idx].physicalChange }}</span>
+                <span class="text-ink-400">|</span>
+                <span class="text-ink-500">{{ noteBindings[idx].findingType }}</span>
+              </div>
+              <div v-if="noteBindings[idx].oBindings.length" class="px-3 py-1 pb-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                <span v-for="b in noteBindings[idx].oBindings" :key="b.oField"
+                  class="inline-flex items-center gap-1">
+                  <span class="text-ink-400">{{ b.oField }}</span>
+                  <span class="text-ink-300">{{ b.trend }}</span>
+                  <span v-if="b.oFrom" class="text-ink-300">{{ b.oFrom }}&rarr;{{ b.oTo }}</span>
+                  <span v-if="b.aField" class="text-green-500">&check;</span>
+                  <span v-else class="text-amber-500" title="A 未提及此变化">&times;</span>
+                </span>
+              </div>
             </div>
             <div class="text-xs font-mono text-ink-700 leading-relaxed">
               <div v-for="(line, li) in getDiffLines(idx)" :key="li" class="whitespace-pre-wrap"><template

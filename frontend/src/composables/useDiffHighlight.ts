@@ -2,236 +2,303 @@
  * 编写页 diff 与笔记摘要 composable
  * 从 WriterView 提取：shortFreq/shortSpasm/shortTight/shortTender、getNoteSummary、diffLineWords、getDiffLines
  */
-import type { Ref } from 'vue'
+import type { Ref } from "vue";
 
 export interface GeneratedNote {
-  visitIndex?: number
-  text: string
-  type: string
+  visitIndex?: number;
+  text: string;
+  type: string;
   state?: {
-    painScaleLabel?: string
-    symptomScale?: string
-    painFrequency?: string
-    tightnessGrading?: string
-    tendernessGrading?: string
-    spasmGrading?: string
+    painScaleLabel?: string;
+    painScaleCurrent?: number;
+    symptomScale?: string;
+    painFrequency?: string;
+    severityLevel?: string;
+    tightnessGrading?: string;
+    tendernessGrading?: string;
+    spasmGrading?: string;
+    adlItems?: readonly string[];
+    strengthGrade?: string;
     soaChain?: {
-      objective?: { romTrend?: string; strengthTrend?: string }
-      subjective?: { frequencyChange?: string; adlChange?: string }
-    }
-  }
-  _open?: boolean
+      subjective?: {
+        painChange?: string;
+        frequencyChange?: string;
+        adlChange?: string;
+      };
+      objective?: {
+        romTrend?: string;
+        strengthTrend?: string;
+        tightnessTrend?: string;
+        tendernessTrend?: string;
+        spasmTrend?: string;
+      };
+      assessment?: {
+        present?: string;
+        patientChange?: string;
+        whatChanged?: string;
+        physicalChange?: string;
+        findingType?: string;
+        tolerated?: string;
+        response?: string;
+      };
+    };
+  };
+  _open?: boolean;
 }
 
 export function shortFreq(f: string): string {
-  if (!f) return ''
-  return f.split('(')[0].trim()
+  if (!f) return "";
+  return f.split("(")[0].trim();
 }
 
 export function shortSpasm(s: string): string {
-  if (!s) return ''
-  const m = s.match(/\(([^)]+)\)/)
-  return m ? m[1] : s
+  if (!s) return "";
+  const m = s.match(/\(([^)]+)\)/);
+  return m ? m[1] : s;
 }
 
 export function shortTight(t: string): string {
-  if (!t) return ''
+  if (!t) return "";
   const map: Record<string, string> = {
-    severe: 'Sev',
-    'moderate to severe': 'M-S',
-    moderate: 'Mod',
-    'mild to moderate': 'Mi-M',
-    mild: 'Mild',
-  }
-  return map[t.toLowerCase()] || t
+    severe: "Sev",
+    "moderate to severe": "M-S",
+    moderate: "Mod",
+    "mild to moderate": "Mi-M",
+    mild: "Mild",
+  };
+  return map[t.toLowerCase()] || t;
 }
 
 export function shortTender(t: string): string {
-  if (!t) return ''
-  const m = t.match(/\(([^)]+)\)/)
-  return m ? m[1] : t
+  if (!t) return "";
+  const m = t.match(/\(([^)]+)\)/);
+  return m ? m[1] : t;
 }
 
 export function useDiffHighlight(generatedNotes: Ref<GeneratedNote[]>) {
   function getNoteSummary(
     note: GeneratedNote,
-    idx: number
-  ): { values: Array<{ label: string; from: string; to: string }>; trends: Array<{ label: string; trend: string }> } | null {
-    if (!note.state || note.type === 'IE') return null
-    const s = note.state
-    const notes = generatedNotes.value
-    const prevNote = idx > 0 ? notes[idx - 1] : null
-    const prevState = prevNote?.state
-    const prevPain = prevState ? (prevState as { painScaleLabel?: string }).painScaleLabel : '8'
-    const prevSymptom = prevState?.symptomScale || '70%'
-    const prevFreq = prevState ? shortFreq(prevState.painFrequency || '') : 'Constant'
-    const prevTight = prevState ? shortTight(prevState.tightnessGrading || '') : ''
-    const prevTender = prevState ? shortTender(prevState.tendernessGrading || '') : ''
-    const prevSpasm = prevState ? shortSpasm(prevState.spasmGrading || '') : ''
+    idx: number,
+  ): {
+    values: Array<{ label: string; from: string; to: string }>;
+    trends: Array<{ label: string; trend: string }>;
+  } | null {
+    if (!note.state || note.type === "IE") return null;
+    const s = note.state;
+    const notes = generatedNotes.value;
+    const prevNote = idx > 0 ? notes[idx - 1] : null;
+    const prevState = prevNote?.state;
+    const prevPain = prevState
+      ? (prevState as { painScaleLabel?: string }).painScaleLabel
+      : "8";
+    const prevSymptom = prevState?.symptomScale || "70%";
+    const prevFreq = prevState
+      ? shortFreq(prevState.painFrequency || "")
+      : "Constant";
+    const prevTight = prevState
+      ? shortTight(prevState.tightnessGrading || "")
+      : "";
+    const prevTender = prevState
+      ? shortTender(prevState.tendernessGrading || "")
+      : "";
+    const prevSpasm = prevState ? shortSpasm(prevState.spasmGrading || "") : "";
 
-    const values: Array<{ label: string; from: string; to: string }> = []
-    values.push({ label: 'Pain', from: prevPain || '8', to: s.painScaleLabel || '8' })
+    const values: Array<{ label: string; from: string; to: string }> = [];
+    values.push({
+      label: "Pain",
+      from: prevPain || "8",
+      to: s.painScaleLabel || "8",
+    });
     if (s.symptomScale) {
-      values.push({ label: 'Sx', from: prevSymptom, to: s.symptomScale })
+      values.push({ label: "Sx", from: prevSymptom, to: s.symptomScale });
     }
-    const curFreq = shortFreq(s.painFrequency || '')
+    const curFreq = shortFreq(s.painFrequency || "");
     if (curFreq && curFreq !== prevFreq) {
-      values.push({ label: 'Freq', from: prevFreq, to: curFreq })
+      values.push({ label: "Freq", from: prevFreq, to: curFreq });
     }
-    const curTight = shortTight(s.tightnessGrading || '')
+    const curTight = shortTight(s.tightnessGrading || "");
     if (curTight && prevTight && curTight !== prevTight) {
-      values.push({ label: 'Tight', from: prevTight, to: curTight })
+      values.push({ label: "Tight", from: prevTight, to: curTight });
     }
-    const curTender = shortTender(s.tendernessGrading || '')
+    const curTender = shortTender(s.tendernessGrading || "");
     if (curTender && prevTender && curTender !== prevTender) {
-      values.push({ label: 'Tender', from: prevTender, to: curTender })
+      values.push({ label: "Tender", from: prevTender, to: curTender });
     }
-    const curSpasm = shortSpasm(s.spasmGrading || '')
+    const curSpasm = shortSpasm(s.spasmGrading || "");
     if (curSpasm && prevSpasm && curSpasm !== prevSpasm) {
-      values.push({ label: 'Spasm', from: prevSpasm, to: curSpasm })
+      values.push({ label: "Spasm", from: prevSpasm, to: curSpasm });
     }
 
-    const trends: Array<{ label: string; trend: string }> = []
-    const chain = s.soaChain
-    if (chain?.objective?.romTrend && chain.objective.romTrend !== 'stable') {
-      trends.push({ label: 'ROM', trend: chain.objective.romTrend })
+    const trends: Array<{ label: string; trend: string }> = [];
+    const chain = s.soaChain;
+    if (chain?.objective?.romTrend && chain.objective.romTrend !== "stable") {
+      trends.push({ label: "ROM", trend: chain.objective.romTrend });
     }
-    if (chain?.objective?.strengthTrend && chain.objective.strengthTrend !== 'stable') {
-      trends.push({ label: 'ST', trend: chain.objective.strengthTrend })
+    if (
+      chain?.objective?.strengthTrend &&
+      chain.objective.strengthTrend !== "stable"
+    ) {
+      trends.push({ label: "ST", trend: chain.objective.strengthTrend });
     }
-    if (chain?.subjective?.frequencyChange === 'improved') {
-      trends.push({ label: 'Freq', trend: 'improved' })
+    if (chain?.subjective?.frequencyChange === "improved") {
+      trends.push({ label: "Freq", trend: "improved" });
     }
-    if (chain?.subjective?.adlChange === 'improved') {
-      trends.push({ label: 'ADL', trend: 'improved' })
+    if (chain?.subjective?.adlChange === "improved") {
+      trends.push({ label: "ADL", trend: "improved" });
     }
 
-    return { values, trends }
+    return { values, trends };
   }
 
   function diffLineWords(
     curLine: string,
-    prevLine: string
+    prevLine: string,
   ): Array<{ text: string; hl: boolean }> {
-    if (!prevLine || prevLine.trim() === '') {
-      return [{ text: curLine, hl: false }]
+    if (!prevLine || prevLine.trim() === "") {
+      return [{ text: curLine, hl: false }];
     }
     if (curLine.trim() === prevLine.trim()) {
-      return [{ text: curLine, hl: false }]
+      return [{ text: curLine, hl: false }];
     }
-    const splitTokens = (s: string) => s.match(/[\w%.+\-/()]+|[^\w%.+\-/()]+/g) || [s]
-    const curTokens = splitTokens(curLine)
-    const prevTokens = splitTokens(prevLine)
-    const prevSet = new Set(prevTokens.map(t => t.trim().toLowerCase()).filter(Boolean))
+    const splitTokens = (s: string) =>
+      s.match(/[\w%.+\-/()]+|[^\w%.+\-/()]+/g) || [s];
+    const curTokens = splitTokens(curLine);
+    const prevTokens = splitTokens(prevLine);
+    const prevSet = new Set(
+      prevTokens.map((t) => t.trim().toLowerCase()).filter(Boolean),
+    );
 
-    const segments: Array<{ text: string; hl: boolean }> = []
-    let lastHl = false
-    let buf = ''
+    const segments: Array<{ text: string; hl: boolean }> = [];
+    let lastHl = false;
+    let buf = "";
 
     for (let i = 0; i < curTokens.length; i++) {
-      const t = curTokens[i]
-      const pt = i < prevTokens.length ? prevTokens[i] : null
-      const tClean = t.trim().toLowerCase()
+      const t = curTokens[i];
+      const pt = i < prevTokens.length ? prevTokens[i] : null;
+      const tClean = t.trim().toLowerCase();
       if (!tClean || /^[,.:;!?\s]+$/.test(tClean)) {
-        buf += t
-        continue
+        buf += t;
+        continue;
       }
-      const samePos = pt && pt.trim().toLowerCase() === tClean
-      const existsInPrev = prevSet.has(tClean)
-      const hl = !samePos && !existsInPrev
+      const samePos = pt && pt.trim().toLowerCase() === tClean;
+      const existsInPrev = prevSet.has(tClean);
+      const hl = !samePos && !existsInPrev;
 
       if (hl !== lastHl && buf) {
-        segments.push({ text: buf, hl: lastHl })
-        buf = ''
+        segments.push({ text: buf, hl: lastHl });
+        buf = "";
       }
-      lastHl = hl
-      buf += t
+      lastHl = hl;
+      buf += t;
     }
-    if (buf) segments.push({ text: buf, hl: lastHl })
-    return segments
+    if (buf) segments.push({ text: buf, hl: lastHl });
+    return segments;
   }
 
-  function getDiffLines(idx: number): Array<{ segments: Array<{ text: string; hl: boolean }> }> {
-    const note = generatedNotes.value[idx]
-    if (!note) return []
-    const lines = note.text.split('\n')
-    const sectionHeaders = new Set(['Subjective', 'Objective', 'Assessment', 'Plan', 'Follow up visit', ''])
+  function getDiffLines(
+    idx: number,
+  ): Array<{ segments: Array<{ text: string; hl: boolean }> }> {
+    const note = generatedNotes.value[idx];
+    if (!note) return [];
+    const lines = note.text.split("\n");
+    const sectionHeaders = new Set([
+      "Subjective",
+      "Objective",
+      "Assessment",
+      "Plan",
+      "Follow up visit",
+      "",
+    ]);
 
-    if (note.type === 'IE' || idx === 0) {
-      return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
+    if (note.type === "IE" || idx === 0) {
+      return lines.map((line) => ({ segments: [{ text: line, hl: false }] }));
     }
-    const prevNote = generatedNotes.value[idx - 1]
+    const prevNote = generatedNotes.value[idx - 1];
     if (!prevNote) {
-      return lines.map(line => ({ segments: [{ text: line, hl: false }] }))
+      return lines.map((line) => ({ segments: [{ text: line, hl: false }] }));
     }
 
     // Split into SOAP sections for alignment
     const splitSections = (text: string) => {
-      const secs: Record<string, string[]> = { _pre: [] }
-      let cur = '_pre'
-      for (const line of text.split('\n')) {
-        const t = line.trim()
-        if (['Subjective', 'Objective', 'Assessment', 'Plan'].includes(t)) {
-          cur = t
-          secs[cur] = secs[cur] || []
+      const secs: Record<string, string[]> = { _pre: [] };
+      let cur = "_pre";
+      for (const line of text.split("\n")) {
+        const t = line.trim();
+        if (["Subjective", "Objective", "Assessment", "Plan"].includes(t)) {
+          cur = t;
+          secs[cur] = secs[cur] || [];
         } else {
-          secs[cur] = secs[cur] || []
-          secs[cur].push(line)
+          secs[cur] = secs[cur] || [];
+          secs[cur].push(line);
         }
       }
-      return secs
-    }
+      return secs;
+    };
 
-    const curSecs = splitSections(note.text)
-    const prevSecs = splitSections(prevNote.text)
+    const curSecs = splitSections(note.text);
+    const prevSecs = splitSections(prevNote.text);
 
     // Build a set of previous lines per section for matching
-    const prevLineMap = new Map<string, Set<string>>()
+    const prevLineMap = new Map<string, Set<string>>();
     for (const [sec, secLines] of Object.entries(prevSecs)) {
-      prevLineMap.set(sec, new Set(secLines.map(l => l.trim().toLowerCase())))
+      prevLineMap.set(
+        sec,
+        new Set(secLines.map((l) => l.trim().toLowerCase())),
+      );
     }
 
     return lines.map((line) => {
-      const trimmed = line.trim()
+      const trimmed = line.trim();
       if (sectionHeaders.has(trimmed)) {
-        return { segments: [{ text: line, hl: false }] }
+        return { segments: [{ text: line, hl: false }] };
       }
 
       // Find which section this line belongs to
-      let curSection = '_pre'
-      let found = false
-      for (const l of note.text.split('\n')) {
-        const lt = l.trim()
-        if (['Subjective', 'Objective', 'Assessment', 'Plan'].includes(lt)) curSection = lt
-        if (l === line && !found) { found = true; break }
+      let curSection = "_pre";
+      let found = false;
+      for (const l of note.text.split("\n")) {
+        const lt = l.trim();
+        if (["Subjective", "Objective", "Assessment", "Plan"].includes(lt))
+          curSection = lt;
+        if (l === line && !found) {
+          found = true;
+          break;
+        }
       }
 
       // Find best matching previous line in same section
-      const prevSecLines = prevSecs[curSection] || []
-      let bestMatch = ''
-      let bestScore = 0
+      const prevSecLines = prevSecs[curSection] || [];
+      let bestMatch = "";
+      let bestScore = 0;
       for (const pl of prevSecLines) {
-        if (pl.trim() === trimmed) { bestMatch = pl; bestScore = 1; break }
+        if (pl.trim() === trimmed) {
+          bestMatch = pl;
+          bestScore = 1;
+          break;
+        }
         // Simple similarity: shared word ratio
-        const curWords = new Set(trimmed.toLowerCase().split(/\s+/))
-        const prevWords = new Set(pl.trim().toLowerCase().split(/\s+/))
-        const shared = [...curWords].filter(w => prevWords.has(w)).length
-        const score = shared / Math.max(curWords.size, prevWords.size, 1)
-        if (score > bestScore && score > 0.4) { bestScore = score; bestMatch = pl }
+        const curWords = new Set(trimmed.toLowerCase().split(/\s+/));
+        const prevWords = new Set(pl.trim().toLowerCase().split(/\s+/));
+        const shared = [...curWords].filter((w) => prevWords.has(w)).length;
+        const score = shared / Math.max(curWords.size, prevWords.size, 1);
+        if (score > bestScore && score > 0.4) {
+          bestScore = score;
+          bestMatch = pl;
+        }
       }
 
       if (bestScore >= 1) {
-        return { segments: [{ text: line, hl: false }] }
+        return { segments: [{ text: line, hl: false }] };
       }
       if (bestMatch) {
-        return { segments: diffLineWords(line, bestMatch) }
+        return { segments: diffLineWords(line, bestMatch) };
       }
       // No match found — entire line is new
       if (trimmed) {
-        return { segments: [{ text: line, hl: true }] }
+        return { segments: [{ text: line, hl: true }] };
       }
-      return { segments: [{ text: line, hl: false }] }
-    })
+      return { segments: [{ text: line, hl: false }] };
+    });
   }
 
   return {
@@ -242,5 +309,5 @@ export function useDiffHighlight(generatedNotes: Ref<GeneratedNote[]>) {
     getNoteSummary,
     diffLineWords,
     getDiffLines,
-  }
+  };
 }
