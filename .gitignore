@@ -40,3 +40,4 @@ ccnote/
 # Claude worktrees
 .claude/worktrees/
 .worktrees/
+training-data/
