@@ -8,6 +8,8 @@ import {
   TEMPLATE_PAIN_TYPES,
   TEMPLATE_RELIEVING,
   TEMPLATE_ROM,
+  TEMPLATE_TENDERNESS_SCALE,
+  TEMPLATE_TENDERNESS_TEXT,
 } from "../template-options";
 
 const ALL_BODY_PARTS: BodyPartKey[] = [
@@ -337,7 +339,9 @@ describe("template-options", () => {
     });
 
     it("KNEE has 'weather changed/cold weather'", () => {
-      expect(TEMPLATE_CAUSATIVES.KNEE).toContain("weather changed/cold weather");
+      expect(TEMPLATE_CAUSATIVES.KNEE).toContain(
+        "weather changed/cold weather",
+      );
     });
 
     it("HIP has 'Inactive lifestyle' and 'Bad Posture'", () => {
@@ -353,6 +357,54 @@ describe("template-options", () => {
     it("full causatives include 'weather change' (not 'weather changed')", () => {
       expect(TEMPLATE_CAUSATIVES.LBP).toContain("weather change");
       expect(TEMPLATE_CAUSATIVES.NECK).toContain("weather change");
+    });
+  });
+
+  describe("TEMPLATE_TENDERNESS_SCALE", () => {
+    it("has entries for all body parts", () => {
+      for (const bp of ALL_BODY_PARTS) {
+        expect(TEMPLATE_TENDERNESS_SCALE[bp]).toBeDefined();
+        expect(
+          Object.keys(TEMPLATE_TENDERNESS_SCALE[bp]).length,
+        ).toBeGreaterThan(0);
+      }
+    });
+
+    it("SHOULDER uses 'Patient complains' style", () => {
+      expect(TEMPLATE_TENDERNESS_SCALE.SHOULDER["+4"]).toContain(
+        "Patient complains",
+      );
+    });
+
+    it("KNEE uses 'There is' style with 0 grade", () => {
+      expect(TEMPLATE_TENDERNESS_SCALE.KNEE["+4"]).toContain("There is severe");
+      expect(TEMPLATE_TENDERNESS_SCALE.KNEE["0"]).toBe("(0) = No tenderness");
+    });
+
+    it("HIP uses KNEE-style scale (not SHOULDER-style)", () => {
+      expect(TEMPLATE_TENDERNESS_SCALE.HIP["+4"]).toContain("There is severe");
+      expect(TEMPLATE_TENDERNESS_SCALE.HIP["0"]).toBe("(0) = No tenderness");
+    });
+  });
+
+  describe("TEMPLATE_TENDERNESS_TEXT", () => {
+    it("has entries for all body parts", () => {
+      for (const bp of ALL_BODY_PARTS) {
+        expect(TEMPLATE_TENDERNESS_TEXT[bp]).toBeDefined();
+        expect(TEMPLATE_TENDERNESS_TEXT[bp].length).toBeGreaterThan(0);
+      }
+    });
+
+    it("SHOULDER uses plural 'muscles'", () => {
+      expect(TEMPLATE_TENDERNESS_TEXT.SHOULDER).toBe(
+        "Tenderness muscles noted along",
+      );
+    });
+
+    it("KNEE uses singular 'muscle'", () => {
+      expect(TEMPLATE_TENDERNESS_TEXT.KNEE).toBe(
+        "Tenderness muscle noted along",
+      );
     });
   });
 });

@@ -1,0 +1,57 @@
+{
+  "date": "2026-02-27",
+  "summary": "38 issues: 17 CRITICAL, 12 HIGH, 6 MEDIUM, 3 LOW",
+  "rootCauses": [
+    "硬编码自创值: EXACERBATING_FACTORS_MAP(NECK/ELBOW/HIP), ADVERSE_OPTIONS, TX_VERB_OPTIONS, needle points(ELBOW/HIP) 从未从模板提取",
+    "ROM公式计算vs模板离散选项: 引擎用连续公式算severity，模板只接受固定degree(label)对",
+    "MAP覆盖不全: TENDERNESS_SCALE/TEXT_MAP, HARMONIZE_MAP, TREATMENT_PURPOSE_MAP, NEEDLE_SIZE_MAP 只覆盖SHOULDER/KNEE/LBP",
+    "TX reason/adverse/whatChanged链路: 拼接非模板文本、自创变体、包含非法值",
+    "TX恢复曲线未传导到Objective: ROM和muscle grading在visit间不变"
+  ],
+  "critical": [
+    {"id": "C-01", "scope": "ALL TX (9次)", "section": "Plan", "issue": "continue to emphasize → should be continue to be emphasize", "source": "soap-generator.ts L2119 TX_VERB_OPTIONS"},
+    {"id": "C-02", "scope": "ALL TX (9次)", "section": "Subjective", "issue": "reason拼接非模板文本: stress level has decreased, shoulder stiffness has decreased, muscle tension has reduced noticeably等", "source": "tx-sequence-engine.ts L1483-1517"},
+    {"id": "C-03", "scope": "ALL TX (9次)", "section": "Assessment", "issue": "adverse effect 3个变体自创，模板静态文本是 No adverse side effect post treatment.", "source": "tx-sequence-engine.ts L486-491 ADVERSE_OPTIONS"},
+    {"id": "C-04", "scope": "ALL TX (6次)", "section": "Assessment", "issue": "severity level 不在whatChanged下拉框选项中", "source": "tx-sequence-engine.ts whatChanged"},
+    {"id": "C-05", "scope": "NECK IE", "section": "Subjective", "issue": "EXACERBATING_FACTORS_MAP.NECK全部自创", "source": "soap-generator.ts L322-328"},
+    {"id": "C-06", "scope": "ELBOW IE", "section": "Subjective", "issue": "EXACERBATING_FACTORS_MAP.ELBOW全部自创", "source": "soap-generator.ts L368-374"},
+    {"id": "C-07", "scope": "ELBOW IE", "section": "Subjective", "issue": "EXACERBATING_FACTORS_MAP.HIP全部自创", "source": "soap-generator.ts L361-367"},
+    {"id": "C-08", "scope": "ELBOW IE", "section": "Objective/ROM", "issue": "引擎输出Supination/Pronation模板没有; 缺少Left/Rt side flexion/rotation", "source": "body-part-constants.ts L201-206"},
+    {"id": "C-09", "scope": "ELBOW IE", "section": "Objective/ROM", "issue": "110 degree(moderate)模板是mild; 0 degree(normal)模板最小值是5", "source": "template-options.ts L540"},
+    {"id": "C-10", "scope": "HIP IE", "section": "Objective/ROM", "issue": "引擎输出Adduction，HIP模板没有", "source": "body-part-constants.ts L197"},
+    {"id": "C-11", "scope": "HIP IE", "section": "Objective/ROM", "issue": "25 degree(moderate)模板是normal; 20 degree(severe)模板是moderate", "source": "template-options.ts L646/L690"},
+    {"id": "C-12", "scope": "HIP IE", "section": "Objective", "issue": "Tenderness scale用SHOULDER风格，HIP模板用KNEE风格", "source": "soap-generator.ts TENDERNESS_SCALE_MAP缺HIP"},
+    {"id": "C-13", "scope": "ELBOW", "section": "Needle", "issue": "SI8不在ELBOW模板任何下拉框中", "source": "soap-generator.ts L2608"},
+    {"id": "C-14", "scope": "ELBOW", "section": "Needle", "issue": "Step4输出空穴位(backPoints只有3个)", "source": "soap-generator.ts L2846"},
+    {"id": "C-15", "scope": "HIP", "section": "Needle", "issue": "frontPoints ST36/SP6/LV3不在HIP模板下拉框中", "source": "soap-generator.ts L2573"},
+    {"id": "C-16", "scope": "HIP", "section": "Needle", "issue": "backPoints BL54不在HIP模板下拉框中", "source": "soap-generator.ts L2607"},
+    {"id": "C-17", "scope": "HIP IE", "section": "Objective/ROM", "issue": "External/Internal Rotation模板用Degrees(大写复数)引擎输出degree", "source": "soap-generator.ts L1659"}
+  ],
+  "high": [
+    {"id": "H-01", "scope": "SHOULDER/KNEE TX", "section": "Assessment", "issue": "laterality缺in前缀", "source": "soap-generator.ts L2451"},
+    {"id": "H-02", "scope": "KNEE TX", "section": "Subjective", "issue": "Knee大写模板小写knee", "source": "soap-generator.ts L491"},
+    {"id": "H-03", "scope": "LBP TX", "section": "Subjective", "issue": "只输出单组ADL模板有两组", "source": "soap-generator.ts L2306-2308"},
+    {"id": "H-04", "scope": "NECK IE", "section": "Objective/ROM", "issue": "Flexion to the Right模板是Lateral Flexion to the Right", "source": "body-part-constants.ts L167-173"},
+    {"id": "H-05", "scope": "ELBOW IE", "section": "Objective/ROM", "issue": "Extension格式degree(severity)模板有空格degree (severity)", "source": "soap-generator.ts L1659"},
+    {"id": "H-06", "scope": "ELBOW IE", "section": "Needle", "issue": "front/back穴位池分配反了", "source": "soap-generator.ts L2574/L2608"},
+    {"id": "H-07", "scope": "ELBOW/HIP", "section": "Needle Size", "issue": "缺少专用条目DEFAULT格式不匹配", "source": "soap-generator.ts L587-594"},
+    {"id": "H-08", "scope": "HIP IE", "section": "Objective", "issue": "Tenderness文本muscles复数模板muscle单数", "source": "soap-generator.ts L548"},
+    {"id": "H-09", "scope": "HIP IE", "section": "Objective/ROM", "issue": "Extension 10 degree(severe)模板是moderate", "source": "template-options.ts L672"},
+    {"id": "H-10", "scope": "NECK IE", "section": "Needle", "issue": "Step3穴位属于Step4下拉框", "source": "soap-generator.ts L2781"},
+    {"id": "H-11", "scope": "ELBOW/KNEE 97810", "section": "Needle", "issue": "section label Back Points模板是Front Points", "source": "soap-generator.ts L2859"},
+    {"id": "H-12", "scope": "LBP TX", "section": "Needle", "issue": "Back step3输出4穴位模板默认3个", "source": "soap-generator.ts L2729"}
+  ],
+  "medium": [
+    {"id": "M-01", "scope": "NECK/ELBOW/HIP IE", "issue": "HARMONIZE_MAP缺少条目fallback不匹配模板默认"},
+    {"id": "M-02", "scope": "ELBOW/HIP IE", "issue": "TREATMENT_PURPOSE_MAP缺少条目"},
+    {"id": "M-03", "scope": "ALL TX", "issue": "ROM值3次visit完全相同"},
+    {"id": "M-04", "scope": "ALL TX", "issue": "Muscle grading 3次visit无变化"},
+    {"id": "M-05", "scope": "TCM_PATTERNS", "issue": "4处tongue/pulse值与模板下拉框不匹配"},
+    {"id": "M-06", "scope": "AGGRAV", "issue": "ELBOW/HIP的TEMPLATE_AGGRAVATING也不匹配"}
+  ],
+  "low": [
+    {"id": "L-01", "scope": "ALL IE", "issue": "Tenderness scale值末尾多余句号"},
+    {"id": "L-02", "scope": "ALL IE", "issue": "标题双换行vs模板单换行"},
+    {"id": "L-03", "scope": "TCM", "issue": "slippery vs模板rolling"}
+  ]
+}

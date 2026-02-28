@@ -1128,3 +1128,289 @@ export const TEMPLATE_CAUSATIVES: Record<BodyPartKey, readonly string[]> = {
   HIP: CAUSATIVES_HIP,
   THIGH: CAUSATIVES_FULL,
 } as const;
+
+// ─── Treatment Verb (来自各模板 ppnSelectCombo) ─────────────────────
+
+export const TEMPLATE_TREATMENT_VERB: Record<BodyPartKey, string> = {
+  SHOULDER: "emphasize",
+  KNEE: "focus",
+  NECK: "pay attention",
+  LBP: "promote",
+  ELBOW: "promote",
+  HIP: "promote",
+  THIGH: "promote",
+} as const;
+
+// ─── Harmonize (来自各模板 ppnSelectCombo) ───────────────────────────
+
+export const TEMPLATE_HARMONIZE: Record<BodyPartKey, string> = {
+  SHOULDER: "healthy qi and to expel pathogen factor to promote",
+  KNEE: "Liver and Kidney",
+  LBP: "yin/yang",
+  NECK: "yin/yang",
+  ELBOW: "yin/yang",
+  HIP: "yin/yang",
+  THIGH: "yin/yang",
+} as const;
+
+// ─── Treatment Purpose (来自各模板 ppnSelectCombo) ───────────────────
+
+export const TEMPLATE_TREATMENT_PURPOSE: Record<BodyPartKey, string> = {
+  SHOULDER: "to reduce stagnation and improve circulation",
+  KNEE: "promote healthy joint and lessen dysfunction in all aspects",
+  LBP: "promote good essence",
+  NECK: "promote good essence",
+  ELBOW: "promote good essence",
+  HIP: "promote good essence",
+  THIGH: "promote good essence",
+} as const;
+
+// ─── Needle Points (from needles/*.md templates ppnSelectCombo) ─────
+
+export interface NeedlePointsEntry {
+  readonly frontPool: readonly string[];
+  readonly backPool: readonly string[];
+  readonly hasSide: boolean;
+}
+
+export const TEMPLATE_NEEDLE_POINTS: Record<BodyPartKey, NeedlePointsEntry> = {
+  SHOULDER: {
+    frontPool: [
+      "JIAN QIAN",
+      "PC2",
+      "LU3",
+      "LU4",
+      "LU5",
+      "LI4",
+      "LI11",
+      "ST3",
+      "GB34",
+      "SI3",
+      "ST38",
+    ],
+    backPool: [
+      "GB21",
+      "BL10",
+      "BL11",
+      "BL17",
+      "LI15",
+      "LI16",
+      "SI9",
+      "SI10",
+      "SI11",
+      "SI12",
+      "SI14",
+      "SI15",
+      "SJ10",
+      "A SHI POINTS",
+    ],
+    hasSide: true,
+  },
+  KNEE: {
+    frontPool: [
+      "GB33",
+      "GB34",
+      "GB36",
+      "GB39",
+      "UB40",
+      "ST34",
+      "ST35",
+      "ST36",
+      "ST40",
+      "SP3",
+      "SP9",
+      "SP10",
+      "KD3",
+      "KD10",
+      "XI YAN",
+      "LV4",
+      "REN4",
+      "HE DING",
+      "A SHI POINT",
+    ],
+    backPool: [
+      "BL23",
+      "BL20",
+      "BL40",
+      "BL55",
+      "BL38",
+      "BL56",
+      "BL57",
+      "A SHI POINTS",
+    ],
+    hasSide: true,
+  },
+  LBP: {
+    frontPool: ["REN6", "GB34", "ST36", "ST40", "REN4", "SI3"],
+    backPool: [
+      "BL23",
+      "BL25",
+      "BL53",
+      "DU4",
+      "BL22",
+      "YAO JIA JI",
+      "A SHI POINTS",
+    ],
+    hasSide: false,
+  },
+  NECK: {
+    frontPool: ["LI4", "GB39", "SI3", "LU7"],
+    backPool: ["GB20", "GB21", "BL10", "BL11", "A SHI POINTS"],
+    hasSide: false,
+  },
+  ELBOW: {
+    frontPool: ["LI10", "LI11", "LU5", "HT3"],
+    backPool: ["LI12", "SI8", "A SHI POINTS"],
+    hasSide: true,
+  },
+  HIP: {
+    frontPool: ["GB34", "ST36", "SP6", "LV3"],
+    backPool: ["GB29", "GB30", "BL54", "A SHI POINTS"],
+    hasSide: false,
+  },
+  THIGH: {
+    frontPool: ["GB34", "ST36", "SP6", "LV3"],
+    backPool: ["GB29", "GB30", "BL54", "A SHI POINTS"],
+    hasSide: false,
+  },
+};
+
+// ─── Needle Size (from needles/*.md templates) ───────────────────────
+
+export const TEMPLATE_NEEDLE_SIZE: Record<BodyPartKey, string> = {
+  SHOULDER: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  KNEE: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2"',
+  LBP: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+  NECK: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  ELBOW: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
+  HIP: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+  THIGH: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
+};
+
+// ─── Tenderness Scale (from IE/TX templates ppnSelectComboSingle) ────
+
+export const TEMPLATE_TENDERNESS_SCALE: Record<
+  BodyPartKey,
+  Record<string, string>
+> = {
+  SHOULDER: {
+    "+4": "(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure",
+    "+3": "(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure",
+    "+2": "(+2) = Patient states that the area is moderately tender",
+    "+1": "(+1)=Patient states that the area is mildly tender-annoying",
+  },
+  KNEE: {
+    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
+    "+3": "(+3) = There is severe tenderness with withdrawal",
+    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
+    "+1": "(+1)= There is mild tenderness to palpation",
+    "0": "(0) = No tenderness",
+  },
+  LBP: {
+    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
+    "+3": "(+3) = There is severe tenderness with withdrawal",
+    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
+    "+1": "(+1)= There is mild tenderness to palpation",
+    "0": "(0) = No tenderness",
+  },
+  NECK: {
+    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
+    "+3": "(+3) = There is severe tenderness with withdrawal",
+    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
+    "+1": "(+1)= There is mild tenderness to palpation",
+    "0": "(0) = No tenderness",
+  },
+  ELBOW: {
+    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
+    "+3": "(+3) = There is severe tenderness with withdrawal",
+    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
+    "+1": "(+1)= There is mild tenderness to palpation",
+    "0": "(0) = No tenderness",
+  },
+  HIP: {
+    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
+    "+3": "(+3) = There is severe tenderness with withdrawal",
+    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
+    "+1": "(+1)= There is mild tenderness to palpation",
+    "0": "(0) = No tenderness",
+  },
+  THIGH: {
+    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
+    "+3": "(+3) = There is severe tenderness with withdrawal",
+    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
+    "+1": "(+1)= There is mild tenderness to palpation",
+    "0": "(0) = No tenderness",
+  },
+};
+
+// ─── Tenderness Text (from IE/TX templates) ──────────────────────────
+
+export const TEMPLATE_TENDERNESS_TEXT: Record<BodyPartKey, string> = {
+  SHOULDER: "Tenderness muscles noted along",
+  KNEE: "Tenderness muscle noted along",
+  LBP: "Tenderness muscle noted along",
+  NECK: "Tenderness muscle noted along",
+  ELBOW: "Tenderness muscle noted along",
+  HIP: "Tenderness muscle noted along",
+  THIGH: "Tenderness muscle noted along",
+};
+
+// ─── TX Plan Verb (来自各 TX 模板 ppnSelectCombo) ────────────────────
+
+export const TEMPLATE_TX_VERB: readonly string[] = [
+  "continue to be emphasize",
+  "emphasize",
+  "consist of promoting",
+  "promote",
+  "focus",
+  "pay attention",
+] as const;
+
+// ─── TX Reason (REASON2 dropdown — 24 options) ─────────────────────
+
+export const TEMPLATE_TX_REASON = [
+  "can move joint more freely and with less pain",
+  "physical activity no longer causes distress",
+  "reduced level of pain",
+  "reduced joint stiffness and swelling",
+  "less difficulty performing daily activities",
+  "energy level improved",
+  "sleep quality improved",
+  "more energy level throughout the day",
+  "continuous treatment",
+  "maintain regular treatments",
+  "still need more treatments to reach better effect",
+  "weak constitution",
+  "skipped treatments",
+  "stopped treatment for a while",
+  "discontinuous treatment",
+  "did not have good rest",
+  "intense work",
+  "excessive time using cell phone",
+  "excessive time using computer",
+  "bad posture",
+  "carrying/lifting heavy object(s)",
+  "lack of exercise",
+  "exposure to cold air",
+  "uncertain reason",
+] as const;
+
+// ─── TX Adverse Effect (fixed static text) ──────────────────────────
+
+export const TEMPLATE_TX_ADVERSE =
+  "No adverse side effect post treatment." as const;
+
+// ─── TX What Changed (Assessment dropdown — 10 options) ─────────────
+
+export const TEMPLATE_TX_WHAT_CHANGED = [
+  "pain",
+  "pain frequency",
+  "pain duration",
+  "numbness sensation",
+  "muscles weakness",
+  "muscles soreness sensation",
+  "muscles stiffness sensation",
+  "heaviness sensation",
+  "difficulty in performing ADLs",
+  "as last time visit",
+] as const;

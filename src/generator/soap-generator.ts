@@ -38,6 +38,15 @@ import {
   TEMPLATE_CAUSATIVES,
   TEMPLATE_CONDITION_IMPACT,
   TEMPLATE_RELIEVING,
+  TEMPLATE_AGGRAVATING,
+  TEMPLATE_TENDERNESS_SCALE,
+  TEMPLATE_TENDERNESS_TEXT,
+  TEMPLATE_NEEDLE_POINTS,
+  TEMPLATE_NEEDLE_SIZE,
+  TEMPLATE_HARMONIZE,
+  TEMPLATE_TREATMENT_PURPOSE,
+  TEMPLATE_TREATMENT_VERB,
+  TEMPLATE_TX_VERB,
 } from "../shared/template-options";
 import {
   hasTemplateROM,
@@ -308,99 +317,6 @@ export const MUSCLE_SEVERITY_ORDER: Record<string, string[]> = {
   ],
 };
 
-/**
- * 身体部位对应的加重因素 (来自模板 ppnSelectCombo)
- */
-const EXACERBATING_FACTORS_MAP: Record<string, string[]> = {
-  LBP: [
-    "Standing after sitting for long time",
-    "Prolong walking",
-    "Bending forward",
-    "Lifting heavy objects",
-    "Prolonged sitting",
-  ],
-  NECK: [
-    "Looking down at phone/computer",
-    "Prolonged sitting",
-    "Sleeping in wrong position",
-    "Driving for long periods",
-    "Mental stress",
-  ],
-  SHOULDER: [
-    "any strenuous activities",
-    "repetitive motions",
-    "push the door",
-    "extension",
-    "flexion",
-    "abduction",
-    "adduction",
-    "internal rotation",
-    "external rotation",
-    "sleep to the side",
-    "Lifting heavy objects",
-    "Overhead activities",
-  ],
-  KNEE: [
-    "any strenuous activities",
-    "repetitive motions",
-    "poor sleep",
-    "mental stress",
-    "extension",
-    "flexion",
-    "abduction",
-    "adduction",
-    "internal rotation",
-    "external rotation",
-    "sleep to the side",
-    "Standing after sitting for long time",
-    "Stair climbing",
-    "Sitting on a low chair",
-    "Sitting cross leg",
-    "Prolong walking",
-  ],
-  HIP: [
-    "Prolonged sitting",
-    "Walking",
-    "Climbing stairs",
-    "Getting in/out of car",
-    "Lying on affected side",
-  ],
-  ELBOW: [
-    "Gripping objects",
-    "Twisting motions",
-    "Lifting",
-    "Typing",
-    "Repetitive forearm movements",
-  ],
-  WRIST: [
-    "Typing",
-    "Gripping",
-    "Twisting motions",
-    "Lifting",
-    "Writing for long periods",
-  ],
-  ANKLE: [
-    "Walking on uneven surfaces",
-    "Running",
-    "Prolonged standing",
-    "Going up/down stairs",
-  ],
-  UPPER_BACK: [
-    "Prolonged sitting",
-    "Poor posture",
-    "Carrying heavy bags",
-    "Deep breathing",
-  ],
-  MID_LOW_BACK: [
-    "Standing after sitting for long time",
-    "Prolong walking",
-    "Bending forward",
-    "Lifting heavy objects",
-    "Prolonged sitting",
-    "Twisting motions",
-  ],
-};
-
 // ROM_MAP 和 ROMMovement 类型已迁移至 src/shared/body-part-constants.ts
 const ROM_MAP = BODY_PART_ROM;
 type ROMDifficulty = "EASY" | "MEDIUM" | "HARD";
@@ -489,7 +405,7 @@ const BODY_PART_AREA_NAMES: Record<string, string> = {
   LBP: "lower back",
   NECK: "neck",
   SHOULDER: "shoulder area",
-  KNEE: "Knee area",
+  KNEE: "knee area",
   HIP: "hip",
   ELBOW: "elbow",
   WRIST: "wrist",
@@ -543,36 +459,6 @@ const TENDERNESS_LABEL_MAP: Record<string, string> = {
 };
 
 /**
- * Tenderness 固定文本 (SHOULDER: "muscles" 复数, KNEE: "muscle" 单数)
- */
-const TENDERNESS_TEXT_MAP: Record<string, string> = {
-  SHOULDER: "Tenderness muscles noted along",
-  KNEE: "Tenderness muscle noted along",
-  LBP: "Tenderness muscle noted along",
-  MID_LOW_BACK: "Tenderness muscle noted along",
-  DEFAULT: "Tenderness muscles noted along",
-};
-
-/**
- * Tenderness 评分量表内容 (按身体部位，来自各模板 ppnSelectComboSingle)
- */
-const TENDERNESS_SCALE_MAP: Record<string, Record<string, string>> = {
-  SHOULDER: {
-    "+4": "(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure",
-    "+3": "(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure",
-    "+2": "(+2) = Patient states that the area is moderately tender",
-    "+1": "(+1)=Patient states that the area is mildly tender-annoying",
-  },
-  KNEE: {
-    "+4": "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
-    "+3": "(+3) = There is severe tenderness with withdrawal",
-    "+2": "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
-    "+1": "(+1)= There is mild tenderness to palpation",
-    "0": "(0) = No tenderness",
-  },
-};
-
-/**
  * Inspection 默认值 (来自各模板 ppnSelectCombo)
  */
 const INSPECTION_DEFAULT_MAP: Record<string, string> = {
@@ -581,47 +467,7 @@ const INSPECTION_DEFAULT_MAP: Record<string, string> = {
   DEFAULT: "weak muscles and dry skin without luster",
 };
 
-/**
- * 针刺针号 (来自各 needles 模板)
- */
-const NEEDLE_SIZE_MAP: Record<string, string> = {
-  SHOULDER: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
-  KNEE: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2"',
-  LBP: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
-  MID_LOW_BACK: 'Select Needle Size : 34#x1" ,30# x1.5",30# x2",30#x3"',
-  NECK: 'Select Needle Size :36#x0.5" , 34#x1" ,30# x1.5"',
-  DEFAULT: 'Select Needle Size: 34#x1", 30# x1.5", 30# x2", 30#x3"',
-};
-
-/**
- * 治则动词 (来自各模板 ppnSelectCombo)
- */
-const TREATMENT_VERB_MAP: Record<string, string> = {
-  SHOULDER: "emphasize",
-  KNEE: "focus",
-  NECK: "pay attention",
-  LBP: "promote",
-  MID_LOW_BACK: "promote",
-  DEFAULT: "promote",
-};
-
-/**
- * 调和目标 (来自各模板 ppnSelectCombo)
- */
-const HARMONIZE_MAP: Record<string, string> = {
-  SHOULDER: "healthy qi and to expel pathogen factor to promote",
-  KNEE: "Liver and Kidney",
-  DEFAULT: "yin/yang",
-};
-
-/**
- * 治疗目的 (来自各模板 ppnSelectCombo)
- */
-const TREATMENT_PURPOSE_MAP: Record<string, string> = {
-  SHOULDER: "to reduce stagnation and improve circulation",
-  KNEE: "promote healthy joint and lessen dysfunction in all aspects",
-  DEFAULT: "promote good essence",
-};
+/* TREATMENT_VERB_MAP, HARMONIZE_MAP, TREATMENT_PURPOSE_MAP → replaced by TEMPLATE_* imports */
 
 /**
  * 舌脉模板映射 (来自 tone/ 文件夹的各模板)
@@ -941,7 +787,10 @@ export function generateSubjective(context: GenerationContext): string {
   const exacerbatingFactors =
     context.exacerbatingFactors && context.exacerbatingFactors.length > 0
       ? context.exacerbatingFactors
-      : EXACERBATING_FACTORS_MAP[bp] || EXACERBATING_FACTORS_MAP["LBP"];
+      : [
+          ...(TEMPLATE_AGGRAVATING[bp as BodyPartKey] ||
+            TEMPLATE_AGGRAVATING.LBP),
+        ];
   const rawAdl = BODY_PART_ADL[bp] || BODY_PART_ADL["LBP"];
   const adlActivities = filterADLByDemographics(
     rawAdl,
@@ -1342,9 +1191,12 @@ export function generateObjective(
 
   // 获取身体部位特有配置
   const tenderLabel = getConfig(TENDERNESS_LABEL_MAP, bp);
-  const tenderText = getConfig(TENDERNESS_TEXT_MAP, bp);
+  const tenderText =
+    TEMPLATE_TENDERNESS_TEXT[bp as BodyPartKey] ||
+    TEMPLATE_TENDERNESS_TEXT.KNEE;
   const tenderScales =
-    TENDERNESS_SCALE_MAP[bp] || TENDERNESS_SCALE_MAP["SHOULDER"];
+    TEMPLATE_TENDERNESS_SCALE[bp as BodyPartKey] ||
+    TEMPLATE_TENDERNESS_SCALE.KNEE;
   const inspectionDefault = getConfig(INSPECTION_DEFAULT_MAP, bp);
 
   let objective = "";
@@ -1410,7 +1262,7 @@ export function generateObjective(
     mild: "+1",
   };
   const ieTenderGrade = severityToTender[effectiveSeverity] || "+3";
-  objective += `${tenderLabel}: ${visitState?.tendernessGrading || tenderScales[ieTenderGrade] || tenderScales["+3"]}.\n\n`;
+  objective += `${tenderLabel}: ${visitState?.tendernessGrading || tenderScales[ieTenderGrade] || tenderScales["+3"]}\n\n`;
 
   objective += `Muscles spasm noted along ${spasmMuscles.join(", ")}\n`;
   if (visitState?.spasmGrading) {
@@ -1776,9 +1628,13 @@ export function generateAssessment(context: GenerationContext): string {
   const treatmentPrinciples = localPattern?.treatmentPrinciples || [
     "promote circulation, relieves pain",
   ];
-  const treatmentVerb = getConfig(TREATMENT_VERB_MAP, bp);
-  const harmonize = getConfig(HARMONIZE_MAP, bp);
-  const treatmentPurpose = getConfig(TREATMENT_PURPOSE_MAP, bp);
+  const treatmentVerb =
+    TEMPLATE_TREATMENT_VERB[bp as BodyPartKey] || TEMPLATE_TREATMENT_VERB.LBP;
+  const harmonize =
+    TEMPLATE_HARMONIZE[bp as BodyPartKey] || TEMPLATE_HARMONIZE.LBP;
+  const treatmentPurpose =
+    TEMPLATE_TREATMENT_PURPOSE[bp as BodyPartKey] ||
+    TEMPLATE_TREATMENT_PURPOSE.LBP;
 
   assessment += `Today's TCM treatment principles:\n`;
   // 防重复: 如果 verb 和 principle 以同一个单词开头，用 'focus' 替代
@@ -2114,15 +1970,8 @@ function applyTxReasonChain(
     .sort((a, b) => b.weight - a.weight);
 }
 
-// TX Plan 治则动词选项 (TX 模板有额外选项 vs IE)
-const TX_VERB_OPTIONS = [
-  "continue to emphasize",
-  "emphasize",
-  "consist of promoting",
-  "promote",
-  "focus",
-  "pay attention",
-];
+// TX Plan 治则动词选项 — 使用 shared TEMPLATE_TX_VERB (来自模板 ppnSelectCombo)
+// "continue to be emphasize|emphasize|consist of promoting|promote|focus|pay attention"
 
 // TX Plan 治则选项 (比 IE 多一个 "drain the dampness, clear damp")
 const TX_TREATMENT_OPTIONS = [
@@ -2443,13 +2292,13 @@ export function generateAssessmentTX(
 
   let assessment = "";
 
-  // 治疗延续 — 各部位格式差异:
-  // KNEE: "The patient continues treatment for bilateral knee area today."
-  // SHOULDER: "The patient continues treatment for left shoulder area today."
+  // 治疗延续 — 各部位格式差异 (laterality 下拉含介词: "in bilateral", "along bilateral" 等):
+  // KNEE: "The patient continues treatment for in bilateral knee area today."
+  // SHOULDER: "The patient continues treatment for in bilateral shoulder area today."
   // LBP: "The patient continues treatment for lower back area today." (无侧别)
   // NECK: "Patient continue treatment for neck area today." (无 "The", 无 "s")
   if (bp === "KNEE" || bp === "SHOULDER") {
-    assessment += `The patient continues treatment for ${laterality} ${bodyPartName.toLowerCase()} area today.\n`;
+    assessment += `The patient continues treatment for in ${laterality} ${bodyPartName.toLowerCase()} area today.\n`;
   } else if (bp === "NECK") {
     assessment += `Patient continue treatment for ${bodyPartName.toLowerCase()} area today.\n`;
   } else {
@@ -2495,7 +2344,7 @@ export function generatePlanTX(context: GenerationContext): string {
   // 权重选择: 治则动词
   const weightedVerb = calculateWeights(
     "plan.verb",
-    TX_VERB_OPTIONS,
+    [...TEMPLATE_TX_VERB],
     weightContext,
   );
   const selectedVerb = selectBestOption(weightedVerb);
@@ -2544,7 +2393,8 @@ export function generateNeedleProtocol(
   const bp = context.primaryBodyPart;
 
   // 获取身体部位专用针号
-  const needleSizes = getConfig(NEEDLE_SIZE_MAP, bp);
+  const needleSizes =
+    TEMPLATE_NEEDLE_SIZE[bp as BodyPartKey] || TEMPLATE_NEEDLE_SIZE.LBP;
 
   // KNEE 专用穴位映射 (来自 acupuncture knee pain.md)
   const KNEE_FRONT_RIGHT = ["GB33", "GB34", "GB36"];
@@ -2552,70 +2402,25 @@ export function generateNeedleProtocol(
   const KNEE_BACK_RIGHT = ["BL40", "BL57"];
   const KNEE_BACK_LEFT = ["BL23", "BL55", "A SHI POINTS"];
 
-  // 其他部位穴位映射 (来自各模板 ppnSelectCombo)
-  const frontPoints: Record<string, string[]> = {
-    LBP: ["REN6", "GB34", "ST36", "ST40", "REN4", "SI3"],
-    MID_LOW_BACK: ["REN6", "GB34", "ST36", "ST40", "REN4", "SI3"],
-    NECK: ["LI4", "GB39", "SI3", "LU7"],
-    SHOULDER: [
-      "JIAN QIAN",
-      "PC2",
-      "LU3",
-      "LU4",
-      "LU5",
-      "LI4",
-      "LI11",
-      "ST3",
-      "GB34",
-      "SI3",
-      "ST38",
-    ],
-    HIP: ["GB34", "ST36", "SP6", "LV3"],
-    ELBOW: ["LI10", "LI11", "LU5", "HT3"],
-  };
+  // 穴位映射 (来自 template-options TEMPLATE_NEEDLE_POINTS)
+  const needleEntry = TEMPLATE_NEEDLE_POINTS[bp as BodyPartKey];
+  const templateFrontPool = needleEntry
+    ? [...needleEntry.frontPool]
+    : [...TEMPLATE_NEEDLE_POINTS.LBP.frontPool];
+  const templateBackPool = needleEntry
+    ? [...needleEntry.backPool]
+    : [...TEMPLATE_NEEDLE_POINTS.LBP.backPool];
 
+  // For backward compatibility, create the frontPoints/backPoints objects that downstream code expects
+  const frontPoints: Record<string, string[]> = {
+    [bp]: templateFrontPool,
+    MID_LOW_BACK: [...TEMPLATE_NEEDLE_POINTS.LBP.frontPool],
+    MIDDLE_BACK: [...TEMPLATE_NEEDLE_POINTS.LBP.frontPool],
+  };
   const backPoints: Record<string, string[]> = {
-    LBP: ["BL23", "BL25", "BL53", "DU4", "BL22", "YAO JIA JI", "A SHI POINTS"],
-    MID_LOW_BACK: [
-      "BL23",
-      "BL25",
-      "BL53",
-      "DU4",
-      "BL15",
-      "BL17",
-      "BL18",
-      "HUATUO JIA JI",
-      "A SHI POINTS",
-    ],
-    NECK: ["GB20", "GB21", "BL10", "BL11", "A SHI POINTS"],
-    SHOULDER: [
-      "GB21",
-      "BL10",
-      "BL11",
-      "BL17",
-      "LI15",
-      "LI16",
-      "SI9",
-      "SI10",
-      "SI11",
-      "SI12",
-      "SI14",
-      "SI15",
-      "SJ10",
-      "A SHI POINTS",
-    ],
-    HIP: ["GB29", "GB30", "BL54", "A SHI POINTS"],
-    ELBOW: ["LI12", "SI8", "A SHI POINTS"],
-    MIDDLE_BACK: [
-      "BL15",
-      "BL17",
-      "BL18",
-      "BL20",
-      "DU9",
-      "DU10",
-      "HUATUO JIA JI",
-      "A SHI POINTS",
-    ],
+    [bp]: templateBackPool,
+    MID_LOW_BACK: [...TEMPLATE_NEEDLE_POINTS.LBP.backPool],
+    MIDDLE_BACK: [...TEMPLATE_NEEDLE_POINTS.LBP.backPool],
   };
 
   const eStim = context.hasPacemaker
@@ -2726,8 +2531,8 @@ export function generateNeedleProtocol(
       "ST36",
     ];
     const LBP_FRONT_2 = frontPoints[bp]?.slice(3, 6) || ["ST40", "REN4", "SI3"];
-    const LBP_BACK_1 = backPoints[bp]?.slice(0, 4) || ["BL25", "BL53", "DU4"];
-    const LBP_BACK_2 = backPoints[bp]?.slice(4) || [
+    const LBP_BACK_1 = backPoints[bp]?.slice(0, 3) || ["BL25", "BL53", "DU4"];
+    const LBP_BACK_2 = backPoints[bp]?.slice(3) || [
       "BL22",
       "YAO JIA JI",
       "A SHI POINTS",
@@ -2856,7 +2661,9 @@ export function generateNeedleProtocol(
     let protocol = `${needleSizes}\n`;
     protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 15 mins)\n\n`;
 
-    protocol += `Back Points: (15 mins) - personal one on one contact with the patient\n`;
+    // H-11: ELBOW/KNEE 97810 uses "Front Points", others use "Back Points"
+    const sectionLabel97810 = (bp === "KNEE" || bp === "ELBOW") ? "Front Points" : "Back Points";
+    protocol += `${sectionLabel97810}: (15 mins) - personal one on one contact with the patient\n`;
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, `;
     protocol += `selecting location, marking and cleaning the points, Initial Acupuncture needle inserted without electrical stimulation `;

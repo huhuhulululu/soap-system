@@ -17,6 +17,8 @@ import { createSeededRng } from "../shared/seeded-rng";
 import {
   TEMPLATE_MUSCLES,
   TEMPLATE_ADL,
+  TEMPLATE_TX_REASON,
+  TEMPLATE_TX_ADVERSE,
   type BodyPartKey,
 } from "../shared/template-options";
 import { selectInitialMuscles, reduceMuscles } from "./muscle-selector";
@@ -382,7 +384,7 @@ export function deriveAssessmentFromSOA(input: {
 
     // S-side: severity changed
     if (input.severityChanged) {
-      parts.push("severity level");
+      parts.push("muscles stiffness sensation");
     }
 
     // NECK-specific: dizziness/headache/migraine available when O-side improved
@@ -392,7 +394,11 @@ export function deriveAssessmentFromSOA(input: {
       input.objectiveTightnessTrend === "reduced";
 
     if (input.bodyPart === "NECK" && hasStrongObjective && parts.length < 3) {
-      const neckOptions = ["dizziness", "headache", "migraine"];
+      const neckOptions = [
+        "muscles stiffness sensation",
+        "muscles weakness",
+        "numbness sensation",
+      ];
       parts.push(neckOptions[input.visitIndex % neckOptions.length]);
     }
 
@@ -483,12 +489,7 @@ export function deriveAssessmentFromSOA(input: {
     "with increase ease with functional mobility",
     "with increase ease with function",
   ];
-  const ADVERSE_OPTIONS = [
-    "No adverse side effect post treatment.",
-    "No adverse reaction reported after treatment.",
-    "Patient reported no adverse effects following treatment.",
-    "No negative side effects observed post treatment.",
-  ];
+  // Template has single fixed adverse text — no rotation needed
 
   const tolerated =
     TOLERATED_OPTIONS[input.visitIndex % TOLERATED_OPTIONS.length];
@@ -503,8 +504,7 @@ export function deriveAssessmentFromSOA(input: {
     return input.visitIndex % 6;
   })();
   const response = RESPONSE_OPTIONS[responseIdx] || "well";
-  const adverseEffect =
-    ADVERSE_OPTIONS[input.visitIndex % ADVERSE_OPTIONS.length];
+  const adverseEffect = TEMPLATE_TX_ADVERSE;
 
   return {
     present,
@@ -1460,112 +1460,45 @@ export function generateTXSequenceStates(
     const isSimilar = symptomChange.includes("similar");
     const isCameBack = symptomChange.includes("came back");
 
-    // Body-part-specific reasons — categorized by dimension gate
-    const BODY_PART_ADL: Record<string, string[]> = {
-      LBP: [
-        "can bend and lift with less discomfort",
-        "sitting tolerance has improved",
-      ],
-      NECK: ["can look over shoulder more easily"],
-      SHOULDER: [
-        "overhead reaching is easier",
-        "can reach behind back more comfortably",
-      ],
-      KNEE: ["stair climbing is less painful"],
-      ELBOW: ["can lift objects with less elbow pain"],
-    };
-    const BODY_PART_OBJ: Record<string, string[]> = {
-      LBP: [],
-      NECK: [
-        "neck rotation range has improved",
-        "less headache related to neck tension",
-      ],
-      SHOULDER: ["shoulder stiffness has decreased"],
-      KNEE: ["knee stability has improved"],
-      ELBOW: ["grip strength has improved", "forearm tension has decreased"],
-    };
-    const BODY_PART_PAIN: Record<string, string[]> = {
-      LBP: ["walking distance increased without pain"],
-      NECK: [],
-      SHOULDER: [],
-      KNEE: ["can walk longer distances comfortably"],
-      ELBOW: [],
-    };
+    // Categorize TEMPLATE_TX_REASON into positive/negative/neutral
+    // indices 0-7: positive (joint, activity, pain, stiffness, ADL, energy, sleep, energy)
+    const POSITIVE_TEMPLATE_REASONS = TEMPLATE_TX_REASON.filter((_, i) => i < 8);
+    // indices 15-22: negative (rest, work, phone, computer, posture, lifting, exercise, cold)
+    const NEGATIVE_TEMPLATE_REASONS = TEMPLATE_TX_REASON.filter((_, i) => i >= 15 && i <= 22);
+    // indices 8-14: neutral (continuous, maintain, still need, weak, skipped, stopped, discontinuous)
+    const NEUTRAL_TEMPLATE_REASONS = TEMPLATE_TX_REASON.filter((_, i) => i >= 8 && i <= 14);
 
-    // Always-available generic positive reasons
-    const GENERIC_POSITIVE = [
-      "energy level improved",
-      "sleep quality improved",
-      "more energy level throughout the day",
-      "overall well-being has improved",
-      "stress level has decreased",
-    ];
-    // Pain-gated: only when painDelta > 0.2
-    const PAIN_GATED = [
-      "reduced level of pain",
-      "can move joint more freely and with less pain",
-      ...(BODY_PART_PAIN[context.primaryBodyPart] ?? []),
-    ];
-    // ADL-gated: only when adlImproved
-    const ADL_GATED = [
-      "less difficulty performing daily activities",
-      "physical activity no longer causes distress",
-      ...(BODY_PART_ADL[context.primaryBodyPart] ?? BODY_PART_ADL.LBP),
-    ];
-    // O-side-gated: only when objectiveImproved
-    const OBJ_GATED = [
-      "muscle tension has reduced noticeably",
-      ...(BODY_PART_OBJ[context.primaryBodyPart] ?? []),
-    ];
-
-    // Dynamic pool: filter by current visit dimensions
+    // Dynamic pool: filter positive reasons by current visit dimensions
     const positivePool = [
-      ...GENERIC_POSITIVE,
-      ...(painDelta > 0.2 ? PAIN_GATED : []),
-      ...(adlImproved ? ADL_GATED : []),
-      ...(objectiveImproved ? OBJ_GATED : []),
+      ...(painDelta > 0.2 ? POSITIVE_TEMPLATE_REASONS.filter(r =>
+        r.includes("pain") || r.includes("joint") || r.includes("physical")
+      ) : []),
+      ...(adlImproved ? POSITIVE_TEMPLATE_REASONS.filter(r =>
+        r.includes("daily") || r.includes("activity")
+      ) : []),
+      // Always available
+      ...POSITIVE_TEMPLATE_REASONS.filter(r =>
+        r.includes("energy") || r.includes("sleep") || r.includes("treatment")
+      ),
     ];
-    const POSITIVE_REASONS = new Set(
-      positivePool.length > 0 ? positivePool : GENERIC_POSITIVE,
+    const POSITIVE_REASONS: Set<string> = new Set(
+      positivePool.length > 0 ? positivePool : [...POSITIVE_TEMPLATE_REASONS],
     );
-    const NEGATIVE_REASONS = new Set([
-      "did not have good rest",
-      "intense work",
-      "excessive time using cell phone",
-      "excessive time using computer",
-      "bad posture",
-      "carrying/lifting heavy object(s)",
-      "lack of exercise",
-      "exposure to cold air",
-      "skipped treatments",
-      "stopped treatment for a while",
-      "discontinuous treatment",
-      "weak constitution",
-    ]);
+    const NEGATIVE_REASONS: Set<string> = new Set([...NEGATIVE_TEMPLATE_REASONS]);
 
     // Phase D: reason 轮换 — 避免总是同一个 reason
     const POSITIVE_REASONS_LIST = Array.from(POSITIVE_REASONS);
     const NEUTRAL_REASONS = [
       "continuous treatment",
+      "maintain regular treatments",
       "still need more treatments to reach better effect",
-      "body is adjusting to treatment",
-      "consistent treatment schedule",
-      "gradual recovery process",
-      "treatment plan is on track",
-      "patient compliance with treatment",
-      "steady progress with current protocol",
-      "body needs time to consolidate gains",
-      "recovery plateau is expected at this stage",
-      "maintaining current functional level",
+      "weak constitution",
     ];
     const CAME_BACK_REASONS = [
       "continuous treatment",
       "discontinuous treatment",
       "skipped treatments",
       "stopped treatment for a while",
-      "did not follow home care instructions",
-      "overexertion between visits",
-      "irregular treatment schedule",
     ];
 
     let finalReason = reason;
@@ -1589,19 +1522,9 @@ export function generateTXSequenceStates(
         ...positiveShuffleBag.slice(0, pickIdx),
         ...positiveShuffleBag.slice(pickIdx + 1),
       ];
-      // 2nd reason pick
-      let reason2 = "";
-      if (positiveShuffleBag.length > 0) {
-        const pickIdx2 = Math.floor(rng() * positiveShuffleBag.length);
-        reason2 = positiveShuffleBag[pickIdx2];
-        positiveShuffleBag = [
-          ...positiveShuffleBag.slice(0, pickIdx2),
-          ...positiveShuffleBag.slice(pickIdx2 + 1),
-        ];
-      } else {
-        rng(); // consume to keep PRNG sequence
-      }
-      finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
+      // Consume rng() to preserve PRNG sequence (was 2nd reason pick)
+      // Template accepts single value only — do NOT concatenate
+      rng();
       lastUsedReason = finalReason;
       // Improvement connector variation
       const improvementConnectors = ["because of", "due to"];
@@ -1631,19 +1554,9 @@ export function generateTXSequenceStates(
         ...neutralShuffleBag.slice(0, pickIdx),
         ...neutralShuffleBag.slice(pickIdx + 1),
       ];
-      // 2nd reason pick
-      let reason2 = "";
-      if (neutralShuffleBag.length > 0) {
-        const pickIdx2 = Math.floor(rng() * neutralShuffleBag.length);
-        reason2 = neutralShuffleBag[pickIdx2];
-        neutralShuffleBag = [
-          ...neutralShuffleBag.slice(0, pickIdx2),
-          ...neutralShuffleBag.slice(pickIdx2 + 1),
-        ];
-      } else {
-        rng(); // consume to keep PRNG sequence
-      }
-      finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
+      // Consume rng() to preserve PRNG sequence (was 2nd reason pick)
+      // Template accepts single value only — do NOT concatenate
+      rng();
       lastUsedReason = finalReason;
       // Similar connector variation
       const similarConnectors = ["and", "may related of"];
@@ -1665,19 +1578,9 @@ export function generateTXSequenceStates(
         ...cameBackShuffleBag.slice(0, pickIdx),
         ...cameBackShuffleBag.slice(pickIdx + 1),
       ];
-      // 2nd reason pick
-      let reason2 = "";
-      if (cameBackShuffleBag.length > 0) {
-        const pickIdx2 = Math.floor(rng() * cameBackShuffleBag.length);
-        reason2 = cameBackShuffleBag[pickIdx2];
-        cameBackShuffleBag = [
-          ...cameBackShuffleBag.slice(0, pickIdx2),
-          ...cameBackShuffleBag.slice(pickIdx2 + 1),
-        ];
-      } else {
-        rng(); // consume to keep PRNG sequence
-      }
-      finalReason = reason2 ? `${finalReason} and ${reason2}` : finalReason;
+      // Consume rng() to preserve PRNG sequence (was 2nd reason pick)
+      // Template accepts single value only — do NOT concatenate
+      rng();
       lastUsedReason = finalReason;
       finalConnector = "due to";
       rng(); // consume: match connector pick in improvement/similar branches
@@ -1870,31 +1773,18 @@ export function generateTXSequenceStates(
     }
 
     // Post-reconciliation: re-check objectiveImproved with corrected trends
-    // and purge any OBJ_GATED reasons that slipped into the bag
     const correctedObjImproved =
       tightnessTrend !== "stable" ||
       tendernessTrend !== "stable" ||
       spasmTrend !== "stable" ||
       romTrend !== "stable" ||
       strengthTrend !== "stable";
-    if (!correctedObjImproved && objectiveImproved) {
+    if (!correctedObjImproved && objectiveImproved && isImprovement) {
       // objectiveImproved was true pre-correction but false post-correction
-      // Purge OBJ_GATED reasons from shuffle bag
-      const objGatedSet = new Set(OBJ_GATED);
-      positiveShuffleBag = positiveShuffleBag.filter(
-        (r) => !objGatedSet.has(r),
-      );
-      // Also fix finalReason if it contains an OBJ_GATED reason
-      if (isImprovement) {
-        const parts = finalReason.split(" and ");
-        const cleaned = parts.filter((p) => !objGatedSet.has(p.trim()));
-        if (cleaned.length > 0 && cleaned.length < parts.length) {
-          finalReason = cleaned.join(" and ");
-        } else if (cleaned.length === 0) {
-          // All reasons were OBJ_GATED, pick from GENERIC_POSITIVE
-          finalReason =
-            GENERIC_POSITIVE[Math.floor(GENERIC_POSITIVE.length / 2)];
-        }
+      // Ensure finalReason is still a valid template value
+      if (!POSITIVE_REASONS.has(finalReason)) {
+        finalReason =
+          POSITIVE_TEMPLATE_REASONS[Math.floor(POSITIVE_TEMPLATE_REASONS.length / 2)];
       }
     }
 

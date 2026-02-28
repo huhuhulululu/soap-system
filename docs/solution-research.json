@@ -1,0 +1,171 @@
+{
+  "date": "2026-02-27",
+  "purpose": "解决方案设计的前置调研结果",
+
+  "templateCorrections": {
+    "total": 48,
+    "byType": { "typo": 16, "grammar": 22, "duplication": 2, "punctuation": 3, "content": 5 },
+    "highImpact": [
+      { "original": "RE-EVALUATIOIN", "corrected": "RE-EVALUATION", "scope": "ALL 8 IE templates" },
+      { "original": "continue to be emphasize", "corrected": "continue to emphasize", "scope": "ALL 13 IE+TX templates" },
+      { "original": "may related of", "corrected": "may be related to", "scope": "ALL 13 IE+TX templates" },
+      { "original": "exacerbate of symptom(s)", "corrected": "exacerbation of symptom(s)", "scope": "ALL 5 TX templates" },
+      { "original": "slight increased", "corrected": "slightly increased", "scope": "ALL 5 TX templates" },
+      { "original": "Prolonge walking", "corrected": "Prolonged walking", "scope": "HIP IE template" },
+      { "original": "Assesment", "corrected": "Assessment", "scope": "KNEE TX, SHOULDER TX, RT KNEE IE, THIGH IE" },
+      { "original": "Subject", "corrected": "Subjective", "scope": "LBP TX" },
+      { "original": "over used due to nature of work", "corrected": "overuse due to nature of work", "scope": "ALL IE+TX" },
+      { "original": "excessive used of phone/tablet", "corrected": "excessive use of phone/tablet", "scope": "ALL IE+TX" },
+      { "original": "handing/carrying moderate objects", "corrected": "handling/carrying moderate objects", "scope": "ALL IE+TX" },
+      { "original": "which promoted the patient to seek", "corrected": "which prompted the patient to seek", "scope": "ALL IE" },
+      { "original": "Patient also complaints of", "corrected": "Patient also complains of", "scope": "ALL IE" },
+      { "original": "Contraindication or Precision", "corrected": "Contraindication or Precaution", "scope": "ALL IE" },
+      { "original": "Detail explanation from patient", "corrected": "Detailed explanation from patient", "scope": "ALL IE" },
+      { "original": "activating Blood circulation to dissipate blood stagnant", "corrected": "activating Blood circulation to dissipate blood stagnation", "scope": "ALL IE+TX" },
+      { "original": "with excellent outcome due reducing pain", "corrected": "with excellent outcome due to reducing pain", "scope": "ALL TX" },
+      { "original": "with increase ease with functional mobility", "corrected": "with increased ease with functional mobility", "scope": "ALL TX" },
+      { "original": "that cause the pain", "corrected": "that causes the pain", "scope": "ALL TX" },
+      { "original": "shoulder area area", "corrected": "shoulder area", "scope": "SHOULDER TX" },
+      { "original": "in order to to reduce stagnation", "corrected": "in order to reduce stagnation", "scope": "SHOULDER IE" },
+      { "original": "Lattisimus dorsi", "corrected": "Latissimus dorsi", "scope": "ELBOW IE" },
+      { "original": "Illiac Crest", "corrected": "Iliac Crest", "scope": "ELBOW IE" },
+      { "original": "Gastronemius muscle", "corrected": "Gastrocnemius muscle", "scope": "KNEE IE, RT KNEE IE" },
+      { "original": "greater tubercle", "corrected": "greater trochanter", "scope": "HIP IE, THIGH IE", "note": "anatomical: tubercle is shoulder, trochanter is hip" },
+      { "original": "lesser tubercle", "corrected": "lesser trochanter", "scope": "HIP IE, THIGH IE" },
+      { "original": "intense excise", "corrected": "intense exercise", "scope": "ELBOW IE" },
+      { "original": "wind cod", "corrected": "wind cold", "scope": "tone template filename" },
+      { "original": "dusk", "corrected": "dusky", "scope": "qi stagnation tone template" },
+      { "original": "Daily acupuncture treatment for ankle", "corrected": "Daily acupuncture treatment for hip", "scope": "HIP needle template" }
+    ]
+  },
+
+  "txReasonStructure": {
+    "summary": "reason 是两个下拉框，但 REASON1 是容器层不直接显示",
+    "structure": {
+      "CHANGE": {
+        "type": "ppnSelectComboSingle",
+        "options": ["improvement of symptom(s)", "exacerbate of symptom(s)", "similar symptom(s) as last visit", "improvement after treatment, but pain still came back next day"]
+      },
+      "CONNECTOR": {
+        "type": "ppnSelectComboSingle",
+        "options": ["because of", "may related of", "due to", "and"],
+        "note": "嵌套在 REASON1 内部"
+      },
+      "REASON1_CONTAINER": {
+        "type": "ppnSelectCombo",
+        "note": "作为 CONNECTOR 的容器，选项是负面/外因原因，不直接显示",
+        "options": ["maintain regular treatments", "still need more treatments to reach better effect", "uncertain reason", "discontinuous treatments", "stopped treatment for a while", "intense work", "working on computer day by day", "excessive time using cell phone", "bad posture day by day", "carrying/lifting heavy object(s)", "lack of exercise", "exposure to cold air"]
+      },
+      "REASON2": {
+        "type": "ppnSelectCombo",
+        "note": "最终显示的原因文本，与层2同级",
+        "options": ["can move joint more freely and with less pain", "physical activity no longer causes distress", "reduced level of pain", "reduced joint stiffness and swelling", "less difficulty performing daily activities", "energy level improved", "sleep quality improved", "more energy level throughout the day", "continuous treatment", "maintain regular treatments", "still need more treatments to reach better effect", "weak constitution", "skipped treatments", "stopped treatment for a while", "discontinuous treatment", "did not have good rest", "intense work", "excessive time using cell phone", "excessive time using computer", "bad posture", "carrying/lifting heavy object(s)", "lack of exercise", "exposure to cold air", "uncertain reason"]
+      }
+    },
+    "renderedPattern": "Patient reports: there is [CHANGE] [CONNECTOR] [REASON2] .",
+    "allTemplatesIdentical": true
+  },
+
+  "txSubjectiveDifferences": {
+    "laterality": {
+      "SHOULDER": { "type": "Single", "options": ["along right", "along left", "along bilateral", "in left", "in right", "in bilateral"] },
+      "KNEE": { "type": "Single", "options": ["along right", "along left", "along bilateral", "in left", "in right", "in bilateral"] },
+      "ELBOW": { "type": "Single", "options": ["along right", "along left", "along bilateral", "in left", "in right", "in bilateral"] },
+      "NECK": { "type": "Combo", "options": ["in", "in left side", "in right side", "along right side", "along left side"] },
+      "LBP": "none"
+    },
+    "adlGroups": {
+      "SHOULDER": { "groups": 2, "connector": "difficulty of" },
+      "KNEE": { "groups": 2, "connector": "difficulty" },
+      "NECK": { "groups": 2, "connector": "difficulty of" },
+      "ELBOW": { "groups": 2, "connector": "difficulty of" },
+      "LBP": { "groups": 1, "connector": "difficulty with ADLs like" }
+    },
+    "painFrequency": {
+      "allIdentical": true,
+      "mapping": {
+        "Intermittent": "less than 25%",
+        "Occasional": "26% - 50%",
+        "Frequent": "51% - 75%",
+        "Constant": "76% - 100%"
+      }
+    }
+  },
+
+  "needleStructure": {
+    "semantics": "Front/Back 不是解剖学前后，而是治疗体位：Front=仰卧朝上面，Back=翻身后朝上面",
+    "SHOULDER": {
+      "full": {
+        "needleSize": "Select Needle Size :36#x0.5\" , 34#x1\" ,{30#|32#|34#} x1.5\"",
+        "frontLabel": "Front Points:",
+        "backLabel": "Back Points",
+        "frontPool": ["JIAN QIAN", "PC2", "LU3", "LU4", "LU5", "LI4", "LI11", "ST3", "GB34", "SI3", "ST38"],
+        "backPool": ["GB21", "BL10", "BL11", "BL17", "LI15", "LI16", "SI9", "SI10", "SI11", "SI12", "SI14", "SI15", "SJ10", "A SHI POINTS"],
+        "hasSide": true
+      },
+      "97810": {
+        "onlySection": "Back Points:",
+        "pool": ["GB21", "BL10", "BL11", "BL17", "LI15", "LI16", "SI9", "SI10", "SI11", "SI12", "SI14", "SI15", "SJ10", "A SHI POINTS"],
+        "prefixDefault": "Preparation",
+        "estim": "without"
+      }
+    },
+    "ELBOW": {
+      "full": {
+        "needleSize": "Select Needle Size :36#x0.5\" , 34#x1\" ,{30#|32#|34#} x1.5\"",
+        "frontLabel": "Front Points:",
+        "backLabel": "Back Points",
+        "frontPool_step1": ["SJ5", "SJ6", "SJ7", "SJ8", "SJ9", "SJ12", "LI6", "LI7", "LI8", "LI9", "LI10", "LI11", "LI12", "LI13", "LU3", "LU4", "LU7", "LU8", "LU9", "A SHI POINTS"],
+        "frontPool_step2": ["SJ5", "SJ6", "SJ7", "SJ8", "SJ9", "SJ12", "LI6", "LI7", "LI8", "LI9", "LI10", "LI11", "LI12", "LI13", "LU3", "LU4", "LU5", "LU6", "LU7", "LU8", "LU9", "A SHI POINTS"],
+        "backPool": ["LU5", "LU6", "PC3", "PC4", "HT2", "HT3", "A SHI POINTS"],
+        "semantics": "Front=lateral/posterior(外侧), Back=medial/anterior(内侧)",
+        "hasSide": true
+      },
+      "97810": {
+        "onlySection": "Front Points:",
+        "pool": ["SJ5", "SJ6", "SJ7", "SJ8", "SJ9", "SJ12", "LI6", "LI7", "LI8", "LI9", "LI10", "LI11", "LI12", "LI13", "LU3", "LU4", "LU7", "LU8", "LU9", "A SHI POINTS"]
+      }
+    },
+    "HIP": {
+      "full": {
+        "needleSize": "Select Needle Size : 34#x1\" ,{30#|32#|34#} x1.5\",{30#|32#} x2\",30#x3\"",
+        "frontLabel": "Front Points",
+        "backLabel": "Back Points:",
+        "sharedPool": ["GB30", "GB29", "GB31", "GB34", "UB31", "UB32", "UB33", "UB34", "UB25", "UB27", "A SHI POINTS"],
+        "semantics": "Front和Back共用同一穴位池，纯粹是体位翻转",
+        "hasSide": false,
+        "templateBug": "文本写 treatment for ankle 应为 hip"
+      },
+      "97810": "不存在"
+    },
+    "NECK": {
+      "full": {
+        "needleSize": "Select Needle Size :36#x0.5\" , 34#x1\" ,{30#|32#|34#} x1.5\"",
+        "frontPool": ["GB34", "ST36", "SI3", "SJ5", "SP6", "REN4", "REN6", "LV3", "LI11", "DU20"],
+        "backPool_step3_html": ["BL23", "BL20", "BL40", "BL55", "BL38", "BL55", "BL56", "A SHI POINTS"],
+        "backPool_step3_default": "SI13, JIN JIA JI, A SHI POINTS",
+        "backPool_step3_note": "HTML下拉框选项是腰部穴位(模板bug)，但默认值是颈部穴位",
+        "backPool_step4": ["BAI LAO", "GB14", "GB20", "GB21", "BL9", "BL10", "BL11", "BL12", "BL13", "BL14", "SI13", "SI14", "DU14", "JIN JIA JI", "A SHI POINTS"],
+        "hasSide": false
+      }
+    },
+    "LBP": {
+      "full": {
+        "needleSize": "Select Needle Size : 34#x1\" ,{30#|32#|34#} x1.5\",{30#|32#} x2\",30#x3\"",
+        "frontPool": ["ST40", "REN4", "REN6", "GB26", "GB34", "ST36", "KD3", "SP6", "LV3", "SI3", "YAO TONG XUE"],
+        "backPool": ["BL22", "BL23", "BL24", "BL25", "BL26", "BL29", "BL40", "BL52", "BL53", "BL54", "DU4", "GB30", "YAO JIA JI", "A SHI POINTS"],
+        "hasSide": false
+      }
+    },
+    "KNEE": {
+      "full": {
+        "needleSize": "Select Needle Size : 34#x1\" ,{30#|32#|34#} x1.5\",{30#|32#} x2\"",
+        "frontPool_step1": ["GB33", "GB34", "GB36", "GB39", "UB40", "ST34", "ST35", "ST36", "ST40", "SP3", "SP9", "SP10", "KD3", "KD10", "XI YAN", "LV4", "REN4", "HE DING", "A SHI POINT"],
+        "frontPool_step2": ["GB33", "GB34", "GB36", "GB39", "ST34", "ST35", "ST36", "ST40", "SP3", "SP9", "SP10", "KD3", "KD10", "XI YAN", "LV4", "REN4", "HE DING", "A SHI POINT"],
+        "backPool": ["BL23", "BL20", "BL40", "BL55", "BL38", "BL55", "BL56", "A SHI POINTS", "BL57"],
+        "hasSide": true,
+        "note": "KNEE用 A SHI POINT(单数) 而非 A SHI POINTS(复数)"
+      }
+    }
+  }
+}
