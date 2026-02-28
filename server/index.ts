@@ -12,6 +12,7 @@ import rateLimit from 'express-rate-limit'
 import { randomBytes } from 'crypto'
 import { createBatchRouter } from './routes/batch'
 import { createAutomateRouter } from './routes/automate'
+import { createAIGenerateRouter } from './routes/ai-generate'
 
 // ── Auth Middleware ──────────────────────────────
 
@@ -134,6 +135,7 @@ export function createApp(): express.Application {
   // S3: Protected routes
   app.use('/api/batch', requireAuth, createBatchRouter())
   app.use('/api/automate', requireAuth, createAutomateRouter())
+  app.use('/api/ai', requireAuth, createAIGenerateRouter())
 
   return app
 }
