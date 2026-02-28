@@ -14,12 +14,20 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
 
 WORKDIR /app
 
+# Dependencies first (layer cache)
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
-# Install Chromium browser for Playwright (shared path so appuser can access)
+# Playwright browser
 RUN npx playwright install chromium
 
+# Create non-root user before copying source
+RUN addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser \
+    && mkdir -p /app/data /app/data/screenshots \
+    && chown -R appuser:appgroup /app/data
+
+# Source code
 COPY src/ ./src/
 COPY parsers/ ./parsers/
 COPY server/ ./server/
@@ -27,13 +35,9 @@ COPY scripts/ ./scripts/
 COPY templates/ ./templates/
 COPY tsconfig.json ./
 
-RUN mkdir -p /app/data /app/data/screenshots \
-    && addgroup --system appgroup \
-    && adduser --system --ingroup appgroup appuser \
-    && chown -R appuser:appgroup /app/data
-
-COPY server/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+# Entrypoint (already in server/ but needs to be at /app root with +x)
+RUN cp server/entrypoint.sh /app/entrypoint.sh \
+    && chmod +x /app/entrypoint.sh
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"

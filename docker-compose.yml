@@ -6,8 +6,19 @@ services:
     ports:
       - "9090:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
@@ -31,6 +42,19 @@ services:
       - VERTEX_LOCATION=us-central1
       - VERTEX_ENDPOINT=projects/625662508139/locations/us-central1/endpoints/4778460491884265472
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: 8G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
 volumes:
   batch-data:

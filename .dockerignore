@@ -1,0 +1,14 @@
+node_modules
+.git
+.worktrees
+.claude-state
+.claude
+coverage
+frontend/node_modules
+frontend/dist
+*.md
+docs/
+tests/
+scripts/run-*
+scripts/debug-*
+scripts/stress-*
