@@ -1,5 +1,5 @@
 /**
- * Training data generator — Phase A (SOAP text)
+ * Training data generator — Phase A (SOAP text) + Phase B (field mapping)
  * Usage: npx tsx scripts/generate-training-data.ts --bp=SHOULDER --count=10000
  */
 import * as fs from 'fs';
@@ -7,6 +7,8 @@ import * as path from 'path';
 import { randomizePatientContext } from './lib/patient-randomizer';
 import { exportSOAPAsText, exportTXSeriesAsText } from '../src/generator/soap-generator';
 import { patchSOAPText } from '../src/generator/objective-patch';
+import { parseAllTemplates } from './lib/template-parser';
+import { extractSimpleFieldMap } from './lib/field-extractor';
 import type { GenerationContext } from '../src/types';
 
 const args = Object.fromEntries(
@@ -20,13 +22,21 @@ const HAS_TX = TX_SUPPORTED.has(BP);
 
 const RAW_DIR = path.resolve(__dirname, '..', 'training-data', 'raw');
 const CHAT_DIR = path.resolve(__dirname, '..', 'training-data', 'chat');
+const FIELDS_DIR = path.resolve(__dirname, '..', 'training-data', 'fields');
 fs.mkdirSync(RAW_DIR, { recursive: true });
 fs.mkdirSync(CHAT_DIR, { recursive: true });
+fs.mkdirSync(FIELDS_DIR, { recursive: true });
 
 const rawStream = fs.createWriteStream(path.join(RAW_DIR, `${BP}-soap.jsonl`));
 const chatStream = fs.createWriteStream(path.join(CHAT_DIR, `${BP}-chat.jsonl`));
+const fieldsStream = fs.createWriteStream(path.join(FIELDS_DIR, `${BP}-fields.jsonl`));
+
+// Parse templates once
+const templates = parseAllTemplates(BP);
 
 const SYSTEM_PROMPT = `You are an expert acupuncture SOAP note generator for MDLand EHR. Given patient information, generate a complete SOAP note following the exact MDLand template format.`;
+
+const FIELDS_SYSTEM_PROMPT = `You are an MDLand EHR form filler. Given a SOAP note, extract the values for each ppnSelectCombo field in the template. Return a JSON object mapping field labels to their selected values.`;
 
 function contextToUserPrompt(ctx: GenerationContext, noteType: 'IE' | 'TX', visitIndex?: number): string {
   const parts = [
@@ -62,6 +72,21 @@ function writeChat(id: string, userPrompt: string, assistantOutput: string) {
   }) + '\n');
 }
 
+function writeFields(id: string, soapText: string, noteType: 'IE' | 'TX') {
+  const tmpl = noteType === 'IE' ? templates.ie : templates.tx;
+  if (!tmpl) return;
+
+  const fieldMap = extractSimpleFieldMap(soapText, tmpl);
+  fieldsStream.write(JSON.stringify({
+    id,
+    messages: [
+      { role: 'system', content: FIELDS_SYSTEM_PROMPT },
+      { role: 'user', content: `Extract MDLand form field values from this ${noteType} SOAP note:\n\n${soapText}` },
+      { role: 'assistant', content: JSON.stringify(fieldMap) },
+    ],
+  }) + '\n');
+}
+
 const startTime = Date.now();
 let totalSamples = 0;
 let errorCount = 0;
@@ -76,6 +101,7 @@ for (let seed = 1; seed <= COUNT; seed++) {
     const { noteType: _nt, ...inputFields } = ctx;
     writeRaw(ieId, { ...inputFields, noteType: 'IE' }, ieText);
     writeChat(ieId, contextToUserPrompt(ctx, 'IE'), ieText);
+    writeFields(ieId, ieText, 'IE');
     totalSamples++;
   } catch (e: any) {
     errorCount++;
@@ -94,6 +120,7 @@ for (let seed = 1; seed <= COUNT; seed++) {
         const txId = `${BP}-s${seed}-TX${item.visitIndex}`;
         writeRaw(txId, { ...txCtx, visitIndex: item.visitIndex } as any, txText);
         writeChat(txId, contextToUserPrompt(txCtx, 'TX', item.visitIndex), txText);
+        writeFields(txId, txText, 'TX');
         totalSamples++;
       }
     } catch (e: any) {
@@ -111,6 +138,7 @@ for (let seed = 1; seed <= COUNT; seed++) {
 
 rawStream.end();
 chatStream.end();
+fieldsStream.end();
 
 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-console.log(`\n✅ ${BP}: ${totalSamples} samples in ${elapsed}s (${errorCount} errors) → training-data/raw/${BP}-soap.jsonl`);
+console.log(`\n✅ ${BP}: ${totalSamples} samples in ${elapsed}s (${errorCount} errors) → training-data/{raw,chat,fields}/${BP}-*.jsonl`);
