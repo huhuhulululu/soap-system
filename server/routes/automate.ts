@@ -27,7 +27,7 @@ export function createAutomateRouter(): Router {
   /**
    * POST /api/automate/cookies — upload MDLand storage state JSON
    */
-  router.post('/cookies', (req: Request, res: Response) => {
+  router.post('/cookies', async (req: Request, res: Response) => {
     try {
       const body = req.body
 
@@ -49,13 +49,13 @@ export function createAutomateRouter(): Router {
         return
       }
 
-      saveCookies(storageState)
+      await saveCookies(storageState)
 
       res.json({
         success: true,
         data: {
           cookieCount: storageState.cookies.length,
-          ...getCookiesInfo(),
+          ...await getCookiesInfo(),
         },
       })
     } catch (error) {
@@ -67,9 +67,9 @@ export function createAutomateRouter(): Router {
   /**
    * GET /api/automate/cookies — check if cookies exist
    */
-  router.get('/cookies', (_req: Request, res: Response) => {
+  router.get('/cookies', async (_req: Request, res: Response) => {
     try {
-      const info = getCookiesInfo()
+      const info = await getCookiesInfo()
       res.json({ success: true, data: info })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -80,11 +80,11 @@ export function createAutomateRouter(): Router {
   /**
    * POST /api/automate/:batchId — trigger headless automation
    */
-  router.post('/:batchId', (req: Request, res: Response) => {
+  router.post('/:batchId', async (req: Request, res: Response) => {
     try {
       const batchId = String(req.params.batchId)
 
-      const batch = getBatch(batchId)
+      const batch = await getBatch(batchId)
       if (!batch) {
         res.status(404).json({ success: false, error: 'Batch not found' })
         return
@@ -94,7 +94,7 @@ export function createAutomateRouter(): Router {
         return
       }
 
-      if (!hasCookies()) {
+      if (!(await hasCookies())) {
         res.status(400).json({
           success: false,
           error: 'MDLand cookies not uploaded. Upload storage state first.',
@@ -113,7 +113,7 @@ export function createAutomateRouter(): Router {
 
       const port = process.env.PORT || '3001'
       const apiBase = `http://localhost:${port}`
-      const job = startAutomation(batchId, apiBase)
+      const job = await startAutomation(batchId, apiBase)
 
       res.json({ success: true, data: job })
     } catch (error) {

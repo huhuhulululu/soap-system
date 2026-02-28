@@ -1,10 +1,10 @@
 /**
  * 批次数据存储
  *
- * 内存存储 + JSON 文件持久化
+ * 内存存储 + JSON 文件持久化（异步 I/O）
  */
 
-import * as fs from 'fs'
+import fs from 'fs/promises'
 import * as path from 'path'
 import type { BatchData } from '../types'
 
@@ -13,10 +13,8 @@ const STORE_DIR = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, 'batches')
   : path.join(process.cwd(), '.batch-data')
 
-function ensureStoreDir(): void {
-  if (!fs.existsSync(STORE_DIR)) {
-    fs.mkdirSync(STORE_DIR, { recursive: true })
-  }
+async function ensureStoreDir(): Promise<void> {
+  await fs.mkdir(STORE_DIR, { recursive: true })
 }
 
 function sanitizeBatchId(batchId: string): string {
@@ -55,13 +53,13 @@ function evictIfNeeded(): void {
   }
 }
 
-export function saveBatch(batch: BatchData): void {
+export async function saveBatch(batch: BatchData): Promise<void> {
   batchCache.delete(batch.batchId)
   batchCache.set(batch.batchId, batch)
   evictIfNeeded()
   try {
-    ensureStoreDir()
-    fs.writeFileSync(batchFilePath(batch.batchId), JSON.stringify(batch, null, 2))
+    await ensureStoreDir()
+    await fs.writeFile(batchFilePath(batch.batchId), JSON.stringify(batch, null, 2))
   } catch {
     // 文件写入失败不影响内存缓存
   }
@@ -70,7 +68,7 @@ export function saveBatch(batch: BatchData): void {
 /**
  * 获取批次
  */
-export function getBatch(batchId: string): BatchData | undefined {
+export async function getBatch(batchId: string): Promise<BatchData | undefined> {
   const cached = batchCache.get(batchId)
   if (cached) {
     batchCache.delete(batchId)
@@ -79,14 +77,12 @@ export function getBatch(batchId: string): BatchData | undefined {
   }
 
   try {
-    const filePath = batchFilePath(batchId)
-    if (fs.existsSync(filePath)) {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as BatchData
-      batchCache.set(batchId, data)
-      return data
-    }
+    const raw = await fs.readFile(batchFilePath(batchId), 'utf-8')
+    const data = JSON.parse(raw) as BatchData
+    batchCache.set(batchId, data)
+    return data
   } catch {
-    // 读取失败返回 undefined
+    // 读取失败（ENOENT 或 parse 错误）返回 undefined
   }
   return undefined
 }
@@ -94,11 +90,11 @@ export function getBatch(batchId: string): BatchData | undefined {
 /**
  * 确认批次 (标记为可执行)
  */
-export function confirmBatch(batchId: string): boolean {
-  const batch = getBatch(batchId)
+export async function confirmBatch(batchId: string): Promise<boolean> {
+  const batch = await getBatch(batchId)
   if (!batch) return false
   const confirmed = { ...batch, confirmed: true }
-  saveBatch(confirmed)
+  await saveBatch(confirmed)
   return true
 }
 

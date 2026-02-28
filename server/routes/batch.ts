@@ -83,7 +83,7 @@ export function createBatchRouter(): Router {
 
       // 5. Generate via mixed handler (supports per-patient modes)
       const result = generateMixedBatch(batchData, realisticPatch, disableChronicCaps)
-      saveBatch({ ...batchData, patients: result.patients })
+      await saveBatch({ ...batchData, patients: result.patients })
 
       res.json({
         success: true,
@@ -130,7 +130,7 @@ export function createBatchRouter(): Router {
 
       // Always generate via mixed handler (supports per-patient modes)
       const result = generateMixedBatch(batchData, realisticPatch, disableChronicCaps)
-      saveBatch({ ...batchData, patients: result.patients })
+      await saveBatch({ ...batchData, patients: result.patients })
       res.json({ success: true, data: { batchId, totalPatients: summary.totalPatients, totalVisits: summary.totalVisits, totalGenerated: result.totalGenerated, totalFailed: result.totalFailed, byType: summary.byType } })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -141,10 +141,10 @@ export function createBatchRouter(): Router {
   /**
    * GET /api/batch/:id - 获取 batch 详情
    */
-  router.get('/:id', (req: Request, res: Response) => {
+  router.get('/:id', async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id)
-      const batch = getBatch(id)
+      const batch = await getBatch(id)
       if (!batch) {
         res.status(404).json({ success: false, error: 'Batch not found' })
         return
@@ -159,10 +159,10 @@ export function createBatchRouter(): Router {
   /**
    * PUT /api/batch/:batchId/visit/:patientIdx/:visitIdx - 重新生成单个 visit
    */
-  router.put('/:batchId/visit/:patientIdx/:visitIdx', (req: Request, res: Response) => {
+  router.put('/:batchId/visit/:patientIdx/:visitIdx', async (req: Request, res: Response) => {
     try {
       const batchId = String(req.params.batchId)
-      const batch = getBatch(batchId)
+      const batch = await getBatch(batchId)
       if (!batch) {
         res.status(404).json({ success: false, error: 'Batch not found' })
         return
@@ -201,7 +201,7 @@ export function createBatchRouter(): Router {
         i === patientIdx ? { ...p, visits: updatedVisits } : p
       )
       const updatedBatch: BatchData = { ...batch, patients: updatedPatients }
-      saveBatch(updatedBatch)
+      await saveBatch(updatedBatch)
 
       res.json({
         success: true,
@@ -220,9 +220,9 @@ export function createBatchRouter(): Router {
   /**
    * POST /api/batch/:batchId/generate - 生成所有 SOAP (soap-only 模式)
    */
-  router.post('/:batchId/generate', (req: Request, res: Response) => {
+  router.post('/:batchId/generate', async (req: Request, res: Response) => {
     try {
-      const batch = getBatch(String(req.params.batchId))
+      const batch = await getBatch(String(req.params.batchId))
       if (!batch) {
         res.status(404).json({ success: false, error: 'Batch not found' })
         return
@@ -232,7 +232,7 @@ export function createBatchRouter(): Router {
       const disableChronicCapsGen = req.body?.disableChronicCaps === true || req.body?.disableChronicCaps === 'true'
       const result = generateMixedBatch(batch, realisticPatchGen, disableChronicCapsGen)
       const updatedBatch: BatchData = { ...batch, patients: result.patients }
-      saveBatch(updatedBatch)
+      await saveBatch(updatedBatch)
 
       res.json({
         success: true,
@@ -250,9 +250,9 @@ export function createBatchRouter(): Router {
   /**
    * POST /api/batch/:batchId/confirm - 确认 batch
    */
-  router.post('/:batchId/confirm', (req: Request, res: Response) => {
+  router.post('/:batchId/confirm', async (req: Request, res: Response) => {
     try {
-      const result = confirmBatch(String(req.params.batchId))
+      const result = await confirmBatch(String(req.params.batchId))
       if (!result) {
         res.status(404).json({ success: false, error: 'Batch not found' })
         return
