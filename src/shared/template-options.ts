@@ -1414,3 +1414,99 @@ export const TEMPLATE_TX_WHAT_CHANGED = [
   "difficulty in performing ADLs",
   "as last time visit",
 ] as const;
+
+// ─── TX Symptom Change (Subjective dropdown — 4 options) ─────────────
+
+export const TEMPLATE_TX_SYMPTOM_CHANGE = [
+  "improvement of symptom(s)",
+  "slight improvement of symptom(s)",
+  "exacerbate of symptom(s)",
+  "similar symptom(s) as last visit",
+  "improvement after treatment, but pain still came back next day",
+] as const;
+
+// ─── TX Connector (Subjective dropdown — 4 options) ──────────────────
+
+export const TEMPLATE_TX_CONNECTOR = [
+  "because of",
+  "may related of",
+  "due to",
+  "and",
+] as const;
+
+// ─── TX General Condition (Subjective dropdown — 3 options) ──────────
+
+export const TEMPLATE_TX_GENERAL_CONDITION = [
+  "good",
+  "fair",
+  "poor",
+] as const;
+
+// ─── TX Symptom Present (Assessment dropdown — 4 options) ────────────
+
+export const TEMPLATE_TX_SYMPTOM_PRESENT = [
+  "slight improvement of symptom(s).",
+  "improvement of symptom(s).",
+  "exacerbate of symptom(s).",
+  "no change.",
+] as const;
+
+// ─── TX Patient Change (Assessment dropdown — 5 options) ─────────────
+
+export const TEMPLATE_TX_PATIENT_CHANGE = [
+  "decreased",
+  "slightly decreased",
+  "increased",
+  "slight increased",
+  "remained the same",
+] as const;
+
+// ─── TX Physical Change (Assessment dropdown — 5 options) ────────────
+
+export const TEMPLATE_TX_PHYSICAL_CHANGE = [
+  "reduced",
+  "slightly reduced",
+  "increased",
+  "slight increased",
+  "remained the same",
+] as const;
+
+// ─── TX Finding Type (Assessment dropdown — 9 options) ───────────────
+
+export const TEMPLATE_TX_FINDING_TYPE = [
+  "local muscles tightness",
+  "local muscles tenderness",
+  "local muscles spasms",
+  "local muscles trigger points",
+  "joint ROM",
+  "joint ROM limitation",
+  "muscles strength",
+  "joints swelling",
+  "last visit",
+] as const;
+
+// ─── TX Tolerated (Assessment dropdown — 4 options) ──────────────────
+
+export const TEMPLATE_TX_TOLERATED = [
+  "session",
+  "treatment",
+  "acupuncture session",
+  "acupuncture treatment",
+] as const;
+
+// ─── TX Response (Assessment dropdown — 12 options) ──────────────────
+
+export const TEMPLATE_TX_RESPONSE = [
+  "well",
+  "with good positioning technique",
+  "with good draping technique",
+  "with positive verbal response",
+  "with good response",
+  "with positive response",
+  "with good outcome in reducing spasm",
+  "with excellent outcome due reducing pain",
+  "with good outcome in improving ROM",
+  "good outcome in improving ease with functional mobility",
+  "with increase ease with functional mobility",
+  "with increase ease with function",
+] as const;

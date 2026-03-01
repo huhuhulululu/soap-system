@@ -19,6 +19,13 @@ import {
   TEMPLATE_ADL,
   TEMPLATE_TX_REASON,
   TEMPLATE_TX_ADVERSE,
+  TEMPLATE_TX_WHAT_CHANGED,
+  TEMPLATE_TX_SYMPTOM_PRESENT,
+  TEMPLATE_TX_PATIENT_CHANGE,
+  TEMPLATE_TX_FINDING_TYPE,
+  TEMPLATE_TX_TOLERATED,
+  TEMPLATE_TX_RESPONSE,
+  TEMPLATE_TENDERNESS_SCALE,
   type BodyPartKey,
 } from "../shared/template-options";
 import { selectInitialMuscles, reduceMuscles } from "./muscle-selector";
@@ -365,26 +372,26 @@ export function deriveAssessmentFromSOA(input: {
     const parts: string[] = [];
 
     // Hard chain rule preserved: S frequency improved → A must mention "pain frequency"
-    if (input.frequencyImproved) parts.push("pain frequency");
+    if (input.frequencyImproved) parts.push(TEMPLATE_TX_WHAT_CHANGED[1]); // "pain frequency"
 
     // Pain improved
     if (input.painDelta > 0.3 && !input.frequencyImproved) {
-      parts.push("pain");
+      parts.push(TEMPLATE_TX_WHAT_CHANGED[0]); // "pain"
     }
 
     // ADL improved
     if (input.adlDelta > 0.2) {
-      parts.push("difficulty in performing ADLs");
+      parts.push(TEMPLATE_TX_WHAT_CHANGED[8]); // "difficulty in performing ADLs"
     }
 
     // S-side: symptomScale changed
     if (input.symptomScaleChanged) {
-      parts.push("muscles soreness sensation");
+      parts.push(TEMPLATE_TX_WHAT_CHANGED[5]); // "muscles soreness sensation"
     }
 
     // S-side: severity changed
     if (input.severityChanged) {
-      parts.push("muscles stiffness sensation");
+      parts.push(TEMPLATE_TX_WHAT_CHANGED[6]); // "muscles stiffness sensation"
     }
 
     // NECK-specific: dizziness/headache/migraine available when O-side improved
@@ -395,9 +402,9 @@ export function deriveAssessmentFromSOA(input: {
 
     if (input.bodyPart === "NECK" && hasStrongObjective && parts.length < 3) {
       const neckOptions = [
-        "muscles stiffness sensation",
-        "muscles weakness",
-        "numbness sensation",
+        TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
+        TEMPLATE_TX_WHAT_CHANGED[4], // "muscles weakness"
+        TEMPLATE_TX_WHAT_CHANGED[3], // "numbness sensation"
       ];
       parts.push(neckOptions[input.visitIndex % neckOptions.length]);
     }
@@ -405,13 +412,13 @@ export function deriveAssessmentFromSOA(input: {
     // Fallback: dimScore > 0 but no S-side parts collected (only O-side improved)
     // Use "pain" (valid TEMPLATE_TX_WHAT_CHANGED option) instead of "overall condition"
     if (parts.length === 0 && input.dimScore > 0) {
-      parts.push("pain");
+      parts.push(TEMPLATE_TX_WHAT_CHANGED[0]); // "pain"
     }
 
     // Fallback: dimScore === 0 (similar) → "as last time visit"
     // dimScore > 0 should have been caught above; this is a safety net
     if (parts.length === 0)
-      return input.dimScore === 0 ? "as last time visit" : "pain";
+      return input.dimScore === 0 ? TEMPLATE_TX_WHAT_CHANGED[9] : TEMPLATE_TX_WHAT_CHANGED[0];
 
     // Join: "pain frequency, difficulty in performing ADLs and muscles soreness sensation"
     if (parts.length === 1) return parts[0];
@@ -446,18 +453,18 @@ export function deriveAssessmentFromSOA(input: {
       !isLimitationOnly &&
         input.progress >= 0.6 &&
         input.cumulativePainDrop >= 2.0
-        ? "joint ROM"
-        : "joint ROM limitation",
+        ? TEMPLATE_TX_FINDING_TYPE[4] // "joint ROM"
+        : TEMPLATE_TX_FINDING_TYPE[5], // "joint ROM limitation"
     );
   }
   if (input.objectiveTightnessTrend !== "stable")
-    reduceParts.push("local muscles tightness");
+    reduceParts.push(TEMPLATE_TX_FINDING_TYPE[0]); // "local muscles tightness"
   if (input.objectiveTendernessTrend !== "stable")
-    reduceParts.push("local muscles tenderness");
+    reduceParts.push(TEMPLATE_TX_FINDING_TYPE[1]); // "local muscles tenderness"
   if (input.objectiveSpasmTrend !== "stable")
-    reduceParts.push("local muscles spasms");
+    reduceParts.push(TEMPLATE_TX_FINDING_TYPE[2]); // "local muscles spasms"
   if (input.objectiveStrengthTrend !== "stable")
-    increaseParts.push("muscles strength");
+    increaseParts.push(TEMPLATE_TX_FINDING_TYPE[6]); // "muscles strength"
 
   const reduceWord = strongPhysicalImprove ? "reduced" : "slightly reduced";
   const increaseWord = strongPhysicalImprove ? "increased" : "slight increased";
@@ -484,31 +491,14 @@ export function deriveAssessmentFromSOA(input: {
   const findingType = (() => {
     if (reduceParts.length > 0 && increaseParts.length > 0) return "";
     const allParts = [...reduceParts, ...increaseParts];
-    if (allParts.length === 0) return "joint ROM limitation";
+    if (allParts.length === 0) return TEMPLATE_TX_FINDING_TYPE[5]; // "joint ROM limitation"
     return joinParts(allParts);
   })();
 
   // Phase F: tolerated/response/adverseEffect 按 visitIndex 轮换
-  const TOLERATED_OPTIONS = [
-    "session",
-    "treatment",
-    "acupuncture session",
-    "acupuncture treatment",
-  ];
-  const RESPONSE_OPTIONS = [
-    "well",
-    "with good positioning technique",
-    "with good draping technique",
-    "with positive verbal response",
-    "with good response",
-    "with positive response",
-    "with good outcome in reducing spasm",
-    "with excellent outcome due reducing pain",
-    "with good outcome in improving ROM",
-    "good outcome in improving ease with functional mobility",
-    "with increase ease with functional mobility",
-    "with increase ease with function",
-  ];
+  // Use TEMPLATE constants as single source of truth
+  const TOLERATED_OPTIONS = [...TEMPLATE_TX_TOLERATED];
+  const RESPONSE_OPTIONS = [...TEMPLATE_TX_RESPONSE];
   // Template has single fixed adverse text — no rotation needed
 
   const tolerated =
@@ -1528,17 +1518,18 @@ export function generateTXSequenceStates(
 
     // Phase D: reason 轮换 — 避免总是同一个 reason
     const POSITIVE_REASONS_LIST = Array.from(POSITIVE_REASONS);
+    // Derive from TEMPLATE_TX_REASON (single source of truth)
     const NEUTRAL_REASONS = [
-      "continuous treatment",
-      "maintain regular treatments",
-      "still need more treatments to reach better effect",
-      "weak constitution",
+      TEMPLATE_TX_REASON[8],  // "continuous treatment"
+      TEMPLATE_TX_REASON[9],  // "maintain regular treatments"
+      TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
+      TEMPLATE_TX_REASON[11], // "weak constitution"
     ];
     const CAME_BACK_REASONS = [
-      "continuous treatment",
-      "discontinuous treatment",
-      "skipped treatments",
-      "stopped treatment for a while",
+      TEMPLATE_TX_REASON[8],  // "continuous treatment"
+      TEMPLATE_TX_REASON[14], // "discontinuous treatment"
+      TEMPLATE_TX_REASON[12], // "skipped treatments"
+      TEMPLATE_TX_REASON[13], // "stopped treatment for a while"
     ];
 
     let finalReason = reason;
@@ -1694,66 +1685,32 @@ export function generateTXSequenceStates(
     prevTightnessGrading = tightnessGrading;
 
     // --- Tenderness grading: goal-driven, derived from numeric nextTenderness ---
-    const SHOULDER_TENDERNESS_OPTIONS: Record<
-      string,
-      { order: number; text: string }
-    > = {
-      "+4": {
-        order: 4,
-        text: "(+4) = Patient complains of severe tenderness, withdraws immediately in response to test pressure, and is unable to bear sustained pressure",
-      },
-      "+3": {
-        order: 3,
-        text: "(+3) = Patient complains of considerable tenderness and withdraws momentarily in response to the test pressure",
-      },
-      "+2": {
-        order: 2,
-        text: "(+2) = Patient states that the area is moderately tender",
-      },
-      "+1": {
-        order: 1,
-        text: "(+1)=Patient states that the area is mildly tender-annoying",
-      },
+    // Use TEMPLATE_TENDERNESS_SCALE as single source of truth (covers all 7 body parts)
+    const bpTenderScale =
+      TEMPLATE_TENDERNESS_SCALE[context.primaryBodyPart as BodyPartKey] ||
+      TEMPLATE_TENDERNESS_SCALE.LBP;
+    // Helper: derive numeric order from grade key for comparison
+    const tenderGradeOrder = (grade: string): number => {
+      if (grade === "0") return 0;
+      const n = parseInt(grade.replace("+", ""), 10);
+      return isNaN(n) ? 2 : n;
     };
-    const KNEE_TENDERNESS_OPTIONS: Record<
-      string,
-      { order: number; text: string }
-    > = {
-      "+4": {
-        order: 4,
-        text: "(+4) = There is severe tenderness and withdrawal response from the patient when there is noxious stimulus",
-      },
-      "+3": {
-        order: 3,
-        text: "(+3) = There is severe tenderness with withdrawal",
-      },
-      "+2": {
-        order: 2,
-        text: "(+2) = There is mild tenderness with grimace and flinch to moderate palpation",
-      },
-      "+1": { order: 1, text: "(+1)= There is mild tenderness to palpation" },
-      "0": { order: 0, text: "(0) = No tenderness" },
-    };
-    const tenderOptions =
-      context.primaryBodyPart === "KNEE"
-        ? KNEE_TENDERNESS_OPTIONS
-        : SHOULDER_TENDERNESS_OPTIONS;
     // Consume rng() to maintain PRNG sequence (was used by old ceiling/jitter logic)
     rng();
     rng();
     // Map numeric nextTenderness to grade key
-    const targetTenderGrade = "+" + nextTenderness;
+    const targetTenderGrade = nextTenderness === 0 ? "0" : "+" + nextTenderness;
     let tendernessGrading =
-      tenderOptions[targetTenderGrade]?.text ||
-      tenderOptions["+2"]?.text ||
+      bpTenderScale[targetTenderGrade] ||
+      bpTenderScale["+2"] ||
       "(+2) = Patient states that the area is moderately tender";
     // 纵向约束: tenderness 不允许比上一次更差
     if (prevTendernessGrade !== "") {
-      const prevOrder = tenderOptions[prevTendernessGrade]?.order ?? 3;
-      const curOrder = tenderOptions[targetTenderGrade]?.order ?? 2;
+      const prevOrder = tenderGradeOrder(prevTendernessGrade);
+      const curOrder = tenderGradeOrder(targetTenderGrade);
       if (curOrder > prevOrder) {
         tendernessGrading =
-          tenderOptions[prevTendernessGrade]?.text || tendernessGrading;
+          bpTenderScale[prevTendernessGrade] || tendernessGrading;
         // 保持 prevTendernessGrade 不变 — 追踪实际显示的 grade
       } else {
         prevTendernessGrade = targetTenderGrade;

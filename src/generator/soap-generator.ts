@@ -47,6 +47,17 @@ import {
   TEMPLATE_TREATMENT_PURPOSE,
   TEMPLATE_TREATMENT_VERB,
   TEMPLATE_TX_VERB,
+  TEMPLATE_TX_REASON,
+  TEMPLATE_TX_WHAT_CHANGED,
+  TEMPLATE_TX_SYMPTOM_CHANGE,
+  TEMPLATE_TX_CONNECTOR,
+  TEMPLATE_TX_GENERAL_CONDITION,
+  TEMPLATE_TX_SYMPTOM_PRESENT,
+  TEMPLATE_TX_PATIENT_CHANGE,
+  TEMPLATE_TX_PHYSICAL_CHANGE,
+  TEMPLATE_TX_FINDING_TYPE,
+  TEMPLATE_TX_TOLERATED,
+  TEMPLATE_TX_RESPONSE,
   TEMPLATE_PAIN_TYPES,
 } from "../shared/template-options";
 import {
@@ -1802,146 +1813,41 @@ const TX_SYMPTOM_CHANGE_OPTIONS = [
   "improvement after treatment, but pain still came back next day",
 ];
 
-const TX_REASON_OPTIONS = [
-  "can move joint more freely and with less pain",
-  "physical activity no longer causes distress",
-  "reduced level of pain",
-  "reduced joint stiffness and swelling",
-  "less difficulty performing daily activities",
-  "energy level improved",
-  "sleep quality improved",
-  "more energy level throughout the day",
-  "continuous treatment",
-  "maintain regular treatments",
-  "still need more treatments to reach better effect",
-  "weak constitution",
-  "skipped treatments",
-  "stopped treatment for a while",
-  "discontinuous treatment",
-  "did not have good rest",
-  "intense work",
-  "excessive time using cell phone",
-  "excessive time using computer",
-  "bad posture",
-  "carrying/lifting heavy object(s)",
-  "lack of exercise",
-  "exposure to cold air",
-  "uncertain reason",
-];
+const TX_REASON_OPTIONS = [...TEMPLATE_TX_REASON];
 
-const TX_CONNECTOR_OPTIONS = ["because of", "may related of", "due to", "and"];
+const TX_CONNECTOR_OPTIONS = [...TEMPLATE_TX_CONNECTOR];
 
-const TX_GENERAL_CONDITION_OPTIONS = ["good", "fair", "poor"];
+const TX_GENERAL_CONDITION_OPTIONS = [...TEMPLATE_TX_GENERAL_CONDITION];
 
-const TX_SYMPTOM_PRESENT_OPTIONS = [
-  "slight improvement of symptom(s).",
-  "improvement of symptom(s).",
-  "exacerbate of symptom(s).",
-  "no change.",
-];
+const TX_SYMPTOM_PRESENT_OPTIONS = [...TEMPLATE_TX_SYMPTOM_PRESENT];
 
-const TX_PATIENT_CHANGE_OPTIONS = [
-  "decreased",
-  "slightly decreased",
-  "increased",
-  "slight increased",
-  "remained the same",
-];
+const TX_PATIENT_CHANGE_OPTIONS = [...TEMPLATE_TX_PATIENT_CHANGE];
 
-const TX_WHAT_CHANGED_OPTIONS = [
-  "pain",
-  "pain frequency",
-  "pain duration",
-  "numbness sensation",
-  "muscles weakness",
-  "muscles soreness sensation",
-  "muscles stiffness sensation",
-  "heaviness sensation",
-  "difficulty in performing ADLs",
-  "as last time visit",
-];
+const TX_WHAT_CHANGED_OPTIONS = [...TEMPLATE_TX_WHAT_CHANGED];
 
-const TX_PHYSICAL_CHANGE_OPTIONS = [
-  "reduced",
-  "slightly reduced",
-  "increased",
-  "slight increased",
-  "remained the same",
-];
+const TX_PHYSICAL_CHANGE_OPTIONS = [...TEMPLATE_TX_PHYSICAL_CHANGE];
 
-const TX_FINDING_TYPE_OPTIONS = [
-  "local muscles tightness",
-  "local muscles tenderness",
-  "local muscles spasms",
-  "local muscles trigger points",
-  "joint ROM",
-  "joint ROM limitation",
-  "muscles strength",
-  "joints swelling",
-  "last visit",
-];
+const TX_FINDING_TYPE_OPTIONS = [...TEMPLATE_TX_FINDING_TYPE];
 
-const TX_TOLERATED_OPTIONS = [
-  "session",
-  "treatment",
-  "acupuncture session",
-  "acupuncture treatment",
-];
+const TX_TOLERATED_OPTIONS = [...TEMPLATE_TX_TOLERATED];
 
-const TX_RESPONSE_OPTIONS = [
-  "well",
-  "with good positioning technique",
-  "with good draping technique",
-  "with positive verbal response",
-  "with good response",
-  "with positive response",
-  "with good outcome in reducing spasm",
-  "with excellent outcome due reducing pain",
-  "with good outcome in improving ROM",
-  "good outcome in improving ease with functional mobility",
-  "with increase ease with functional mobility",
-  "with increase ease with function",
-];
+const TX_RESPONSE_OPTIONS = [...TEMPLATE_TX_RESPONSE];
 
-const TX_POSITIVE_REASON_OPTIONS = [
-  "can move joint more freely and with less pain",
-  "physical activity no longer causes distress",
-  "reduced level of pain",
-  "reduced joint stiffness and swelling",
-  "less difficulty performing daily activities",
-  "energy level improved",
-  "sleep quality improved",
-  "more energy level throughout the day",
-];
+const TX_POSITIVE_REASON_OPTIONS = TEMPLATE_TX_REASON.slice(0, 8);
 
-const TX_NEGATIVE_REASON_OPTIONS = [
-  "still need more treatments to reach better effect",
-  "weak constitution",
-  "skipped treatments",
-  "stopped treatment for a while",
-  "discontinuous treatment",
-  "did not have good rest",
-  "intense work",
-  "excessive time using cell phone",
-  "excessive time using computer",
-  "bad posture",
-  "carrying/lifting heavy object(s)",
-  "lack of exercise",
-  "exposure to cold air",
-  "uncertain reason",
-];
+const TX_NEGATIVE_REASON_OPTIONS = TEMPLATE_TX_REASON.slice(10);
 
 const TX_MAINTENANCE_REASON_OPTIONS = [
-  "continuous treatment",
-  "maintain regular treatments",
-  "still need more treatments to reach better effect",
-  "uncertain reason",
+  TEMPLATE_TX_REASON[8],  // "continuous treatment"
+  TEMPLATE_TX_REASON[9],  // "maintain regular treatments"
+  TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
+  TEMPLATE_TX_REASON[23], // "uncertain reason"
 ];
 
 const TX_SIMILAR_REASON_OPTIONS = [
-  "continuous treatment",
-  "still need more treatments to reach better effect",
-  "uncertain reason",
+  TEMPLATE_TX_REASON[8],  // "continuous treatment"
+  TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
+  TEMPLATE_TX_REASON[23], // "uncertain reason"
 ];
 
 function applyTxReasonChain(
@@ -2013,24 +1919,6 @@ function applyTxReasonChain(
 
 // TX Plan 治则动词选项 — 使用 shared TEMPLATE_TX_VERB (来自模板 ppnSelectCombo)
 // "continue to be emphasize|emphasize|consist of promoting|promote|focus|pay attention"
-
-// TX Plan 治则选项 (比 IE 多一个 "drain the dampness, clear damp")
-const TX_TREATMENT_OPTIONS = [
-  "moving qi",
-  "regulates qi",
-  "activating Blood circulation to dissipate blood stagnant",
-  "dredging channel and activating collaterals",
-  "activate blood and relax tendons",
-  "eliminates accumulation",
-  "resolve stagnation, clears heat",
-  "promote circulation, relieves pain",
-  "expelling pathogens",
-  "dispelling cold, drain the dampness",
-  "strengthening muscles and bone",
-  "clear heat, dispelling the flame",
-  "clear damp-heat",
-  "drain the dampness, clear damp",
-];
 
 /**
  * 生成 TX Subjective 部分
