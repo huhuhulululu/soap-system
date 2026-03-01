@@ -1439,7 +1439,7 @@ onUnmounted(() => {
         <div
           v-for="(patient, pi) in patients"
           :key="pi"
-          class="card overflow-hidden"
+          class="card overflow-hidden patient-card"
         >
           <!-- Patient Header -->
           <button
@@ -1825,3 +1825,10 @@ onUnmounted(() => {
 
   </div>
 </template>
+
+<style scoped>
+.patient-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 80px;
+}
+</style>
