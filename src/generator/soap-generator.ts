@@ -59,6 +59,13 @@ import {
   TEMPLATE_TX_TOLERATED,
   TEMPLATE_TX_RESPONSE,
   TEMPLATE_PAIN_TYPES,
+  TEMPLATE_TONE_MAP,
+  TEMPLATE_ASSOCIATED_SYMPTOMS,
+  TEMPLATE_SYMPTOM_SCALE,
+  TEMPLATE_CAUSATIVE_CONNECTOR,
+  TEMPLATE_NOT_IMPROVED,
+  TEMPLATE_TENDERNESS_LABEL,
+  TEMPLATE_INSPECTION_DEFAULT,
 } from "../shared/template-options";
 import {
   hasTemplateROM,
@@ -428,226 +435,13 @@ const BODY_PART_AREA_NAMES: Record<string, string> = {
 /**
  * 关联症状默认值 (来自各模板 ppnSelectCombo)
  */
-const ASSOCIATED_SYMPTOMS_MAP: Record<string, string[]> = {
-  SHOULDER: ["soreness"],
-  KNEE: ["soreness", "heaviness"],
-  DEFAULT: ["soreness", "stiffness"],
-};
-
-/**
- * 症状百分比格式 (来自各模板 ppnSelectCombo)
- */
-const SYMPTOM_SCALE_MAP: Record<string, string> = {
-  SHOULDER: "70%",
-  KNEE: "70%-80%",
-  DEFAULT: "70%",
-};
-
-/**
- * 致因连接词 (来自各模板 ppnSelectComboSingle)
- */
-const CAUSATIVE_CONNECTOR_MAP: Record<string, string> = {
-  SHOULDER: "because of",
-  KNEE: "due to",
-  DEFAULT: "due to",
-};
-
-/**
- * 疼痛未改善原因 (来自各模板 ppnSelectCombo)
- */
-const NOT_IMPROVED_MAP: Record<string, string> = {
-  SHOULDER: "after a week",
-  KNEE: "over-the-counter pain medication",
-  DEFAULT: "after a week",
-};
-
-/**
- * Tenderness 评分量表标签 (来自各模板固定文本)
- */
-const TENDERNESS_LABEL_MAP: Record<string, string> = {
-  SHOULDER: "Grading Scale",
-  KNEE: "Tenderness Scale",
-  DEFAULT: "Grading Scale",
-};
-
-/**
- * Inspection 默认值 (来自各模板 ppnSelectCombo)
- */
-const INSPECTION_DEFAULT_MAP: Record<string, string> = {
-  SHOULDER: "weak muscles and dry skin without luster",
-  KNEE: "joint swelling",
-  DEFAULT: "weak muscles and dry skin without luster",
-};
-
-/* TREATMENT_VERB_MAP, HARMONIZE_MAP, TREATMENT_PURPOSE_MAP → replaced by TEMPLATE_* imports */
-
-/**
- * 舌脉模板映射 (来自 tone/ 文件夹的各模板)
- * 格式统一为: tongue\n[舌象]\npulse\n[脉象]
- */
-const TONE_MAP: Record<
-  string,
-  {
-    tongueDefault: string;
-    tongueOptions: string[];
-    pulseDefault: string;
-    pulseOptions: string[];
-  }
-> = {
-  // === 局部证型 (来自各 tone 模板) ===
-  "Qi Stagnation": {
-    tongueDefault: "thin white coat",
-    tongueOptions: ["thin white coat", "purplish dark", "purple spots", "dusk"],
-    pulseDefault: "string-taut",
-    pulseOptions: ["string-taut"],
-  },
-  "Liver Qi Stagnation": {
-    tongueDefault: "thin white coat",
-    tongueOptions: ["thin white coat", "purplish dark", "purple spots", "dusk"],
-    pulseDefault: "string-taut",
-    pulseOptions: ["string-taut"],
-  },
-  "Blood Stasis": {
-    tongueDefault: "purple",
-    tongueOptions: [
-      "purple",
-      "purple dark",
-      "purple edges",
-      "purple spots on side",
-    ],
-    pulseDefault: "deep",
-    pulseOptions: ["deep", "string-taut", "forceful", "hesitant"],
-  },
-  "Qi Stagnation, Blood Stasis": {
-    tongueDefault: "purple, thin white coat",
-    tongueOptions: [
-      "purple, thin white coat",
-      "purplish dark",
-      "purple spots",
-      "purple edges",
-    ],
-    pulseDefault: "string-taut",
-    pulseOptions: ["string-taut", "hesitant", "deep"],
-  },
-  "Blood Deficiency": {
-    tongueDefault: "pale, thin dry coat",
-    tongueOptions: ["pale, thin dry coat"],
-    pulseDefault: "hesitant",
-    pulseOptions: ["hesitant", "thready", "weak"],
-  },
-  "Qi & Blood Deficiency": {
-    tongueDefault: "pale, thin white coat",
-    tongueOptions: ["tooth marks", "pale, thin white coat"],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "weak", "slowing down", "forceless", "thin"],
-  },
-  "Wind-Cold Invasion": {
-    tongueDefault: "thin white coat",
-    tongueOptions: ["thin white coat"],
-    pulseDefault: "superficial, tense",
-    pulseOptions: ["superficial, tense"],
-  },
-  "Cold-Damp + Wind-Cold": {
-    tongueDefault: "thick, white coat",
-    tongueOptions: ["white coat", "slippery coat"],
-    pulseDefault: "deep",
-    pulseOptions: ["deep", "tense", "slow", "wiry"],
-  },
-  "LV/GB Damp-Heat": {
-    tongueDefault: "yellow, sticky (red), thick coat",
-    tongueOptions: ["yellow, sticky (red), thick coat"],
-    pulseDefault: "rolling rapid (forceful)",
-    pulseOptions: ["rolling rapid (forceful)", "rapid", "overflowing", "full"],
-  },
-  "Phlegm-Damp": {
-    tongueDefault: "big tongue with white sticky coat",
-    tongueOptions: ["big tongue with white sticky coat"],
-    pulseDefault: "string-taut",
-    pulseOptions: ["string-taut", "rolling", "soft"],
-  },
-  "Phlegm-Heat": {
-    tongueDefault: "yellow, sticky (red), thick coat",
-    tongueOptions: ["yellow, sticky (red), thick coat"],
-    pulseDefault: "rolling rapid (forceful)",
-    pulseOptions: ["rolling rapid (forceful)", "rapid", "overflowing", "full"],
-  },
-  "Damp-Heat": {
-    tongueDefault: "yellow, sticky (red), thick coat",
-    tongueOptions: ["yellow, sticky (red), thick coat"],
-    pulseDefault: "rolling rapid (forceful)",
-    pulseOptions: ["rolling rapid (forceful)", "rapid", "overflowing", "full"],
-  },
-  // === 整体证型 (来自各 tone 模板) ===
-  "Kidney Yang Deficiency": {
-    tongueDefault: "delicate, white coat",
-    tongueOptions: ["delicate", "pale", "swollen"],
-    pulseDefault: "deep",
-    pulseOptions: ["deep", "slow", "weak", "thready", "forceless"],
-  },
-  "Kidney Yin Deficiency": {
-    tongueDefault: "cracked",
-    tongueOptions: [
-      "cracked",
-      "rootless",
-      "red, little coat",
-      "moisture, furless",
-    ],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "rapid", "floating-empty"],
-  },
-  "Kidney Qi Deficiency": {
-    tongueDefault: "pale, thin white coat",
-    tongueOptions: ["tooth marks", "pale, thin white coat"],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "weak", "slowing down", "forceless", "thin"],
-  },
-  "Kidney Essence Deficiency": {
-    tongueDefault: "cracked",
-    tongueOptions: [
-      "cracked",
-      "rootless",
-      "red, little coat",
-      "moisture, furless",
-    ],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "rapid", "floating-empty"],
-  },
-  "Qi Deficiency": {
-    tongueDefault: "pale, thin white coat",
-    tongueOptions: ["tooth marks", "pale, thin white coat"],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "weak", "slowing down", "forceless", "thin"],
-  },
-  "Spleen Deficiency": {
-    tongueDefault: "pale, thin white coat",
-    tongueOptions: ["tooth marks", "pale, thin white coat"],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "weak", "slowing down", "forceless", "thin"],
-  },
-  "Liver Yang Rising": {
-    tongueDefault: "thin yellow",
-    tongueOptions: ["yellow", "white"],
-    pulseDefault: "superficial rapid",
-    pulseOptions: ["superficial rapid"],
-  },
-  "Yin Deficiency Fire": {
-    tongueDefault: "cracked",
-    tongueOptions: [
-      "cracked",
-      "rootless",
-      "red, little coat",
-      "moisture, furless",
-    ],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "rapid", "floating-empty"],
-  },
-  "LU & KI Deficiency": {
-    tongueDefault: "pale, thin white coat",
-    tongueOptions: ["tooth marks", "pale, thin white coat"],
-    pulseDefault: "thready",
-    pulseOptions: ["thready", "weak", "slowing down", "forceless", "thin"],
-  },
-};
+const TONE_MAP = TEMPLATE_TONE_MAP;
+const ASSOCIATED_SYMPTOMS_MAP = TEMPLATE_ASSOCIATED_SYMPTOMS;
+const SYMPTOM_SCALE_MAP = TEMPLATE_SYMPTOM_SCALE;
+const CAUSATIVE_CONNECTOR_MAP = TEMPLATE_CAUSATIVE_CONNECTOR;
+const NOT_IMPROVED_MAP = TEMPLATE_NOT_IMPROVED;
+const TENDERNESS_LABEL_MAP = TEMPLATE_TENDERNESS_LABEL;
+const INSPECTION_DEFAULT_MAP = TEMPLATE_INSPECTION_DEFAULT;
 
 /**
  * 辅助函数：获取配置值，按身体部位查找，回退到 DEFAULT
@@ -1833,18 +1627,18 @@ const TX_TOLERATED_OPTIONS = [...TEMPLATE_TX_TOLERATED];
 
 const TX_RESPONSE_OPTIONS = [...TEMPLATE_TX_RESPONSE];
 
-const TX_POSITIVE_REASON_OPTIONS = TEMPLATE_TX_REASON.slice(0, 8);
+const TX_POSITIVE_REASON_OPTIONS: readonly string[] = TEMPLATE_TX_REASON.slice(0, 8);
 
-const TX_NEGATIVE_REASON_OPTIONS = TEMPLATE_TX_REASON.slice(10);
+const TX_NEGATIVE_REASON_OPTIONS: readonly string[] = TEMPLATE_TX_REASON.slice(10);
 
-const TX_MAINTENANCE_REASON_OPTIONS = [
+const TX_MAINTENANCE_REASON_OPTIONS: readonly string[] = [
   TEMPLATE_TX_REASON[8],  // "continuous treatment"
   TEMPLATE_TX_REASON[9],  // "maintain regular treatments"
   TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
   TEMPLATE_TX_REASON[23], // "uncertain reason"
 ];
 
-const TX_SIMILAR_REASON_OPTIONS = [
+const TX_SIMILAR_REASON_OPTIONS: readonly string[] = [
   TEMPLATE_TX_REASON[8],  // "continuous treatment"
   TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
   TEMPLATE_TX_REASON[23], // "uncertain reason"

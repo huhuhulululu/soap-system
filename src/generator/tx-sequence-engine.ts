@@ -26,6 +26,7 @@ import {
   TEMPLATE_TX_TOLERATED,
   TEMPLATE_TX_RESPONSE,
   TEMPLATE_TENDERNESS_SCALE,
+  TEMPLATE_TONE_MAP,
   type BodyPartKey,
 } from "../shared/template-options";
 import { selectInitialMuscles, reduceMuscles } from "./muscle-selector";
@@ -888,61 +889,14 @@ export function generateTXSequenceStates(
 
   // === tonguePulse: 从 IE 继承或从 localPattern 推导（与 IE 生成器使用相同的 TONE_MAP 值） ===
   // 舌脉是患者体质的固定属性，TX 访问应与 IE 保持一致
-  const PATTERN_TONGUE_DEFAULTS: Record<
-    string,
-    { tongue: string; pulse: string }
-  > = {
-    // === 局部证型 ===
-    "Qi Stagnation": { tongue: "thin white coat", pulse: "string-taut" },
-    "Liver Qi Stagnation": { tongue: "thin white coat", pulse: "string-taut" },
-    "Blood Stasis": { tongue: "purple", pulse: "deep" },
-    "Qi Stagnation, Blood Stasis": {
-      tongue: "purple, thin white coat",
-      pulse: "string-taut",
-    },
-    "Blood Deficiency": { tongue: "pale, thin dry coat", pulse: "hesitant" },
-    "Qi & Blood Deficiency": {
-      tongue: "pale, thin white coat",
-      pulse: "thready",
-    },
-    "Wind-Cold Invasion": {
-      tongue: "thin white coat",
-      pulse: "superficial, tense",
-    },
-    "Cold-Damp + Wind-Cold": { tongue: "thick, white coat", pulse: "deep" },
-    "LV/GB Damp-Heat": {
-      tongue: "yellow, sticky (red), thick coat",
-      pulse: "rolling rapid (forceful)",
-    },
-    "Phlegm-Damp": {
-      tongue: "big tongue with white sticky coat",
-      pulse: "string-taut",
-    },
-    "Phlegm-Heat": {
-      tongue: "yellow, sticky (red), thick coat",
-      pulse: "rolling rapid (forceful)",
-    },
-    "Damp-Heat": {
-      tongue: "yellow, sticky (red), thick coat",
-      pulse: "rolling rapid (forceful)",
-    },
-    // === 整体证型 ===
-    "Kidney Yang Deficiency": { tongue: "delicate, white coat", pulse: "deep" },
-    "Kidney Yin Deficiency": { tongue: "cracked", pulse: "thready" },
-    "Kidney Qi Deficiency": {
-      tongue: "pale, thin white coat",
-      pulse: "thready",
-    },
-    "Kidney Essence Deficiency": { tongue: "cracked", pulse: "thready" },
-    "Qi Deficiency": { tongue: "pale, thin white coat", pulse: "thready" },
-    "Spleen Deficiency": { tongue: "pale, thin white coat", pulse: "thready" },
-    "Liver Yang Rising": { tongue: "thin yellow", pulse: "superficial rapid" },
-    "Yin Deficiency Fire": { tongue: "cracked", pulse: "thready" },
-    "LU & KI Deficiency": {
-      tongue: "pale, thin white coat",
-      pulse: "thready",
-    },
-  };
+  // 从 TEMPLATE_TONE_MAP 派生 defaults，消除与 soap-generator 的数据重复
+  const PATTERN_TONGUE_DEFAULTS: Record<string, { tongue: string; pulse: string }> =
+    Object.fromEntries(
+      Object.entries(TEMPLATE_TONE_MAP).map(([k, v]) => [
+        k,
+        { tongue: v.tongueDefault, pulse: v.pulseDefault },
+      ]),
+    );
   const fixedTonguePulse: { tongue: string; pulse: string } = (() => {
     const ieTonguePulse = context.previousIE?.objective?.tonguePulse;
     if (ieTonguePulse?.tongue && ieTonguePulse?.pulse) {
