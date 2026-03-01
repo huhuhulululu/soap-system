@@ -1,6 +1,50 @@
 import { extractPdfText } from './pdf-extractor'
-import { parseOptumNote } from '../../../parsers/optum-note/parser.ts'
-import { checkDocument } from '../../../parsers/optum-note/checker/note-checker.ts'
+
+let worker = null
+
+function getWorker() {
+  if (!worker) {
+    worker = new Worker(new URL('../workers/checker.worker.js', import.meta.url), { type: 'module' })
+  }
+  return worker
+}
+
+function checkInWorker(text, options) {
+  return new Promise((resolve, reject) => {
+    const w = getWorker()
+    const timeout = setTimeout(() => {
+      reject(new Error('Checker worker timed out'))
+    }, 30_000)
+
+    const handler = (e) => {
+      clearTimeout(timeout)
+      w.removeEventListener('message', handler)
+      w.removeEventListener('error', errorHandler)
+
+      if (e.data.type === 'result') {
+        resolve({
+          report: e.data.report,
+          visitTexts: e.data.visitTexts,
+          document: e.data.document,
+        })
+      } else {
+        reject(new Error(e.data.error ?? 'Worker returned no result'))
+      }
+    }
+
+    const errorHandler = (e) => {
+      clearTimeout(timeout)
+      w.removeEventListener('message', handler)
+      w.removeEventListener('error', errorHandler)
+      reject(new Error(e.message))
+    }
+
+    w.addEventListener('message', handler)
+    w.addEventListener('error', errorHandler)
+
+    w.postMessage({ type: 'check', text, options })
+  })
+}
 
 function toUiTrend(direction) {
   if (direction === '↓') return 'improving'
@@ -97,15 +141,22 @@ function ensureHeader(text) {
 async function validateFile(file, options = {}) {
   const rawText = await extractPdfText(file)
   const text = ensureHeader(rawText)
-  const parsed = parseOptumNote(text)
-  if (!parsed.success || !parsed.document) {
-    const reason = parsed.errors?.map(e => `${e.field}: ${e.message}`).join(' | ') || 'Unknown parse failure'
-    throw new Error(`解析失败: ${reason}`)
-  }
 
-  const report = checkDocument({ document: parsed.document, insuranceType: options.insuranceType, treatmentTime: options.treatmentTime })
-  const visitTexts = parsed.document.rawVisitBlocks || []
-  return normalizeReport(report, visitTexts, parsed.document)
+  try {
+    const { report, visitTexts, document } = await checkInWorker(text, options)
+    return normalizeReport(report, visitTexts, document)
+  } catch {
+    const { parseOptumNote } = await import('../../../parsers/optum-note/parser.ts')
+    const { checkDocument } = await import('../../../parsers/optum-note/checker/note-checker.ts')
+    const parsed = parseOptumNote(text)
+    if (!parsed.success || !parsed.document) {
+      const reason = parsed.errors?.map(e => `${e.field}: ${e.message}`).join(' | ') || 'Unknown parse failure'
+      throw new Error(`解析失败: ${reason}`)
+    }
+    const report = checkDocument({ document: parsed.document, insuranceType: options.insuranceType, treatmentTime: options.treatmentTime })
+    const visitTexts = parsed.document.rawVisitBlocks || []
+    return normalizeReport(report, visitTexts, parsed.document)
+  }
 }
 
 async function validateFiles(files) {

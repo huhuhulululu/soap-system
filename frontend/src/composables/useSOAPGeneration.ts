@@ -1,6 +1,9 @@
 /**
  * 编写页 SOAP 生成与复制 composable
  * 从 WriterView 提取：generationContext、generate、generatedNotes、seed、复制函数
+ *
+ * Generation runs in a Web Worker by default (non-blocking UI).
+ * Falls back to main-thread sync generation if the worker fails.
  */
 import { ref, computed, type Ref, type ComputedRef } from "vue";
 import { generateTXSequenceStates } from "../../../src/generator/tx-sequence-engine.ts";
@@ -17,6 +20,7 @@ import {
   type ValidationResult,
   type VisitSnapshot,
 } from "../../../src/shared/soap-constraints.ts";
+import { generateInWorker } from "../services/soap-worker-bridge";
 
 export interface UseSOAPGenerationOptions {
   fields: Record<string, string | string[]>;
@@ -62,15 +66,16 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
   const ieTxCount = options.ieTxCount;
   const realisticPatch = options.realisticPatch;
 
-  const normalized = computed(() => {
-    const input: NormalizeInput = {
+  /* ── helpers ── */
+
+  function buildNormalizeInput(): NormalizeInput {
+    return {
       noteType: noteType.value as NormalizeInput["noteType"],
       insuranceType: insuranceType.value as NormalizeInput["insuranceType"],
       primaryBodyPart: bodyPart.value as NormalizeInput["primaryBodyPart"],
       laterality: laterality.value as NormalizeInput["laterality"],
       painCurrent: currentPain.value,
       severityLevel: derivedSeverity.value as NormalizeInput["severityLevel"],
-      // Compose user selections override TCM inference
       localPattern:
         (fields["assessment.tcmDiagnosis.localPattern"] as string) || undefined,
       systemicPattern:
@@ -78,7 +83,6 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
         undefined,
       chronicityLevel: ((fields["subjective.chronicityLevel"] as string) ||
         "Chronic") as NormalizeInput["chronicityLevel"],
-      // REAL-01: realistic toggle controls chronic caps — when realistic is OFF, disable chronic caps
       disableChronicCaps: !(realisticPatch?.value ?? true),
       painWorst:
         parseInt(
@@ -128,8 +132,11 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
       secondaryBodyParts: [...secondaryBodyParts.value],
       medicalHistory: medicalHistory.value,
     };
-    return normalizeGenerationContext(input);
-  });
+  }
+
+  const normalized = computed(() =>
+    normalizeGenerationContext(buildNormalizeInput()),
+  );
 
   const generationContext = computed(() => normalized.value.context);
 
@@ -142,6 +149,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
   const seedCopied = ref(false);
   const generationError = ref("");
   const validationResult = ref<ValidationResult | null>(null);
+  const isGenerating = ref(false);
 
   function runValidation(
     states: Parameters<typeof visitStateToSnapshot>[0][],
@@ -154,13 +162,68 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     validationResult.value = validateGeneratedSequence(snapshots, ctxSnap);
   }
 
-  function generate(useSeed?: number) {
+  /** Synchronous main-thread generation (fallback path). */
+  function generateSync(useSeed?: number) {
+    const { context: ctx, initialState } = normalized.value;
+    const txCtx = { ...ctx, noteType: "TX" as const };
+    const usePatch = realisticPatch?.value ?? false;
+    const mayPatch = (text: string, c: typeof ctx, vs?: any) =>
+      usePatch ? patchSOAPText(text, c as any, vs) : text;
+    const seed =
+      useSeed != null
+        ? useSeed
+        : seedInput.value
+          ? parseInt(seedInput.value, 10) || undefined
+          : undefined;
+
+    if (noteType.value === "IE") {
+      const ieText = mayPatch(exportSOAPAsText(ctx, {}), ctx);
+      const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
+        txCount: ieTxCount ? ieTxCount.value : 11,
+        startVisitIndex: 1,
+        seed,
+        initialState,
+      });
+      currentSeed.value = actualSeed;
+      generatedNotes.value = [
+        { visitIndex: 0, text: ieText, type: "IE", state: null },
+        ...states.map((state) => ({
+          visitIndex: state.visitIndex,
+          text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
+          type: "TX",
+          state,
+        })),
+      ];
+      runValidation(states, ctx);
+    } else {
+      const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
+        txCount: txCount.value,
+        startVisitIndex: 1,
+        seed,
+        initialState,
+      });
+      currentSeed.value = actualSeed;
+      generatedNotes.value = states.map((state) => ({
+        visitIndex: state.visitIndex,
+        text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
+        type: "TX",
+        state,
+        _open: false,
+      }));
+      runValidation(states, ctx);
+    }
+  }
+
+  /**
+   * Primary generation entry point.
+   * Tries Web Worker first; falls back to main-thread sync on failure.
+   */
+  async function generate(useSeed?: number) {
+    if (isGenerating.value) return;
+    isGenerating.value = true;
+    generationError.value = "";
+
     try {
-      const { context: ctx, initialState } = normalized.value;
-      const txCtx = { ...ctx, noteType: "TX" as const };
-      const usePatch = realisticPatch?.value ?? false;
-      const mayPatch = (text: string, c: typeof ctx, vs?: any) =>
-        usePatch ? patchSOAPText(text, c as any, vs) : text;
       const seed =
         useSeed != null
           ? useSeed
@@ -168,41 +231,27 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
             ? parseInt(seedInput.value, 10) || undefined
             : undefined;
 
-      if (noteType.value === "IE") {
-        const ieText = mayPatch(exportSOAPAsText(ctx, {}), ctx);
-        const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
-          txCount: ieTxCount ? ieTxCount.value : 11,
-          startVisitIndex: 1,
-          seed,
-          initialState,
-        });
-        currentSeed.value = actualSeed;
-        generatedNotes.value = [
-          { visitIndex: 0, text: ieText, type: "IE", state: null },
-          ...states.map((state) => ({
-            visitIndex: state.visitIndex,
-            text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
-            type: "TX",
-            state,
-          })),
-        ];
-        runValidation(states, ctx);
-      } else {
-        const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
+      try {
+        const result = await generateInWorker({
+          input: buildNormalizeInput(),
+          noteType: noteType.value,
           txCount: txCount.value,
-          startVisitIndex: 1,
           seed,
-          initialState,
+          realisticPatch: realisticPatch?.value ?? false,
+          ieTxCount: ieTxCount?.value,
         });
-        currentSeed.value = actualSeed;
-        generatedNotes.value = states.map((state) => ({
-          visitIndex: state.visitIndex,
-          text: mayPatch(exportSOAPAsText(txCtx, state), txCtx, state),
-          type: "TX",
-          state,
-          _open: false,
-        }));
-        runValidation(states, ctx);
+
+        currentSeed.value = result.seed;
+        generatedNotes.value = [...result.notes];
+        if (result.states.length > 0) {
+          runValidation(
+            result.states as Parameters<typeof visitStateToSnapshot>[0][],
+            generationContext.value,
+          );
+        }
+      } catch {
+        // Worker failed — fall back to synchronous main-thread generation
+        generateSync(useSeed);
       }
     } catch (e) {
       validationResult.value = null;
@@ -210,6 +259,8 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
       setTimeout(() => {
         generationError.value = "";
       }, 5000);
+    } finally {
+      isGenerating.value = false;
     }
   }
 
@@ -309,6 +360,7 @@ export function useSOAPGeneration(options: UseSOAPGenerationOptions) {
     seedInput,
     seedCopied,
     copiedSection,
+    isGenerating,
     generate,
     copySeed,
     regenerate,
