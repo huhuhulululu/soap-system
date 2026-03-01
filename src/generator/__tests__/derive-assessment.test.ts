@@ -111,8 +111,8 @@ describe("deriveAssessmentFromSOA", () => {
         objectiveRomTrend: "improved",
         objectiveTightnessTrend: "reduced",
       });
-      // With no S-side signals, only O-side improved → fallback to "overall condition"
-      expect(result.whatChanged).toBe("overall condition");
+      // With no S-side signals, only O-side improved → fallback to "pain" (valid template option)
+      expect(result.whatChanged).toBe("pain");
     });
 
     it('falls back to "pain" when no strong signal', () => {

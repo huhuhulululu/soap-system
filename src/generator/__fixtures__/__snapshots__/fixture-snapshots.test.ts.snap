@@ -38,7 +38,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs and muscles soreness sensation, physical finding has reduced joint ROM limitation, local muscles tenderness and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and muscles soreness sensation, physical finding has reduced joint ROM limitation, local muscles tenderness and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -202,7 +202,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -256,7 +256,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture session with good draping technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture session with good draping technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -310,7 +310,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles tenderness. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles tenderness. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -364,7 +364,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -526,7 +526,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -742,7 +742,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has increased muscles strength. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has increased muscles strength. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -958,7 +958,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has remained the same joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has remained the same joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -1012,7 +1012,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -1066,7 +1066,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has remained the same joint ROM limitation. Patient tolerated treatment with positive response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has remained the same joint ROM limitation. Patient tolerated treatment with positive response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -1249,7 +1249,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: ELBOW-left-mid-10tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of holding the pot for cooking, performing household chores and mild to moderate difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 5 /10
@@ -1284,7 +1284,7 @@ string-taut
 
 Assessment
 The patient continues treatment for elbow area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -1303,7 +1303,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of holding the pot for cooking, performing household chores and mild to moderate difficulty of working long time in front of computer, long hours of driving, pushing/pulling cart, box, door.
 
 Pain Scale: 5 /10
@@ -1828,7 +1828,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs and muscles soreness sensation, physical finding has reduced joint ROM limitation, local muscles tenderness and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and muscles soreness sensation, physical finding has reduced joint ROM limitation, local muscles tenderness and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -1849,7 +1849,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: KNEE-left-realisticpatch-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of less difficulty performing daily activities .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8 /10
@@ -1881,7 +1881,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain frequency, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -1951,7 +1951,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8 /10
@@ -1983,7 +1983,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles tenderness. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles tenderness. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -2002,7 +2002,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8-7 /10
@@ -2391,7 +2391,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -2463,7 +2463,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: KNEE-right-early-3tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) due to reduced level of pain .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 9-8 /10
@@ -2495,7 +2495,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation, local muscles tightness and local muscles tenderness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation, local muscles tightness and local muscles tenderness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -2701,7 +2701,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -2752,7 +2752,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -2803,7 +2803,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated session with good response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated session with good response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -3109,7 +3109,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tenderness. Patient tolerated acupuncture session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tenderness. Patient tolerated acupuncture session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -3570,7 +3570,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right knee area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased difficulty in performing ADLs, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4085,7 +4085,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs and muscles soreness sensation, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and muscles soreness sensation, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4249,7 +4249,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased difficulty in performing ADLs, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4303,7 +4303,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture session with good draping technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture session with good draping technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4357,7 +4357,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4411,7 +4411,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4573,7 +4573,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles tenderness and increased muscles strength. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles tenderness and increased muscles strength. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -4951,7 +4951,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tenderness. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tenderness. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -5005,7 +5005,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -5275,7 +5275,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -5385,7 +5385,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles tightness and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles tightness and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -6035,7 +6035,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is fair, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is fair, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -6089,7 +6089,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is fair, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is fair, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -6467,7 +6467,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is fair, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles spasms. Patient tolerated acupuncture session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is fair, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles spasms. Patient tolerated acupuncture session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -6521,7 +6521,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is fair, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is fair, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -6631,7 +6631,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain frequency, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -7227,7 +7227,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -7281,7 +7281,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -7335,7 +7335,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -7389,7 +7389,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -7497,7 +7497,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8037,7 +8037,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8199,7 +8199,7 @@ string-taut
 
 Assessment
 The patient continues treatment for lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tenderness. Patient tolerated session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tenderness. Patient tolerated session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8220,7 +8220,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: MID_LOW_BACK-bilateral-early-3tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of less difficulty performing daily activities .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 7-6 /10
@@ -8255,7 +8255,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8384,7 +8384,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: MID_LOW_BACK-bilateral-late-20tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Rising from a chair, Going up and down stairs.
 
 Pain Scale: 7 /10
@@ -8419,7 +8419,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8473,7 +8473,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8492,7 +8492,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Rising from a chair, Going up and down stairs.
 
 Pain Scale: 7 /10
@@ -8527,7 +8527,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8581,7 +8581,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated session with good response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated session with good response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -8600,7 +8600,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Rising from a chair, Going up and down stairs.
 
 Pain Scale: 7 /10
@@ -8708,7 +8708,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 7-6 /10
@@ -8816,7 +8816,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 5 /10
@@ -9175,7 +9175,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has remained the same joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has remained the same joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -9283,7 +9283,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -9501,7 +9501,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased difficulty in performing ADLs, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -9825,7 +9825,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle and lower back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced joint ROM and local muscles tenderness. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced joint ROM and local muscles tenderness. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10041,7 +10041,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain frequency, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10093,7 +10093,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10457,7 +10457,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has slightly reduced joint ROM. Patient tolerated treatment with positive verbal response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has slightly reduced joint ROM. Patient tolerated treatment with positive verbal response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10613,7 +10613,7 @@ string-taut
 
 Assessment
 The patient continues treatment for middle back area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in reducing spasm. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in reducing spasm. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10669,7 +10669,7 @@ string-taut
 
 Assessment
 Patient continue treatment for neck area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation and local muscles tightness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation and local muscles tightness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10688,7 +10688,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of less difficulty performing daily activities .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5-4 /10
@@ -10833,7 +10833,7 @@ string-taut
 
 Assessment
 Patient continue treatment for neck area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10941,7 +10941,7 @@ string-taut
 
 Assessment
 Patient continue treatment for neck area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture treatment with positive verbal response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -10995,7 +10995,7 @@ string-taut
 
 Assessment
 Patient continue treatment for neck area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated session with good response. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated session with good response. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -11880,7 +11880,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: NECK-bilateral-mid-8tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate difficulty of looking down watching steps, turning the head when crossing the street and moderate difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 6 /10
@@ -11915,7 +11915,7 @@ string-taut
 
 Assessment
 Patient continue treatment for neck area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased difficulty in performing ADLs and muscles weakness, physical finding has reduced joint ROM limitation and local muscles tenderness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased muscles weakness, physical finding has reduced joint ROM limitation and local muscles tenderness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -11934,7 +11934,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty of looking down watching steps, turning the head when crossing the street and moderate difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 6 /10
@@ -12314,7 +12314,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: NECK-bilateral-pacemaker-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to less difficulty performing daily activities .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of looking down watching steps, turning the head when crossing the street and moderate to severe difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 8 /10
@@ -12349,7 +12349,7 @@ string-taut
 
 Assessment
 Patient continue treatment for neck area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain frequency, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -12368,7 +12368,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of looking down watching steps, turning the head when crossing the street and moderate to severe difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 8 /10
@@ -12476,7 +12476,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty of looking down watching steps, turning the head when crossing the street and moderate to severe difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 8-7 /10
@@ -12584,7 +12584,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) because of reduced level of pain .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty of looking down watching steps, turning the head when crossing the street and moderate difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 6 /10
@@ -12638,7 +12638,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5 /10
@@ -12692,7 +12692,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of looking down watching steps, turning the head when crossing the street and mild difficulty of tilting head to talking the phone, driving, gargling.
 
 Pain Scale: 5 /10
@@ -13007,7 +13007,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs and muscles soreness sensation, physical finding has reduced joint ROM limitation and local muscles tenderness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency and muscles soreness sensation, physical finding has reduced joint ROM limitation and local muscles tenderness and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -13195,7 +13195,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -13257,7 +13257,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture session with good draping technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated acupuncture session with good draping technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -13443,7 +13443,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -14001,7 +14001,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness and local muscles tenderness. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness and local muscles tenderness. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -14125,7 +14125,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -14270,7 +14270,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: SHOULDER-bilateral-mid-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 8 /10
@@ -14313,7 +14313,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased difficulty in performing ADLs, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -14332,7 +14332,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 8 /10
@@ -15059,7 +15059,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles tightness. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles tightness. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -15121,7 +15121,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -15679,7 +15679,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in bilateral shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced local muscles tightness. Patient tolerated acupuncture treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -15797,7 +15797,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, difficulty in performing ADLs, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain frequency, muscles soreness sensation and muscles stiffness sensation, physical finding has reduced joint ROM limitation and local muscles spasms and increased muscles strength. Patient tolerated treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -15961,7 +15961,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -16069,7 +16069,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles spasms. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -16123,7 +16123,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated session with increase ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -16663,7 +16663,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tenderness and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tenderness and increased muscles strength. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -16825,7 +16825,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles spasms. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles spasms. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -16879,7 +16879,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated acupuncture session with good outcome in reducing spasm. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated acupuncture session with good outcome in reducing spasm. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -16987,7 +16987,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -17008,7 +17008,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: SHOULDER-left-mid-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of less difficulty performing daily activities .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 7 /10
@@ -17043,7 +17043,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased difficulty in performing ADLs, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has slightly reduced joint ROM limitation. Patient tolerated treatment with good positioning technique. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -17062,7 +17062,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 7 /10
@@ -17116,7 +17116,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty of performing household chores, put on/take off the clothes and moderate to severe difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 7 /10
@@ -17170,7 +17170,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty of performing household chores, put on/take off the clothes and moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 7-6 /10
@@ -17278,7 +17278,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced level of pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty of performing household chores, put on/take off the clothes and mild to moderate difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 5 /10
@@ -17332,7 +17332,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 4 /10
@@ -17386,7 +17386,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of reduced level of pain .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 4-3 /10
@@ -17440,7 +17440,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -17494,7 +17494,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -17602,7 +17602,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of performing household chores, put on/take off the clothes and mild difficulty of reach top of cabinet to get object(s), raising up the hand to comb hair, holding the pot for cooking.
 
 Pain Scale: 3 /10
@@ -17637,7 +17637,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in left shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in reducing spasm. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles tightness. Patient tolerated session with good outcome in reducing spasm. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -17747,7 +17747,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and local muscles tightness. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and local muscles tightness. Patient tolerated acupuncture session with good outcome in improving ROM. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -17801,7 +17801,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -17909,7 +17909,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation. Patient tolerated treatment with increase ease with function. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -18017,7 +18017,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased overall condition, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with slight improvement of symptom(s). The patient has slightly decreased pain, physical finding has reduced joint ROM limitation and increased muscles strength. Patient tolerated acupuncture treatment with excellent outcome due reducing pain. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan
@@ -18449,7 +18449,7 @@ string-taut
 
 Assessment
 The patient continues treatment for in right shoulder area today.
-The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased overall condition, physical finding has reduced local muscles spasms. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
+The patient's general condition is good, compared with last treatment, the patient presents with improvement of symptom(s). The patient has decreased pain, physical finding has reduced local muscles spasms. Patient tolerated acupuncture treatment good outcome in improving ease with functional mobility. No adverse side effect post treatment.
 Current patient still has Qi Stagnation in local meridian that cause the pain.
 
 Plan

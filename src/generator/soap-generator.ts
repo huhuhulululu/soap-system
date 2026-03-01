@@ -47,6 +47,7 @@ import {
   TEMPLATE_TREATMENT_PURPOSE,
   TEMPLATE_TREATMENT_VERB,
   TEMPLATE_TX_VERB,
+  TEMPLATE_PAIN_TYPES,
 } from "../shared/template-options";
 import {
   hasTemplateROM,
@@ -674,21 +675,10 @@ export function generateSubjective(context: GenerationContext): string {
     context.medicalHistory && context.medicalHistory.length > 0
       ? context.medicalHistory.join(", ")
       : "N/A";
-  // 根据证型选择疼痛类型
+  // 根据证型选择疼痛类型 — 使用模板权威源（ELBOW 不含 pin & needles）
   const painTypeOptions = [
-    "Dull",
-    "Burning",
-    "Freezing",
-    "Shooting",
-    "Tingling",
-    "Stabbing",
-    "Aching",
-    "Squeezing",
-    "Cramping",
-    "pricking",
-    "weighty",
-    "cold",
-    "pin & needles",
+    ...TEMPLATE_PAIN_TYPES[context.primaryBodyPart as BodyPartKey] ||
+      TEMPLATE_PAIN_TYPES.LBP,
   ];
   const weightContext: WeightContext = {
     bodyPart: context.primaryBodyPart,
@@ -2105,21 +2095,10 @@ export function generateSubjectiveTX(
   const selectedReason =
     visitState?.reason || selectBestOption(reasonWithChain);
 
-  // Pain Types: visitState > context > 权重系统
+  // Pain Types: visitState > context > 权重系统 — 使用模板权威源
   const painTypeOptions = [
-    "Dull",
-    "Burning",
-    "Freezing",
-    "Shooting",
-    "Tingling",
-    "Stabbing",
-    "Aching",
-    "Squeezing",
-    "Cramping",
-    "pricking",
-    "weighty",
-    "cold",
-    "pin & needles",
+    ...TEMPLATE_PAIN_TYPES[context.primaryBodyPart as BodyPartKey] ||
+      TEMPLATE_PAIN_TYPES.LBP,
   ];
   const selectedPainTypes =
     visitState?.painTypes ??

@@ -403,9 +403,9 @@ export function deriveAssessmentFromSOA(input: {
     }
 
     // Fallback: dimScore > 0 but no S-side parts collected (only O-side improved)
-    // Use "overall condition" instead of misleading "pain"
+    // Use "pain" (valid TEMPLATE_TX_WHAT_CHANGED option) instead of "overall condition"
     if (parts.length === 0 && input.dimScore > 0) {
-      parts.push("overall condition");
+      parts.push("pain");
     }
 
     // Fallback: dimScore === 0 (similar) → "as last time visit"
@@ -947,6 +947,11 @@ export function generateTXSequenceStates(
     "Qi Deficiency": { tongue: "pale, thin white coat", pulse: "thready" },
     "Spleen Deficiency": { tongue: "pale, thin white coat", pulse: "thready" },
     "Liver Yang Rising": { tongue: "thin yellow", pulse: "superficial rapid" },
+    "Yin Deficiency Fire": { tongue: "cracked", pulse: "thready" },
+    "LU & KI Deficiency": {
+      tongue: "pale, thin white coat",
+      pulse: "thready",
+    },
   };
   const fixedTonguePulse: { tongue: string; pulse: string } = (() => {
     const ieTonguePulse = context.previousIE?.objective?.tonguePulse;
