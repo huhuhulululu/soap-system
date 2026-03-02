@@ -980,15 +980,19 @@ function pickTemplateRomDegreesForRender(
   effectivePain: number,
   rngValue: number,
   visitState?: TXVisitState,
+  /** Original rom.movement name (for romFloors lookup, may differ from template movementName) */
+  originalMovementName?: string,
 ): number | null {
   if (!visitState) {
     const severity = getTemplateSeverityForPain(effectivePain);
     return pickTemplateROMDegrees(bp, movementName, severity, rngValue);
   }
 
+  const floorKey = originalMovementName ?? movementName;
   return pickTemplateROMDegreesByPain(bp, movementName, effectivePain, rngValue, {
     progress: visitState.progress,
     trend: visitState.soaChain.objective.romTrend,
+    minDegrees: visitState.romFloors?.[floorKey],
   });
 }
 
@@ -1244,6 +1248,7 @@ export function generateObjective(
             effectivePainForKnee,
             rngValue,
             visitState,
+            rom.movement,
           );
           const degrees = templateDegrees ?? rom.normalDegrees;
           const reductionPct =
@@ -1283,6 +1288,7 @@ export function generateObjective(
           effectivePainForKneeUni,
           rngValue,
           visitState,
+          rom.movement,
         );
         const degrees = templateDegrees ?? rom.normalDegrees;
         const reductionPct =
@@ -1332,6 +1338,7 @@ export function generateObjective(
             effectivePainForShoulder,
             rngValue,
             visitState,
+            rom.movement,
           );
           const reductionPct =
             rom.normalDegrees > 0
@@ -1417,6 +1424,7 @@ export function generateObjective(
             effectivePainForTemplate,
             rngValue,
             visitState,
+            rom.movement,
           );
           if (templateDegrees !== null) {
             const templateSeverity = getTemplateSeverityLabel(
@@ -2568,8 +2576,31 @@ export function exportTXSeriesAsText(
   const { states } = generateTXSequenceStates(txContext, options);
   const ieBaselinePain = context.painCurrent ?? 8;
 
+  // Track per-movement ROM degree floors across visits (monotonicity guard)
+  let romFloors: Record<string, number> = {};
+
   return states.map((state) => {
-    let text = exportSOAPAsText(txContext, state);
+    // Inject accumulated ROM floors from previous visits
+    const stateWithFloors = romFloors && Object.keys(romFloors).length > 0
+      ? { ...state, romFloors }
+      : state;
+
+    let text = exportSOAPAsText(txContext, stateWithFloors);
+
+    // Extract ROM degrees from rendered text to update floors for next visit
+    // Format: "4/5 Flexion: 40 Degrees (moderate)" or "4/5 Flexion: 40 degree (moderate)"
+    const romPattern = /^\d[+-]?\/5\s+(.+?):\s+(\d+)\s+(?:Degrees|degree)/gim;
+    const nextFloors: Record<string, number> = { ...romFloors };
+    for (const line of text.split("\n")) {
+      const m = romPattern.exec(line.trim());
+      if (m) {
+        const movement = m[1];
+        const degrees = parseInt(m[2]);
+        nextFloors[movement] = Math.max(nextFloors[movement] ?? 0, degrees);
+      }
+      romPattern.lastIndex = 0;
+    }
+    romFloors = nextFloors;
 
     // GATE-01: Medicare phase gate — annotate visit 12 for ELDERPLAN with NCD 30.3.3 evidence
     if (context.insuranceType === "ELDERPLAN" && state.visitIndex === 12) {

@@ -16,6 +16,8 @@ export type RomTrend = "improved" | "slightly improved" | "stable";
 export interface TemplateRomPainPickHints {
   progress?: number;
   trend?: RomTrend;
+  /** Floor: picked degrees must be >= this value (monotonicity guard) */
+  minDegrees?: number;
 }
 
 /** Body parts that have TEMPLATE_ROM data */
@@ -220,6 +222,12 @@ export function pickTemplateROMDegreesByPain(
     return null;
   }
 
+  // Apply minDegrees floor: filter out options below the previous visit's value
+  const minDeg = hints?.minDegrees ?? 0;
+  const eligible = minDeg > 0 ? scored.filter((o) => o.degrees >= minDeg) : scored;
+  // If all options are below floor (shouldn't happen), fall back to unfiltered
+  const candidates = eligible.length > 0 ? eligible : scored;
+
   const progressBonus = clamp(hints?.progress ?? 0, 0, 1) * 0.2;
   const trendBonus = trendToImprovementBonus(hints?.trend);
   const jitter = (clamp(rngValue, 0, 0.999) - 0.5) * 0.24;
@@ -229,14 +237,14 @@ export function pickTemplateROMDegreesByPain(
     3.99,
   );
 
-  const picked = scored.reduce((best, cur) => {
+  const picked = candidates.reduce((best, cur) => {
     const bestDiff = Math.abs(best.score - targetScore);
     const curDiff = Math.abs(cur.score - targetScore);
     if (curDiff < bestDiff) return cur;
     // Tie-break toward higher degree (less limitation).
     if (curDiff === bestDiff && cur.degrees > best.degrees) return cur;
     return best;
-  }, scored[0]);
+  }, candidates[0]);
 
   return picked.degrees;
 }

@@ -188,6 +188,8 @@ export interface TXVisitState {
       adverseEffect: string;
     };
   };
+  /** Per-movement ROM degree floors from previous visit (monotonicity guard, populated by renderer) */
+  romFloors?: Record<string, number>;
 }
 
 function clamp(value: number, min: number, max: number): number {
