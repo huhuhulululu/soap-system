@@ -15,6 +15,16 @@ import {
   severityToRank,
   parseFrequencyLevel,
 } from "./field-parsers";
+import type { NeedleGroups } from "./template-options";
+
+/** Flatten NeedleGroups | string[] to string[] */
+function flattenNeedlePoints(np: NeedleGroups | readonly string[] | string[]): readonly string[] {
+  if (Array.isArray(np)) return np;
+  if (np && typeof np === "object" && "front1" in np) {
+    return [...np.front1, ...np.front2, ...np.back1, ...np.back2];
+  }
+  return [];
+}
 
 // ============ Types ============
 
@@ -43,7 +53,7 @@ export interface VisitSnapshot {
   spasmGrading: string;
   painFrequency: string;
   associatedSymptom: string;
-  needlePoints: string[];
+  needlePoints: string[] | NeedleGroups;
   tonguePulse: { tongue: string; pulse: string };
   electricalStimulation?: boolean;
   hasGoals?: boolean;
@@ -188,14 +198,15 @@ function checkSingleVisit(
   }
 
   // P2: acupoints count
-  if (visit.needlePoints.length === 0 || visit.needlePoints.length > 20) {
+  const flatNeedles = flattenNeedlePoints(visit.needlePoints);
+  if (flatNeedles.length === 0 || flatNeedles.length > 20) {
     errors.push({
       ruleId: "P2",
       severity: "CRITICAL",
       visitIndex: idx,
       message: "穴位数量不合理",
       expected: "2-20",
-      actual: String(visit.needlePoints.length),
+      actual: String(flatNeedles.length),
     });
   }
 
@@ -326,8 +337,8 @@ function checkSequence(visits: VisitSnapshot[]): ConstraintError[] {
     // V08: removed — redundant with T02 (superset: pain + tenderness + tightness)
 
     // V09: acupoint overlap >= 0.4
-    const prevArr = prev.needlePoints.map((p) => p.toLowerCase());
-    const curArr = cur.needlePoints.map((p) => p.toLowerCase());
+    const prevArr = flattenNeedlePoints(prev.needlePoints).map((p) => p.toLowerCase());
+    const curArr = flattenNeedlePoints(cur.needlePoints).map((p) => p.toLowerCase());
     const curSet = new Set(curArr);
     const inter = prevArr.filter((x) => curSet.has(x)).length;
     const union = new Set(prevArr.concat(curArr)).size;
@@ -515,7 +526,7 @@ export function visitStateToSnapshot(state: {
   spasmGrading: string;
   painFrequency: string;
   associatedSymptom: string;
-  needlePoints: string[];
+  needlePoints: string[] | NeedleGroups;
   tonguePulse: { tongue: string; pulse: string };
   electricalStimulation?: boolean;
 }): VisitSnapshot {
