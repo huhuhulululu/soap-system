@@ -1130,6 +1130,12 @@ export function generateObjective(
     : basePain;
   const romTrendBoost = getRomTrendBoost(visitState);
 
+  const STRENGTH_ORDER = ["3-/5", "3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"];
+  const strengthIdx = (s: string): number => {
+    const i = STRENGTH_ORDER.indexOf(s);
+    return i >= 0 ? i : 4; // default to "4/5" if unknown
+  };
+
   const bumpStrength = (strength: string, step: number): string => {
     const ladder = ["3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"];
     const idx = ladder.indexOf(strength);
@@ -1137,6 +1143,13 @@ export function generateObjective(
     // 最高只能提升到 4+/5，不能到 5/5（除非原本就是 5/5）
     const maxIdx = strength === "5/5" ? 5 : 4;
     return ladder[Math.max(0, Math.min(maxIdx, idx + step))];
+  };
+
+  /** Pick the higher of engine's scheduled strength and per-direction computed strength.
+   *  Prevents regression: engine grade is the floor, per-direction variation can only raise it. */
+  const resolveStrength = (engineGrade: string | undefined, computed: string): string => {
+    if (!engineGrade) return computed;
+    return strengthIdx(engineGrade) >= strengthIdx(computed) ? engineGrade : computed;
   };
 
   /**
@@ -1218,8 +1231,8 @@ export function generateObjective(
             adjustedPain,
             side === "Left" ? 0 : 5,
           );
-          // M-04 fix: use engine's strengthGrade when available
-          const strength = visitState?.strengthGrade ?? computedStrength;
+          // M-04 fix: use max of engine's scheduled grade and per-direction computed grade
+          const strength = resolveStrength(visitState?.strengthGrade, computedStrength);
           const templateMovName = resolveTemplateMovementName(
             "KNEE",
             rom.movement,
@@ -1247,8 +1260,8 @@ export function generateObjective(
     if (romData) {
       romData.forEach((rom, i) => {
         const { strength: computedStrength } = computeRom(rom, i, 0, painLevel, 0);
-        // M-04 fix: use engine's strengthGrade when available
-        const strength = visitState?.strengthGrade ?? computedStrength;
+        // M-04 fix: use max of engine's scheduled grade and per-direction computed grade
+        const strength = resolveStrength(visitState?.strengthGrade, computedStrength);
         const templateMovName = resolveTemplateMovementName(
           "KNEE",
           rom.movement,
@@ -1306,8 +1319,8 @@ export function generateObjective(
             adjustedPain,
             isLeft ? 0 : 5,
           );
-          // M-04 fix: use engine's strengthGrade when available
-          const strength = visitState?.strengthGrade ?? computedStrength;
+          // M-04 fix: use max of engine's scheduled grade and per-direction computed grade
+          const strength = resolveStrength(visitState?.strengthGrade, computedStrength);
           const templateMovName = resolveTemplateMovementName(
             "SHOULDER",
             rom.movement,
@@ -1387,8 +1400,8 @@ export function generateObjective(
           painLevel,
           romAdj,
         );
-        // M-04 fix: use engine's strengthGrade when available
-        const strength = visitState?.strengthGrade ?? computedStrength;
+        // M-04 fix: use max of engine's scheduled grade and per-direction computed grade
+        const strength = resolveStrength(visitState?.strengthGrade, computedStrength);
 
         // Use TEMPLATE_ROM discrete options when available
         if (hasTemplateROM(bp)) {
