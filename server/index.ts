@@ -28,7 +28,11 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
     if (secret) {
       try {
         const payload = jwt.verify(token, secret) as Record<string, unknown>;
-        if (!payload.ac_access) {
+        const systems = payload.systems as string[] | undefined;
+        const hasAccess = systems
+          ? systems.includes("ac")
+          : Boolean(payload.ac_access);
+        if (!hasAccess) {
           res
             .status(403)
             .json({ success: false, error: "No AC system access" });
@@ -150,12 +154,17 @@ export function createApp(): express.Application {
     }
     try {
       const payload = jwt.verify(token, secret) as Record<string, unknown>;
+      const systems = payload.systems as string[] | undefined;
+      const acAccess = systems
+        ? systems.includes("ac")
+        : Boolean(payload.ac_access);
       res.json({
         authenticated: true,
         user: {
           username: payload.username,
           role: payload.role,
-          ac_access: payload.ac_access,
+          ac_access: acAccess,
+          systems: systems || [],
         },
       });
     } catch {
