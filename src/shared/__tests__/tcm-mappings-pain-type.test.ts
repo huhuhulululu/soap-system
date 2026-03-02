@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { isPainTypeConsistentWithPattern } from "../tcm-mappings";
 
 describe("isPainTypeConsistentWithPattern (soft warning)", () => {

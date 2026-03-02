@@ -7,7 +7,6 @@
  * 3. Assessment 不自相矛盾
  * 4. dimScore=0 时必须 similar
  */
-import { describe, it, expect } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import type { GenerationContext } from "../../types";
 

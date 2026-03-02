@@ -27,13 +27,13 @@ import {
   TEMPLATE_TX_RESPONSE,
   TEMPLATE_TENDERNESS_SCALE,
   TEMPLATE_TONE_MAP,
+  TEMPLATE_NEEDLE_POINTS,
+  NEEDLE_GROUP_SIZES,
+  type NeedleGroups,
   type BodyPartKey,
 } from "../shared/template-options";
 import { selectInitialMuscles, reduceMuscles } from "./muscle-selector";
-import {
-  getADLWeightsByMuscles,
-  getAggravatingWeightsByMuscles,
-} from "../shared/muscle-adl-affinity";
+import { getADLWeightsByMuscles } from "../shared/muscle-adl-affinity";
 
 export interface TXSequenceOptions {
   txCount: number;
@@ -43,10 +43,10 @@ export interface TXSequenceOptions {
   /** 从用户最后一个 TX 提取的实际状态，作为续写起点。 */
   initialState?: {
     pain: number;
-    tightness: number;
-    tenderness: number;
-    spasm: number;
-    frequency: number;
+    tightness?: number;
+    tenderness?: number;
+    spasm?: number;
+    frequency?: number;
     painTypes?: string[];
     associatedSymptom?: string;
     symptomScale?: string;
@@ -56,6 +56,7 @@ export interface TXSequenceOptions {
     tendernessGrade?: string;
     tonguePulse?: { tongue: string; pulse: string };
     acupoints?: string[];
+    needleGroups?: NeedleGroups;
     electricalStimulation?: boolean;
     treatmentTime?: number;
   };
@@ -138,7 +139,7 @@ export interface TXVisitState {
   aggravatingItems: readonly string[];
   /** Engine-scheduled strength grade (e.g. '3+/5', '4/5') — overrides objective-patch bumpStrength */
   strengthGrade?: string;
-  needlePoints: string[];
+  needlePoints: NeedleGroups;
   /** 舌脉信息，从 IE 继承保持一致 */
   tonguePulse: {
     tongue: string;
@@ -154,6 +155,7 @@ export interface TXVisitState {
     left: number;
     right: number;
   };
+  /** Analytics-only objective metadata; currently not rendered by TX template text. */
   objectiveFactors: {
     sessionGapDays: number;
     sleepLoad: number;
@@ -162,6 +164,7 @@ export interface TXVisitState {
     adherenceLoad: number;
   };
   soaChain: {
+    /** Subjective chain metadata; renderer currently consumes flattened text fields first. */
     subjective: {
       painChange: "improved" | "similar" | "worsened";
       adlChange: "improved" | "stable";
@@ -410,16 +413,27 @@ export function deriveAssessmentFromSOA(input: {
       parts.push(neckOptions[input.visitIndex % neckOptions.length]);
     }
 
-    // Fallback: dimScore > 0 but no S-side parts collected (only O-side improved)
-    // Use "pain" (valid TEMPLATE_TX_WHAT_CHANGED option) instead of "overall condition"
+    // Fallback: if no direct S-side phrasing matched, map from actually changed dims.
+    // Keep values strictly inside TEMPLATE_TX_WHAT_CHANGED.
     if (parts.length === 0 && input.dimScore > 0) {
-      parts.push(TEMPLATE_TX_WHAT_CHANGED[0]); // "pain"
+      const dimToWhatChanged: Record<string, string> = {
+        pain: TEMPLATE_TX_WHAT_CHANGED[0], // "pain"
+        frequency: TEMPLATE_TX_WHAT_CHANGED[1], // "pain frequency"
+        symptomScale: TEMPLATE_TX_WHAT_CHANGED[5], // "muscles soreness sensation"
+        severity: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
+        ADL: TEMPLATE_TX_WHAT_CHANGED[8], // "difficulty in performing ADLs"
+        tightness: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
+        tenderness: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
+        spasm: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
+        strength: TEMPLATE_TX_WHAT_CHANGED[4], // "muscles weakness"
+        ROM: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
+      };
+      const mapped = input.changedDims.map((d) => dimToWhatChanged[d]).find(Boolean);
+      if (mapped) parts.push(mapped);
     }
 
-    // Fallback: dimScore === 0 (similar) → "as last time visit"
-    // dimScore > 0 should have been caught above; this is a safety net
-    if (parts.length === 0)
-      return input.dimScore === 0 ? TEMPLATE_TX_WHAT_CHANGED[9] : TEMPLATE_TX_WHAT_CHANGED[0];
+    // Final fallback: no changed-dim wording could be resolved.
+    if (parts.length === 0) return TEMPLATE_TX_WHAT_CHANGED[9]; // "as last time visit"
 
     // Join: "pain frequency, difficulty in performing ADLs and muscles soreness sensation"
     if (parts.length === 1) return parts[0];
@@ -739,6 +753,40 @@ function pickMultiple(
   return shuffledTop.slice(0, count).map((x) => x.option);
 }
 
+/**
+ * Select 4 non-overlapping needle groups from front/back pools.
+ * Groups: front1, front2 (from frontPool), back1, back2 (from backPool).
+ * Uses a deterministic seed value to shuffle pool order.
+ * Group sizes come from NEEDLE_GROUP_SIZES per body part.
+ */
+function selectNeedleGroups(
+  bp: BodyPartKey,
+  seedValue: number,
+): NeedleGroups {
+  const entry = TEMPLATE_NEEDLE_POINTS[bp] ?? TEMPLATE_NEEDLE_POINTS.LBP;
+  const sizes = NEEDLE_GROUP_SIZES[bp] ?? NEEDLE_GROUP_SIZES.LBP;
+  const [f1Size, f2Size, b1Size, b2Size] = sizes;
+
+  const deterministicShuffle = (pool: readonly string[], seed: number): string[] => {
+    const arr = [...pool];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.abs(Math.round(Math.sin(seed * (i + 1)) * 10000)) % (i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  const frontShuffled = deterministicShuffle(entry.frontPool, seedValue);
+  const backShuffled = deterministicShuffle(entry.backPool, seedValue + 0.5);
+
+  const front1 = frontShuffled.slice(0, f1Size);
+  const front2 = frontShuffled.slice(f1Size, f1Size + f2Size);
+  const back1 = backShuffled.slice(0, b1Size);
+  const back2 = backShuffled.slice(b1Size, b1Size + b2Size);
+
+  return { front1, front2, back1, back2 };
+}
+
 export interface TXSequenceResult {
   states: TXVisitState[];
   /** 用于复现的 seed，传回 options.seed 即可得到相同结果 */
@@ -811,6 +859,25 @@ export function generateTXSequenceStates(
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0;
   let prevAdl = 3.5;
   let prevFrequency = options.initialState?.frequency ?? 3;
+  const initialFrequencyIdx = clamp(
+    options.initialState?.frequency ?? frequencyToNum(context.painFrequency || ""),
+    0,
+    3,
+  );
+  const initialFrequencyLabel = findTemplateOption(
+    "subjective.painFrequency",
+    [
+      context.painFrequency || "",
+      [
+        "Intermittent (symptoms occur less than 25% of the time)",
+        "Occasional (symptoms occur between 26% and 50% of the time)",
+        "Frequent (symptoms occur between 51% and 75% of the time)",
+        "Constant (symptoms occur between 76% and 100% of the time)",
+      ][initialFrequencyIdx],
+    ],
+    context.painFrequency ||
+      "Constant (symptoms occur between 76% and 100% of the time)",
+  );
   let prevSymptomDecade = symptomScaleToDecade(
     options.initialState?.symptomScale || "70%",
   );
@@ -918,7 +985,7 @@ export function generateTXSequenceStates(
 
   const visits: TXVisitState[] = [];
   // V09: 穴位纵向继承 — 首次选定后 100% 复用，保证 Jaccard=1.0
-  let fixedNeedlePoints: string[] = options.initialState?.acupoints || [];
+  let fixedNeedleGroups: NeedleGroups | null = options.initialState?.needleGroups ?? null;
 
   // Bounce tracking: 上一次是否 bounce，用于下一次强制回落
   let prevTightnessBounced = false;
@@ -933,16 +1000,27 @@ export function generateTXSequenceStates(
     "moderate to severe": 4,
     severe: 5,
   };
+  const symptomTypeForGoals =
+    options.initialState?.associatedSymptom ??
+    context.associatedSymptoms?.[0] ??
+    context.associatedSymptom ??
+    "soreness";
   const patchedGoals = computePatchedGoals(
     startPain,
     initSeverity,
     context.primaryBodyPart || "LBP",
-    "soreness",
+    symptomTypeForGoals,
     {
       medicalHistory: medHistory,
       age: context.age,
     },
   );
+  // Frequency goals are fixed by current TX business rule:
+  // Constant/Frequent -> Occasional (ST) -> Intermittent (LT).
+  const TX_FREQUENCY_GOAL = {
+    st: 1, // Occasional
+    lt: 0, // Intermittent
+  } as const;
   const goalPaths = computeGoalPaths(
     {
       tightness: {
@@ -979,8 +1057,8 @@ export function generateTXSequenceStates(
         start:
           options.initialState?.frequency ??
           frequencyToNum(context.painFrequency || ""),
-        st: 1, // Occasional
-        lt: 0, // Intermittent
+        st: TX_FREQUENCY_GOAL.st,
+        lt: TX_FREQUENCY_GOAL.lt,
       },
       symptomScale: {
         start: symptomScaleToDecade(
@@ -1123,7 +1201,7 @@ export function generateTXSequenceStates(
     // Muscle reduction: pure (no RNG), trims based on current severity
     const visitMuscles = reduceMuscles(initialMuscles, severityLevel);
 
-    // ADL/aggravating: deterministic from muscle weights (no RNG)
+    // ADL: deterministic from muscle weights (no RNG)
     const bp = context.primaryBodyPart as BodyPartKey;
     const validADL = new Set(TEMPLATE_ADL[bp] ?? []);
     const adlWeights = getADLWeightsByMuscles(
@@ -1142,16 +1220,10 @@ export function generateTXSequenceStates(
       adlImproved = false; // no actual ADL improvement visible
     }
     prevAdlItemCount = adlItems.length;
-
-    const aggWeights = getAggravatingWeightsByMuscles(
-      visitMuscles.tightness as string[],
-      context.primaryBodyPart,
-    );
-    const aggCount = severityToCount(prevSeverityForAdl, "aggravating");
     prevSeverityForAdl = severityLevel;
-    const aggravatingItems = aggWeights
-      .slice(0, aggCount)
-      .map((w) => w.aggravating);
+    // TX template does not render aggravating factors; skip per-visit computation.
+    // Keep the field for backward compatibility.
+    const aggravatingItems: string[] = [];
 
     // Frequency: discrete scheduling from goal-path-calculator
     // Preserve rng() call for PRNG sequence compatibility
@@ -1222,7 +1294,7 @@ export function generateTXSequenceStates(
       nextTenderness = prevTenderness;
     }
     prevTendernessBounced = tendernessBounced;
-    const tightnessTrend: "reduced" | "slightly reduced" | "stable" =
+    let tightnessTrend: "reduced" | "slightly reduced" | "stable" =
       nextTightness < prevTightness ? "reduced" : "stable";
     let tendernessTrend: "reduced" | "slightly reduced" | "stable" =
       nextTenderness < prevTenderness ? "reduced" : "stable";
@@ -1455,7 +1527,7 @@ export function generateTXSequenceStates(
     // Dynamic pool: filter positive reasons by current visit dimensions
     const positivePool = [
       ...(painDelta > 0.2 ? POSITIVE_TEMPLATE_REASONS.filter(r =>
-        r.includes("pain") || r.includes("joint") || r.includes("physical")
+        r.includes("pain") || r.includes("joint") || r.includes("stiffness")
       ) : []),
       ...(adlImproved ? POSITIVE_TEMPLATE_REASONS.filter(r =>
         r.includes("daily") || r.includes("activity")
@@ -1636,6 +1708,18 @@ export function generateTXSequenceStates(
         tightnessGrading = prevTightnessGrading;
       }
     }
+    const tightGradeOrder = (grade: string): number => {
+      const idx = TIGHTNESS_ORDER.indexOf(grade.toLowerCase());
+      return idx >= 0 ? idx + 1 : 3;
+    };
+    const displayedTightnessOrder = tightGradeOrder(tightnessGrading);
+    if (i > 0 && visits.length > 0) {
+      const prevDisplayedTightness = tightGradeOrder(
+        visits[visits.length - 1].tightnessGrading ?? tightnessGrading,
+      );
+      tightnessTrend =
+        displayedTightnessOrder < prevDisplayedTightness ? "reduced" : "stable";
+    }
     prevTightnessGrading = tightnessGrading;
 
     // --- Tenderness grading: goal-driven, derived from numeric nextTenderness ---
@@ -1690,16 +1774,25 @@ export function generateTXSequenceStates(
     }
 
     // V09: 穴位纵向继承 — 首次选穴后所有 TX 复用
-    if (fixedNeedlePoints.length === 0) {
-      fixedNeedlePoints = pickMultiple(
+    // Keep pickMultiple call for PRNG sequence compatibility
+    if (!fixedNeedleGroups) {
+      const _legacyPick = pickMultiple(
         "plan.needleProtocol.points",
         6,
         ruleContext,
         progress,
         rng,
       );
+      // Use first rng value from legacy pick as deterministic seed for group selection
+      const groupSeed = _legacyPick.length > 0
+        ? _legacyPick.join("").split("").reduce((s, c) => s + c.charCodeAt(0), 0)
+        : i + 1;
+      fixedNeedleGroups = selectNeedleGroups(
+        (context.primaryBodyPart || "LBP") as BodyPartKey,
+        groupSeed,
+      );
     }
-    const needlePoints = fixedNeedlePoints;
+    const needlePoints = fixedNeedleGroups;
 
     const SPASM_TEXTS = [
       "(0)=No spasm",
@@ -1753,26 +1846,7 @@ export function generateTXSequenceStates(
 
     // ASS-02: cumulative pain drop from IE baseline
     const cumulativePainDrop = startPain - painScaleCurrent;
-
     const adlDelta = adlImproved ? 1 : 0;
-    let assessmentFromChain = deriveAssessmentFromSOA({
-      painDelta,
-      adlDelta,
-      frequencyImproved,
-      visitIndex: i,
-      objectiveTightnessTrend: tightnessTrend,
-      objectiveTendernessTrend: tendernessTrend,
-      objectiveSpasmTrend: spasmTrend,
-      objectiveRomTrend: romTrend,
-      objectiveStrengthTrend: strengthTrend,
-      cumulativePainDrop,
-      progress,
-      bodyPart: context.primaryBodyPart || "LBP",
-      dimScore: dimScore.score,
-      changedDims: dimScore.changedDims,
-      symptomScaleChanged,
-      severityChanged,
-    });
 
     // SymptomScale: extract from inline to allow output-layer cap
     const symptomDrop = goalPaths.symptomScale.changeVisits.includes(i);
@@ -1842,24 +1916,83 @@ export function generateTXSequenceStates(
       }
     }
 
-    // Post-cap: if symptomScale was deferred by output cap, strip "muscles soreness sensation" from Assessment
+    const prevVisit = visits.length > 0 ? visits[visits.length - 1] : undefined;
     const finalSymptomScaleChanged =
-      visits.length > 0
-        ? visitSymptomScale !== visits[visits.length - 1].symptomScale
+      prevVisit
+        ? visitSymptomScale !== prevVisit.symptomScale
         : visitSymptomScale !== (options.initialState?.symptomScale || "70%");
-    if (!finalSymptomScaleChanged && symptomScaleChanged) {
-      // symptomScaleChanged was true pre-cap but false post-cap — patch Assessment
-      const wc = assessmentFromChain.whatChanged;
-      const patched = wc
-        .replace(/,?\s*muscles soreness sensation/, "")
-        .replace(/muscles soreness sensation(?:\s*and\s*)?/, "")
-        .replace(/\s*and\s*$/, "")
-        .trim();
-      assessmentFromChain = {
-        ...assessmentFromChain,
-        whatChanged: patched || "as last time visit",
-      };
+    const finalFrequencyImproved =
+      chainFrequency !== (prevVisit?.painFrequency ?? initialFrequencyLabel);
+
+    const parseTenderGrade = (grading: string): number => {
+      if (grading === "0") return 0;
+      const n = parseInt(grading.replace("+", ""), 10);
+      return isNaN(n) ? 2 : n;
+    };
+    const parseSpasmGrade = (grading: string): number => {
+      if (grading.includes("(0)")) return 0;
+      const m = grading.match(/\+(\d)/);
+      return m ? parseInt(m[1], 10) : 0;
+    };
+
+    let finalTightnessTrend = tightnessTrend;
+    let finalTendernessTrend = tendernessTrend;
+    let finalSpasmTrend = spasmTrend;
+    if (prevVisit) {
+      finalTightnessTrend =
+        tightGradeOrder(tightnessGrading) <
+        tightGradeOrder(prevVisit.tightnessGrading)
+          ? "reduced"
+          : "stable";
+      const currentTenderGrade =
+        tendernessGrading.match(/\+(\d)/)?.[1]
+          ? `+${tendernessGrading.match(/\+(\d)/)?.[1]}`
+          : "0";
+      const prevTenderGrade =
+        prevVisit.tendernessGrading.match(/\+(\d)/)?.[1]
+          ? `+${prevVisit.tendernessGrading.match(/\+(\d)/)?.[1]}`
+          : "0";
+      finalTendernessTrend =
+        parseTenderGrade(currentTenderGrade) < parseTenderGrade(prevTenderGrade)
+          ? "reduced"
+          : "stable";
+      finalSpasmTrend =
+        parseSpasmGrade(spasmGrading) < parseSpasmGrade(prevVisit.spasmGrading)
+          ? "reduced"
+          : "stable";
     }
+
+    const finalDimScore = computeDimensionScore({
+      painDelta,
+      symptomScaleChanged: finalSymptomScaleChanged,
+      severityChanged,
+      frequencyImproved: finalFrequencyImproved,
+      adlImproved,
+      tightnessTrend: finalTightnessTrend,
+      tendernessTrend: finalTendernessTrend,
+      spasmTrend: finalSpasmTrend,
+      romTrend,
+      strengthTrend,
+    });
+
+    const assessmentFromChain = deriveAssessmentFromSOA({
+      painDelta,
+      adlDelta,
+      frequencyImproved: finalFrequencyImproved,
+      visitIndex: i,
+      objectiveTightnessTrend: finalTightnessTrend,
+      objectiveTendernessTrend: finalTendernessTrend,
+      objectiveSpasmTrend: finalSpasmTrend,
+      objectiveRomTrend: romTrend,
+      objectiveStrengthTrend: strengthTrend,
+      cumulativePainDrop,
+      progress,
+      bodyPart: context.primaryBodyPart || "LBP",
+      dimScore: finalDimScore.score,
+      changedDims: finalDimScore.changedDims,
+      symptomScaleChanged: finalSymptomScaleChanged,
+      severityChanged,
+    });
 
     visits.push({
       visitIndex: i,
@@ -1900,17 +2033,17 @@ export function generateTXSequenceStates(
               ? "similar"
               : "worsened",
           adlChange: adlImproved ? "improved" : "stable",
-          frequencyChange: frequencyImproved ? "improved" : "stable",
+          frequencyChange: finalFrequencyImproved ? "improved" : "stable",
         },
         objective: {
-          tightnessTrend,
-          tendernessTrend,
-          spasmTrend,
+          tightnessTrend: finalTightnessTrend,
+          tendernessTrend: finalTendernessTrend,
+          spasmTrend: finalSpasmTrend,
           romTrend,
           strengthTrend,
         },
         assessment:
-          dimScore.score === 0
+          finalDimScore.score === 0
             ? {
                 ...assessmentFromChain,
                 present: "similar symptom(s) as last visit.",

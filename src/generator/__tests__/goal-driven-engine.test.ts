@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest'
 import { generateTXSequenceStates } from '../tx-sequence-engine'
 import type { GenerationContext } from '../../types'
 
@@ -107,7 +106,7 @@ describe('Goal-Driven Engine Integration', () => {
             sameCount++
           }
         }
-        expect(sameCount, `seed=${seed * 1000} had ${sameCount} SAME`).toBeLessThanOrEqual(10)
+        expect(sameCount).toBeLessThanOrEqual(10)
       }
     })
 
@@ -121,7 +120,7 @@ describe('Goal-Driven Engine Integration', () => {
             sameCount++
           }
         }
-        expect(sameCount, `seed=${seed * 1000} had ${sameCount} SAME`).toBeLessThanOrEqual(4)
+        expect(sameCount).toBeLessThanOrEqual(4)
       }
     })
   })
@@ -139,7 +138,7 @@ describe('Goal-Driven Engine Integration', () => {
         if (visits[i].spasmGrading !== visits[i - 1].spasmGrading) changes++
         if (visits[i].painFrequency !== visits[i - 1].painFrequency) changes++
         // Allow up to 3 changes per visit (deconflict should help)
-        expect(changes, `visit ${i + 1} changed ${changes} dims`).toBeLessThanOrEqual(4)
+        expect(changes).toBeLessThanOrEqual(4)
       }
     })
   })
@@ -187,7 +186,7 @@ describe('Goal-Driven Engine Integration', () => {
         const lastTIdx = TIGHTNESS_ORDER.indexOf(last.tightnessGrading.toLowerCase())
         const prevTIdx = TIGHTNESS_ORDER.indexOf(prev.tightnessGrading.toLowerCase())
         if (lastTIdx >= 0 && prevTIdx >= 0) {
-          expect(lastTIdx, `seed=${seed * 1000} tightness bounced on last visit`).toBeLessThanOrEqual(prevTIdx + 1)
+          expect(lastTIdx).toBeLessThanOrEqual(prevTIdx + 1)
         }
 
         // Tenderness: last should not be worse than second-to-last
@@ -196,7 +195,7 @@ describe('Goal-Driven Engine Integration', () => {
         if (lastTenMatch && prevTenMatch) {
           const lastTen = parseInt(lastTenMatch[1])
           const prevTen = parseInt(prevTenMatch[1])
-          expect(lastTen, `seed=${seed * 1000} tenderness bounced on last visit`).toBeLessThanOrEqual(prevTen + 1)
+          expect(lastTen).toBeLessThanOrEqual(prevTen + 1)
         }
 
         // Spasm: last should not be worse than second-to-last
@@ -204,7 +203,7 @@ describe('Goal-Driven Engine Integration', () => {
         const prevSpMatch = prev.spasmGrading.match(/\+(\d)/)
         const lastSp = lastSpMatch ? parseInt(lastSpMatch[1]) : 0
         const prevSp = prevSpMatch ? parseInt(prevSpMatch[1]) : 0
-        expect(lastSp, `seed=${seed * 1000} spasm bounced on last visit`).toBeLessThanOrEqual(prevSp + 1)
+        expect(lastSp).toBeLessThanOrEqual(prevSp + 1)
       }
     })
   })

@@ -302,6 +302,16 @@ export interface GenerationContext {
   associatedSymptoms?: Array<
     "soreness" | "weakness" | "stiffness" | "heaviness" | "numbness"
   >;
+  /**
+   * Legacy alias for associatedSymptoms[0].
+   * Kept for backward compatibility with older tests/tools.
+   */
+  associatedSymptom?:
+    | "soreness"
+    | "weakness"
+    | "stiffness"
+    | "heaviness"
+    | "numbness";
   /** 用户实际输入的当前疼痛值 (数字, 0-10) */
   painCurrent?: number;
   /** 用户输入的最痛评分 (数字, 0-10) */

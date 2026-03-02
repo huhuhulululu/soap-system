@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { calculateWeights, selectBestOptions } from "../weight-system";
 import { TEMPLATE_CAUSATIVES } from "../../shared/template-options";
 
@@ -13,13 +12,11 @@ describe("causatives weight selection", () => {
       chronicityLevel: "Chronic",
       severityLevel: "moderate to severe",
       painScale: 7,
-    };
+      insuranceType: "NONE" as const,
+    } as const;
     const weighted = calculateWeights("subjective.causativeFactors", pool, ctx);
     const uniqueWeights = new Set(weighted.map((w) => w.weight));
-    expect(
-      uniqueWeights.size,
-      "all causatives have same weight — no differentiation",
-    ).toBeGreaterThan(1);
+    expect(uniqueWeights.size).toBeGreaterThan(1);
   });
 
   it("Chronic LBP should select 2-3 causatives, not just 1", () => {
@@ -32,7 +29,8 @@ describe("causatives weight selection", () => {
       chronicityLevel: "Chronic",
       severityLevel: "moderate to severe",
       painScale: 7,
-    };
+      insuranceType: "NONE" as const,
+    } as const;
     const weighted = calculateWeights("subjective.causativeFactors", pool, ctx);
     const selected = selectBestOptions(weighted, 2);
     expect(selected.length).toBeGreaterThanOrEqual(2);
@@ -48,7 +46,8 @@ describe("causatives weight selection", () => {
       chronicityLevel: "Chronic",
       severityLevel: "moderate to severe",
       painScale: 7,
-    };
+      insuranceType: "NONE" as const,
+    } as const;
     const weighted = calculateWeights("subjective.causativeFactors", pool, ctx);
     const ageRelated = weighted.find(
       (w) => w.option === "age related/degenerative changes",
@@ -71,7 +70,8 @@ describe("causatives weight selection", () => {
         chronicityLevel: "Chronic",
         severityLevel: "moderate to severe",
         painScale: 7,
-      };
+        insuranceType: "NONE" as const,
+      } as const;
       const weighted = calculateWeights(
         "subjective.causativeFactors",
         pool,
@@ -94,7 +94,8 @@ describe("causatives weight selection", () => {
       chronicityLevel: "Chronic",
       severityLevel: "moderate to severe",
       painScale: 7,
-    };
+      insuranceType: "NONE" as const,
+    } as const;
     const weighted = calculateWeights("subjective.causativeFactors", pool, ctx);
     const posture = weighted.find((w) =>
       w.option.includes("bad posture") || w.option.includes("computer"),

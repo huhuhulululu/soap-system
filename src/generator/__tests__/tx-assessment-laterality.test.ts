@@ -70,10 +70,9 @@ describe("H-03: LBP TX ADL — single group", () => {
     expect(generatorSource).toContain("difficulty with ADLs like");
   });
 
-  it("LBP branch uses allAdl.slice(0, 3) — not two groups", () => {
-    // The LBP path should use allAdl.slice, not adlGroup1 + adlGroup2
+  it("LBP branch uses effectiveAdl list — not two groups", () => {
     const lbpSection = generatorSource.match(
-      /difficulty with ADLs like \$\{allAdl\.slice/,
+      /difficulty with ADLs like \$\{effectiveAdl\.join/,
     );
     expect(lbpSection).not.toBeNull();
   });

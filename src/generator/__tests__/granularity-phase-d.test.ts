@@ -7,7 +7,6 @@
  * 3. reason 在序列中有变化
  * 4. 当 pain 不变但 objective 改善时，symptomChange 可以是 improvement
  */
-import { describe, it, expect } from "vitest";
 import {
   generateTXSequenceStates,
   snapPainToGrid,
@@ -162,10 +161,7 @@ describe("阶段D: reason 变化", () => {
           s.symptomChange.includes("similar") &&
           s.reason === "maintain regular treatments",
       );
-      expect(
-        similarWithMaintain.length,
-        `seed=${seed}: "maintain regular treatments" found ${similarWithMaintain.length} times for similar`,
-      ).toBeLessThanOrEqual(2);
+      expect(similarWithMaintain.length).toBeLessThanOrEqual(2);
     }
   });
 });
@@ -181,10 +177,7 @@ describe("early visit stability: severity and symptomScale", () => {
 
       const v1Severity = result.states[0].severityLevel;
       const v2Severity = result.states[1].severityLevel;
-      expect(
-        v2Severity,
-        `seed=${seed}: severity changed from ${v1Severity} to ${v2Severity} at v2`,
-      ).toBe(v1Severity);
+      expect(v2Severity).toBe(v1Severity);
     }
   });
 
@@ -212,10 +205,7 @@ describe("early visit stability: severity and symptomScale", () => {
           changes.push("tend");
         if (s.spasmGrading !== prev.spasmGrading) changes.push("spasm");
 
-        expect(
-          changes.length,
-          `seed=${seed} TX${i}: ${changes.join(",")} (${changes.length} dims)`,
-        ).toBeLessThanOrEqual(4);
+        expect(changes.length).toBeLessThanOrEqual(4);
       }
     }
   });
@@ -230,10 +220,7 @@ describe("early visit stability: severity and symptomScale", () => {
 
       const v1Scale = result.states[0].symptomScale;
       const v2Scale = result.states[1].symptomScale;
-      expect(
-        v2Scale,
-        `seed=${seed}: symptomScale changed from ${v1Scale} to ${v2Scale} at v2`,
-      ).toBe(v1Scale);
+      expect(v2Scale).toBe(v1Scale);
     }
   });
 });

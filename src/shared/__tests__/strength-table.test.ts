@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import {
   STRENGTH_LADDER,
   PATCHED_BASE_GRADES,

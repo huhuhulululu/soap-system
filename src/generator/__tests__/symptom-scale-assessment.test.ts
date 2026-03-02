@@ -5,7 +5,6 @@
  * Root cause: symptomScaleChanged is computed before the output-layer cap,
  * which can defer symptomScale changes, making the Assessment claim stale.
  */
-import { describe, it, expect, beforeAll } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import { setWhitelist } from "../../parser/template-rule-whitelist";
 import whitelistData from "../../../frontend/src/data/whitelist.json";

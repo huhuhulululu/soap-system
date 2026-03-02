@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest'
 import { generateTXSequenceStates } from '../tx-sequence-engine'
 import type { GenerationContext } from '../../types'
 
@@ -26,10 +25,7 @@ describe('Negative events toggle (allowNegativeEvents)', () => {
       for (const seed of SEEDS) {
         const { states } = generateTXSequenceStates(ctx, { txCount: 11, seed })
         for (const s of states) {
-          expect(
-            s.symptomChange,
-            `seed=${seed} v${s.visitIndex}: "${s.symptomChange}" is negative`,
-          ).not.toMatch(/exacerbate|came back/)
+          expect(s.symptomChange).not.toMatch(/exacerbate|came back/)
         }
       }
     })
@@ -42,10 +38,7 @@ describe('Negative events toggle (allowNegativeEvents)', () => {
           const sc = s.symptomChange
           const isPositiveOrNeutral =
             sc.includes('improvement') || sc.includes('similar')
-          expect(
-            isPositiveOrNeutral,
-            `seed=${seed} v${s.visitIndex}: "${sc}" is neither improvement nor similar`,
-          ).toBe(true)
+          expect(isPositiveOrNeutral).toBe(true)
         }
       }
     })
@@ -70,22 +63,16 @@ describe('Negative events toggle (allowNegativeEvents)', () => {
       }
       const rate = negativeVisits / totalVisits
       // Should have SOME negative events (> 0)
-      expect(negativeVisits, 'no negative events at all').toBeGreaterThan(0)
+      expect(negativeVisits).toBeGreaterThan(0)
       // But ≤ 10%
-      expect(
-        rate,
-        `negative rate ${(rate * 100).toFixed(1)}% > 10%`,
-      ).toBeLessThanOrEqual(0.10)
+      expect(rate).toBeLessThanOrEqual(0.10)
     })
 
     it('negative events never appear on visit 1', () => {
       const ctx = makeContext({ allowNegativeEvents: true })
       for (const seed of SEEDS) {
         const { states } = generateTXSequenceStates(ctx, { txCount: 11, seed })
-        expect(
-          states[0].symptomChange,
-          `seed=${seed} v1 is negative`,
-        ).not.toMatch(/exacerbate|came back/)
+        expect(states[0].symptomChange).not.toMatch(/exacerbate|came back/)
       }
     })
   })

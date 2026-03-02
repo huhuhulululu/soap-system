@@ -1,0 +1,240 @@
+{
+  "auditDate": "2026-02-28",
+  "auditMethod": "3 Opus agents parallel + cross-validation, 8/8 findings verified TRUE",
+  "system": {
+    "totalLOC": 54610,
+    "sourceFiles": 215,
+    "server": 1500,
+    "sharedEngine": 15000,
+    "parsers": 4000,
+    "frontend": 7500,
+    "scripts": 5000,
+    "tests": 20000
+  },
+  "deployment": {
+    "server": "Oracle Cloud ARM A1 Free Tier",
+    "specs": "4 OCPU / 24GB RAM",
+    "containers": 2,
+    "backendImage": "~800MB-1GB (node:20-slim + Playwright Chromium + Python3)",
+    "frontendImage": "~50MB (nginx:alpine)",
+    "resourceLimits": "NONE configured"
+  },
+  "requestPath": "Browser → Host Nginx → Frontend Nginx (9090:8080) → Express 5 (single process, single thread, port 3001)",
+  "middlewareChain": [
+    "cors(origin, credentials)",
+    "express.json(1mb)",
+    "cookieParser()",
+    "rateLimit(60/min /api/*)",
+    "rateLimit(5/15min /api/automate/login)",
+    "csrfProtect()",
+    "route dispatch"
+  ],
+  "apiEndpoints": {
+    "public": [
+      "GET /api/health",
+      "GET /api/auth/me"
+    ],
+    "batch": [
+      "POST /api/batch (Excel upload → parse + generate)",
+      "POST /api/batch/json (JSON submit → generate)",
+      "GET /api/batch/:id",
+      "PUT /api/batch/:batchId/visit/:patientIdx/:visitIdx (regenerate single)",
+      "POST /api/batch/:batchId/generate (generate all)",
+      "POST /api/batch/:batchId/confirm",
+      "GET /api/batch/template/download"
+    ],
+    "automate": [
+      "POST /api/automate/cookies (upload MDLand state)",
+      "GET /api/automate/cookies",
+      "POST /api/automate/:batchId (trigger Playwright)",
+      "GET /api/automate/:batchId (status + logs)",
+      "POST /api/automate/:batchId/stop"
+    ],
+    "ai": [
+      "POST /api/ai/generate (Vertex AI)"
+    ]
+  },
+  "globalMutableState": {
+    "batchCache": {
+      "file": "server/store/batch-store.ts",
+      "type": "Map<string, BatchData>",
+      "maxSize": 50,
+      "concurrencySafe": false
+    },
+    "currentJob": {
+      "file": "server/services/automation-runner.ts",
+      "type": "singleton lock",
+      "description": "Only one automation job at a time"
+    }
+  },
+  "syncBlockingIO": [
+    "batch-store.ts: saveBatch → fs.writeFileSync",
+    "batch-store.ts: getBatch → fs.readFileSync (cache miss)",
+    "batch-store.ts: ensureStoreDir → fs.mkdirSync",
+    "automation-runner.ts: hasCookies → fs.existsSync",
+    "automation-runner.ts: saveCookies → fs.writeFileSync",
+    "automation-runner.ts: loadCookies → fs.readFileSync",
+    "automation-runner.ts: decryptCookiesToTempFile → fs.writeFileSync",
+    "automation-runner.ts: cleanupTempCookies → fs.unlinkSync",
+    "automation-runner.ts: getCookiesInfo → fs.existsSync + fs.statSync"
+  ],
+  "cpuIntensiveSync": [
+    {
+      "function": "generateMixedBatch / generateBatch / generateContinueBatch",
+      "file": "server/services/batch-generator.ts",
+      "severity": "CRITICAL",
+      "description": "Synchronous SOAP generation for all patients × all visits. 50 patients × 12 visits = 600 generation calls blocking event loop"
+    },
+    {
+      "function": "generateTXSequenceStates",
+      "file": "src/generator/tx-sequence-engine.ts",
+      "severity": "HIGH",
+      "description": "PRNG-driven TX sequence generation, ~30 rng() calls per visit × N visits"
+    },
+    {
+      "function": "exportSOAPAsText",
+      "file": "src/generator/soap-generator.ts",
+      "severity": "MEDIUM",
+      "description": "Large string concatenation for SOAP text assembly"
+    },
+    {
+      "function": "parseOptumNote",
+      "file": "parsers/optum-note/parser.ts",
+      "severity": "MEDIUM",
+      "description": "~40 regex replacements + section parsing, O(n×m) for large PDFs"
+    },
+    {
+      "function": "checkDocument",
+      "file": "parsers/optum-note/checker/note-checker.ts",
+      "severity": "MEDIUM",
+      "description": "Rule checking across all visits × all rules"
+    }
+  ],
+  "childProcesses": [
+    {
+      "trigger": "POST /api/automate/:batchId",
+      "command": "npx tsx scripts/playwright/mdland-automation.ts",
+      "runtime": "Playwright Chromium headless",
+      "singleton": true
+    },
+    {
+      "trigger": "POST /api/ai/generate",
+      "command": "python3 -c (inline script)",
+      "runtime": "google-genai → Vertex AI",
+      "coldStart": true,
+      "timeout": "120s"
+    }
+  ],
+  "frontendEngineImports": {
+    "cpuIntensiveInMainThread": [
+      "useSOAPGeneration.ts → generateTXSequenceStates (tx-sequence-engine.ts)",
+      "useSOAPGeneration.ts → exportSOAPAsText (soap-generator.ts)",
+      "useSOAPGeneration.ts → patchSOAPText (objective-patch.ts)",
+      "services/checker.js → parseOptumNote (parsers/optum-note/parser.ts)",
+      "services/checker.js → checkDocument (parsers/optum-note/checker/note-checker.ts)",
+      "services/generator.js → generateTXSequenceStates (tx-sequence-engine.ts)"
+    ],
+    "webWorkerIsolation": "NONE"
+  },
+  "confirmedBugs": [
+    {
+      "id": "BUG-001",
+      "file": "server/services/batch-generator.ts",
+      "lines": "237 + 249",
+      "description": "generateContinueBatch: totalGenerated double-counted. First in txVisits.map (L237), then again in updatedVisits loop (L249)",
+      "impact": "Incorrect totalGenerated count in API response for continue mode"
+    }
+  ],
+  "confirmedSecurityIssues": [
+    {
+      "id": "SEC-001",
+      "file": "server/index.ts",
+      "description": "requireAuth falls through to next() when API_KEY env is not set, allowing unauthenticated access",
+      "severity": "HIGH",
+      "mitigation": "Production uses JWT cookie auth (SHARED_JWT_SECRET is validated by validateEnv)"
+    },
+    {
+      "id": "SEC-002",
+      "file": "frontend/nginx.conf",
+      "description": "Security headers (X-Frame-Options etc) defined in server block but overridden by add_header in child locations (location = /, location /assets/, location /). Child locations lose security headers.",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "SEC-003",
+      "file": "frontend/nginx.conf",
+      "description": "No Content-Security-Policy header",
+      "severity": "MEDIUM"
+    }
+  ],
+  "nginxMissing": [
+    "gzip compression",
+    "Content-Security-Policy header",
+    "proxy_read_timeout / proxy_connect_timeout for long Playwright jobs",
+    "proxy_buffering configuration",
+    "keepalive optimization",
+    "access_log configuration",
+    "rate limiting at nginx layer"
+  ],
+  "dockerMissing": [
+    "CPU/memory resource limits (deploy.resources.limits)",
+    "Logging driver configuration (log rotation)",
+    "Backend Dockerfile copies entire repo in builder stage"
+  ],
+  "oversizedFiles": [
+    {"file": "src/generator/soap-generator.ts", "lines": 2826, "limit": 800},
+    {"file": "parsers/optum-note/checker/note-checker.ts", "lines": 2085, "limit": 800},
+    {"file": "src/generator/tx-sequence-engine.ts", "lines": 2008, "limit": 800},
+    {"file": "frontend/src/views/BatchView.vue", "lines": 1827, "limit": 800},
+    {"file": "scripts/playwright/mdland-automation.ts", "lines": 1421, "limit": 800},
+    {"file": "src/shared/template-options.ts", "lines": 1416, "limit": "N/A (data)"},
+    {"file": "src/generator/objective-patch.ts", "lines": 1193, "limit": 800},
+    {"file": "frontend/src/components/composer/WriterPanel.vue", "lines": 1113, "limit": 800},
+    {"file": "parsers/optum-note/parser.ts", "lines": 1095, "limit": 800}
+  ],
+  "deadCode": [
+    "frontend/src/services/normalizer.js (109 lines, not imported anywhere)",
+    "frontend/src/views/HistoryView.vue (172 lines, route redirects to /)",
+    "@vueuse/core in frontend/package.json (declared but never imported)"
+  ],
+  "prngDependency": {
+    "source": "src/shared/seeded-rng.ts → mulberry32",
+    "consumer": "src/generator/tx-sequence-engine.ts",
+    "constraint": "New rng() calls MUST be appended at end of loop iteration, never inserted mid-sequence",
+    "reason": "Inserting mid-sequence shifts all subsequent rng values, breaking 30 fixture snapshots",
+    "callsPerVisit": "~30 rng() calls in strict order"
+  },
+  "dataFlow": {
+    "batchGeneration": [
+      "HTTP POST /api/batch → multer (memory) → parseExcelBuffer [async]",
+      "→ buildPatientsFromRows [sync]",
+      "→ generateMixedBatch [sync, CPU INTENSIVE]",
+      "  → per patient: normalizeGenerationContext → inferMedicalProfile",
+      "  → IE/RE: exportSOAPAsText(generateSOAPNote(ctx))",
+      "  → TX series: exportTXSeriesAsText(ctx, options)",
+      "    → tx-sequence-engine: for loop × txCount, each iteration ~30 rng() calls",
+      "    → per visit: assemble S/O/A/P sections via rule engine + weight system",
+      "  → optional: patchSOAPText (objective-patch)",
+      "→ splitSOAPText [sync]",
+      "→ saveBatch [sync, fs.writeFileSync]",
+      "→ HTTP response"
+    ],
+    "frontendGeneration": [
+      "User clicks Generate → useSOAPGeneration.generate()",
+      "→ normalizeGenerationContext [sync, main thread]",
+      "→ generateTXSequenceStates [sync, main thread, CPU INTENSIVE]",
+      "→ exportSOAPAsText × N visits [sync, main thread]",
+      "→ optional: patchSOAPText [sync, main thread]",
+      "→ validateGeneratedSequence [sync, main thread]",
+      "→ reactive state update → DOM render"
+    ],
+    "automation": [
+      "HTTP POST /api/automate/:batchId",
+      "→ verify: batch confirmed + cookies exist + not running",
+      "→ decryptCookiesToTempFile [sync, fs.writeFileSync]",
+      "→ spawn child process: npx tsx mdland-automation.ts",
+      "→ child stdout/stderr → currentJob.logs (max 500 lines)",
+      "→ child close → cleanupTempCookies + update currentJob status",
+      "→ HTTP response (immediate, job runs in background)"
+    ]
+  }
+}

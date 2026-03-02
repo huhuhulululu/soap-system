@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { computeSpasm, SPASM_GRADE_TEXT } from "../spasm-model";
 
 describe("computeSpasm", () => {

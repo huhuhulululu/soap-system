@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { computeGoalPaths, type GoalPathInput } from "../goal-path-calculator";
 
 // Deterministic PRNG (mulberry32)
@@ -411,10 +410,7 @@ describe("Goal Path Calculator", () => {
         const stB = paths.stBoundary;
         const stDrops = paths.pain.changeVisits.filter((v) => v <= stB);
         for (const v of stDrops) {
-          expect(
-            v,
-            `seed=${seed}: pain ST drop at visit ${v} < 5`,
-          ).toBeGreaterThanOrEqual(5);
+          expect(v).toBeGreaterThanOrEqual(5);
         }
       }
     });
@@ -520,10 +516,7 @@ describe("Goal Path Calculator", () => {
 
         const visitDims = countDimsPerVisit(paths, 11);
         for (const [visit, dims] of visitDims) {
-          expect(
-            dims.length,
-            `seed=${seed} visit=${visit}: ${dims.join(",")} (${dims.length} dims)`,
-          ).toBeLessThanOrEqual(3);
+          expect(dims.length).toBeLessThanOrEqual(3);
         }
       }
     });
@@ -560,10 +553,7 @@ describe("Goal Path Calculator", () => {
           const d = paths[key];
           const expectedTotal =
             Math.abs(d.startValue - d.stGoal) + Math.abs(d.stGoal - d.ltGoal);
-          expect(
-            d.changeVisits.length,
-            `seed=${seed} ${key}: expected ${expectedTotal} drops, got ${d.changeVisits.length}`,
-          ).toBe(expectedTotal);
+          expect(d.changeVisits.length).toBe(expectedTotal);
         }
       }
     });
@@ -615,10 +605,7 @@ describe("Goal Path Calculator", () => {
         const stB = paths.stBoundary;
         const stDrops = paths.symptomScale.changeVisits.filter((v) => v <= stB);
         for (const v of stDrops) {
-          expect(
-            v,
-            `seed=${seed}: symptomScale ST drop at visit ${v} < 3`,
-          ).toBeGreaterThanOrEqual(3);
+          expect(v).toBeGreaterThanOrEqual(3);
         }
       }
     });
@@ -644,10 +631,7 @@ describe("Goal Path Calculator", () => {
             (painV[j] <= stB && painV[j - 1] <= stB) ||
             (painV[j] > stB && painV[j - 1] > stB);
           if (samePhase) {
-            expect(
-              painV[j] - painV[j - 1],
-              `seed=${seed}: pain drops at ${painV[j - 1]},${painV[j]} gap=${painV[j] - painV[j - 1]}`,
-            ).toBeGreaterThanOrEqual(2);
+            expect(painV[j] - painV[j - 1]).toBeGreaterThanOrEqual(2);
           }
         }
       }

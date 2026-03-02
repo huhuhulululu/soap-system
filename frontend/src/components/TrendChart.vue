@@ -176,8 +176,7 @@ const chartData = computed(() => {
     })
 
     return { series, categories, annotations: { points: errorPoints } }
-  } catch (error) {
-    console.error('Error generating chart data:', error)
+  } catch {
     return { series: [], categories: [], annotations: { points: [] } }
   }
 })

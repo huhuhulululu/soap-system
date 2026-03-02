@@ -7,7 +7,6 @@
  * 3. adverse effect 句子有变化
  * 4. 整体 Assessment 文本在相邻 visit 间有差异
  */
-import { describe, it, expect } from 'vitest'
 import { exportTXSeriesAsText } from '../soap-generator'
 import type { GenerationContext } from '../../types'
 

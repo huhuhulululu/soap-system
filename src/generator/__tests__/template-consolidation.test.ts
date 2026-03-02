@@ -5,7 +5,6 @@
  * V-15: NEUTRAL/CAME_BACK_REASONS should derive from TEMPLATE_TX_REASON
  * V-20: deriveAssessmentFromSOA values should be in TX option constants
  */
-import { describe, it, expect } from "vitest";
 import {
   TEMPLATE_TENDERNESS_SCALE,
   TEMPLATE_TX_REASON,
@@ -18,18 +17,15 @@ function makeTxContext(
   overrides: Partial<GenerationContext> = {},
 ): GenerationContext {
   return {
-    patientName: "TEST,PATIENT(01/01/1970)",
-    gender: "M",
+    noteType: "TX",
+    gender: "Male",
     insuranceType: "HF",
     primaryBodyPart: "LBP",
-    laterality: "B",
-    icdCodes: ["M54.50"],
-    cptCodes: ["97810", "97811x3"],
-    totalVisits: 10,
+    laterality: "bilateral",
     painWorst: 8,
     painBest: 3,
     painCurrent: 6,
-    symptomDuration: "3 year(s)",
+    symptomDuration: { value: "3", unit: "year(s)" },
     painRadiation: "without radiation",
     painTypes: ["Dull", "Aching"],
     associatedSymptoms: ["soreness"],
@@ -39,9 +35,8 @@ function makeTxContext(
     painFrequency: "Constant (symptoms occur between 76% and 100% of the time)",
     localPattern: "Qi Stagnation",
     systemicPattern: "Kidney Yang Deficiency",
-    chronicityLevel: "chronic",
+    chronicityLevel: "Chronic",
     severityLevel: "moderate",
-    secondaryParts: [],
     medicalHistory: [],
     ...overrides,
   };
@@ -61,10 +56,7 @@ describe("V-18: tenderness grading uses TEMPLATE_TENDERNESS_SCALE", () => {
 
       for (const state of states) {
         if (state.tendernessGrading) {
-          expect(
-            validTexts,
-            `${bp} tenderness "${state.tendernessGrading}" not in TEMPLATE_TENDERNESS_SCALE`,
-          ).toContain(state.tendernessGrading);
+          expect(validTexts).toContain(state.tendernessGrading);
         }
       }
     });
@@ -84,10 +76,7 @@ describe("V-10/V-15: TX reason uses TEMPLATE_TX_REASON values", () => {
       });
       for (const state of states) {
         if (state.reason) {
-          expect(
-            validReasons,
-            `reason "${state.reason}" (seed=${seed}) not in TEMPLATE_TX_REASON`,
-          ).toContain(state.reason);
+          expect(validReasons).toContain(state.reason);
         }
       }
     }
@@ -112,10 +101,7 @@ describe("V-20: assessment whatChanged uses TEMPLATE_TX_WHAT_CHANGED", () => {
             .map((s: string) => s.trim())
             .filter(Boolean);
           for (const part of parts) {
-            expect(
-              validOptions,
-              `whatChanged part "${part}" (seed=${seed}) not in TEMPLATE_TX_WHAT_CHANGED`,
-            ).toContain(part);
+            expect(validOptions).toContain(part);
           }
         }
       }

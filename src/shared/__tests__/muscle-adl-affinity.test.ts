@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   type BodyPartKey,
   TEMPLATE_ADL,
@@ -44,10 +43,7 @@ describe("MUSCLE_ADL_AFFINITY", () => {
         ...muscles.tenderness,
       ]);
       for (const muscle of Object.keys(MUSCLE_ADL_AFFINITY[bp])) {
-        expect(
-          validMuscles.has(muscle),
-          `"${muscle}" not found in TEMPLATE_MUSCLES.${bp}`,
-        ).toBe(true);
+        expect(validMuscles.has(muscle)).toBe(true);
       }
     }
   });
@@ -62,10 +58,7 @@ describe("MUSCLE_ADL_AFFINITY", () => {
       ]);
       for (const [muscle, adls] of Object.entries(MUSCLE_ADL_AFFINITY[bp])) {
         for (const adl of adls) {
-          expect(
-            validADLs.has(adl),
-            `ADL "${adl}" for muscle "${muscle}" not in TEMPLATE_ADL/TEMPLATE_AGGRAVATING.${lookupBp}`,
-          ).toBe(true);
+          expect(validADLs.has(adl)).toBe(true);
         }
       }
     }
@@ -75,9 +68,7 @@ describe("MUSCLE_ADL_AFFINITY", () => {
     for (const bp of ALL_BODY_PARTS) {
       for (const [muscle, adls] of Object.entries(MUSCLE_ADL_AFFINITY[bp])) {
         const unique = new Set(adls);
-        expect(unique.size, `Duplicate ADL in ${bp}.${muscle}`).toBe(
-          adls.length,
-        );
+        expect(unique.size).toBe(adls.length);
       }
     }
   });

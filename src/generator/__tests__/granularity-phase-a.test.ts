@@ -7,7 +7,6 @@
  * 3. 20-visit 序列中 pain label 唯一值 ≥ 5
  * 4. 20-visit 序列中 symptomScale 唯一值 ≥ 4
  */
-import { describe, it, expect } from 'vitest'
 import {
   generateTXSequenceStates,
   // 需要导出这两个函数用于单元测试

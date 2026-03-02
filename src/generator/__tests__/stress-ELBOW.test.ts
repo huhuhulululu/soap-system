@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import type { GenerationContext } from "../../types";
 
@@ -60,10 +59,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
 
       for (const s of states) {
         const sc = s.symptomChange.toLowerCase();
-        expect(
-          sc.includes("exacerbate") || sc.includes("came back"),
-          `seed=${seed} v${s.visitIndex}: unexpected negative symptomChange "${s.symptomChange}"`,
-        ).toBe(false);
+        expect(sc.includes("exacerbate") || sc.includes("came back")).toBe(false);
       }
     });
   });
@@ -79,10 +75,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
       for (let i = 1; i < states.length; i++) {
         const prev = states[i - 1].painScaleCurrent;
         const curr = states[i].painScaleCurrent;
-        expect(
-          curr,
-          `seed=${seed} v${states[i].visitIndex}: pain ${curr} > prev ${prev} (v${states[i - 1].visitIndex})`,
-        ).toBeLessThanOrEqual(prev + 0.01);
+        expect(curr).toBeLessThanOrEqual(prev + 0.01);
       }
     });
   });
@@ -97,10 +90,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
 
       const v1 = states[0];
       const v12 = states[11];
-      expect(
-        v12.painScaleCurrent,
-        `seed=${seed}: v12 pain ${v12.painScaleCurrent} > v1 pain ${v1.painScaleCurrent}`,
-      ).toBeLessThanOrEqual(v1.painScaleCurrent);
+      expect(v12.painScaleCurrent).toBeLessThanOrEqual(v1.painScaleCurrent);
     });
   });
 
@@ -114,10 +104,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
 
       const v12 = states[11];
       const v20 = states[19];
-      expect(
-        v20.painScaleCurrent,
-        `seed=${seed}: v20 pain ${v20.painScaleCurrent} > v12 pain ${v12.painScaleCurrent}`,
-      ).toBeLessThanOrEqual(v12.painScaleCurrent + 0.01);
+      expect(v20.painScaleCurrent).toBeLessThanOrEqual(v12.painScaleCurrent + 0.01);
     });
   });
 
@@ -133,10 +120,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
       const v20Rank = severityRank(states[19].severityLevel);
       expect(v1Rank).toBeGreaterThanOrEqual(0);
       expect(v20Rank).toBeGreaterThanOrEqual(0);
-      expect(
-        v20Rank,
-        `seed=${seed}: v20 severity "${states[19].severityLevel}" (${v20Rank}) worse than v1 "${states[0].severityLevel}" (${v1Rank})`,
-      ).toBeLessThanOrEqual(v1Rank);
+      expect(v20Rank).toBeLessThanOrEqual(v1Rank);
     });
   });
 
@@ -154,10 +138,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
       const v20Rank = strengthRank(v20Str);
 
       if (v1Rank >= 0 && v20Rank >= 0) {
-        expect(
-          v20Rank,
-          `seed=${seed}: v20 strength "${v20Str}" (${v20Rank}) weaker than v1 "${v1Str}" (${v1Rank})`,
-        ).toBeGreaterThanOrEqual(v1Rank);
+        expect(v20Rank).toBeGreaterThanOrEqual(v1Rank);
       }
     });
   });
@@ -181,10 +162,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
         (a, b) => b[1] - a[1],
       )[0];
 
-      expect(
-        maxRate,
-        `seed=${seed}: reason "${topReason[0]}" appeared ${topReason[1]}/${states.length} times (${(maxRate * 100).toFixed(1)}%)`,
-      ).toBeLessThanOrEqual(0.65);
+      expect(maxRate).toBeLessThanOrEqual(0.65);
     });
   });
 
@@ -201,10 +179,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
         });
 
         const v1sc = states[0].symptomChange.toLowerCase();
-        expect(
-          v1sc.includes("exacerbate") || v1sc.includes("came back"),
-          `seed=${seed} v1: negative symptomChange "${states[0].symptomChange}" on visit 1`,
-        ).toBe(false);
+        expect(v1sc.includes("exacerbate") || v1sc.includes("came back")).toBe(false);
 
         for (const s of states) {
           totalVisits++;
@@ -216,10 +191,7 @@ describe("stress-ELBOW: 10 seeds × 20 TX visits", () => {
       }
 
       const negativeRate = totalNegative / totalVisits;
-      expect(
-        negativeRate,
-        `negative rate ${totalNegative}/${totalVisits} = ${(negativeRate * 100).toFixed(1)}% exceeds 10%`,
-      ).toBeLessThanOrEqual(0.1);
+      expect(negativeRate).toBeLessThanOrEqual(0.1);
     });
   });
 });

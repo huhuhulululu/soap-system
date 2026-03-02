@@ -7,7 +7,6 @@
  * 3. 纵向单调: frequency 只降不升
  * 4. Chronic 患者 frequency 变化晚于 normal
  */
-import { describe, it, expect } from 'vitest'
 import {
   generateTXSequenceStates,
 } from '../tx-sequence-engine'

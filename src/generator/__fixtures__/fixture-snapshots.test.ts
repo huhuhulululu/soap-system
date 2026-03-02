@@ -4,10 +4,9 @@
  * Captures the CURRENT SOAP generation engine output as regression baselines.
  * Any future engine change that shifts the PRNG sequence will be detected.
  *
- * Run `npx vitest run src/generator/__fixtures__/fixture-snapshots.test.ts --update`
+ * Run `npm test -- src/generator/__fixtures__/fixture-snapshots.test.ts --runInBand -u`
  * to regenerate snapshots after intentional engine changes.
  */
-import { describe, it, expect, beforeAll } from 'vitest'
 import { exportTXSeriesAsText } from '../soap-generator'
 import { patchSOAPText } from '../objective-patch'
 import { setWhitelist } from '../../parser/template-rule-whitelist'
@@ -32,7 +31,11 @@ function makeContext(fx: FixtureDefinition): GenerationContext {
     chronicityLevel: 'Chronic',
     severityLevel: fx.severityLevel,
     painCurrent: fx.painCurrent,
-    associatedSymptom: fx.associatedSymptom ?? 'soreness',
+    associatedSymptoms: [
+      (fx.associatedSymptom ?? 'soreness') as NonNullable<
+        GenerationContext['associatedSymptoms']
+      >[number],
+    ],
     hasPacemaker: fx.hasPacemaker,
     hasMetalImplant: fx.hasMetalImplant,
     medicalHistory: fx.medicalHistory ? [...fx.medicalHistory] : undefined,

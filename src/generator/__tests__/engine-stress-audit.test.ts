@@ -1,9 +1,8 @@
-import { describe, it, expect } from 'vitest'
 import { generateTXSequenceStates, type TXSequenceOptions } from '../tx-sequence-engine'
 import type { GenerationContext } from '../../types'
 
 const BODY_PARTS = ['LBP', 'NECK', 'SHOULDER', 'KNEE', 'ELBOW'] as const
-const CHRONICITY = ['Acute', 'Sub-Acute', 'Chronic'] as const
+const CHRONICITY = ['Acute', 'Sub Acute', 'Chronic'] as const
 const SEEDS = [42, 1000, 2000, 3000, 5000, 7777, 9999, 12345, 54321, 99999]
 
 function makeContext(overrides: Partial<GenerationContext> = {}): GenerationContext {
@@ -73,10 +72,7 @@ describe('Audit: Monotonicity', () => {
       for (const seed of SEEDS) {
         const { states } = generateTXSequenceStates(ctx, { txCount: 11, seed })
         for (let i = 1; i < states.length; i++) {
-          expect(
-            states[i].painScaleCurrent,
-            `${bp} seed=${seed} v${i + 1}: pain ${states[i].painScaleCurrent} > prev ${states[i - 1].painScaleCurrent}`,
-          ).toBeLessThanOrEqual(states[i - 1].painScaleCurrent + 0.01) // tiny float tolerance
+          expect(states[i].painScaleCurrent).toBeLessThanOrEqual(states[i - 1].painScaleCurrent + 0.01) // tiny float tolerance
         }
       }
     }
@@ -91,10 +87,7 @@ describe('Audit: Monotonicity', () => {
         for (let i = 1; i < states.length; i++) {
           const prev = STRENGTH_ORDER.indexOf(states[i - 1].strengthGrade ?? '4/5')
           const curr = STRENGTH_ORDER.indexOf(states[i].strengthGrade ?? '4/5')
-          expect(
-            curr,
-            `${bp} seed=${seed} v${i + 1}: strength ${states[i].strengthGrade} < prev ${states[i - 1].strengthGrade}`,
-          ).toBeGreaterThanOrEqual(prev)
+          expect(curr).toBeGreaterThanOrEqual(prev)
         }
       }
     }
@@ -132,7 +125,7 @@ describe('Audit: S-O-A Consistency', () => {
     }
     // Allow ≤ 2% violations (edge cases at plateau boundaries)
     const rate = total > 0 ? violations / total : 0
-    expect(rate, `S-O-A violations: ${violations}/${total} = ${(rate * 100).toFixed(1)}%`).toBeLessThanOrEqual(0.02)
+    expect(rate).toBeLessThanOrEqual(0.02)
   })
 
   it('painChange=similar → assessment.present contains "similar"', () => {
@@ -143,10 +136,7 @@ describe('Audit: S-O-A Consistency', () => {
         for (const s of states) {
           if (!s.soaChain) continue
           if (s.soaChain.subjective.painChange === 'similar') {
-            expect(
-              s.soaChain.assessment.present,
-              `${bp} seed=${seed} v${s.visitIndex}: similar painChange but assessment="${s.soaChain.assessment.present}"`,
-            ).toContain('similar')
+            expect(s.soaChain.assessment.present).toContain('similar')
           }
         }
       }
@@ -175,7 +165,7 @@ describe('Audit: S-O-A Consistency', () => {
       }
     }
     const rate = total > 0 ? mismatches / total : 0
-    expect(rate, `reason↔symptomChange mismatches: ${mismatches}/${total}`).toBe(0)
+    expect(rate).toBe(0)
   })
 })
 
@@ -220,7 +210,7 @@ describe('Audit: Boundary Conditions', () => {
     const ctx = makeContext({ painCurrent: 3 })
     const { states } = generateTXSequenceStates(ctx, { txCount: 11, seed: 42 })
     for (const s of states) {
-      expect(s.painScaleCurrent, `v${s.visitIndex} pain=${s.painScaleCurrent}`).toBeGreaterThanOrEqual(0)
+      expect(s.painScaleCurrent).toBeGreaterThanOrEqual(0)
     }
   })
 
@@ -233,11 +223,11 @@ describe('Audit: Boundary Conditions', () => {
           painCurrent: bp === 'ELBOW' ? 6 : 8,
         })
         const { states } = generateTXSequenceStates(ctx, { txCount: 11, seed: 42 })
-        expect(states.length, `${bp}/${ch}`).toBe(11)
+        expect(states.length).toBe(11)
         for (const s of states) {
-          expect(Number.isNaN(s.painScaleCurrent), `${bp}/${ch} v${s.visitIndex} NaN pain`).toBe(false)
-          expect(s.reason, `${bp}/${ch} v${s.visitIndex} empty reason`).toBeTruthy()
-          expect(s.symptomChange, `${bp}/${ch} v${s.visitIndex} empty symptomChange`).toBeTruthy()
+          expect(Number.isNaN(s.painScaleCurrent)).toBe(false)
+          expect(s.reason).toBeTruthy()
+          expect(s.symptomChange).toBeTruthy()
         }
       }
     }
@@ -247,7 +237,7 @@ describe('Audit: Boundary Conditions', () => {
     const ctx = makeContext()
     const { states } = generateTXSequenceStates(ctx, { txCount: 11, seed: 42 })
     for (const s of states) {
-      expect(s.soaChain, `v${s.visitIndex} missing soaChain`).toBeDefined()
+      expect(s.soaChain).toBeDefined()
       expect(s.soaChain!.subjective.painChange).toBeTruthy()
       expect(s.soaChain!.objective.tightnessTrend).toBeTruthy()
       expect(s.soaChain!.objective.tendernessTrend).toBeTruthy()

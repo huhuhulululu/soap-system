@@ -11,6 +11,13 @@ import {
   TEMPLATE_ROM,
 } from "./template-options";
 
+export type RomTrend = "improved" | "slightly improved" | "stable";
+
+export interface TemplateRomPainPickHints {
+  progress?: number;
+  trend?: RomTrend;
+}
+
 /** Body parts that have TEMPLATE_ROM data */
 const TEMPLATE_ROM_KEYS = new Set<string>([
   "LBP",
@@ -68,9 +75,76 @@ export function resolveTemplateMovementName(
  */
 export function getTemplateSeverityForPain(pain: number): Severity {
   if (pain <= 0) return "normal";
-  if (pain <= 3) return "mild";
+  if (pain <= 4) return "mild";
   if (pain <= 6) return "moderate";
   return "severe";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Map pain (0-10) to a continuous impairment score:
+ * - 0.0 => normal best
+ * - 1.x => mild band
+ * - 2.x => moderate band
+ * - 3.x => severe band
+ *
+ * This gives smooth progression inside each severity band (e.g. pain 6 -> 5).
+ */
+function painToContinuousImpairmentScore(pain: number): number {
+  const p = clamp(pain, 0, 10);
+  if (p <= 0) return 0;
+  if (p <= 4) return 1 + ((p - 1) / 3) * 0.99;
+  if (p <= 6) return 2 + ((p - 4) / 2) * 0.99;
+  return 3 + ((p - 6) / 4) * 0.99;
+}
+
+function trendToImprovementBonus(trend: RomTrend | undefined): number {
+  if (trend === "improved") return 0.22;
+  if (trend === "slightly improved") return 0.11;
+  return 0;
+}
+
+const SEVERITY_TO_INDEX: Record<Severity, number> = {
+  normal: 0,
+  mild: 1,
+  moderate: 2,
+  severe: 3,
+};
+
+interface ScoredOption {
+  degrees: number;
+  score: number;
+}
+
+function buildScoredOptions(
+  options: readonly { degrees: number; severity: Severity }[],
+): ScoredOption[] {
+  const result: ScoredOption[] = [];
+  const severityOrder: readonly Severity[] = [
+    "normal",
+    "mild",
+    "moderate",
+    "severe",
+  ];
+  for (const severity of severityOrder) {
+    const sameSeverity = options
+      .filter((o) => o.severity === severity)
+      .sort((a, b) => b.degrees - a.degrees);
+    if (sameSeverity.length === 0) continue;
+    const base = SEVERITY_TO_INDEX[severity];
+    const denom = Math.max(1, sameSeverity.length - 1);
+    sameSeverity.forEach((opt, idx) => {
+      const withinBand = sameSeverity.length === 1 ? 0.5 : idx / denom;
+      result.push({
+        degrees: opt.degrees,
+        score: base + withinBand * 0.95,
+      });
+    });
+  }
+  return result;
 }
 
 /**
@@ -120,6 +194,51 @@ export function pickTemplateROMDegrees(
     filtered.length - 1,
   );
   return filtered[index].degrees;
+}
+
+/**
+ * Pick template ROM degrees from continuous pain with trend/progress hints.
+ *
+ * This is used by TX rendering so ROM text can align with objective romTrend
+ * and improve smoothly within the same severity band.
+ */
+export function pickTemplateROMDegreesByPain(
+  bp: BodyPartKey,
+  movementName: string,
+  pain: number,
+  rngValue: number,
+  hints?: TemplateRomPainPickHints,
+): number | null {
+  const movements = TEMPLATE_ROM[bp];
+  const movement = movements.find((m) => m.name === movementName);
+  if (!movement) {
+    return null;
+  }
+
+  const scored = buildScoredOptions(movement.options);
+  if (scored.length === 0) {
+    return null;
+  }
+
+  const progressBonus = clamp(hints?.progress ?? 0, 0, 1) * 0.2;
+  const trendBonus = trendToImprovementBonus(hints?.trend);
+  const jitter = (clamp(rngValue, 0, 0.999) - 0.5) * 0.24;
+  const targetScore = clamp(
+    painToContinuousImpairmentScore(pain) - progressBonus - trendBonus + jitter,
+    0,
+    3.99,
+  );
+
+  const picked = scored.reduce((best, cur) => {
+    const bestDiff = Math.abs(best.score - targetScore);
+    const curDiff = Math.abs(cur.score - targetScore);
+    if (curDiff < bestDiff) return cur;
+    // Tie-break toward higher degree (less limitation).
+    if (curDiff === bestDiff && cur.degrees > best.degrees) return cur;
+    return best;
+  }, scored[0]);
+
+  return picked.degrees;
 }
 
 /**

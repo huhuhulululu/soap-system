@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import { exportSOAPAsText } from "../soap-generator";
 import { patchSOAPText } from "../objective-patch";
@@ -74,6 +73,54 @@ describe("M-03: ROM severity improves across TX visits", () => {
       expect(hasDifference).toBe(true);
     },
   );
+});
+
+describe("Task 1.1: ROM render aligns with romTrend", () => {
+  it("same pain/progress with different romTrend should render different ROM lines", () => {
+    const ctx = makeCtx("LBP", { laterality: "right" });
+    const { states } = generateTXSequenceStates(ctx, {
+      txCount: 1,
+      seed: 314159,
+    });
+    const base = states[0];
+    const fixedState = {
+      ...base,
+      painScaleCurrent: 6,
+      progress: 0.6,
+      strengthGrade: "4/5",
+    };
+    const stableState = {
+      ...fixedState,
+      soaChain: {
+        ...fixedState.soaChain,
+        objective: {
+          ...fixedState.soaChain.objective,
+          romTrend: "stable" as const,
+        },
+      },
+    };
+    const improvedState = {
+      ...fixedState,
+      soaChain: {
+        ...fixedState.soaChain,
+        objective: {
+          ...fixedState.soaChain.objective,
+          romTrend: "improved" as const,
+        },
+      },
+    };
+
+    const stableText = patchSOAPText(exportSOAPAsText(ctx, stableState), ctx, stableState);
+    const improvedText = patchSOAPText(
+      exportSOAPAsText(ctx, improvedState),
+      ctx,
+      improvedState,
+    );
+    const stableRom = extractRomLines(stableText).join("|");
+    const improvedRom = extractRomLines(improvedText).join("|");
+
+    expect(improvedRom).not.toBe(stableRom);
+  });
 });
 
 describe("M-04: Strength grades reflect engine progression", () => {

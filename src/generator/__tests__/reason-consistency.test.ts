@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import { setWhitelist } from "../../parser/template-rule-whitelist";
 import whitelistData from "../../../frontend/src/data/whitelist.json";
@@ -101,7 +100,7 @@ describe("Reason↔dimension consistency", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("Pain-related reasons only appear when there is actual pain improvement", () => {
@@ -142,7 +141,7 @@ describe("Reason↔dimension consistency", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("O-side reasons only appear when objective trends are non-stable", () => {
@@ -187,7 +186,7 @@ describe("Reason↔dimension consistency", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("reason diversity still ≤ 20% repeat rate after filtering", () => {
@@ -213,10 +212,7 @@ describe("Reason↔dimension consistency", () => {
         const reasons = states.map((s) => s.reason);
         const unique = new Set(reasons);
         const repeatRate = 1 - unique.size / reasons.length;
-        expect(
-          repeatRate,
-          `${bp} seed=${seed} repeatRate=${(repeatRate * 100).toFixed(0)}%`,
-        ).toBeLessThanOrEqual(0.65); // relaxed for 24-option template pool
+        expect(repeatRate).toBeLessThanOrEqual(0.65); // relaxed for 24-option template pool
       }
     }
   });

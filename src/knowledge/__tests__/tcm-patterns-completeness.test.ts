@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { TCM_PATTERNS } from "../tcm-patterns";
 
 describe("TCM_PATTERNS completeness", () => {
@@ -16,7 +15,7 @@ describe("TCM_PATTERNS completeness", () => {
   for (const pattern of MDLAND_SYSTEMIC) {
     it(`has "${pattern}" defined`, () => {
       const found = TCM_PATTERNS[pattern];
-      expect(found, `Missing: ${pattern}`).toBeDefined();
+      expect(found).toBeDefined();
       expect(found.tongue.length).toBeGreaterThan(0);
       expect(found.pulse.length).toBeGreaterThan(0);
     });
@@ -32,7 +31,7 @@ describe("TCM_PATTERNS completeness", () => {
   for (const pattern of MDLAND_LOCAL) {
     it(`has local "${pattern}" defined`, () => {
       const found = TCM_PATTERNS[pattern];
-      expect(found, `Missing local: ${pattern}`).toBeDefined();
+      expect(found).toBeDefined();
     });
   }
 });

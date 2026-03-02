@@ -1,7 +1,6 @@
 /**
  * O2/O3/V6: grading↔trend consistency + spasm monotonic constraint
  */
-import { describe, it, expect, beforeAll } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import { setWhitelist } from "../../parser/template-rule-whitelist";
 import whitelistData from "../../../frontend/src/data/whitelist.json";
@@ -84,7 +83,7 @@ describe("Grading↔trend consistency (O2/O3/V6)", () => {
         if (grade >= 0) prevGrade = grade;
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("O3: spasm grading drop implies trend ≠ stable", () => {
@@ -101,7 +100,7 @@ describe("Grading↔trend consistency (O2/O3/V6)", () => {
         if (grade >= 0) prevGrade = grade;
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("V6: spasm grading never increases longitudinally", () => {
@@ -120,6 +119,6 @@ describe("Grading↔trend consistency (O2/O3/V6)", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 });

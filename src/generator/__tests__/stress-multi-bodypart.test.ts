@@ -6,7 +6,6 @@
  *
  * 发现的问题记录在底部 ISSUES 区域
  */
-import { describe, it, expect } from "vitest";
 import { exportSOAPAsText } from "../soap-generator";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import type { GenerationContext } from "../../types";
@@ -314,10 +313,7 @@ describe("Stress: TX sequence — all body parts × 20 seeds", () => {
               i + 1,
             );
           }
-          expect(
-            curr,
-            `${bp} seed=${seed} v${i + 1}: pain ${curr} > prev ${prev}`,
-          ).toBeLessThanOrEqual(prev + 0.01);
+          expect(curr).toBeLessThanOrEqual(prev + 0.01);
         }
       });
 
@@ -543,7 +539,7 @@ describe("Stress: boundary conditions", () => {
     it(`${bp} — pain=2 (minimum) generates without error`, () => {
       const ctx = makeTXContext(bp, 42);
       ctx.painCurrent = 2;
-      (ctx as Record<string, unknown>).severityLevel = "mild";
+      (ctx as unknown as { severityLevel: string }).severityLevel = "mild";
       const { states } = generateTXSequenceStates(ctx, {
         txCount: 20,
         seed: 42,
@@ -557,7 +553,7 @@ describe("Stress: boundary conditions", () => {
     it(`${bp} — pain=10 (maximum) generates without error`, () => {
       const ctx = makeTXContext(bp, 42);
       ctx.painCurrent = 10;
-      (ctx as Record<string, unknown>).severityLevel = "severe";
+      (ctx as unknown as { severityLevel: string }).severityLevel = "severe";
       const { states } = generateTXSequenceStates(ctx, {
         txCount: 20,
         seed: 42,
@@ -600,9 +596,6 @@ describe("Issue Report", () => {
     console.error(report);
 
     // Fail only if there are ERRORs
-    expect(
-      errors.length,
-      `${errors.length} ERROR issues found:\n${report}`,
-    ).toBe(0);
+    expect(errors.length).toBe(0);
   });
 });

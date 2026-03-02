@@ -2,7 +2,6 @@
  * ADL consistency: adlChange=improved only when ADL items actually changed,
  * and Assessment mentions ADL only when adlChange=improved.
  */
-import { describe, it, expect, beforeAll } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import { setWhitelist } from "../../parser/template-rule-whitelist";
 import whitelistData from "../../../frontend/src/data/whitelist.json";
@@ -69,7 +68,7 @@ describe("ADL consistency (S→A chain)", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("Assessment mentions ADL only when adlChange=improved", () => {
@@ -104,6 +103,6 @@ describe("ADL consistency (S→A chain)", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 });

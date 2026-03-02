@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 
 describe("ADL check", () => {
@@ -27,10 +26,7 @@ describe("ADL check", () => {
       const adlPrev = prev.adlItems?.length ?? 0;
 
       if (adlCur === adlPrev) {
-        expect(
-          s.soaChain.assessment.whatChanged,
-          `TX${s.visitIndex}: ADL ${adlPrev}→${adlCur} unchanged but whatChanged mentions ADLs`,
-        ).not.toContain("ADL");
+        expect(s.soaChain.assessment.whatChanged).not.toContain("ADL");
       }
     }
   });
@@ -48,9 +44,7 @@ describe("ADL check", () => {
     // TX1 should compare against IE's ADL count (same severity → same count)
     // so no ADL improvement should be claimed
     if (chain.assessment.whatChanged.includes("ADL")) {
-      expect.fail(
-        `TX1: ADL count=${tx1.adlItems?.length} but whatChanged="${chain.assessment.whatChanged}" mentions ADLs without actual change from IE`,
-      );
+      throw new Error(`TX1: ADL count=${tx1.adlItems?.length} but whatChanged="${chain.assessment.whatChanged}" mentions ADLs without actual change from IE`);
     }
   });
 
@@ -63,9 +57,6 @@ describe("ADL check", () => {
 
     // With SHOULDER and moderate-to-severe severity, ADL items should be non-empty
     const tx1 = states[0];
-    expect(
-      tx1.adlItems?.length,
-      "TX1 should have ADL items for SHOULDER",
-    ).toBeGreaterThan(0);
+    expect(tx1.adlItems?.length).toBeGreaterThan(0);
   });
 });

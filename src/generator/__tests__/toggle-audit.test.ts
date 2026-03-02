@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import type { GenerationContext } from "../../types";
 
@@ -40,10 +39,7 @@ describe("Audit: allowNegativeEvents=OFF (default)", () => {
       for (const seed of SEEDS) {
         const { states } = generateTXSequenceStates(ctx, { txCount: 20, seed });
         for (const s of states) {
-          expect(
-            s.symptomChange,
-            `OFF: ${bp} seed=${seed} v${s.visitIndex} has negative: "${s.symptomChange}"`,
-          ).not.toMatch(/exacerbate|came back/);
+          expect(s.symptomChange).not.toMatch(/exacerbate|came back/);
         }
       }
     }
@@ -56,10 +52,7 @@ describe("Audit: allowNegativeEvents=OFF (default)", () => {
         const { states } = generateTXSequenceStates(ctx, { txCount: 20, seed });
         for (const s of states) {
           if (!s.soaChain) continue;
-          expect(
-            ["improved", "similar"],
-            `OFF: ${bp} seed=${seed} v${s.visitIndex} painChange="${s.soaChain.subjective.painChange}"`,
-          ).toContain(s.soaChain.subjective.painChange);
+          expect(["improved", "similar"]).toContain(s.soaChain.subjective.painChange);
         }
       }
     }
@@ -71,10 +64,7 @@ describe("Audit: allowNegativeEvents=OFF (default)", () => {
       for (const seed of SEEDS) {
         const { states } = generateTXSequenceStates(ctx, { txCount: 20, seed });
         for (let i = 1; i < states.length; i++) {
-          expect(
-            states[i].painScaleCurrent,
-            `OFF: ${bp} seed=${seed} v${i + 1} pain ${states[i].painScaleCurrent} > prev ${states[i - 1].painScaleCurrent}`,
-          ).toBeLessThanOrEqual(states[i - 1].painScaleCurrent + 0.01);
+          expect(states[i].painScaleCurrent).toBeLessThanOrEqual(states[i - 1].painScaleCurrent + 0.01);
         }
       }
     }
@@ -107,11 +97,8 @@ describe("Audit: allowNegativeEvents=ON", () => {
       }
     }
     const rate = negativeVisits / totalVisits;
-    expect(negativeVisits, "ON: no negative events at all").toBeGreaterThan(0);
-    expect(
-      rate,
-      `ON: negative rate ${(rate * 100).toFixed(1)}% > 10%`,
-    ).toBeLessThanOrEqual(0.1);
+    expect(negativeVisits).toBeGreaterThan(0);
+    expect(rate).toBeLessThanOrEqual(0.1);
   });
 
   it("visit 1 never has negative events", () => {
@@ -122,10 +109,7 @@ describe("Audit: allowNegativeEvents=ON", () => {
       });
       for (const seed of SEEDS) {
         const { states } = generateTXSequenceStates(ctx, { txCount: 20, seed });
-        expect(
-          states[0].symptomChange,
-          `ON: ${bp} seed=${seed} v1 is negative`,
-        ).not.toMatch(/exacerbate|came back/);
+        expect(states[0].symptomChange).not.toMatch(/exacerbate|came back/);
       }
     }
   });
@@ -155,15 +139,9 @@ describe("Audit: ST/LT goal progression (20 visits, boundary=12)", () => {
         const v12Pain = states[11].painScaleCurrent;
         const v20Pain = states[19].painScaleCurrent;
         // v12 should be lower than v1 (closer to ST goal)
-        expect(
-          v12Pain,
-          `${bp} seed=${seed}: v12 pain not < v1`,
-        ).toBeLessThanOrEqual(v1Pain);
+        expect(v12Pain).toBeLessThanOrEqual(v1Pain);
         // v20 should be lower than or equal to v12 (closer to LT goal)
-        expect(
-          v20Pain,
-          `${bp} seed=${seed}: v20 pain not ≤ v12`,
-        ).toBeLessThanOrEqual(v12Pain + 0.01);
+        expect(v20Pain).toBeLessThanOrEqual(v12Pain + 0.01);
       }
     }
   });
@@ -182,14 +160,8 @@ describe("Audit: ST/LT goal progression (20 visits, boundary=12)", () => {
           const v12 = SEVERITY_ORDER.indexOf(states[11][dim]);
           const v20 = SEVERITY_ORDER.indexOf(states[19][dim]);
           // Allow at most +1 bounce but overall trend must be down
-          expect(
-            v12,
-            `${bp} seed=${seed} ${dim}: v12(${states[11][dim]}) > v1(${states[0][dim]})`,
-          ).toBeLessThanOrEqual(v1 + 1);
-          expect(
-            v20,
-            `${bp} seed=${seed} ${dim}: v20(${states[19][dim]}) > v12(${states[11][dim]})`,
-          ).toBeLessThanOrEqual(v12 + 1);
+          expect(v12).toBeLessThanOrEqual(v1 + 1);
+          expect(v20).toBeLessThanOrEqual(v12 + 1);
         }
       }
     }
@@ -203,14 +175,8 @@ describe("Audit: ST/LT goal progression (20 visits, boundary=12)", () => {
         const v1 = STRENGTH_ORDER.indexOf(states[0].strengthGrade ?? "4/5");
         const v12 = STRENGTH_ORDER.indexOf(states[11].strengthGrade ?? "4/5");
         const v20 = STRENGTH_ORDER.indexOf(states[19].strengthGrade ?? "4/5");
-        expect(
-          v12,
-          `${bp} seed=${seed}: strength v12 < v1`,
-        ).toBeGreaterThanOrEqual(v1);
-        expect(
-          v20,
-          `${bp} seed=${seed}: strength v20 < v12`,
-        ).toBeGreaterThanOrEqual(v12);
+        expect(v12).toBeGreaterThanOrEqual(v1);
+        expect(v20).toBeGreaterThanOrEqual(v12);
       }
     }
   });
@@ -239,14 +205,8 @@ describe("Audit: ST/LT goal progression (20 visits, boundary=12)", () => {
     const stRate = stImprovements / stTotal;
     const ltRate = ltImprovements / ltTotal;
     // Both phases should show meaningful improvement (≥ 30%)
-    expect(
-      stRate,
-      `ST improvement rate ${(stRate * 100).toFixed(0)}% < 30%`,
-    ).toBeGreaterThanOrEqual(0.3);
-    expect(
-      ltRate,
-      `LT improvement rate ${(ltRate * 100).toFixed(0)}% < 30%`,
-    ).toBeGreaterThanOrEqual(0.3);
+    expect(stRate).toBeGreaterThanOrEqual(0.3);
+    expect(ltRate).toBeGreaterThanOrEqual(0.3);
   });
 
   it("overall: v20 is strictly better than v1 across all dimensions", () => {
@@ -257,22 +217,13 @@ describe("Audit: ST/LT goal progression (20 visits, boundary=12)", () => {
         const v1 = states[0];
         const v20 = states[19];
         // Pain decreased
-        expect(
-          v20.painScaleCurrent,
-          `${bp} seed=${seed}: v20 pain not < v1`,
-        ).toBeLessThanOrEqual(v1.painScaleCurrent);
+        expect(v20.painScaleCurrent).toBeLessThanOrEqual(v1.painScaleCurrent);
         // Severity same or better
-        expect(
-          SEVERITY_ORDER.indexOf(v20.severityLevel),
-          `${bp} seed=${seed}: v20 severity worse than v1`,
-        ).toBeLessThanOrEqual(SEVERITY_ORDER.indexOf(v1.severityLevel));
+        expect(SEVERITY_ORDER.indexOf(v20.severityLevel)).toBeLessThanOrEqual(SEVERITY_ORDER.indexOf(v1.severityLevel));
         // Strength same or better
         const s1 = STRENGTH_ORDER.indexOf(v1.strengthGrade ?? "4/5");
         const s20 = STRENGTH_ORDER.indexOf(v20.strengthGrade ?? "4/5");
-        expect(
-          s20,
-          `${bp} seed=${seed}: v20 strength < v1`,
-        ).toBeGreaterThanOrEqual(s1);
+        expect(s20).toBeGreaterThanOrEqual(s1);
       }
     }
   });

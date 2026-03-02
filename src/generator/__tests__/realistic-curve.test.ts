@@ -10,7 +10,6 @@
  *
  * Seeds 400001-400010 (distinct from fixture 100001-100030, parity 200001-200009, chronic 300001-300005)
  */
-import { describe, it, expect } from "vitest";
 import {
   generateTXSequenceStates,
   deriveAssessmentFromSOA,

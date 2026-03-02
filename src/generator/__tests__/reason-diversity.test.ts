@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
 import {
   generateTXSequenceStates,
   type TXSequenceOptions,
 } from "../tx-sequence-engine";
 import type { GenerationContext } from "../../types";
+import type { BodyPart } from "../../types";
 
 function makeContext(
   overrides: Partial<GenerationContext> = {},
@@ -33,10 +33,7 @@ describe("Phase 3: Reason diversity (shuffle bag)", () => {
       const reasons = states.map((s) => s.reason);
       const uniqueReasons = new Set(reasons);
       const repeatRate = 1 - uniqueReasons.size / reasons.length;
-      expect(
-        repeatRate,
-        `seed=${seed * 1000} repeatRate=${(repeatRate * 100).toFixed(0)}%`,
-      ).toBeLessThanOrEqual(0.65);
+      expect(repeatRate).toBeLessThanOrEqual(0.65);
     }
   });
 
@@ -50,10 +47,7 @@ describe("Phase 3: Reason diversity (shuffle bag)", () => {
       const reasons = states.map((s) => s.reason);
       const uniqueReasons = new Set(reasons);
       const repeatRate = 1 - uniqueReasons.size / reasons.length;
-      expect(
-        repeatRate,
-        `seed=${seed * 1000} repeatRate=${(repeatRate * 100).toFixed(0)}%`,
-      ).toBeLessThanOrEqual(0.75); // 20 visits from 24 template options → high repeat expected
+      expect(repeatRate).toBeLessThanOrEqual(0.75); // 20 visits from 24 template options → high repeat expected
     }
   });
 
@@ -68,10 +62,7 @@ describe("Phase 3: Reason diversity (shuffle bag)", () => {
         const triple =
           states[i].reason === states[i - 1].reason &&
           states[i - 1].reason === states[i - 2].reason;
-        expect(
-          triple,
-          `seed=${seed * 1000} visit=${i + 1}: 3x "${states[i].reason}"`,
-        ).toBe(false);
+        expect(triple).toBe(false);
       }
     }
   });
@@ -95,10 +86,7 @@ describe("Phase 3: Reason diversity (shuffle bag)", () => {
     // "continuous treatment" should not dominate similar visits (< 60%)
     if (totalSimilar > 0) {
       const ratio = continuousTreatmentCount / totalSimilar;
-      expect(
-        ratio,
-        `continuous treatment ratio: ${(ratio * 100).toFixed(0)}%`,
-      ).toBeLessThan(0.6);
+      expect(ratio).toBeLessThan(0.6);
     }
   });
 
@@ -126,7 +114,13 @@ describe("Phase 3: Reason diversity (shuffle bag)", () => {
   });
 
   it("all 5 body parts have reason repeat rate ≤ 20%", () => {
-    const bodyParts = ["LBP", "NECK", "SHOULDER", "KNEE", "ELBOW"];
+    const bodyParts: readonly BodyPart[] = [
+      "LBP",
+      "NECK",
+      "SHOULDER",
+      "KNEE",
+      "ELBOW",
+    ];
     for (const bp of bodyParts) {
       const ctx = makeContext({
         primaryBodyPart: bp,
@@ -139,10 +133,7 @@ describe("Phase 3: Reason diversity (shuffle bag)", () => {
       const reasons = states.map((s) => s.reason);
       const uniqueReasons = new Set(reasons);
       const repeatRate = 1 - uniqueReasons.size / reasons.length;
-      expect(
-        repeatRate,
-        `${bp} repeatRate=${(repeatRate * 100).toFixed(0)}%`,
-      ).toBeLessThanOrEqual(0.65);
+      expect(repeatRate).toBeLessThanOrEqual(0.65);
     }
   });
 });

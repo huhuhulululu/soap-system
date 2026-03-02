@@ -33,7 +33,7 @@ import {
   romLimitFactor,
   type ROMMovement,
 } from "../shared/body-part-constants";
-import type { BodyPartKey } from "../shared/template-options";
+import type { BodyPartKey, NeedleGroups } from "../shared/template-options";
 import {
   TEMPLATE_CAUSATIVES,
   TEMPLATE_CONDITION_IMPACT,
@@ -72,6 +72,7 @@ import {
   resolveTemplateMovementName,
   getTemplateSeverityForPain,
   pickTemplateROMDegrees,
+  pickTemplateROMDegreesByPain,
   getTemplateSeverityLabel,
 } from "../shared/rom-from-template";
 
@@ -966,6 +967,31 @@ function getKneeRomLabel(
   return closest.label;
 }
 
+function getRomTrendBoost(visitState?: TXVisitState): number {
+  const trend = visitState?.soaChain.objective.romTrend;
+  if (trend === "improved") return 3;
+  if (trend === "slightly improved") return 2;
+  return 1;
+}
+
+function pickTemplateRomDegreesForRender(
+  bp: BodyPartKey,
+  movementName: string,
+  effectivePain: number,
+  rngValue: number,
+  visitState?: TXVisitState,
+): number | null {
+  if (!visitState) {
+    const severity = getTemplateSeverityForPain(effectivePain);
+    return pickTemplateROMDegrees(bp, movementName, severity, rngValue);
+  }
+
+  return pickTemplateROMDegreesByPain(bp, movementName, effectivePain, rngValue, {
+    progress: visitState.progress,
+    trend: visitState.soaChain.objective.romTrend,
+  });
+}
+
 /**
  * 生成 Objective 部分 (使用全局 BODY_PART_MUSCLES 和 ROM_MAP)
  * KNEE 模板段落顺序: Muscles Testing → ROM(左右分别) → Inspection
@@ -980,6 +1006,8 @@ export function generateObjective(
   const laterality = LATERALITY_NAMES[context.laterality];
   const bp = context.primaryBodyPart;
   const effectiveSeverity = visitState?.severityLevel || context.severityLevel;
+  // Note: visitState.objectiveFactors and soaChain.subjective are analytics/trace metadata
+  // and are not directly rendered in Objective by current TX template design.
 
   // 使用全局 BODY_PART_MUSCLES
   const muscles = BODY_PART_MUSCLES[bp] || ["local muscles"];
@@ -1100,6 +1128,7 @@ export function generateObjective(
   const painLevel: number = visitState
     ? Math.max(1, basePain - visitState.progress * 2.8)
     : basePain;
+  const romTrendBoost = getRomTrendBoost(visitState);
 
   const bumpStrength = (strength: string, step: number): string => {
     const ladder = ["3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"];
@@ -1172,10 +1201,7 @@ export function generateObjective(
       const kneeRomAdj = visitState
         ? Math.min(
             10,
-            Math.round(
-              visitState.progress * 8 +
-                (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
-            ),
+            Math.round(visitState.progress * 8 + romTrendBoost),
           )
         : 0;
       const effectivePainForKnee = visitState
@@ -1199,12 +1225,12 @@ export function generateObjective(
             rom.movement,
           );
           const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
-          const severity = getTemplateSeverityForPain(effectivePainForKnee);
-          const templateDegrees = pickTemplateROMDegrees(
+          const templateDegrees = pickTemplateRomDegreesForRender(
             "KNEE",
             templateMovName,
-            severity,
+            effectivePainForKnee,
             rngValue,
+            visitState,
           );
           const degrees = templateDegrees ?? rom.normalDegrees;
           const reductionPct =
@@ -1232,21 +1258,18 @@ export function generateObjective(
         const kneeUniRomAdj = visitState
           ? Math.min(
               10,
-              Math.round(
-                visitState.progress * 8 +
-                  (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
-              ),
+              Math.round(visitState.progress * 8 + romTrendBoost),
             )
           : 0;
         const effectivePainForKneeUni = visitState
           ? Math.max(1, painLevel - kneeUniRomAdj * 0.3)
           : painLevel;
-        const severity = getTemplateSeverityForPain(effectivePainForKneeUni);
-        const templateDegrees = pickTemplateROMDegrees(
+        const templateDegrees = pickTemplateRomDegreesForRender(
           "KNEE",
           templateMovName,
-          severity,
+          effectivePainForKneeUni,
           rngValue,
+          visitState,
         );
         const degrees = templateDegrees ?? rom.normalDegrees;
         const reductionPct =
@@ -1266,10 +1289,7 @@ export function generateObjective(
       const shoulderRomAdj = visitState
         ? Math.min(
             10,
-            Math.round(
-              visitState.progress * 8 +
-                (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
-            ),
+            Math.round(visitState.progress * 8 + romTrendBoost),
           )
         : 0;
       const effectivePainForShoulder = visitState
@@ -1293,12 +1313,12 @@ export function generateObjective(
             rom.movement,
           );
           const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
-          const severity = getTemplateSeverityForPain(effectivePainForShoulder);
-          const templateDegrees = pickTemplateROMDegrees(
+          const templateDegrees = pickTemplateRomDegreesForRender(
             "SHOULDER",
             templateMovName,
-            severity,
+            effectivePainForShoulder,
             rngValue,
+            visitState,
           );
           const reductionPct =
             rom.normalDegrees > 0
@@ -1356,10 +1376,7 @@ export function generateObjective(
       const romAdj = visitState
         ? Math.min(
             10,
-            Math.round(
-              visitState.progress * 8 +
-                (visitState.soaChain.objective.romTrend === "improved" ? 3 : 1),
-            ),
+            Math.round(visitState.progress * 8 + romTrendBoost),
           )
         : 0;
       romData.forEach((rom, index) => {
@@ -1381,12 +1398,12 @@ export function generateObjective(
           const effectivePainForTemplate = visitState
             ? Math.max(1, painLevel - romAdj * 0.3)
             : painLevel;
-          const severity = getTemplateSeverityForPain(effectivePainForTemplate);
-          const templateDegrees = pickTemplateROMDegrees(
+          const templateDegrees = pickTemplateRomDegreesForRender(
             bp as BodyPartKey,
             templateMovName,
-            severity,
+            effectivePainForTemplate,
             rngValue,
+            visitState,
           );
           if (templateDegrees !== null) {
             const templateSeverity = getTemplateSeverityLabel(
@@ -1711,6 +1728,26 @@ function applyTxReasonChain(
     .sort((a, b) => b.weight - a.weight);
 }
 
+function hasText(value: string | undefined | null): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function buildTxWeightContext(
+  context: GenerationContext,
+  visitState?: TXVisitState,
+): WeightContext {
+  return {
+    bodyPart: context.primaryBodyPart,
+    localPattern: context.localPattern,
+    systemicPattern: context.systemicPattern,
+    chronicityLevel: context.chronicityLevel,
+    severityLevel: visitState?.severityLevel || context.severityLevel,
+    insuranceType: context.insuranceType,
+    painScale: visitState?.painScaleCurrent ?? context.painCurrent ?? 7,
+    hasPacemaker: context.hasPacemaker,
+  };
+}
+
 // TX Plan 治则动词选项 — 使用 shared TEMPLATE_TX_VERB (来自模板 ppnSelectCombo)
 // "continue to be emphasize|emphasize|consist of promoting|promote|focus|pay attention"
 
@@ -1739,43 +1776,30 @@ export function generateSubjectiveTX(
   const bp = context.primaryBodyPart;
   const radiation = context.painRadiation ?? "without radiation";
 
-  const weightContext: WeightContext = {
-    bodyPart: bp,
-    localPattern: context.localPattern,
-    systemicPattern: context.systemicPattern,
-    chronicityLevel: context.chronicityLevel,
-    severityLevel: visitState?.severityLevel || context.severityLevel,
-    insuranceType: context.insuranceType,
-    painScale: visitState?.painScaleCurrent || 7,
-    hasPacemaker: context.hasPacemaker,
-  };
+  const weightContext = buildTxWeightContext(context, visitState);
 
-  // 权重选择: 症状变化
-  const weightedChange = calculateWeights(
-    "subjective.symptomChange",
-    TX_SYMPTOM_CHANGE_OPTIONS,
-    weightContext,
-  );
-  const selectedChange =
-    visitState?.symptomChange || selectBestOption(weightedChange);
-
-  // 权重选择: 连接词
-  const selectedConnector =
-    visitState?.reasonConnector || TX_CONNECTOR_OPTIONS[0]; // "because of" 最常用
-
-  // 权重选择: 原因
-  const weightedReason = calculateWeights(
-    "subjective.reason",
-    TX_REASON_OPTIONS,
-    weightContext,
-  );
-  const reasonWithChain = applyTxReasonChain(
-    weightedReason,
-    selectedChange,
-    context,
-  );
-  const selectedReason =
-    visitState?.reason || selectBestOption(reasonWithChain);
+  // TX 单一源规则: visitState 为主，缺失时才用权重兜底
+  const selectedChange = hasText(visitState?.symptomChange)
+    ? visitState.symptomChange
+    : selectBestOption(
+        calculateWeights(
+          "subjective.symptomChange",
+          TX_SYMPTOM_CHANGE_OPTIONS,
+          weightContext,
+        ),
+      );
+  const selectedConnector = hasText(visitState?.reasonConnector)
+    ? visitState.reasonConnector
+    : TX_CONNECTOR_OPTIONS[0];
+  const selectedReason = hasText(visitState?.reason)
+    ? visitState.reason
+    : selectBestOption(
+        applyTxReasonChain(
+          calculateWeights("subjective.reason", TX_REASON_OPTIONS, weightContext),
+          selectedChange,
+          context,
+        ),
+      );
 
   // Pain Types: visitState > context > 权重系统 — 使用模板权威源
   const painTypeOptions = [
@@ -1783,14 +1807,14 @@ export function generateSubjectiveTX(
       TEMPLATE_PAIN_TYPES.LBP,
   ];
   const selectedPainTypes =
-    visitState?.painTypes ??
-    (context.painTypes && context.painTypes.length > 0
-      ? context.painTypes
-      : null) ??
-    selectBestOptions(
-      calculateWeights("subjective.painTypes", painTypeOptions, weightContext),
-      2,
-    );
+    visitState?.painTypes && visitState.painTypes.length > 0
+      ? visitState.painTypes
+      : context.painTypes && context.painTypes.length > 0
+        ? context.painTypes
+        : selectBestOptions(
+            calculateWeights("subjective.painTypes", painTypeOptions, weightContext),
+            2,
+          );
   const associatedSymptomOptions = [
     "soreness",
     "stiffness",
@@ -1798,28 +1822,42 @@ export function generateSubjectiveTX(
     "weakness",
     "numbness",
   ];
-  const weightedSymptoms = calculateWeights(
-    "subjective.associatedSymptoms",
-    associatedSymptomOptions,
-    weightContext,
-  );
   const selectedAssociatedSymptom =
-    visitState?.associatedSymptom || selectBestOption(weightedSymptoms);
+    hasText(visitState?.associatedSymptom)
+      ? visitState.associatedSymptom
+      : context.associatedSymptoms && context.associatedSymptoms.length > 0
+        ? context.associatedSymptoms[0]
+        : selectBestOption(
+            calculateWeights(
+              "subjective.associatedSymptoms",
+              associatedSymptomOptions,
+              weightContext,
+            ),
+          );
 
   // 权重选择: ADL 活动 (TX KNEE 有两组)
   const adlActivities = BODY_PART_ADL[bp] || BODY_PART_ADL["LBP"];
-  const weightedAdl = calculateWeights(
-    "subjective.adlDifficulty.activities",
-    adlActivities,
-    weightContext,
-  );
-  const allAdl = selectBestOptions(weightedAdl, 5);
-  // 分成两组: 前2个一组, 后3个一组 (匹配模板 TX KNEE 两组 ADL 的默认分法)
-  const adlGroup1 = allAdl.slice(0, 2);
-  const adlGroup2 = allAdl.slice(2, 5);
+  const selectedAdl =
+    visitState?.adlItems && visitState.adlItems.length > 0
+      ? [...visitState.adlItems]
+      : selectBestOptions(
+          calculateWeights(
+            "subjective.adlDifficulty.activities",
+            adlActivities,
+            weightContext,
+          ),
+          5,
+        );
+  const effectiveAdl =
+    selectedAdl.length > 0 ? selectedAdl : adlActivities.slice(0, 3);
+  // 分成两组: 前2个一组, 后续一组
+  const adlGroup1 = effectiveAdl.slice(0, 2);
+  const adlGroup2 = effectiveAdl.slice(2, 5);
 
   const symptomScale =
-    visitState?.symptomScale ?? getConfig(SYMPTOM_SCALE_MAP, bp);
+    visitState?.symptomScale ??
+    context.symptomScale ??
+    getConfig(SYMPTOM_SCALE_MAP, bp);
 
   let subjective = `Follow up visit\n`;
 
@@ -1859,14 +1897,22 @@ export function generateSubjectiveTX(
   if (bp === "KNEE") {
     const sev = visitState?.severityLevel || context.severityLevel;
     subjective += `impaired performing ADL's with ${sev} difficulty ${adlGroup1.join(", ")} `;
-    subjective += `and ${sev} difficulty ${adlGroup2.join(", ")}.\n\n`;
+    if (adlGroup2.length > 0) {
+      subjective += `and ${sev} difficulty ${adlGroup2.join(", ")}.\n\n`;
+    } else {
+      subjective += `.\n\n`;
+    }
   } else if (bp === "SHOULDER" || bp === "NECK" || bp === "ELBOW") {
     const sev = visitState?.severityLevel || context.severityLevel;
     subjective += `impaired performing ADL's with ${sev} difficulty of ${adlGroup1.join(", ")} `;
-    subjective += `and ${sev} difficulty of ${adlGroup2.join(", ")}.\n\n`;
+    if (adlGroup2.length > 0) {
+      subjective += `and ${sev} difficulty of ${adlGroup2.join(", ")}.\n\n`;
+    } else {
+      subjective += `.\n\n`;
+    }
   } else {
     const sev = visitState?.severityLevel || context.severityLevel;
-    subjective += `impaired performing ADL's with ${sev} difficulty with ADLs like ${allAdl.slice(0, 3).join(", ")}.\n\n`;
+    subjective += `impaired performing ADL's with ${sev} difficulty with ADLs like ${effectiveAdl.join(", ")}.\n\n`;
   }
 
   // 疼痛评分 - TX 格式: "Pain Scale: [8] /10" (不同于 IE 的 Worst/Best/Current)
@@ -1875,10 +1921,12 @@ export function generateSubjectiveTX(
     visitState?.painScaleLabel ||
     (visitState?.painScaleCurrent
       ? `${Math.round(visitState.painScaleCurrent)}`
-      : "8");
+      : context.painCurrent != null
+        ? `${Math.round(context.painCurrent)}`
+        : "8");
   subjective += `Pain Scale: ${painScale} /10\n`;
   // TX 格式: "Pain frequency:" (小写 f, 不同于 IE 的 "Pain Frequency:")
-  subjective += `Pain frequency: ${visitState?.painFrequency || "Constant (symptoms occur between 76% and 100% of the time)"}`;
+  subjective += `Pain frequency: ${visitState?.painFrequency || context.painFrequency || "Constant (symptoms occur between 76% and 100% of the time)"}`;
 
   return subjective;
 }
@@ -1903,104 +1951,99 @@ export function generateAssessmentTX(
   const bp = context.primaryBodyPart;
   const laterality = LATERALITY_NAMES[context.laterality];
 
-  const weightContext: WeightContext = {
-    bodyPart: bp,
-    localPattern: context.localPattern,
-    systemicPattern: context.systemicPattern,
-    chronicityLevel: context.chronicityLevel,
-    severityLevel: visitState?.severityLevel || context.severityLevel,
-    insuranceType: context.insuranceType,
-    painScale: visitState?.painScaleCurrent || 7,
-    hasPacemaker: context.hasPacemaker,
-  };
+  const weightContext = buildTxWeightContext(context, visitState);
 
-  // 权重选择: 总体状况
-  const weightedCondition = calculateWeights(
-    "assessment.condition",
-    TX_GENERAL_CONDITION_OPTIONS,
-    weightContext,
-  );
-  const selectedCondition =
-    visitState?.generalCondition || selectBestOption(weightedCondition);
-
-  // 权重选择: 症状变化
-  const weightedPresent = calculateWeights(
-    "assessment.present",
-    TX_SYMPTOM_PRESENT_OPTIONS,
-    weightContext,
-  );
-  const selectedPresent =
-    visitState?.soaChain.assessment.present ||
-    selectBestOption(weightedPresent);
-
-  // 权重选择: 患者变化
-  const weightedPatientChange = calculateWeights(
-    "assessment.patientChange",
-    TX_PATIENT_CHANGE_OPTIONS,
-    weightContext,
-  );
-  const selectedPatientChange =
-    visitState?.soaChain.assessment.patientChange ||
-    selectBestOption(weightedPatientChange);
-
-  // 权重选择: 变化内容
-  const weightedWhat = calculateWeights(
-    "assessment.whatChanged",
-    TX_WHAT_CHANGED_OPTIONS,
-    weightContext,
-  );
-  const selectedWhat =
-    visitState?.soaChain.assessment.whatChanged ||
-    selectBestOption(weightedWhat);
-
-  // 权重选择: 体征变化
-  const weightedPhysical = calculateWeights(
-    "assessment.physicalChange",
-    TX_PHYSICAL_CHANGE_OPTIONS,
-    weightContext,
-  );
-  const selectedPhysical =
-    visitState?.soaChain.assessment.physicalChange ||
-    selectBestOption(weightedPhysical);
-
-  // 权重选择: 体征类型
-  const weightedFinding = calculateWeights(
-    "assessment.findingType",
-    TX_FINDING_TYPE_OPTIONS,
-    weightContext,
-  );
-  const selectedFinding =
-    visitState?.soaChain.assessment.findingType ??
-    selectBestOption(weightedFinding);
-
-  // 权重选择: 耐受描述 — Phase F: 优先使用引擎生成的值
-  const selectedTolerated =
-    visitState?.soaChain.assessment.tolerated ||
-    (() => {
-      const weightedTolerated = calculateWeights(
-        "assessment.tolerated",
-        TX_TOLERATED_OPTIONS,
-        weightContext,
+  // 总体状况独立源: visitState.generalCondition > weight fallback
+  const selectedCondition = hasText(visitState?.generalCondition)
+    ? visitState.generalCondition
+    : selectBestOption(
+        calculateWeights(
+          "assessment.condition",
+          TX_GENERAL_CONDITION_OPTIONS,
+          weightContext,
+        ),
       );
-      return selectBestOption(weightedTolerated);
-    })();
 
-  // 权重选择: 反应描述 — Phase F: 优先使用引擎生成的值
-  const selectedResponse =
-    visitState?.soaChain.assessment.response ||
-    (() => {
-      const weightedResponse = calculateWeights(
-        "assessment.response",
-        TX_RESPONSE_OPTIONS,
-        weightContext,
+  // Assessment 单一源规则:
+  // - visitState.soaChain.assessment 完整时，整段全部使用引擎产出
+  // - 否则整段统一回退到 weight-system，避免字段级混源
+  const visitAssessment = visitState?.soaChain?.assessment;
+  const useVisitAssessment =
+    visitAssessment != null &&
+    hasText(visitAssessment.present) &&
+    hasText(visitAssessment.patientChange) &&
+    hasText(visitAssessment.whatChanged) &&
+    hasText(visitAssessment.physicalChange) &&
+    hasText(visitAssessment.tolerated) &&
+    hasText(visitAssessment.response);
+
+  const selectedPresent = useVisitAssessment
+    ? visitAssessment!.present
+    : selectBestOption(
+        calculateWeights(
+          "assessment.present",
+          TX_SYMPTOM_PRESENT_OPTIONS,
+          weightContext,
+        ),
       );
-      return selectBestOption(weightedResponse);
-    })();
-
-  // Phase F: adverse effect 动态变化
+  const selectedPatientChange = useVisitAssessment
+    ? visitAssessment!.patientChange
+    : selectBestOption(
+        calculateWeights(
+          "assessment.patientChange",
+          TX_PATIENT_CHANGE_OPTIONS,
+          weightContext,
+        ),
+      );
+  const selectedWhat = useVisitAssessment
+    ? visitAssessment!.whatChanged
+    : selectBestOption(
+        calculateWeights(
+          "assessment.whatChanged",
+          TX_WHAT_CHANGED_OPTIONS,
+          weightContext,
+        ),
+      );
+  const selectedPhysical = useVisitAssessment
+    ? visitAssessment!.physicalChange
+    : selectBestOption(
+        calculateWeights(
+          "assessment.physicalChange",
+          TX_PHYSICAL_CHANGE_OPTIONS,
+          weightContext,
+        ),
+      );
+  const selectedFinding = useVisitAssessment
+    ? (visitAssessment!.findingType ?? "")
+    : selectBestOption(
+        calculateWeights(
+          "assessment.findingType",
+          TX_FINDING_TYPE_OPTIONS,
+          weightContext,
+        ),
+      );
+  const selectedTolerated = useVisitAssessment
+    ? visitAssessment!.tolerated
+    : selectBestOption(
+        calculateWeights(
+          "assessment.tolerated",
+          TX_TOLERATED_OPTIONS,
+          weightContext,
+        ),
+      );
+  const selectedResponse = useVisitAssessment
+    ? visitAssessment!.response
+    : selectBestOption(
+        calculateWeights(
+          "assessment.response",
+          TX_RESPONSE_OPTIONS,
+          weightContext,
+        ),
+      );
   const adverseEffect =
-    visitState?.soaChain.assessment.adverseEffect ||
-    "No adverse side effect post treatment.";
+    useVisitAssessment && hasText(visitAssessment!.adverseEffect)
+      ? visitAssessment!.adverseEffect
+      : "No adverse side effect post treatment.";
 
   let assessment = "";
 
@@ -2040,28 +2083,20 @@ export function generateAssessmentTX(
  *   Today's treatment principles:
  *   [focus] on [dispelling cold, drain the dampness] to speed up the recovery, soothe the tendon.
  */
-export function generatePlanTX(context: GenerationContext): string {
+export function generatePlanTX(
+  context: GenerationContext,
+  visitState?: TXVisitState,
+): string {
   const localPattern = TCM_PATTERNS[context.localPattern];
-  const bp = context.primaryBodyPart;
-
-  const weightContext: WeightContext = {
-    bodyPart: bp,
-    localPattern: context.localPattern,
-    systemicPattern: context.systemicPattern,
-    chronicityLevel: context.chronicityLevel,
-    severityLevel: context.severityLevel,
-    insuranceType: context.insuranceType,
-    painScale: 7,
-    hasPacemaker: context.hasPacemaker,
-  };
-
-  // 权重选择: 治则动词
-  const weightedVerb = calculateWeights(
-    "plan.verb",
-    [...TEMPLATE_TX_VERB],
-    weightContext,
-  );
-  const selectedVerb = selectBestOption(weightedVerb);
+  const selectedVerb = hasText(visitState?.treatmentFocus)
+    ? visitState.treatmentFocus
+    : selectBestOption(
+        calculateWeights(
+          "plan.verb",
+          [...TEMPLATE_TX_VERB],
+          buildTxWeightContext(context, visitState),
+        ),
+      );
 
   // 治则内容: 直接使用 localPattern 的 treatmentPrinciples（与 IE Assessment 一致）
   const selectedTreatment =
@@ -2124,6 +2159,16 @@ export function generateNeedleProtocol(
   const templateBackPool = needleEntry
     ? [...needleEntry.backPool]
     : [...TEMPLATE_NEEDLE_POINTS.LBP.backPool];
+  const visitNeedle: NeedleGroups | null =
+    visitState?.needlePoints ?? null;
+  const pickGroup = (
+    groupKey: "front1" | "front2" | "back1" | "back2",
+    fallback: string[],
+  ): string[] => {
+    if (!visitNeedle) return fallback;
+    const group = visitNeedle[groupKey];
+    return group && group.length > 0 ? [...group] : fallback;
+  };
 
   // For backward compatibility, create the frontPoints/backPoints objects that downstream code expects
   const frontPoints: Record<string, string[]> = {
@@ -2153,6 +2198,11 @@ export function generateNeedleProtocol(
 
   // ===== KNEE 专用协议 =====
   if (bp === "KNEE" && isFullCode) {
+    const kneeFrontRight = pickGroup("front1", KNEE_FRONT_RIGHT);
+    const kneeFrontLeft = pickGroup("front2", KNEE_FRONT_LEFT);
+    const kneeBackRight = pickGroup("back1", KNEE_BACK_RIGHT);
+    const kneeBackLeft = pickGroup("back2", KNEE_BACK_LEFT);
+
     let protocol = `${needleSizes}\n`;
     protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`;
 
@@ -2162,12 +2212,12 @@ export function generateNeedleProtocol(
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
     protocol += `marking and cleaning the points, Initial Acupuncture needle inserted for right knee ${eStim} electrical stimulation `;
-    protocol += `${KNEE_FRONT_RIGHT.join(", ")}\n\n`;
+    protocol += `${kneeFrontRight.join(", ")}\n\n`;
 
     // Step 2: Front left knee - "Washing hands..."
     protocol += `2. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
     protocol += `marking and cleaning the points, re-insertion of additional needles left knee ${eStim} electrical stimulation `;
-    protocol += `${KNEE_FRONT_LEFT.join(", ")}\n\n`;
+    protocol += `${kneeFrontLeft.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n\n`;
 
@@ -2177,12 +2227,12 @@ export function generateNeedleProtocol(
     protocol += `3. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `;
     protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `;
     protocol += `re-insertion of additional needles right knee ${eStim} electrical stimulation `;
-    protocol += `${KNEE_BACK_RIGHT.join(", ")}\n\n`;
+    protocol += `${kneeBackRight.join(", ")}\n\n`;
 
     // Step 4: Back left knee - "Washing hands..." + WITHOUT e-stim
     protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
     protocol += `marking and cleaning the points, re-insertion of additional needles left knee without electrical stimulation `;
-    protocol += `${KNEE_BACK_LEFT.join(", ")}\n\n`;
+    protocol += `${kneeBackLeft.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n`;
     protocol += `Post treatment service and education patient about precautions at home after treatment.\n`;
@@ -2198,6 +2248,10 @@ export function generateNeedleProtocol(
     const SHOULDER_FRONT_LEFT = ["JIAN QIAN", "LU3", "SI3"];
     const SHOULDER_BACK_RIGHT = ["SI9", "SJ10", "A SHI POINTS"];
     const SHOULDER_BACK_LEFT = ["GB21", "LI15", "SI11", "SI15"];
+    const shoulderFrontRight = pickGroup("front1", SHOULDER_FRONT_RIGHT);
+    const shoulderFrontLeft = pickGroup("front2", SHOULDER_FRONT_LEFT);
+    const shoulderBackRight = pickGroup("back1", SHOULDER_BACK_RIGHT);
+    const shoulderBackLeft = pickGroup("back2", SHOULDER_BACK_LEFT);
 
     let protocol = `${needleSizes}\n`;
     protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`;
@@ -2208,12 +2262,12 @@ export function generateNeedleProtocol(
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
     protocol += `marking and cleaning the points, Initial Acupuncture needle inserted for right ${bodyPartName} ${eStim} electrical stimulation `;
-    protocol += `${SHOULDER_FRONT_RIGHT.join(", ")}\n\n`;
+    protocol += `${shoulderFrontRight.join(", ")}\n\n`;
 
     // Step 2: Front left shoulder - "Washing hands..."
     protocol += `2. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
     protocol += `marking and cleaning the points, re-insertion of additional needles for left ${bodyPartName} ${eStim} electrical stimulation `;
-    protocol += `${SHOULDER_FRONT_LEFT.join(", ")}\n\n`;
+    protocol += `${shoulderFrontLeft.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n`;
 
@@ -2223,12 +2277,12 @@ export function generateNeedleProtocol(
     protocol += `3. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `;
     protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `;
     protocol += `re-insertion of additional needles for right ${bodyPartName} ${eStim} electrical stimulation `;
-    protocol += `${SHOULDER_BACK_RIGHT.join(", ")}\n\n`;
+    protocol += `${shoulderBackRight.join(", ")}\n\n`;
 
     // Step 4: Back left shoulder - "Washing hands..." + WITHOUT e-stim
     protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
     protocol += `marking and cleaning the points, re-insertion of additional needles for left ${bodyPartName} without electrical stimulation `;
-    protocol += `${SHOULDER_BACK_LEFT.join(", ")}\n\n`;
+    protocol += `${shoulderBackLeft.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n`;
     protocol += `Post treatment service and education patient about precautions at home after treatment.\n`;
@@ -2239,18 +2293,30 @@ export function generateNeedleProtocol(
 
   // ===== LBP / MID_LOW_BACK 专用协议 (非双侧, 特定穴位) =====
   if ((bp === "LBP" || bp === "MID_LOW_BACK") && isFullCode) {
-    const LBP_FRONT_1 = frontPoints[bp]?.slice(0, 3) || [
+    const defaultLbpFront1 = frontPoints[bp]?.slice(0, 3) || [
       "REN6",
       "GB34",
       "ST36",
     ];
-    const LBP_FRONT_2 = frontPoints[bp]?.slice(3, 6) || ["ST40", "REN4", "SI3"];
-    const LBP_BACK_1 = backPoints[bp]?.slice(0, 3) || ["BL25", "BL53", "DU4"];
-    const LBP_BACK_2 = backPoints[bp]?.slice(3) || [
+    const defaultLbpFront2 = frontPoints[bp]?.slice(3, 6) || [
+      "ST40",
+      "REN4",
+      "SI3",
+    ];
+    const defaultLbpBack1 = backPoints[bp]?.slice(0, 3) || [
+      "BL25",
+      "BL53",
+      "DU4",
+    ];
+    const defaultLbpBack2 = backPoints[bp]?.slice(3) || [
       "BL22",
       "YAO JIA JI",
       "A SHI POINTS",
     ];
+    const LBP_FRONT_1 = pickGroup("front1", defaultLbpFront1);
+    const LBP_FRONT_2 = pickGroup("front2", defaultLbpFront2);
+    const LBP_BACK_1 = pickGroup("back1", defaultLbpBack1);
+    const LBP_BACK_2 = pickGroup("back2", defaultLbpBack2);
 
     // LBP 模板默认位置是 "mid and lower back" (下拉选项: lower back | mid and lower back)
     const lbpLocation =
@@ -2295,10 +2361,14 @@ export function generateNeedleProtocol(
 
   // ===== NECK 专用协议 (非双侧, Step 4 强制 without e-stim) =====
   if (bp === "NECK" && isFullCode) {
-    const NECK_FRONT_1 = ["SI3", "SP6", "LI11"];
-    const NECK_FRONT_2 = ["LV3", "LI11", "DU20"];
-    const NECK_BACK_1 = ["SI13", "JIN JIA JI", "A SHI POINTS"];
-    const NECK_BACK_2 = ["BAI LAO", "GB14", "GB20"];
+    const defaultNeckFront1 = ["SI3", "SP6", "LI11"];
+    const defaultNeckFront2 = ["LV3", "LI11", "DU20"];
+    const defaultNeckBack1 = ["SI13", "JIN JIA JI", "A SHI POINTS"];
+    const defaultNeckBack2 = ["BAI LAO", "GB14", "GB20"];
+    const NECK_FRONT_1 = pickGroup("front1", defaultNeckFront1);
+    const NECK_FRONT_2 = pickGroup("front2", defaultNeckFront2);
+    const NECK_BACK_1 = pickGroup("back1", defaultNeckBack1);
+    const NECK_BACK_2 = pickGroup("back2", defaultNeckBack2);
 
     let protocol = `${needleSizes}\n`;
     protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 60 mins)\n\n`;
@@ -2339,8 +2409,12 @@ export function generateNeedleProtocol(
   }
 
   // ===== 其他部位通用协议 =====
-  const front = frontPoints[bp] || ["ST36", "SP6", "LV3"];
-  const back = backPoints[bp] || ["A SHI POINTS"];
+  const defaultFront = frontPoints[bp] || ["ST36", "SP6", "LV3"];
+  const defaultBack = backPoints[bp] || ["A SHI POINTS"];
+  const genericFront1 = pickGroup("front1", defaultFront.slice(0, 3));
+  const genericFront2 = pickGroup("front2", defaultFront.slice(3, 6));
+  const genericBack1 = pickGroup("back1", defaultBack.slice(0, 3));
+  const genericBack2 = pickGroup("back2", defaultBack.slice(3, 6));
 
   if (isFullCode) {
     // 全代码: 60分钟, 4步骤
@@ -2350,20 +2424,20 @@ export function generateNeedleProtocol(
     protocol += `Front Points: (30 mins) - personal one on one contact with the patient\n`;
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
-    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted ${eStim} electrical stimulation ${front.slice(0, 3).join(", ")}\n\n`;
+    protocol += `marking and cleaning the points, Initial Acupuncture needle inserted ${eStim} electrical stimulation ${genericFront1.join(", ")}\n\n`;
 
     protocol += `2. Explanation with patient for future treatment plan, washing hands, setting up the clean field, `;
     protocol += `selecting acupuncture needle size, selecting location, marking and cleaning the points, `;
-    protocol += `re-insertion of additional needles ${eStim} electrical stimulation ${front.slice(3, 6).join(", ")}\n\n`;
+    protocol += `re-insertion of additional needles ${eStim} electrical stimulation ${genericFront2.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n\n`;
 
     protocol += `Back Points (30 mins) - personal one on one contact with the patient\n`;
     protocol += `3. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
-    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation ${back.slice(0, 3).join(", ")}\n\n`;
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation ${genericBack1.join(", ")}\n\n`;
 
     protocol += `4. Washing hands, setting up the clean field, selecting acupuncture needle size, selecting location, `;
-    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation ${back.slice(3, 6).join(", ")}\n\n`;
+    protocol += `marking and cleaning the points, re-insertion of additional needles ${eStim} electrical stimulation ${genericBack2.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n`;
     protocol += `Post treatment service and education patient about precautions at home after treatment.\n`;
@@ -2377,11 +2451,14 @@ export function generateNeedleProtocol(
 
     // H-11: ELBOW/KNEE 97810 uses "Front Points", others use "Back Points"
     const sectionLabel97810 = (bp === "KNEE" || bp === "ELBOW") ? "Front Points" : "Back Points";
+    const points97810 = (bp === "KNEE" || bp === "ELBOW")
+      ? pickGroup("front1", defaultFront.slice(0, 4))
+      : pickGroup("back1", defaultBack.slice(0, 4));
     protocol += `${sectionLabel97810}: (15 mins) - personal one on one contact with the patient\n`;
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, `;
     protocol += `selecting location, marking and cleaning the points, Initial Acupuncture needle inserted without electrical stimulation `;
-    protocol += `${back.slice(0, 4).join(", ")}\n\n`;
+    protocol += `${points97810.join(", ")}\n\n`;
 
     protocol += `Removing and properly disposing of needles\n`;
     protocol += `Post treatment service and education patient about precautions at home after treatment.\n`;
@@ -2408,7 +2485,7 @@ export function exportSOAPAsText(
     const subjective = generateSubjectiveTX(context, visitState);
     const objective = generateObjective(context, visitState); // Objective 沿用 IE 的客观检查
     const assessment = generateAssessmentTX(context, visitState);
-    const planTx = generatePlanTX(context);
+    const planTx = generatePlanTX(context, visitState);
     const needleProtocol = generateNeedleProtocol(context, visitState);
 
     let output = `Subjective\n${subjective}\n\n`;

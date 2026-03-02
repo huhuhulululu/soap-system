@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import {
   pickTemplateROMDegrees,
+  pickTemplateROMDegreesByPain,
   getTemplateSeverityForPain,
   getTemplateSeverityLabel,
   resolveTemplateMovementName,
@@ -29,8 +29,8 @@ describe("getTemplateSeverityForPain", () => {
     expect(getTemplateSeverityForPain(3)).toBe("mild");
   });
 
-  it("pain 4-6 → moderate", () => {
-    expect(getTemplateSeverityForPain(4)).toBe("moderate");
+  it("pain 4 → mild; pain 5-6 → moderate", () => {
+    expect(getTemplateSeverityForPain(4)).toBe("mild");
     expect(getTemplateSeverityForPain(5)).toBe("moderate");
     expect(getTemplateSeverityForPain(6)).toBe("moderate");
   });
@@ -43,6 +43,41 @@ describe("getTemplateSeverityForPain", () => {
 
   it("pain 0 → normal", () => {
     expect(getTemplateSeverityForPain(0)).toBe("normal");
+  });
+});
+
+describe("pickTemplateROMDegreesByPain", () => {
+  it("pain 5 should pick equal-or-better degree than pain 6 in same movement", () => {
+    const p6 = pickTemplateROMDegreesByPain("LBP", "Flexion", 6, 0.5);
+    const p5 = pickTemplateROMDegreesByPain("LBP", "Flexion", 5, 0.5);
+    expect(p6).not.toBeNull();
+    expect(p5).not.toBeNull();
+    expect((p5 ?? 0) >= (p6 ?? 0)).toBe(true);
+  });
+
+  it("improved romTrend should pick equal-or-better degree than stable at same pain", () => {
+    const stable = pickTemplateROMDegreesByPain("SHOULDER", "Flexion", 6, 0.5, {
+      trend: "stable",
+      progress: 0.6,
+    });
+    const improved = pickTemplateROMDegreesByPain(
+      "SHOULDER",
+      "Flexion",
+      6,
+      0.5,
+      {
+        trend: "improved",
+        progress: 0.6,
+      },
+    );
+    expect(stable).not.toBeNull();
+    expect(improved).not.toBeNull();
+    expect((improved ?? 0) >= (stable ?? 0)).toBe(true);
+  });
+
+  it("returns null for unknown movement name", () => {
+    const result = pickTemplateROMDegreesByPain("KNEE", "Unknown", 5, 0.5);
+    expect(result).toBeNull();
   });
 });
 

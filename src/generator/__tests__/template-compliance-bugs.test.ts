@@ -4,7 +4,6 @@
  * V-14: PATTERN_TONGUE_DEFAULTS missing 2 patterns (Yin Deficiency Fire, LU & KI Deficiency)
  * V-11: ELBOW painTypeOptions incorrectly includes "pin & needles"
  */
-import { describe, it, expect } from "vitest";
 import {
   TEMPLATE_TX_WHAT_CHANGED,
   TEMPLATE_PAIN_TYPES,
@@ -17,18 +16,15 @@ function makeTxContext(
   overrides: Partial<GenerationContext> = {},
 ): GenerationContext {
   return {
-    patientName: "TEST,PATIENT(01/01/1970)",
-    gender: "M",
+    noteType: "TX",
+    gender: "Male",
     insuranceType: "HF",
     primaryBodyPart: "LBP",
-    laterality: "B",
-    icdCodes: ["M54.50"],
-    cptCodes: ["97810", "97811x3"],
-    totalVisits: 10,
+    laterality: "bilateral",
     painWorst: 8,
     painBest: 3,
     painCurrent: 6,
-    symptomDuration: "3 year(s)",
+    symptomDuration: { value: "3", unit: "year(s)" },
     painRadiation: "without radiation",
     painTypes: ["Dull", "Aching"],
     associatedSymptoms: ["soreness"],
@@ -38,9 +34,8 @@ function makeTxContext(
     painFrequency: "Constant (symptoms occur between 76% and 100% of the time)",
     localPattern: "Qi Stagnation",
     systemicPattern: "Kidney Yang Deficiency",
-    chronicityLevel: "chronic",
+    chronicityLevel: "Chronic",
     severityLevel: "moderate",
-    secondaryParts: [],
     medicalHistory: [],
     ...overrides,
   };
@@ -65,10 +60,7 @@ describe("V-21: whatChanged must only use TEMPLATE_TX_WHAT_CHANGED values", () =
           .map((s: string) => s.trim())
           .filter(Boolean);
         for (const part of parts) {
-          expect(
-            validOptions,
-            `"${part}" from whatChanged="${wc}" is not in TEMPLATE_TX_WHAT_CHANGED`,
-          ).toContain(part);
+          expect(validOptions).toContain(part);
         }
       }
     }

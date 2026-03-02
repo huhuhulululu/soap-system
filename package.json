@@ -33,6 +33,7 @@
     ],
     "testMatch": [
       "**/__tests__/**/*.test.ts",
+      "**/__fixtures__/**/*.test.ts",
       "**/tests/**/*.spec.ts"
     ],
     "moduleFileExtensions": [

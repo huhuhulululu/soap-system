@@ -11,7 +11,6 @@
  * 7. 纵向单调: tightness/tenderness/spasm 只降不升
  * 8. Spasm 阈值降低后更早开始变化
  */
-import { describe, it, expect } from 'vitest'
 import {
   generateTXSequenceStates,
   snapPainToGrid,

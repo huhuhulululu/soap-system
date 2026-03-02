@@ -10,7 +10,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vueuse/core": "^10.7.0",
     "apexcharts": "^5.3.6",
     "pdfjs-dist": "^4.10.38",
     "pinia": "^2.1.7",

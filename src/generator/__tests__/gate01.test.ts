@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest'
-import { exportTXSeriesAsText } from './src/generator/soap-generator'
-import { setWhitelist } from './src/parser/template-rule-whitelist'
-import whitelistData from './frontend/src/data/whitelist.json'
-import type { GenerationContext } from './src/types'
+import { exportTXSeriesAsText } from '../soap-generator'
+import { setWhitelist } from '../../parser/template-rule-whitelist'
+import whitelistData from '../../../frontend/src/data/whitelist.json'
+import type { GenerationContext } from '../../types'
 
 beforeAll(() => { setWhitelist(whitelistData as Record<string, string[]>) })
 

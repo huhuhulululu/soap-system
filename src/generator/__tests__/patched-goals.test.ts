@@ -8,7 +8,6 @@
  *
  * Seeds: 500001+ (distinct from fixture/parity/chronic/realistic)
  */
-import { describe, it, expect } from 'vitest'
 import { patchSOAPText, buildPatchContext, computePatchedGoals, type PatchedGoals } from '../objective-patch'
 import { exportSOAPAsText } from '../soap-generator'
 import type { GenerationContext } from '../../types'

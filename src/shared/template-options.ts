@@ -1173,6 +1173,33 @@ export interface NeedlePointsEntry {
   readonly hasSide: boolean;
 }
 
+/**
+ * Per-body-part needle group sizes from template defaults (fullCode = 4 groups).
+ * [frontGroup1, frontGroup2, backGroup1, backGroup2]
+ * Extracted from needles/*.md template ppnSelectCombo default selections.
+ */
+export const NEEDLE_GROUP_SIZES: Record<BodyPartKey, readonly [number, number, number, number]> = {
+  SHOULDER: [3, 3, 3, 4],
+  KNEE:     [3, 4, 2, 3],
+  LBP:      [3, 3, 3, 3],
+  NECK:     [3, 3, 3, 3],
+  ELBOW:    [3, 3, 3, 3],
+  HIP:      [3, 3, 3, 3],
+  THIGH:    [3, 3, 3, 3],
+};
+
+/** Structured needle point groups for 4-step protocol */
+export interface NeedleGroups {
+  /** Front group 1 (Step 1 — right side or first insertion) */
+  readonly front1: readonly string[];
+  /** Front group 2 (Step 2 — left side or re-insertion) */
+  readonly front2: readonly string[];
+  /** Back group 1 (Step 3 — right side or first back insertion) */
+  readonly back1: readonly string[];
+  /** Back group 2 (Step 4 — left side or re-insertion, often without e-stim) */
+  readonly back2: readonly string[];
+}
+
 export const TEMPLATE_NEEDLE_POINTS: Record<BodyPartKey, NeedlePointsEntry> = {
   SHOULDER: {
     frontPool: [

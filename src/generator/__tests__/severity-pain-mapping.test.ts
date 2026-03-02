@@ -4,7 +4,6 @@
  * Verifies that the severity level assigned to each visit
  * is consistent with the current pain score.
  */
-import { describe, it, expect, beforeAll } from "vitest";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import { setWhitelist } from "../../parser/template-rule-whitelist";
 import whitelistData from "../../../frontend/src/data/whitelist.json";
@@ -80,7 +79,7 @@ describe("Severity↔pain mapping (S6)", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 
   it("severity never increases across visits (monotonic descent)", () => {
@@ -123,6 +122,6 @@ describe("Severity↔pain mapping (S6)", () => {
         }
       }
     }
-    expect(violations, violations.slice(0, 5).join("\n")).toHaveLength(0);
+    expect(violations).toHaveLength(0);
   });
 });
