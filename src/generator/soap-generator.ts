@@ -1035,24 +1035,30 @@ export function generateObjective(
   }
 
   // Muscles Testing (纯文本输出，不加 markdown 粗体标记)
+  // TX: 优先消费 visitState 肌肉数组，避免与权重/切片双源并行。
+  // IE 或缺失时回退到既有权重/切片逻辑。
   objective += `Muscles Testing:\n`;
-  // Tightness 肌肉由权重系统从模板下拉框有效选项中选择
-  const tightnessWeightContext: WeightContext = {
-    bodyPart: bp,
-    localPattern: context.localPattern,
-    systemicPattern: context.systemicPattern,
-    chronicityLevel: context.chronicityLevel,
-    severityLevel: effectiveSeverity,
-    insuranceType: context.insuranceType,
-    painScale: 7,
-    hasPacemaker: context.hasPacemaker,
-  };
-  const weightedTightness = calculateWeights(
-    "objective.tightness",
-    muscles,
-    tightnessWeightContext,
-  );
-  const selectedTightness = selectBestOptions(weightedTightness, 3);
+  const selectedTightness =
+    visitState?.tightMuscles && visitState.tightMuscles.length > 0
+      ? [...visitState.tightMuscles]
+      : (() => {
+          const tightnessWeightContext: WeightContext = {
+            bodyPart: bp,
+            localPattern: context.localPattern,
+            systemicPattern: context.systemicPattern,
+            chronicityLevel: context.chronicityLevel,
+            severityLevel: effectiveSeverity,
+            insuranceType: context.insuranceType,
+            painScale: 7,
+            hasPacemaker: context.hasPacemaker,
+          };
+          const weightedTightness = calculateWeights(
+            "objective.tightness",
+            muscles,
+            tightnessWeightContext,
+          );
+          return selectBestOptions(weightedTightness, 3);
+        })();
   objective += `Tightness muscles noted along ${selectedTightness.join(", ")}\n`;
   objective += `Grading Scale: ${visitState?.tightnessGrading || effectiveSeverity}\n\n`;
 
@@ -1061,23 +1067,27 @@ export function generateObjective(
   // 中等列表(=7): LBP/NECK 交错分配避免 100% 重叠
   // 短列表(<7): 智能分配
   const tenderMuscles =
-    muscles.length >= 8
-      ? muscles.slice(7, 12)
-      : muscles.length >= 4
-        ? muscles.slice(Math.floor(muscles.length / 2))
-        : muscles.slice(1);
-  const spasmMuscles =
-    muscles.length >= 8
-      ? muscles.slice(3, 7)
-      : muscles.length === 7
-        ? // LBP/NECK (7肌肉): 交错取 [1,2,5,6] — 与 tender[3,4,5,6] 仅 2 个重叠
-          muscles.slice(1, 3).concat(muscles.slice(5))
+    visitState?.tenderMuscles && visitState.tenderMuscles.length > 0
+      ? [...visitState.tenderMuscles]
+      : muscles.length >= 8
+        ? muscles.slice(7, 12)
         : muscles.length >= 4
-          ? muscles.slice(
-              Math.floor(muscles.length / 3),
-              Math.floor((muscles.length * 2) / 3) + 1,
-            )
-          : muscles.slice(0, 2);
+          ? muscles.slice(Math.floor(muscles.length / 2))
+          : muscles.slice(1);
+  const spasmMuscles =
+    visitState?.spasmMuscles && visitState.spasmMuscles.length > 0
+      ? [...visitState.spasmMuscles]
+      : muscles.length >= 8
+        ? muscles.slice(3, 7)
+        : muscles.length === 7
+          ? // LBP/NECK (7肌肉): 交错取 [1,2,5,6] — 与 tender[3,4,5,6] 仅 2 个重叠
+            muscles.slice(1, 3).concat(muscles.slice(5))
+          : muscles.length >= 4
+            ? muscles.slice(
+                Math.floor(muscles.length / 3),
+                Math.floor((muscles.length * 2) / 3) + 1,
+              )
+            : muscles.slice(0, 2);
 
   objective += `${tenderText} ${tenderMuscles.join(", ")}\n\n`;
   // Tenderness: TX 用 visitState, IE 根据 severity 选择等级

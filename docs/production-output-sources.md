@@ -19,7 +19,7 @@ This document defines source-of-truth rules for SOAP text production.
 
 ### TX Objective
 
-- Primary source: `visitState` trends and grades (`soaChain.objective.*`, `strengthGrade`, `tightness/tenderness/spasm`, `tonguePulse`, `inspection`).
+- Primary source: `visitState` trends/grades and muscle groups (`soaChain.objective.*`, `strengthGrade`, `tightMuscles`, `tenderMuscles`, `spasmMuscles`, `tightnessGrading`, `tendernessGrading`, `spasmGrading`, `tonguePulse`, `inspection`).
 - ROM rendering uses trend-aware selection (`pain + progress + romTrend`) via `pickTemplateROMDegreesByPain(...)`.
 - Secondary source: `context` severity/pain when `visitState` is unavailable.
 - Last-resort fallback: formula/template defaults.
@@ -46,3 +46,11 @@ This document defines source-of-truth rules for SOAP text production.
 - Avoid eager weight calculations if a primary source value is present.
 - Avoid field-level multi-source mixing inside a single narrative block.
 - Preserve backward-compatible fallback only for missing data, not as parallel competing sources.
+
+## Dynamic Audit Notes
+
+- Run dynamic consistency audit with `npm run audit:dynamic` (internally uses `node --import tsx` for better sandbox compatibility).
+- `mixedDirectionEmptyFindingType` is expected by current design:
+  - When both reduce-direction and increase-direction findings exist in the same visit, details are embedded in `physicalChange`.
+  - `findingType` may be intentionally empty in this mixed-direction case to avoid duplicated wording in rendered assessment text.
+- `romTrendNoRomChange` is only counted for comparable visits where both sides produced parsable ROM degree arrays with the same length.

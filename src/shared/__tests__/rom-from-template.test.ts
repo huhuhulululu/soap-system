@@ -75,6 +75,30 @@ describe("pickTemplateROMDegreesByPain", () => {
     expect((improved ?? 0) >= (stable ?? 0)).toBe(true);
   });
 
+  it("non-stable trend prefers strictly higher degree than minDegrees when possible", () => {
+    const stable = pickTemplateROMDegreesByPain("LBP", "Extension", 8, 0.5, {
+      trend: "stable",
+      progress: 0.5,
+      minDegrees: 20,
+    });
+    const improved = pickTemplateROMDegreesByPain("LBP", "Extension", 8, 0.5, {
+      trend: "improved",
+      progress: 0.5,
+      minDegrees: 20,
+    });
+    expect(stable).toBe(20);
+    expect(improved).toBeGreaterThan(20);
+  });
+
+  it("non-stable trend falls back to minDegrees when no higher template option exists", () => {
+    const improved = pickTemplateROMDegreesByPain("LBP", "Flexion", 2, 0.5, {
+      trend: "improved",
+      progress: 0.8,
+      minDegrees: 90,
+    });
+    expect(improved).toBe(90);
+  });
+
   it("returns null for unknown movement name", () => {
     const result = pickTemplateROMDegreesByPain("KNEE", "Unknown", 5, 0.5);
     expect(result).toBeNull();

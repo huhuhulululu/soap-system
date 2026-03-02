@@ -1383,6 +1383,30 @@ export function generateTXSequenceStates(
         strengthTrend = "stable";
       }
     }
+
+    // ROM trend should be visible in rendered text (discrete template buckets).
+    // If pain label doesn't move, ROM often cannot show a degree change reliably.
+    // Gate non-stable ROM trend by pain movement magnitude to keep trend/render aligned.
+    const painLabelChanged = painScaleLabel !== prevPainScaleLabel;
+    if (!painLabelChanged) {
+      romTrend = "stable";
+    } else {
+      const romStrictBodyPart = new Set([
+        "MID_LOW_BACK",
+        "MIDDLE_BACK",
+        "UPPER_BACK",
+      ]).has(context.primaryBodyPart || "");
+      const improvedMinDelta = romStrictBodyPart ? 0.75 : 0.55;
+      const slightMinDelta = romStrictBodyPart ? 0.8 : 0.6;
+
+      if (romTrend === "improved" && painDelta < improvedMinDelta) {
+        romTrend = "slightly improved";
+      }
+      if (romTrend === "slightly improved" && painDelta < slightMinDelta) {
+        romTrend = "stable";
+      }
+    }
+
     prevPainScaleLabel = painScaleLabel;
     prevRomDeficit = nextRomDeficit;
     prevStrengthLevel = nextStrengthLevel;
@@ -1526,26 +1550,41 @@ export function generateTXSequenceStates(
     // indices 8-14: neutral (continuous, maintain, still need, weak, skipped, stopped, discontinuous)
     const NEUTRAL_TEMPLATE_REASONS = TEMPLATE_TX_REASON.filter((_, i) => i >= 8 && i <= 14);
 
-    // Dynamic pool: filter positive reasons by current visit dimensions
-    const positivePool = [
-      ...(painDelta > 0.2 ? POSITIVE_TEMPLATE_REASONS.filter(r =>
-        r.includes("pain") || r.includes("joint") || r.includes("stiffness")
-      ) : []),
-      ...(adlImproved ? POSITIVE_TEMPLATE_REASONS.filter(r =>
-        r.includes("daily") || r.includes("activity")
-      ) : []),
-      // Always available
-      ...POSITIVE_TEMPLATE_REASONS.filter(r =>
-        r.includes("energy") || r.includes("sleep") || r.includes("treatment")
+    // Dynamic pool: filter positive reasons by current visit dimensions.
+    // Keep a minimum pool size to avoid over-concentration (e.g. 20 visits with only 3 candidates).
+    const positivePoolPriority = [
+      ...(painDelta > 0.2
+        ? POSITIVE_TEMPLATE_REASONS.filter(
+            (r) =>
+              r.includes("pain") || r.includes("joint") || r.includes("stiffness"),
+          )
+        : []),
+      ...(adlImproved
+        ? POSITIVE_TEMPLATE_REASONS.filter(
+            (r) => r.includes("daily") || r.includes("activity"),
+          )
+        : []),
+      // Always available baseline
+      ...POSITIVE_TEMPLATE_REASONS.filter(
+        (r) => r.includes("energy") || r.includes("sleep"),
       ),
     ];
-    const POSITIVE_REASONS: Set<string> = new Set(
-      positivePool.length > 0 ? positivePool : [...POSITIVE_TEMPLATE_REASONS],
-    );
+    const positivePool = Array.from(new Set(positivePoolPriority));
+    const MIN_POSITIVE_POOL = 5;
+    if (positivePool.length < MIN_POSITIVE_POOL) {
+      for (const reasonOption of POSITIVE_TEMPLATE_REASONS) {
+        if (!positivePool.includes(reasonOption)) {
+          positivePool.push(reasonOption);
+        }
+        if (positivePool.length >= MIN_POSITIVE_POOL) break;
+      }
+    }
+    const POSITIVE_REASONS_LIST =
+      positivePool.length > 0 ? positivePool : [...POSITIVE_TEMPLATE_REASONS];
+    const POSITIVE_REASONS: Set<string> = new Set(POSITIVE_REASONS_LIST);
     const NEGATIVE_REASONS: Set<string> = new Set([...NEGATIVE_TEMPLATE_REASONS]);
 
     // Phase D: reason 轮换 — 避免总是同一个 reason
-    const POSITIVE_REASONS_LIST = Array.from(POSITIVE_REASONS);
     // Derive from TEMPLATE_TX_REASON (single source of truth)
     const NEUTRAL_REASONS = [
       TEMPLATE_TX_REASON[8],  // "continuous treatment"
@@ -1977,6 +2016,36 @@ export function generateTXSequenceStates(
       strengthTrend,
     });
 
+    const hasFinalObjectiveChange =
+      finalTightnessTrend !== "stable" ||
+      finalTendernessTrend !== "stable" ||
+      finalSpasmTrend !== "stable" ||
+      romTrend !== "stable" ||
+      strengthTrend !== "stable";
+    const painDroppedFromPrev = prevVisit
+      ? painScaleCurrent < prevVisit.painScaleCurrent
+      : painScaleCurrent < startPain;
+
+    // Final S-O guard: "improvement" must be backed by objective change or pain drop.
+    // If both are absent after reconciliation/gating, downgrade to similar + similar-category reason.
+    if (
+      symptomChange.includes("improvement") &&
+      !hasFinalObjectiveChange &&
+      !painDroppedFromPrev
+    ) {
+      symptomChange = "similar symptom(s) as last visit";
+      const similarFallbackReasons = (NEUTRAL_REASONS as readonly string[]).filter(
+        (r) => r !== "maintain regular treatments",
+      );
+      const safePool =
+        similarFallbackReasons.length > 0
+          ? similarFallbackReasons
+          : (NEUTRAL_REASONS as readonly string[]);
+      if (!safePool.includes(finalReason)) {
+        finalReason = safePool[i % safePool.length];
+      }
+    }
+
     const assessmentFromChain = deriveAssessmentFromSOA({
       painDelta,
       adlDelta,
@@ -2045,7 +2114,7 @@ export function generateTXSequenceStates(
           strengthTrend,
         },
         assessment:
-          finalDimScore.score === 0
+          finalDimScore.score === 0 || symptomChange.includes("similar")
             ? {
                 ...assessmentFromChain,
                 present: "similar symptom(s) as last visit.",

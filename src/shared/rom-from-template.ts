@@ -222,11 +222,21 @@ export function pickTemplateROMDegreesByPain(
     return null;
   }
 
-  // Apply minDegrees floor: filter out options below the previous visit's value
+  // Apply minDegrees floor: filter out options below the previous visit's value.
+  // For non-stable trends, prefer a strictly higher degree when template options allow it.
   const minDeg = hints?.minDegrees ?? 0;
   const eligible = minDeg > 0 ? scored.filter((o) => o.degrees >= minDeg) : scored;
-  // If all options are below floor (shouldn't happen), fall back to unfiltered
-  const candidates = eligible.length > 0 ? eligible : scored;
+  // If all options are below floor (shouldn't happen), fall back to unfiltered.
+  let candidates = eligible.length > 0 ? eligible : scored;
+  const needsStrictIncrease =
+    minDeg > 0 &&
+    (hints?.trend === "improved" || hints?.trend === "slightly improved");
+  if (needsStrictIncrease) {
+    const strictlyHigher = candidates.filter((o) => o.degrees > minDeg);
+    if (strictlyHigher.length > 0) {
+      candidates = strictlyHigher;
+    }
+  }
 
   const progressBonus = clamp(hints?.progress ?? 0, 0, 1) * 0.2;
   const trendBonus = trendToImprovementBonus(hints?.trend);
