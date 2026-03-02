@@ -2451,9 +2451,26 @@ export function generateNeedleProtocol(
 
     // H-11: ELBOW/KNEE 97810 uses "Front Points", others use "Back Points"
     const sectionLabel97810 = (bp === "KNEE" || bp === "ELBOW") ? "Front Points" : "Back Points";
+    // 97810 = 1 CPT code = 1 group of 4 points (not from NEEDLE_GROUP_SIZES which is for full code)
+    const pick97810Points = (pool: string[], fallback4: string[]): string[] => {
+      if (!visitNeedle) return fallback4;
+      // Combine all groups from the relevant side and take first 4
+      const isfront = bp === "KNEE" || bp === "ELBOW";
+      const combined = isfront
+        ? [...(visitNeedle.front1 ?? []), ...(visitNeedle.front2 ?? [])]
+        : [...(visitNeedle.back1 ?? []), ...(visitNeedle.back2 ?? [])];
+      if (combined.length >= 4) return combined.slice(0, 4);
+      if (combined.length > 0) {
+        // Pad from pool excluding already selected
+        const used = new Set(combined);
+        const extra = pool.filter(p => !used.has(p));
+        return [...combined, ...extra].slice(0, 4);
+      }
+      return fallback4;
+    };
     const points97810 = (bp === "KNEE" || bp === "ELBOW")
-      ? pickGroup("front1", defaultFront.slice(0, 4))
-      : pickGroup("back1", defaultBack.slice(0, 4));
+      ? pick97810Points(defaultFront, defaultFront.slice(0, 4))
+      : pick97810Points(defaultBack, defaultBack.slice(0, 4));
     protocol += `${sectionLabel97810}: (15 mins) - personal one on one contact with the patient\n`;
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, `;
