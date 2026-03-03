@@ -1,4 +1,3 @@
-import { vi } from "vitest";
 /**
  * Regression test: generateContinueBatch was double-counting totalGenerated/totalFailed.
  *
@@ -10,38 +9,38 @@ import type { BatchData, BatchPatient, BatchVisit } from '../../types'
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
-vi.mock('../../../src/generator/soap-generator', () => ({
-  exportSOAPAsText: vi.fn(() => 'S:\nMock\nO:\nMock\nA:\nMock\nP:\nMock'),
-  exportTXSeriesAsText: vi.fn((_ctx: unknown, opts: { txCount: number; startVisitIndex?: number }) => {
+jest.mock('../../../src/generator/soap-generator', () => ({
+  exportSOAPAsText: jest.fn(() => 'S:\nMock\nO:\nMock\nA:\nMock\nP:\nMock'),
+  exportTXSeriesAsText: jest.fn((_ctx: unknown, opts: { txCount: number; startVisitIndex?: number }) => {
     const count = opts.startVisitIndex
       ? opts.txCount - (opts.startVisitIndex - 1)
       : opts.txCount
     return Array.from({ length: count }, () => ({
       text: 'S:\nMock\nO:\nMock\nA:\nMock\nP:\nMock',
-      state: {},
+      state: {} as any,
     }))
   }),
 }))
 
-vi.mock('../../../src/generator/objective-patch', () => ({
-  patchSOAPText: vi.fn((text: string) => text),
+jest.mock('../../../src/generator/objective-patch', () => ({
+  patchSOAPText: jest.fn((text: string) => text),
 }))
 
-vi.mock('../../../src/shared/normalize-generation-context', () => ({
-  normalizeGenerationContext: vi.fn(() => ({
+jest.mock('../../../src/shared/normalize-generation-context', () => ({
+  normalizeGenerationContext: jest.fn(() => ({
     context: { bodyPart: 'SHOULDER' },
     initialState: {},
   })),
 }))
 
-vi.mock('../../../src/parser/tx-extractor', () => ({
-  extractStateFromTX: vi.fn(() => ({ estimatedVisitIndex: 2 })),
-  buildContextFromExtracted: vi.fn(() => ({ bodyPart: 'SHOULDER' })),
-  buildInitialStateFromExtracted: vi.fn(() => ({})),
+jest.mock('../../../src/parser/tx-extractor', () => ({
+  extractStateFromTX: jest.fn(() => ({ estimatedVisitIndex: 2 })),
+  buildContextFromExtracted: jest.fn(() => ({ bodyPart: 'SHOULDER' })),
+  buildInitialStateFromExtracted: jest.fn(() => ({})),
 }))
 
-vi.mock('../text-to-html', () => ({
-  splitSOAPText: vi.fn(() => ({
+jest.mock('../text-to-html', () => ({
+  splitSOAPText: jest.fn(() => ({
     subjective: 'S',
     objective: 'O',
     assessment: 'A',
@@ -114,7 +113,7 @@ import { generateContinueBatch, generateMixedBatch } from '../batch-generator'
 describe('batch-generator counting', () => {
   describe('generateContinueBatch', () => {
     it('does not apply objective patch to TX visits even when realisticPatch=true', () => {
-      const patchSOAPText = vi.mocked(objectivePatchModule.patchSOAPText)
+      const patchSOAPText = jest.mocked(objectivePatchModule.patchSOAPText)
       patchSOAPText.mockClear()
 
       const batch = makeBatch([makeContinuePatient(3)])
@@ -135,12 +134,12 @@ describe('batch-generator counting', () => {
 
     it('should count each failed visit exactly once', () => {
       // Force exportTXSeriesAsText to return fewer results than visits
-      const exportTXSeriesAsText = vi.mocked(soapGeneratorModule.exportTXSeriesAsText)
+      const exportTXSeriesAsText = jest.mocked(soapGeneratorModule.exportTXSeriesAsText)
       exportTXSeriesAsText.mockReturnValueOnce([
-        { text: 'S:\nM\nO:\nM\nA:\nM\nP:\nM', state: {} },
-        undefined, // second visit fails
-        { text: 'S:\nM\nO:\nM\nA:\nM\nP:\nM', state: {} },
-      ])
+        { text: 'S:\nM\nO:\nM\nA:\nM\nP:\nM', state: {} as any },
+        undefined as any, // second visit fails
+        { text: 'S:\nM\nO:\nM\nA:\nM\nP:\nM', state: {} as any },
+      ] as any)
 
       const batch = makeBatch([makeContinuePatient(3)])
       const result = generateContinueBatch(batch)
@@ -160,7 +159,7 @@ describe('batch-generator counting', () => {
 
   describe('generateMixedBatch continue branch', () => {
     it('does not apply objective patch to TX visits in continue mode', () => {
-      const patchSOAPText = vi.mocked(objectivePatchModule.patchSOAPText)
+      const patchSOAPText = jest.mocked(objectivePatchModule.patchSOAPText)
       patchSOAPText.mockClear()
 
       const patient = { ...makeContinuePatient(3), mode: 'continue' as const }

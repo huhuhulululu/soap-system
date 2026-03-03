@@ -1,11 +1,10 @@
-import { vi } from "vitest";
 import type { Request } from "express";
 import { createAIGenerateRouter } from "../ai-generate";
 import { generateWithAI } from "../../services/ai-generator";
 import { createMockResponse, getRouteHandler } from "./route-test-helpers";
 
-vi.mock("../../services/ai-generator", () => ({
-  generateWithAI: vi.fn(),
+jest.mock("../../services/ai-generator", () => ({
+  generateWithAI: jest.fn(),
 }));
 
 describe("ai-generate route", () => {
@@ -44,4 +43,3 @@ describe("ai-generate route", () => {
     expect(res.jsonPayload).toEqual({ success: true, text: "SOAP" });
   });
 });
-

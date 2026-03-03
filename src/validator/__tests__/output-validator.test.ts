@@ -1,4 +1,3 @@
-import { vi } from "vitest";
 import * as parserModule from "../../../parsers/optum-note/parser";
 import * as checkerModule from "../../../parsers/optum-note/checker/note-checker";
 import type { CheckOutput } from "../../../parsers/optum-note/checker/types";
@@ -47,7 +46,7 @@ function makeMockDocument(): OptumNoteDocument {
 
 describe("output-validator", () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   it("returns PARSE_FAIL when note cannot be parsed", () => {
@@ -67,7 +66,7 @@ describe("output-validator", () => {
 
   it("returns valid=true when checker has only non-blocking severities", () => {
     const doc = makeMockDocument();
-    vi.spyOn(parserModule, "parseOptumNote").mockReturnValue({
+    jest.spyOn(parserModule, "parseOptumNote").mockReturnValue({
       success: true,
       document: doc,
       errors: [],
@@ -107,7 +106,7 @@ describe("output-validator", () => {
       corrections: [],
     };
 
-    vi.spyOn(checkerModule, "checkDocument").mockReturnValue(checkerOutput);
+    jest.spyOn(checkerModule, "checkDocument").mockReturnValue(checkerOutput);
 
     const result = validateOutput("mocked text");
     expect(result.valid).toBe(true);
@@ -116,4 +115,3 @@ describe("output-validator", () => {
     expect(isOutputValid("mocked text")).toBe(true);
   });
 });
-

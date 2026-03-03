@@ -1,4 +1,3 @@
-import { vi } from "vitest";
 import type { Request } from "express";
 import { createAutomateRouter } from "../automate";
 import {
@@ -14,24 +13,24 @@ import {
 import { getBatch } from "../../store/batch-store";
 import { createMockResponse, getRouteHandler } from "./route-test-helpers";
 
-vi.mock("../../services/automation-runner", () => ({
-  saveCookies: vi.fn(),
-  getCookiesInfo: vi.fn(),
-  hasCookies: vi.fn(),
-  startAutomation: vi.fn(),
-  getJobStatus: vi.fn(),
-  getActiveJob: vi.fn(),
-  isRunning: vi.fn(),
-  stopAutomation: vi.fn(),
+jest.mock("../../services/automation-runner", () => ({
+  saveCookies: jest.fn(),
+  getCookiesInfo: jest.fn(),
+  hasCookies: jest.fn(),
+  startAutomation: jest.fn(),
+  getJobStatus: jest.fn(),
+  getActiveJob: jest.fn(),
+  isRunning: jest.fn(),
+  stopAutomation: jest.fn(),
 }));
 
-vi.mock("../../store/batch-store", () => ({
-  getBatch: vi.fn(),
+jest.mock("../../store/batch-store", () => ({
+  getBatch: jest.fn(),
 }));
 
 describe("automate routes", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    jest.resetAllMocks();
     (getCookiesInfo as any).mockResolvedValue({ hasCookies: true });
     (hasCookies as any).mockResolvedValue(true);
     (isRunning as any).mockReturnValue(false);

@@ -1,4 +1,3 @@
-import { vi } from "vitest";
 import type { Request } from "express";
 import fs from "fs";
 import { createBatchRouter } from "../batch";
@@ -16,29 +15,29 @@ import {
 } from "../../store/batch-store";
 import { createMockResponse, getRouteHandler } from "./route-test-helpers";
 
-vi.mock("../../services/excel-parser", () => ({
-  parseExcelBuffer: vi.fn(),
-  buildPatientsFromRows: vi.fn(),
+jest.mock("../../services/excel-parser", () => ({
+  parseExcelBuffer: jest.fn(),
+  buildPatientsFromRows: jest.fn(),
 }));
 
-vi.mock("../../services/batch-generator", () => ({
-  regenerateVisit: vi.fn(),
+jest.mock("../../services/batch-generator", () => ({
+  regenerateVisit: jest.fn(),
 }));
 
-vi.mock("../../services/soap-worker-pool", () => ({
-  generateBatchAsync: vi.fn(),
+jest.mock("../../services/soap-worker-pool", () => ({
+  generateBatchAsync: jest.fn(),
 }));
 
-vi.mock("../../store/batch-store", () => ({
-  generateBatchId: vi.fn(() => "batch-1"),
-  saveBatch: vi.fn(),
-  getBatch: vi.fn(),
-  confirmBatch: vi.fn(),
+jest.mock("../../store/batch-store", () => ({
+  generateBatchId: jest.fn(() => "batch-1"),
+  saveBatch: jest.fn(),
+  getBatch: jest.fn(),
+  confirmBatch: jest.fn(),
 }));
 
 describe("batch routes", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    jest.resetAllMocks();
     (generateBatchId as any).mockReturnValue("batch-1");
   });
 
@@ -440,7 +439,7 @@ describe("batch routes", () => {
     await confirmHandler(reqConfirm, resConfirm200);
     expect(resConfirm200.statusCode).toBe(200);
 
-    const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+    const existsSpy = jest.spyOn(fs, "existsSync").mockReturnValue(false);
     const resDownload = createMockResponse();
     await downloadHandler({} as Request, resDownload);
     expect(resDownload.statusCode).toBe(404);
@@ -470,11 +469,11 @@ describe("batch routes", () => {
   it("GET /template/download downloads template when file exists", async () => {
     const router = createBatchRouter();
     const handler = getRouteHandler(router, "get", "/template/download");
-    const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
     const res = createMockResponse() as typeof createMockResponse extends () => infer R
       ? R & { download: any }
       : never;
-    res.download = vi.fn().mockReturnValue(res);
+    res.download = jest.fn().mockReturnValue(res);
 
     await handler({} as Request, res);
 
@@ -489,7 +488,7 @@ describe("batch routes", () => {
   it("GET /template/download returns 500 when fs.existsSync throws", async () => {
     const router = createBatchRouter();
     const handler = getRouteHandler(router, "get", "/template/download");
-    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(() => {
+    const existsSpy = jest.spyOn(fs, "existsSync").mockImplementation(() => {
       throw new Error("fs failed");
     });
     const res = createMockResponse();
