@@ -33,6 +33,15 @@ function extractTightnessCount(objective: string): number {
     .filter(Boolean).length;
 }
 
+function extractTightnessMuscles(objective: string): string[] {
+  const m = objective.match(/Tightness muscles noted along ([^\n]+)/);
+  if (!m) return [];
+  return m[1]
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
 describe("IE objective muscle source alignment", () => {
   it("IE tightness muscles use muscle-selector count for severe SHOULDER", () => {
     const context = makeContext({ seed: 77, severityLevel: "severe" });
@@ -54,5 +63,22 @@ describe("IE objective muscle source alignment", () => {
     expect(count).not.toBe(3);
     expect(count).toBeGreaterThanOrEqual(5);
   });
-});
 
+  it("does not collapse seed=0 to seed=1 in IE muscle selection", () => {
+    const expected0 = [
+      ...selectInitialMuscles("SHOULDER", "severe", 0).tightness,
+    ];
+    const expected1 = [
+      ...selectInitialMuscles("SHOULDER", "severe", 1).tightness,
+    ];
+    // Guard this fixture: two seeds should map to distinct deterministic muscle sets.
+    expect(expected0).not.toEqual(expected1);
+
+    const objective0 = generateObjective(
+      makeContext({ seed: 0, severityLevel: "severe" }),
+    );
+    const actual0 = extractTightnessMuscles(objective0);
+
+    expect(actual0).toEqual(expected0);
+  });
+});

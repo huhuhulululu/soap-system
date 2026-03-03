@@ -456,7 +456,8 @@ function getConfig<T>(map: Record<string, T>, bodyPart: string): T {
 
 function objectiveMuscleSeed(context: GenerationContext): number {
   if (typeof context.seed === "number" && Number.isFinite(context.seed)) {
-    return Math.abs(Math.floor(context.seed)) || 1;
+    // Preserve distinct deterministic streams for 0/1/-1/etc.
+    return context.seed >>> 0;
   }
   const source = [
     context.primaryBodyPart,

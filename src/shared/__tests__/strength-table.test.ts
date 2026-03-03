@@ -39,6 +39,11 @@ describe("strength-table", () => {
     expect(strengthToIndex("3+")).toBe(STRENGTH_LADDER.indexOf("3+/5"));
   });
 
+  it("strengthToIndex maps legacy 5/5 to current max 4+/5", () => {
+    expect(strengthToIndex("5/5")).toBe(STRENGTH_LADDER.length - 1);
+    expect(strengthToIndex("5")).toBe(STRENGTH_LADDER.length - 1);
+  });
+
   it("strengthToIndex returns 4 (4/5) for unknown grades", () => {
     expect(strengthToIndex("unknown")).toBe(4);
   });

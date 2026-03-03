@@ -30,6 +30,9 @@ export function strengthFromPain(painLevel: number): string {
 
 export function strengthToIndex(grade: string): number {
   const normalized = grade.includes("/") ? grade : `${grade}/5`;
+  // Backward compatibility: old notes may contain 5/5.
+  // Map it to current template max (4+/5).
+  if (normalized === "5/5") return STRENGTH_LADDER.length - 1;
   const idx = STRENGTH_LADDER.indexOf(normalized);
   if (idx >= 0) return idx;
   const fuzzy = STRENGTH_LADDER.findIndex((s) => s.startsWith(grade));
