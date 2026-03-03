@@ -1227,6 +1227,7 @@ export function generateObjective(
   // TX 模式: effectivePainForRom 比实际 pain 更低, 模拟"功能恢复快于疼痛消退"
   const basePain: number =
     visitState?.painScaleCurrent ??
+    context.painCurrent ??
     ({
       severe: 9,
       "moderate to severe": 8,

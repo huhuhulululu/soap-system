@@ -233,8 +233,12 @@ describe("IE ROM should respond to pain-level changes inside same severity band"
     const deg8 = extractRomDegrees(text8);
     const deg9 = extractRomDegrees(text9);
     const deg10 = extractRomDegrees(text10);
-    expect(deg8.join("|")).toBe(deg9.join("|"));
-    expect(deg9.join("|")).toBe(deg10.join("|"));
+
+    // Higher pain → equal or lower ROM (monotonic within severe band)
+    for (let i = 0; i < deg8.length; i++) {
+      expect(deg8[i]).toBeGreaterThanOrEqual(deg9[i]);
+      expect(deg9[i]).toBeGreaterThanOrEqual(deg10[i]);
+    }
 
     const severities8 = extractRomSeverities(text8);
     const severities9 = extractRomSeverities(text9);

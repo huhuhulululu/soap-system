@@ -549,17 +549,28 @@ export function deriveAssessmentFromSOA(input: {
 
   const tolerated =
     TOLERATED_OPTIONS[input.visitIndex % TOLERATED_OPTIONS.length];
-  // response: 根据 objective 改善情况选择相关的 response
-  const responseIdx = (() => {
-    if (strongPhysicalImprove) {
-      // 有明显改善时，选择描述改善的 response
-      const improveResponses = [6, 7, 8, 9, 10, 11]; // reducing spasm, reducing pain, improving ROM, etc.
-      return improveResponses[input.visitIndex % improveResponses.length];
+  // response: 只选与实际变化维度匹配的 response，避免 "reducing spasm" 但 spasm 没变
+  const response = (() => {
+    if (!strongPhysicalImprove && input.painDelta <= 0) {
+      // 无改善: 轮换通用 response [0-5]
+      return RESPONSE_OPTIONS[input.visitIndex % 6] || "well";
     }
-    // 一般情况轮换前 6 个通用 response
-    return input.visitIndex % 6;
+    // 收集与实际变化匹配的 response 候选
+    const candidates: number[] = [];
+    if (input.objectiveSpasmTrend !== "stable") candidates.push(6); // "reducing spasm"
+    if (input.painDelta > 0) candidates.push(7); // "reducing pain"
+    if (input.objectiveRomTrend !== "stable") candidates.push(8); // "improving ROM"
+    if (input.adlDelta > 0.2) candidates.push(9, 10); // functional mobility
+    if (input.objectiveStrengthTrend !== "stable") candidates.push(11); // "increase ease with function"
+    // tightness/tenderness 没有专属 response，映射到通用改善
+    if (candidates.length === 0 && (input.objectiveTightnessTrend !== "stable" || input.objectiveTendernessTrend !== "stable")) {
+      candidates.push(4, 5); // "good response", "positive response"
+    }
+    if (candidates.length === 0) {
+      return RESPONSE_OPTIONS[input.visitIndex % 6] || "well";
+    }
+    return RESPONSE_OPTIONS[candidates[input.visitIndex % candidates.length]] || "well";
   })();
-  const response = RESPONSE_OPTIONS[responseIdx] || "well";
   const adverseEffect = TEMPLATE_TX_ADVERSE;
 
   return {
@@ -940,8 +951,10 @@ export function generateTXSequenceStates(
   const initObjLevel = severityToInit[initSeverity] ?? 3;
   let prevTightness =
     options.initialState?.tightness ?? Math.round(initObjLevel);
+  // Tenderness: align with IE renderer's severityToTender mapping
+  // IE renders "moderate to severe" as (+3), so use floor instead of round
   let prevTenderness =
-    options.initialState?.tenderness ?? Math.round(initObjLevel);
+    options.initialState?.tenderness ?? Math.floor(initObjLevel);
   let prevSpasm = Math.min(
     3,
     (options.initialState?.spasm ?? Math.min(3, Math.round(initObjLevel))) +
