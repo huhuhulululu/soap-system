@@ -66,6 +66,7 @@ const baseInput = {
   bodyPart: "LBP",
   dimScore: 0.2,
   changedDims: ["pain"],
+  associatedSymptom: "soreness",
   symptomScaleChanged: false,
   severityChanged: false,
 };
@@ -497,6 +498,50 @@ describe("deriveAssessmentFromSOA", () => {
         severityChanged: false,
       });
       expect(result.whatChanged).toContain("soreness");
+    });
+
+    it("symptomScaleChanged maps associatedSymptom=numbness to numbness wording", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        associatedSymptom: "numbness",
+        painDelta: 0,
+        adlDelta: 0,
+        frequencyImproved: false,
+        objectiveTightnessTrend: "stable",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+        objectiveRomTrend: "stable",
+        objectiveStrengthTrend: "stable",
+        cumulativePainDrop: 0,
+        progress: 0.3,
+        dimScore: 0.2,
+        changedDims: ["symptomScale"],
+        symptomScaleChanged: true,
+        severityChanged: false,
+      });
+      expect(result.whatChanged).toContain("numbness sensation");
+    });
+
+    it("symptomScaleChanged maps associatedSymptom=stiffness to stiffness wording", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        associatedSymptom: "stiffness",
+        painDelta: 0,
+        adlDelta: 0,
+        frequencyImproved: false,
+        objectiveTightnessTrend: "stable",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+        objectiveRomTrend: "stable",
+        objectiveStrengthTrend: "stable",
+        cumulativePainDrop: 0,
+        progress: 0.3,
+        dimScore: 0.2,
+        changedDims: ["symptomScale"],
+        symptomScaleChanged: true,
+        severityChanged: false,
+      });
+      expect(result.whatChanged).toContain("muscles stiffness sensation");
     });
 
     it("多维度变化 → whatChanged lists all S-side changes", () => {

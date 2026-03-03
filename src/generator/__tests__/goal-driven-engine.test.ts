@@ -20,7 +20,66 @@ function makeContext(overrides: Partial<GenerationContext> = {}): GenerationCont
   } as GenerationContext
 }
 
+function frequencyToNum(label: string): number {
+  if (label.includes('Constant')) return 3
+  if (label.includes('Frequent')) return 2
+  if (label.includes('Occasional')) return 1
+  if (label.includes('Intermittent')) return 0
+  return -1
+}
+
 describe('Goal-Driven Engine Integration', () => {
+  describe('frequency goals are relative to start level', () => {
+    it('start=3 (Constant) should end within Frequent/Occasional, never Intermittent', () => {
+      const ctx = makeContext()
+      const { states } = generateTXSequenceStates(ctx, {
+        txCount: 20,
+        seed: 77,
+        initialState: {
+          pain: 8,
+          frequency: 3,
+        },
+      })
+
+      const nums = states.map((v) => frequencyToNum(v.painFrequency))
+      expect(nums).toContain(2)
+      expect(nums).toContain(1)
+      expect(nums).not.toContain(0)
+    })
+
+    it('start=1 (Occasional) should converge to Intermittent only', () => {
+      const ctx = makeContext()
+      const { states } = generateTXSequenceStates(ctx, {
+        txCount: 20,
+        seed: 77,
+        initialState: {
+          pain: 8,
+          frequency: 1,
+        },
+      })
+
+      const nums = states.map((v) => frequencyToNum(v.painFrequency))
+      expect(nums).toContain(0)
+      expect(Math.max(...nums)).toBeLessThanOrEqual(1)
+      expect(nums[nums.length - 1]).toBe(0)
+    })
+
+    it('start=0 (Intermittent) should stay at Intermittent', () => {
+      const ctx = makeContext()
+      const { states } = generateTXSequenceStates(ctx, {
+        txCount: 20,
+        seed: 77,
+        initialState: {
+          pain: 8,
+          frequency: 0,
+        },
+      })
+
+      const nums = states.map((v) => frequencyToNum(v.painFrequency))
+      expect(new Set(nums)).toEqual(new Set([0]))
+    })
+  })
+
   describe('tightness/tenderness/spasm follow goal paths', () => {
     it('tightness trends downward (allows temporary bounce +1)', () => {
       const ctx = makeContext()

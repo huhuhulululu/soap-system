@@ -41,11 +41,20 @@ This document defines source-of-truth rules for SOAP text production.
 - Primary source: `visitState.needlePoints` grouped points (when available for grouped protocol paths).
 - Secondary source: template pools by body part (`TEMPLATE_NEEDLE_POINTS` and insurance-time mapping).
 
+### IE/RE Rendering
+
+- IE/RE path does not use `visitState`; source is `context` + template pools + weighted selection.
+- Note header labels are fixed by `context.noteType`:
+  - `IE`/`NEW_IE` => `INITIAL EVALUATION`
+  - `RE` => `RE-EVALUATION`
+- `realisticPatch` post-process is scoped to IE/RE only.
+
 ## Cleanup Policy
 
 - Avoid eager weight calculations if a primary source value is present.
 - Avoid field-level multi-source mixing inside a single narrative block.
 - Preserve backward-compatible fallback only for missing data, not as parallel competing sources.
+- TX path remains single-source (`engine -> renderer`) with no batch-level post patch mutation.
 
 ## Dynamic Audit Notes
 

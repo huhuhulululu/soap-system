@@ -142,6 +142,11 @@ describe('batch-generator', () => {
       const reVisit = result.patients[0].visits[1]
       expect(reVisit.status).toBe('done')
       expect(reVisit.generated).not.toBeNull()
+      const reText = reVisit.generated!.fullText
+      expect(reText).toContain('RE-EVALUATION')
+      expect(reText).toContain('Plan\nRe-Evaluation - Personal one on one contact with the patient')
+      expect(reText).not.toContain('Subjective\nDAILY NOTE')
+      expect(reText).not.toContain('Plan\nInitial Evaluation - Personal one on one contact with the patient')
     })
 
     it('handles multiple patients', () => {

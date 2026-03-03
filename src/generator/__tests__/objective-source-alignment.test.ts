@@ -1,6 +1,8 @@
 import { generateObjective } from "../soap-generator";
 import { generateTXSequenceStates } from "../tx-sequence-engine";
 import type { GenerationContext } from "../../types";
+import fs from "fs";
+import path from "path";
 
 function makeContext(
   overrides: Partial<GenerationContext> = {},
@@ -44,5 +46,12 @@ describe("Objective source alignment", () => {
     expect(objective).toContain("TENDER_A, TENDER_B");
     expect(objective).toContain("Muscles spasm noted along SPASM_A");
   });
-});
 
+  it("soap-generator does not hardcode painScale=7 for weight contexts", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "../soap-generator.ts"),
+      "utf8",
+    );
+    expect(source).not.toContain("painScale: 7");
+  });
+});

@@ -4,6 +4,7 @@
  * 将 Excel 解析后的 BatchData 中每个 visit 调用 SOAP 生成引擎：
  * - IE/RE: exportSOAPAsText(context)
  * - TX: exportTXSeriesAsText(context, options) → 一次性生成同患者所有 TX
+ * - realisticPatch: IE/RE only (TX keeps engine->renderer single source)
  *
  * 生成后将 SOAP 文本拆分为 S/O/A/P 四段，附加到 visit.generated
  */
@@ -84,7 +85,10 @@ function generateSingleVisit(
   const actualSeed = seed ?? Math.floor(Math.random() * 100000);
 
   let fullText = exportSOAPAsText(context);
-  if (realisticPatch) fullText = patchSOAPText(fullText, context);
+  // Keep realistic patch for IE/RE only; TX must stay engine+renderer single-source.
+  if (realisticPatch && context.noteType !== "TX") {
+    fullText = patchSOAPText(fullText, context);
+  }
   const soap = splitSOAPText(fullText);
 
   return {
@@ -106,7 +110,6 @@ function generateTXSeries(
   patient: BatchPatient,
   txVisits: readonly BatchVisit[],
   _ieVisit: BatchVisit | undefined,
-  realisticPatch?: boolean,
   disableChronicCaps?: boolean,
 ): BatchVisit[] {
   if (txVisits.length === 0) return [];
@@ -133,15 +136,12 @@ function generateTXSeries(
       };
     }
 
-    const patchedText = realisticPatch
-      ? patchSOAPText(result.text, context, result.state)
-      : result.text;
-    const soap = splitSOAPText(patchedText);
+    const soap = splitSOAPText(result.text);
     return {
       ...visit,
       generated: {
         soap,
-        fullText: patchedText,
+        fullText: result.text,
         seed: options.seed ?? 0,
         state: result.state,
       },
@@ -205,7 +205,6 @@ export function generateBatch(
       patient,
       txVisits,
       generatedIE,
-      realisticPatch,
       disableChronicCaps,
     );
 
@@ -295,15 +294,12 @@ export function generateContinueBatch(
         return { ...visit, status: "failed" as const };
       }
       totalGenerated++;
-      const patchedText = realisticPatch
-        ? patchSOAPText(result.text, context, result.state)
-        : result.text;
-      const soap = splitSOAPText(patchedText);
+      const soap = splitSOAPText(result.text);
       return {
         ...visit,
         generated: {
           soap,
-          fullText: patchedText,
+          fullText: result.text,
           seed: options.seed ?? 0,
           state: result.state,
         },
@@ -377,14 +373,11 @@ export function generateMixedBatch(
           return { ...visit, status: "failed" as const };
         }
         totalGenerated++;
-        const patchedText = realisticPatch
-          ? patchSOAPText(result.text, context, result.state)
-          : result.text;
         return {
           ...visit,
           generated: {
-            soap: splitSOAPText(patchedText),
-            fullText: patchedText,
+            soap: splitSOAPText(result.text),
+            fullText: result.text,
             seed: options.seed ?? 0,
             state: result.state,
           },
@@ -423,7 +416,6 @@ export function generateMixedBatch(
       patient,
       txVisits,
       generatedIE,
-      realisticPatch,
       disableChronicCaps,
     );
 

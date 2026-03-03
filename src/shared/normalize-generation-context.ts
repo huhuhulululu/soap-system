@@ -73,6 +73,7 @@ export interface NormalizeInput {
   readonly baselineCondition?: "good" | "fair" | "poor";
   readonly disableChronicCaps?: boolean;
   readonly allowNegativeEvents?: boolean;
+  readonly seed?: number;
 }
 
 export interface NormalizeOutput {
@@ -192,6 +193,7 @@ export function normalizeGenerationContext(
     baselineCondition: input.baselineCondition,
     disableChronicCaps: input.disableChronicCaps,
     allowNegativeEvents: input.allowNegativeEvents,
+    seed: input.seed,
   };
 
   const initialState: NonNullable<TXSequenceOptions["initialState"]> = {

@@ -342,6 +342,7 @@ export function deriveAssessmentFromSOA(input: {
   // Task 4: multi-dimension inputs
   dimScore: number; // composite dimension change score from computeDimensionScore
   changedDims: string[]; // which dimensions changed
+  associatedSymptom?: string;
   symptomScaleChanged: boolean;
   severityChanged: boolean;
 }): {
@@ -373,6 +374,17 @@ export function deriveAssessmentFromSOA(input: {
         ? "decreased"
         : "slightly decreased";
 
+  const symptomToWhatChanged: Record<string, string> = {
+    soreness: TEMPLATE_TX_WHAT_CHANGED[5],
+    stiffness: TEMPLATE_TX_WHAT_CHANGED[6],
+    heaviness: TEMPLATE_TX_WHAT_CHANGED[7],
+    weakness: TEMPLATE_TX_WHAT_CHANGED[4],
+    numbness: TEMPLATE_TX_WHAT_CHANGED[3],
+  };
+  const symptomWhatChanged =
+    symptomToWhatChanged[input.associatedSymptom ?? "soreness"] ??
+    TEMPLATE_TX_WHAT_CHANGED[5];
+
   // ASS-01 + REAL-01: evidence-based whatChanged — collect ALL S-side improved dimensions
   const whatChanged = (() => {
     const parts: string[] = [];
@@ -392,7 +404,7 @@ export function deriveAssessmentFromSOA(input: {
 
     // S-side: symptomScale changed
     if (input.symptomScaleChanged) {
-      parts.push(TEMPLATE_TX_WHAT_CHANGED[5]); // "muscles soreness sensation"
+      parts.push(symptomWhatChanged);
     }
 
     // S-side: severity changed
@@ -421,7 +433,7 @@ export function deriveAssessmentFromSOA(input: {
       const dimToWhatChanged: Record<string, string> = {
         pain: TEMPLATE_TX_WHAT_CHANGED[0], // "pain"
         frequency: TEMPLATE_TX_WHAT_CHANGED[1], // "pain frequency"
-        symptomScale: TEMPLATE_TX_WHAT_CHANGED[5], // "muscles soreness sensation"
+        symptomScale: symptomWhatChanged,
         severity: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
         ADL: TEMPLATE_TX_WHAT_CHANGED[8], // "difficulty in performing ADLs"
         tightness: TEMPLATE_TX_WHAT_CHANGED[6], // "muscles stiffness sensation"
@@ -1018,10 +1030,12 @@ export function generateTXSequenceStates(
     },
   );
   // Frequency goals are fixed by current TX business rule:
-  // Constant/Frequent -> Occasional (ST) -> Intermittent (LT).
+  // Relative to start frequency: ST one level better, LT two levels better.
+  const freqStart =
+    options.initialState?.frequency ?? frequencyToNum(context.painFrequency || "");
   const TX_FREQUENCY_GOAL = {
-    st: 1, // Occasional
-    lt: 0, // Intermittent
+    st: Math.max(0, freqStart - 1),
+    lt: Math.max(0, freqStart - 2),
   } as const;
   const goalPaths = computeGoalPaths(
     {
@@ -1056,9 +1070,7 @@ export function generateTXSequenceStates(
         lt: painGoalToInt(patchedGoals.pain.lt),
       },
       frequency: {
-        start:
-          options.initialState?.frequency ??
-          frequencyToNum(context.painFrequency || ""),
+        start: freqStart,
         st: TX_FREQUENCY_GOAL.st,
         lt: TX_FREQUENCY_GOAL.lt,
       },
@@ -2061,6 +2073,7 @@ export function generateTXSequenceStates(
       bodyPart: context.primaryBodyPart || "LBP",
       dimScore: finalDimScore.score,
       changedDims: finalDimScore.changedDims,
+      associatedSymptom,
       symptomScaleChanged: finalSymptomScaleChanged,
       severityChanged,
     });

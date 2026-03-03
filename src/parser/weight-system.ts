@@ -573,3 +573,48 @@ export function selectBestOptions(
   const sorted = [...weightedOptions].sort((a, b) => b.weight - a.weight);
   return sorted.slice(0, count).map((o) => o.option);
 }
+
+function shuffleWithRng<T>(items: T[], rng: () => number): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * 在相近权重带内做轻微随机打散，保持高权重优先。
+ * - 不改变 band 之间的先后顺序
+ * - 仅在同一 band 内用 rng 洗牌
+ */
+export function selectWeightedWithJitter(
+  weightedOptions: WeightedOption[],
+  count: number = 3,
+  rng: () => number = Math.random,
+  bandWidth: number = 4,
+): string[] {
+  if (count <= 0 || weightedOptions.length === 0) return [];
+
+  const sorted = [...weightedOptions].sort((a, b) => b.weight - a.weight);
+  const selected: WeightedOption[] = [];
+  let i = 0;
+
+  while (i < sorted.length && selected.length < count) {
+    const anchorWeight = sorted[i].weight;
+    let j = i + 1;
+    while (j < sorted.length && anchorWeight - sorted[j].weight <= bandWidth) {
+      j++;
+    }
+
+    const band = shuffleWithRng(sorted.slice(i, j), rng);
+    for (const item of band) {
+      if (selected.length >= count) break;
+      selected.push(item);
+    }
+
+    i = j;
+  }
+
+  return selected.map((item) => item.option);
+}

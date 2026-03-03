@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi } from "vitest";
 import type { Request } from "express";
 import { createAutomateRouter } from "../automate";
 import {

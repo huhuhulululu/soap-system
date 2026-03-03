@@ -47,6 +47,26 @@ function extractStrengthGrades(romLines: string[]): string[] {
     .filter(Boolean) as string[];
 }
 
+function extractRomDegrees(text: string): number[] {
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = line.match(/(\d+)\s*degree/i);
+      return m ? parseInt(m[1], 10) : null;
+    })
+    .filter((v): v is number => v != null);
+}
+
+function extractRomSeverities(text: string): string[] {
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = line.match(/degrees?\s*\(([^)]+)\)/i);
+      return m ? m[1].toLowerCase() : null;
+    })
+    .filter((v): v is string => v != null);
+}
+
 describe("M-03: ROM severity improves across TX visits", () => {
   it.each(["SHOULDER", "KNEE"] as const)(
     "%s — ROM lines should NOT be identical across all visits",
@@ -165,6 +185,64 @@ describe("H-05: Generic path ROM format has space before (severity)", () => {
       if (/degree\(/.test(line)) {
         expect(line).not.toMatch(/degree\(/);
       }
+    }
+  });
+});
+
+describe("IE ROM should respond to pain-level changes inside same severity band", () => {
+  it("LBP pain 6 vs 7 should change smoothly (max delta <= 5 degrees)", () => {
+    const ieCtx6 = makeCtx("LBP", {
+      noteType: "IE",
+      laterality: "right",
+      seed: 12345,
+      painCurrent: 6,
+      painWorst: 8,
+      painBest: 3,
+      severityLevel: "moderate",
+    });
+    const ieCtx7 = { ...ieCtx6, painCurrent: 7 };
+
+    const deg6 = extractRomDegrees(exportSOAPAsText(ieCtx6));
+    const deg7 = extractRomDegrees(exportSOAPAsText(ieCtx7));
+
+    expect(deg6.length).toBeGreaterThan(0);
+    expect(deg7.length).toBeGreaterThan(0);
+    expect(deg6.length).toBe(deg7.length);
+
+    const maxDelta = deg6.reduce((acc, d, i) => Math.max(acc, Math.abs(d - deg7[i])), 0);
+    expect(maxDelta).toBeLessThanOrEqual(5);
+  });
+
+  it("LBP pain 8-10 should stay in severe-range ROM profile", () => {
+    const ieCtx8 = makeCtx("LBP", {
+      noteType: "IE",
+      laterality: "right",
+      seed: 12345,
+      painCurrent: 8,
+      painWorst: 10,
+      painBest: 3,
+      severityLevel: "severe",
+    });
+    const ieCtx9 = { ...ieCtx8, painCurrent: 9 };
+    const ieCtx10 = { ...ieCtx8, painCurrent: 10 };
+
+    const text8 = exportSOAPAsText(ieCtx8);
+    const text9 = exportSOAPAsText(ieCtx9);
+    const text10 = exportSOAPAsText(ieCtx10);
+
+    const deg8 = extractRomDegrees(text8);
+    const deg9 = extractRomDegrees(text9);
+    const deg10 = extractRomDegrees(text10);
+    expect(deg8.join("|")).toBe(deg9.join("|"));
+    expect(deg9.join("|")).toBe(deg10.join("|"));
+
+    const severities8 = extractRomSeverities(text8);
+    const severities9 = extractRomSeverities(text9);
+    const severities10 = extractRomSeverities(text10);
+    for (const labels of [severities8, severities9, severities10]) {
+      expect(labels.some((s) => s.includes("severe"))).toBe(true);
+      expect(labels.some((s) => s.includes("normal"))).toBe(false);
+      expect(labels.some((s) => s.startsWith("mild"))).toBe(false);
     }
   });
 });

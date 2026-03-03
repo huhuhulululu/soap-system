@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi } from "vitest";
 import * as parserModule from "../../../parsers/optum-note/parser";
 import * as checkerModule from "../../../parsers/optum-note/checker/note-checker";
 import type { CheckOutput } from "../../../parsers/optum-note/checker/types";

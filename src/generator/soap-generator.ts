@@ -16,6 +16,7 @@ import {
   calculateWeights,
   selectBestOption,
   selectBestOptions,
+  selectWeightedWithJitter,
   WeightContext,
   type WeightedOption,
 } from "../parser/weight-system";
@@ -70,11 +71,11 @@ import {
 import {
   hasTemplateROM,
   resolveTemplateMovementName,
-  getTemplateSeverityForPain,
-  pickTemplateROMDegrees,
   pickTemplateROMDegreesByPain,
   getTemplateSeverityLabel,
 } from "../shared/rom-from-template";
+import { createSeededRng } from "../shared/seeded-rng";
+import { severityFromPain } from "../shared/severity";
 
 /**
  * 保险类型到针刺模板的映射
@@ -451,20 +452,36 @@ function getConfig<T>(map: Record<string, T>, bodyPart: string): T {
   return map[bodyPart] ?? map["DEFAULT"] ?? Object.values(map)[0];
 }
 
+function pickWeightedOptions(
+  weighted: WeightedOption[],
+  count: number,
+  rng?: () => number,
+): string[] {
+  if (rng) return selectWeightedWithJitter(weighted, count, rng);
+  return selectBestOptions(weighted, count);
+}
+
 /**
  * 生成 Subjective 部分
  */
-export function generateSubjective(context: GenerationContext): string {
+export function generateSubjective(
+  context: GenerationContext,
+  rng?: () => number,
+): string {
+  const painCurrent = context.painCurrent ?? 8;
+  const chronicity = context.chronicityLevel || "Chronic";
+  const severity = context.severityLevel || severityFromPain(painCurrent);
+  const localPattern = context.localPattern || "Qi Stagnation";
+  const systemicPattern = context.systemicPattern || "";
+  const lateralityKey = context.laterality || "bilateral";
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const bodyPartAreaName =
     BODY_PART_AREA_NAMES[context.primaryBodyPart] || bodyPartName;
-  const laterality = LATERALITY_NAMES[context.laterality];
+  const laterality = LATERALITY_NAMES[lateralityKey] ?? "bilateral";
   const lateralityUpper =
     laterality.charAt(0).toUpperCase() + laterality.slice(1);
-  const pattern = TCM_PATTERNS[context.localPattern];
 
   // 用户输入值 (带默认回退)
-  const painCurrent = context.painCurrent ?? 8;
   const durationValue = context.symptomDuration?.value ?? "3";
   const durationUnit = context.symptomDuration?.unit ?? "month(s)";
   const radiation = context.painRadiation ?? "without radiation";
@@ -488,12 +505,12 @@ export function generateSubjective(context: GenerationContext): string {
   ];
   const weightContext: WeightContext = {
     bodyPart: context.primaryBodyPart,
-    localPattern: context.localPattern,
-    systemicPattern: context.systemicPattern,
-    chronicityLevel: context.chronicityLevel,
-    severityLevel: context.severityLevel,
+    localPattern,
+    systemicPattern,
+    chronicityLevel: chronicity,
+    severityLevel: severity,
     insuranceType: context.insuranceType,
-    painScale: 7,
+    painScale: painCurrent,
     hasPacemaker: context.hasPacemaker,
   };
 
@@ -502,7 +519,7 @@ export function generateSubjective(context: GenerationContext): string {
     const pool =
       TEMPLATE_CAUSATIVES[context.primaryBodyPart as BodyPartKey] ||
       TEMPLATE_CAUSATIVES["LBP"];
-    const count = context.chronicityLevel === "Chronic" ? 3 : 2;
+    const count = chronicity === "Chronic" ? 3 : 2;
     const userPicked =
       context.causativeFactors && context.causativeFactors.length > 0
         ? [...context.causativeFactors]
@@ -515,7 +532,11 @@ export function generateSubjective(context: GenerationContext): string {
       remaining,
       weightContext,
     );
-    const extras = selectBestOptions(weighted, count - userPicked.length);
+    const extras = pickWeightedOptions(
+      weighted,
+      count - userPicked.length,
+      rng,
+    );
     return [...userPicked, ...extras];
   })();
 
@@ -541,7 +562,11 @@ export function generateSubjective(context: GenerationContext): string {
       remaining,
       weightContext,
     );
-    const extras = selectBestOptions(weighted, count - userPicked.length);
+    const extras = pickWeightedOptions(
+      weighted,
+      count - userPicked.length,
+      rng,
+    );
     return [...userPicked, ...extras];
   })();
 
@@ -549,13 +574,14 @@ export function generateSubjective(context: GenerationContext): string {
   const selectedPainTypes =
     context.painTypes && context.painTypes.length > 0
       ? context.painTypes
-      : selectBestOptions(
+      : pickWeightedOptions(
           calculateWeights(
             "subjective.painTypes",
             painTypeOptions,
             weightContext,
           ),
           2,
+          rng,
         );
 
   // 获取身体部位特有配置 — 优先使用用户输入
@@ -574,7 +600,11 @@ export function generateSubjective(context: GenerationContext): string {
 
   // 生成文本
   const noteType =
-    context.noteType === "IE" ? "INITIAL EVALUATION" : "DAILY NOTE";
+    context.noteType === "IE" || context.noteType === "NEW_IE"
+      ? "INITIAL EVALUATION"
+      : context.noteType === "RE"
+        ? "RE-EVALUATION"
+        : "DAILY NOTE";
   const bp = context.primaryBodyPart;
 
   let subjective = `${noteType}\n\n`;
@@ -604,15 +634,15 @@ export function generateSubjective(context: GenerationContext): string {
     // "Patient c/o [Chronic] [pain types] pain [in right]-shoulder area ([without radiation])
     //  for [10] [year(s)] got worse in recent [1-2] [month(s)]
     //  associated with muscles [soreness] (scale as [70%]) [because of] [causes]."
-    const selectedAdl = selectBestOptions(weightedAdl, 4);
+    const selectedAdl = pickWeightedOptions(weightedAdl, 4, rng);
     const weightedExac = calculateWeights(
       "subjective.exacerbating",
       exacerbatingFactors,
       weightContext,
     );
-    const selectedExac = selectBestOptions(weightedExac, 4);
+    const selectedExac = pickWeightedOptions(weightedExac, 4, rng);
 
-    subjective += `Patient c/o ${context.chronicityLevel} ${selectedPainTypes.join(", ")} pain in ${laterality}`;
+    subjective += `Patient c/o ${chronicity} ${selectedPainTypes.join(", ")} pain in ${laterality}`;
     subjective += `-${bodyPartAreaName} (${radiation}) `;
     subjective += `for ${durationValue} ${durationUnit} got worse in recent ${recentWorseValue} ${recentWorseUnit} `;
     subjective += `associated with muscles ${associatedSymptoms.join(", ")} (scale as ${symptomScale}) `;
@@ -621,7 +651,7 @@ export function generateSubjective(context: GenerationContext): string {
     // 加重因素 + ADL (同一段)
     // "The pain is [aggravated by] [factors], impaired performing ADL's with [severity] difficulty of [ADL activities]."
     subjective += `The pain is aggravated by ${selectedExac.join(", ")}, `;
-    subjective += `impaired performing ADL's with ${context.severityLevel} difficulty of ${selectedAdl.join(", ")}. `;
+    subjective += `impaired performing ADL's with ${severity} difficulty of ${selectedAdl.join(", ")}. `;
 
     subjective += `${relievers.join(", ")} can temporarily relieve the pain slightly but limited. `;
 
@@ -636,9 +666,10 @@ export function generateSubjective(context: GenerationContext): string {
       shoulderImpactOptions,
       weightContext,
     );
-    const selectedShoulderImpacts = selectBestOptions(
+    const selectedShoulderImpacts = pickWeightedOptions(
       weightedShoulderImpact,
       2,
+      rng,
     );
     subjective += `Patient has ${selectedShoulderImpacts.join(", ")}, `;
     subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`;
@@ -658,11 +689,11 @@ export function generateSubjective(context: GenerationContext): string {
     // ===== NECK 模板句式 =====
     // 开头与 KNEE/LBP 类似: "Patient c/o Chronic pain in [location] which is [types] [radiation]."
     // 但 ADL 用 SHOULDER 风格: "difficulty of" + 两组
-    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(", ")} ${radiation} . `;
+    subjective += `Patient c/o ${chronicity} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(", ")} ${radiation} . `;
     subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent ${recentWorseValue} ${recentWorseUnit}. `;
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(", ")} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(", ")}.\n`;
 
-    const allAdl = selectBestOptions(weightedAdl, 4);
+    const allAdl = pickWeightedOptions(weightedAdl, 4, rng);
     const neckAdlGroup1 = allAdl.slice(0, 2);
     const neckAdlGroup2 = allAdl.slice(2, 4);
     const weightedExac = calculateWeights(
@@ -670,11 +701,11 @@ export function generateSubjective(context: GenerationContext): string {
       exacerbatingFactors,
       weightContext,
     );
-    const selectedExac = selectBestOptions(weightedExac, 2);
+    const selectedExac = pickWeightedOptions(weightedExac, 2, rng);
 
     subjective += `The pain is aggravated by ${selectedExac.join(", ")}, `;
-    subjective += `impaired performing ADL's with ${context.severityLevel} difficulty of ${neckAdlGroup1.join(", ")} `;
-    subjective += `and ${context.severityLevel} difficulty of ${neckAdlGroup2.join(", ")}. `;
+    subjective += `impaired performing ADL's with ${severity} difficulty of ${neckAdlGroup1.join(", ")} `;
+    subjective += `and ${severity} difficulty of ${neckAdlGroup2.join(", ")}. `;
 
     subjective += `${relievers.join(", ")} can temporarily relieve the pain slightly but limited. `;
 
@@ -690,7 +721,7 @@ export function generateSubjective(context: GenerationContext): string {
       neckImpactOptions,
       weightContext,
     );
-    const selectedNeckImpacts = selectBestOptions(weightedNeckImpact, 2);
+    const selectedNeckImpacts = pickWeightedOptions(weightedNeckImpact, 2, rng);
     subjective += `Patient has ${selectedNeckImpacts.join(", ")}, `;
     subjective += `the pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`;
 
@@ -709,19 +740,19 @@ export function generateSubjective(context: GenerationContext): string {
   } else {
     // ===== KNEE / LBP / 其他部位模板句式 =====
     // "Patient c/o [Chronic] pain [in bilateral] Knee area which is [Dull, Aching] [without radiation]."
-    subjective += `Patient c/o ${context.chronicityLevel} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(", ")} ${radiation}. `;
+    subjective += `Patient c/o ${chronicity} pain in ${laterality} ${bodyPartAreaName} which is ${selectedPainTypes.join(", ")} ${radiation}. `;
     subjective += `The patient has been complaining of the pain for ${durationValue} ${durationUnit} which got worse in recent ${recentWorseValue} ${recentWorseUnit}. `;
     subjective += `The pain is associated with muscles ${associatedSymptoms.join(", ")} (scale as ${symptomScale}) ${causativeConnector} ${causatives.join(", ")}.\n\n`;
 
-    const selectedAdl = selectBestOptions(weightedAdl, 3);
+    const selectedAdl = pickWeightedOptions(weightedAdl, 3, rng);
     const exacCount = bp === "KNEE" ? 1 : bp === "LBP" ? 3 : 2;
     const weightedExac = calculateWeights(
       "subjective.exacerbatingFactors",
       exacerbatingFactors,
       weightContext,
     );
-    const selectedExac = selectBestOptions(weightedExac, exacCount);
-    subjective += `The pain is aggravated by ${selectedExac.join(", ")} . There is ${context.severityLevel} difficulty with ADLs like ${selectedAdl.join(", ")}.\n\n`;
+    const selectedExac = pickWeightedOptions(weightedExac, exacCount, rng);
+    subjective += `The pain is aggravated by ${selectedExac.join(", ")} . There is ${severity} difficulty with ADLs like ${selectedAdl.join(", ")}.\n\n`;
 
     subjective += `${relievers.join(", ")} can temporarily relieve the pain. `;
     const defaultImpactPool =
@@ -735,7 +766,11 @@ export function generateSubjective(context: GenerationContext): string {
       defaultImpactOptions,
       weightContext,
     );
-    const selectedDefaultImpacts = selectBestOptions(weightedDefaultImpact, 2);
+    const selectedDefaultImpacts = pickWeightedOptions(
+      weightedDefaultImpact,
+      2,
+      rng,
+    );
     subjective += `Due to this condition patient has ${selectedDefaultImpacts.join(", ")}. `;
     subjective += `The pain did not improved ${notImproved} which promoted the patient to seek acupuncture and oriental medicine intervention.\n\n`;
 
@@ -984,8 +1019,7 @@ function pickTemplateRomDegreesForRender(
   originalMovementName?: string,
 ): number | null {
   if (!visitState) {
-    const severity = getTemplateSeverityForPain(effectivePain);
-    return pickTemplateROMDegrees(bp, movementName, severity, rngValue);
+    return pickTemplateROMDegreesByPain(bp, movementName, effectivePain, rngValue);
   }
 
   const floorKey = originalMovementName ?? movementName;
@@ -1004,12 +1038,20 @@ function pickTemplateRomDegreesForRender(
 export function generateObjective(
   context: GenerationContext,
   visitState?: TXVisitState,
+  rng?: () => number,
 ): string {
-  const pattern = TCM_PATTERNS[context.localPattern];
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
-  const laterality = LATERALITY_NAMES[context.laterality];
+  const lateralityKey = context.laterality || "bilateral";
+  const laterality = LATERALITY_NAMES[lateralityKey] ?? "bilateral";
   const bp = context.primaryBodyPart;
-  const effectiveSeverity = visitState?.severityLevel || context.severityLevel;
+  const localPattern = context.localPattern || "Qi Stagnation";
+  const systemicPattern = context.systemicPattern || "";
+  const chronicity = context.chronicityLevel || "Chronic";
+  const objectivePainScale = visitState?.painScaleCurrent ?? context.painCurrent ?? 8;
+  const effectiveSeverity =
+    visitState?.severityLevel ||
+    context.severityLevel ||
+    severityFromPain(objectivePainScale);
   // Note: visitState.objectiveFactors and soaChain.subjective are analytics/trace metadata
   // and are not directly rendered in Objective by current TX template design.
 
@@ -1044,12 +1086,12 @@ export function generateObjective(
       : (() => {
           const tightnessWeightContext: WeightContext = {
             bodyPart: bp,
-            localPattern: context.localPattern,
-            systemicPattern: context.systemicPattern,
-            chronicityLevel: context.chronicityLevel,
+            localPattern,
+            systemicPattern,
+            chronicityLevel: chronicity,
             severityLevel: effectiveSeverity,
             insuranceType: context.insuranceType,
-            painScale: 7,
+            painScale: objectivePainScale,
             hasPacemaker: context.hasPacemaker,
           };
           const weightedTightness = calculateWeights(
@@ -1057,7 +1099,7 @@ export function generateObjective(
             muscles,
             tightnessWeightContext,
           );
-          return selectBestOptions(weightedTightness, 3);
+          return pickWeightedOptions(weightedTightness, 3, rng);
         })();
   objective += `Tightness muscles noted along ${selectedTightness.join(", ")}\n`;
   objective += `Grading Scale: ${visitState?.tightnessGrading || effectiveSeverity}\n\n`;
@@ -1109,7 +1151,7 @@ export function generateObjective(
     const spasmGrade = computeSpasm({
       tightness: effectiveSeverity,
       tenderness: tenderGradeNum,
-      chronicity: context.chronicityLevel,
+      chronicity,
       bodyPart: bp,
       age: context.age,
     });
@@ -1251,7 +1293,7 @@ export function generateObjective(
             "KNEE",
             rom.movement,
           );
-          const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
+          const rngValue = rng ? rng() : [0.3, 0.5, 0.7][(i + sideOffset) % 3];
           const templateDegrees = pickTemplateRomDegreesForRender(
             "KNEE",
             templateMovName,
@@ -1281,7 +1323,7 @@ export function generateObjective(
           "KNEE",
           rom.movement,
         );
-        const rngValue = [0.3, 0.5, 0.7][i % 3];
+        const rngValue = rng ? rng() : [0.3, 0.5, 0.7][i % 3];
         // M-03 fix: apply romAdj for TX visits
         const kneeUniRomAdj = visitState
           ? Math.min(
@@ -1341,7 +1383,7 @@ export function generateObjective(
             "SHOULDER",
             rom.movement,
           );
-          const rngValue = [0.3, 0.5, 0.7][(i + sideOffset) % 3];
+          const rngValue = rng ? rng() : [0.3, 0.5, 0.7][(i + sideOffset) % 3];
           const templateDegrees = pickTemplateRomDegreesForRender(
             "SHOULDER",
             templateMovName,
@@ -1424,7 +1466,7 @@ export function generateObjective(
         if (hasTemplateROM(bp)) {
           const templateMovName = resolveTemplateMovementName(bp, rom.movement);
           const variationSeed = index % 3;
-          const rngValue = [0.3, 0.5, 0.7][variationSeed];
+          const rngValue = rng ? rng() : [0.3, 0.5, 0.7][variationSeed];
           const effectivePainForTemplate = visitState
             ? Math.max(1, painLevel - romAdj * 0.3)
             : painLevel;
@@ -1462,8 +1504,7 @@ export function generateObjective(
 
   // 舌脉信息 (来自 tone/ 模板, 始终在 Objective 最底部)
   // 格式: tongue\n[舌象]\npulse\n[脉象]
-  const toneData =
-    TONE_MAP[context.localPattern] || TONE_MAP[context.systemicPattern || ""];
+  const toneData = TONE_MAP[localPattern] || TONE_MAP[systemicPattern];
   if (toneData) {
     const tongue = visitState?.tonguePulse?.tongue ?? toneData.tongueDefault;
     const pulse = visitState?.tonguePulse?.pulse ?? toneData.pulseDefault;
@@ -1486,9 +1527,11 @@ export function generateObjective(
 export function generateAssessment(context: GenerationContext): string {
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const bp = context.primaryBodyPart;
-  const localPattern = TCM_PATTERNS[context.localPattern];
-  const systemicPattern = TCM_PATTERNS[context.systemicPattern];
-  const laterality = LATERALITY_NAMES[context.laterality];
+  const localPatternName = context.localPattern || "Qi Stagnation";
+  const systemicPattern = context.systemicPattern || "";
+  const localPattern = TCM_PATTERNS[localPatternName];
+  const lateralityKey = context.laterality || "bilateral";
+  const laterality = LATERALITY_NAMES[lateralityKey] ?? "bilateral";
 
   // KNEE 模板: "[Bilateral] knee pain" (大写侧别 + 部位 + pain)
   // SHOULDER 模板: "Bilateral - shoulder area pain due to..." (大写侧别 + 连字符 + area)
@@ -1503,20 +1546,24 @@ export function generateAssessment(context: GenerationContext): string {
 
   let assessment = `TCM Dx:\n`;
   if (bp === "KNEE") {
-    assessment += `${lateralityUpper} ${bodyPartName} pain due to ${context.localPattern} in local meridian, `;
+    assessment += `${lateralityUpper} ${bodyPartName} pain due to ${localPatternName} in local meridian`;
   } else if (bp === "SHOULDER") {
     // SHOULDER 模板: "Bilateral - shoulder area pain due to..."
-    assessment += `${lateralityUpper} - ${bodyPartAreaName} pain due to ${context.localPattern} in local meridian, `;
+    assessment += `${lateralityUpper} - ${bodyPartAreaName} pain due to ${localPatternName} in local meridian`;
   } else if (bp === "NECK") {
     // NECK 模板: "Cervical pain due to..." (无侧别, 无 area)
-    assessment += `${assessmentConditionName} pain due to ${context.localPattern} in local meridian, `;
+    assessment += `${assessmentConditionName} pain due to ${localPatternName} in local meridian`;
   } else if (bp === "LBP") {
     // LBP 模板: "Lower back pain due to..." (无侧别, 无 area)
-    assessment += `${assessmentConditionName} pain due to ${context.localPattern} in local meridian, `;
+    assessment += `${assessmentConditionName} pain due to ${localPatternName} in local meridian`;
   } else {
-    assessment += `${assessmentConditionName} pain due to ${context.localPattern} in local meridian, `;
+    assessment += `${assessmentConditionName} pain due to ${localPatternName} in local meridian`;
   }
-  assessment += `but patient also has ${context.systemicPattern} in the general.\n`;
+  if (systemicPattern) {
+    assessment += `, but patient also has ${systemicPattern} in the general.\n`;
+  } else {
+    assessment += `.\n`;
+  }
 
   // 治则
   const treatmentPrinciples = localPattern?.treatmentPrinciples || [
@@ -1572,7 +1619,11 @@ export function generateAssessment(context: GenerationContext): string {
  */
 export function generatePlanIE(context: GenerationContext): string {
   const bp = context.primaryBodyPart;
-  const severity = context.severityLevel || "moderate to severe";
+  const severity =
+    context.severityLevel || severityFromPain(context.painCurrent ?? 8);
+  const evalLabel = context.noteType === "RE"
+    ? "Re-Evaluation"
+    : "Initial Evaluation";
 
   // 动态计算 Goals (使用 context 中的 associatedSymptoms 和实际 pain)
   const symptomType = context.associatedSymptoms?.[0] || "soreness";
@@ -1588,7 +1639,7 @@ export function generatePlanIE(context: GenerationContext): string {
     bp === "NECK" ||
     bp === "MID_LOW_BACK";
 
-  let plan = `Initial Evaluation - Personal one on one contact with the patient (total 20-30 mins)\n`;
+  let plan = `${evalLabel} - Personal one on one contact with the patient (total 20-30 mins)\n`;
   plan += `1. Greeting patient.\n`;
   plan += `2. Detail explanation from patient of past medical history and current symptom.\n`;
   plan += `3. Initial evaluation examination of the patient current condition.\n`;
@@ -1703,7 +1754,9 @@ function applyTxReasonChain(
   const isRelapse = change.includes("came back");
   const isExacerbate = change.includes("exacerbate");
   const isSimilar = change.includes("similar");
-  const isDeficiencyPattern = context.systemicPattern.includes("Deficiency");
+  const isDeficiencyPattern = (context.systemicPattern || "").includes(
+    "Deficiency",
+  );
 
   return weightedReasons
     .map((item) => {
@@ -1767,14 +1820,18 @@ function buildTxWeightContext(
   context: GenerationContext,
   visitState?: TXVisitState,
 ): WeightContext {
+  const painScale = visitState?.painScaleCurrent ?? context.painCurrent ?? 8;
   return {
     bodyPart: context.primaryBodyPart,
-    localPattern: context.localPattern,
-    systemicPattern: context.systemicPattern,
-    chronicityLevel: context.chronicityLevel,
-    severityLevel: visitState?.severityLevel || context.severityLevel,
+    localPattern: context.localPattern || "Qi Stagnation",
+    systemicPattern: context.systemicPattern || "",
+    chronicityLevel: context.chronicityLevel || "Chronic",
+    severityLevel:
+      visitState?.severityLevel ||
+      context.severityLevel ||
+      severityFromPain(painScale),
     insuranceType: context.insuranceType,
-    painScale: visitState?.painScaleCurrent ?? context.painCurrent ?? 7,
+    painScale,
     hasPacemaker: context.hasPacemaker,
   };
 }
@@ -1803,7 +1860,8 @@ export function generateSubjectiveTX(
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const bodyPartAreaName =
     BODY_PART_AREA_NAMES[context.primaryBodyPart] || bodyPartName;
-  const laterality = LATERALITY_NAMES[context.laterality];
+  const laterality =
+    LATERALITY_NAMES[context.laterality || "bilateral"] ?? "bilateral";
   const bp = context.primaryBodyPart;
   const radiation = context.painRadiation ?? "without radiation";
 
@@ -1926,7 +1984,10 @@ export function generateSubjectiveTX(
   // SHOULDER/NECK: "difficulty of [ADL]" (有 "of", 两组)
   // LBP: "difficulty with ADLs like [ADL]" (单组)
   if (bp === "KNEE") {
-    const sev = visitState?.severityLevel || context.severityLevel;
+    const sev =
+      visitState?.severityLevel ||
+      context.severityLevel ||
+      severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
     subjective += `impaired performing ADL's with ${sev} difficulty ${adlGroup1.join(", ")} `;
     if (adlGroup2.length > 0) {
       subjective += `and ${sev} difficulty ${adlGroup2.join(", ")}.\n\n`;
@@ -1934,7 +1995,10 @@ export function generateSubjectiveTX(
       subjective += `.\n\n`;
     }
   } else if (bp === "SHOULDER" || bp === "NECK" || bp === "ELBOW") {
-    const sev = visitState?.severityLevel || context.severityLevel;
+    const sev =
+      visitState?.severityLevel ||
+      context.severityLevel ||
+      severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
     subjective += `impaired performing ADL's with ${sev} difficulty of ${adlGroup1.join(", ")} `;
     if (adlGroup2.length > 0) {
       subjective += `and ${sev} difficulty of ${adlGroup2.join(", ")}.\n\n`;
@@ -1942,7 +2006,10 @@ export function generateSubjectiveTX(
       subjective += `.\n\n`;
     }
   } else {
-    const sev = visitState?.severityLevel || context.severityLevel;
+    const sev =
+      visitState?.severityLevel ||
+      context.severityLevel ||
+      severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
     subjective += `impaired performing ADL's with ${sev} difficulty with ADLs like ${effectiveAdl.join(", ")}.\n\n`;
   }
 
@@ -1980,7 +2047,8 @@ export function generateAssessmentTX(
 ): string {
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const bp = context.primaryBodyPart;
-  const laterality = LATERALITY_NAMES[context.laterality];
+  const laterality =
+    LATERALITY_NAMES[context.laterality || "bilateral"] ?? "bilateral";
 
   const weightContext = buildTxWeightContext(context, visitState);
 
@@ -2102,7 +2170,7 @@ export function generateAssessmentTX(
   assessment += `${adverseEffect}\n`;
 
   // 证型延续
-  assessment += `Current patient still has ${context.localPattern} in local meridian that cause the pain.`;
+  assessment += `Current patient still has ${context.localPattern || "Qi Stagnation"} in local meridian that cause the pain.`;
 
   return assessment;
 }
@@ -2118,7 +2186,8 @@ export function generatePlanTX(
   context: GenerationContext,
   visitState?: TXVisitState,
 ): string {
-  const localPattern = TCM_PATTERNS[context.localPattern];
+  const localPattern =
+    TCM_PATTERNS[context.localPattern || "Qi Stagnation"];
   const selectedVerb = hasText(visitState?.treatmentFocus)
     ? visitState.treatmentFocus
     : selectBestOption(
@@ -2158,6 +2227,7 @@ export function generatePlanTX(
 export function generateNeedleProtocol(
   context: GenerationContext,
   visitState?: TXVisitState,
+  rng?: () => number,
 ): string {
   // 续写时: 从输入TX的实际协议推断 (电刺激或时间>=30 → full)
   const hasNeedleInfo =
@@ -2190,13 +2260,59 @@ export function generateNeedleProtocol(
   const templateBackPool = needleEntry
     ? [...needleEntry.backPool]
     : [...TEMPLATE_NEEDLE_POINTS.LBP.backPool];
-  const visitNeedle: NeedleGroups | null =
-    visitState?.needlePoints ?? null;
+  const visitNeedle: NeedleGroups | null = visitState?.needlePoints ?? null;
+
+  const canRandomizeFallback =
+    context.noteType !== "TX" && !visitNeedle && typeof rng === "function";
+
+  const shuffleWithSeed = (pool: string[]): string[] => {
+    if (!rng) return [...pool];
+    const copy = [...pool];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const frontRemaining = canRandomizeFallback ? shuffleWithSeed(templateFrontPool) : [];
+  const backRemaining = canRandomizeFallback ? shuffleWithSeed(templateBackPool) : [];
+
+  const takeRandomGroup = (
+    side: "front" | "back",
+    count: number,
+    fallback: string[],
+  ): string[] => {
+    if (!canRandomizeFallback) return fallback;
+    if (count <= 0) return [];
+
+    const remaining = side === "front" ? frontRemaining : backRemaining;
+    const basePool = side === "front" ? templateFrontPool : templateBackPool;
+    if (remaining.length < count) {
+      const refill = shuffleWithSeed(basePool).filter(
+        (item) => !remaining.includes(item),
+      );
+      remaining.push(...refill);
+      if (remaining.length < count) {
+        remaining.push(...shuffleWithSeed(basePool));
+      }
+    }
+
+    const picked = remaining.splice(0, count);
+    return picked.length > 0 ? picked : fallback;
+  };
+
   const pickGroup = (
     groupKey: "front1" | "front2" | "back1" | "back2",
     fallback: string[],
   ): string[] => {
-    if (!visitNeedle) return fallback;
+    if (!visitNeedle) {
+      if (canRandomizeFallback) {
+        const side = groupKey.startsWith("front") ? "front" : "back";
+        return takeRandomGroup(side, Math.max(1, fallback.length), fallback);
+      }
+      return fallback;
+    }
     const group = visitNeedle[groupKey];
     return group && group.length > 0 ? [...group] : fallback;
   };
@@ -2480,28 +2596,38 @@ export function generateNeedleProtocol(
     let protocol = `${needleSizes}\n`;
     protocol += `Daily acupuncture treatment for ${bodyPartName} - Personal one on one contact with the patient (Total Operation Time: 15 mins)\n\n`;
 
-    // H-11: ELBOW/KNEE 97810 uses "Front Points", others use "Back Points"
-    const sectionLabel97810 = (bp === "KNEE" || bp === "ELBOW") ? "Front Points" : "Back Points";
+    const sectionLabel97810 = "Acupuncture Points";
     // 97810 = 1 CPT code = 1 group of 4 points (not from NEEDLE_GROUP_SIZES which is for full code)
-    const pick97810Points = (pool: string[], fallback4: string[]): string[] => {
-      if (!visitNeedle) return fallback4;
-      // Combine all groups from the relevant side and take first 4
-      const isfront = bp === "KNEE" || bp === "ELBOW";
-      const combined = isfront
-        ? [...(visitNeedle.front1 ?? []), ...(visitNeedle.front2 ?? [])]
-        : [...(visitNeedle.back1 ?? []), ...(visitNeedle.back2 ?? [])];
+    const pick97810Points = (): string[] => {
+      if (!visitNeedle) {
+        if (canRandomizeFallback) {
+          const allPool = [...templateFrontPool, ...templateBackPool];
+          return shuffleWithSeed(allPool).slice(0, 4);
+        }
+        return (bp === "KNEE" || bp === "ELBOW")
+          ? defaultFront.slice(0, 4)
+          : defaultBack.slice(0, 4);
+      }
+      // Combine all four groups and take first 4 for 97810 selection.
+      const combined = [
+        ...(visitNeedle.front1 ?? []),
+        ...(visitNeedle.front2 ?? []),
+        ...(visitNeedle.back1 ?? []),
+        ...(visitNeedle.back2 ?? []),
+      ];
       if (combined.length >= 4) return combined.slice(0, 4);
       if (combined.length > 0) {
-        // Pad from pool excluding already selected
+        // Pad from all template pools excluding already selected
         const used = new Set(combined);
-        const extra = pool.filter(p => !used.has(p));
+        const allPool = [...templateFrontPool, ...templateBackPool];
+        const extra = allPool.filter((p) => !used.has(p));
         return [...combined, ...extra].slice(0, 4);
       }
-      return fallback4;
+      return (bp === "KNEE" || bp === "ELBOW")
+        ? defaultFront.slice(0, 4)
+        : defaultBack.slice(0, 4);
     };
-    const points97810 = (bp === "KNEE" || bp === "ELBOW")
-      ? pick97810Points(defaultFront, defaultFront.slice(0, 4))
-      : pick97810Points(defaultBack, defaultBack.slice(0, 4));
+    const points97810 = pick97810Points();
     protocol += `${sectionLabel97810}: (15 mins) - personal one on one contact with the patient\n`;
     protocol += `1. ${step1Prefix}`;
     protocol += `washing hands, setting up the clean field, selecting acupuncture needle size, `;
@@ -2546,11 +2672,12 @@ export function exportSOAPAsText(
   }
 
   // IE (Initial Evaluation)
-  const subjective = generateSubjective(context);
-  const objective = generateObjective(context);
+  const { rng } = createSeededRng(context.seed);
+  const subjective = generateSubjective(context, rng);
+  const objective = generateObjective(context, undefined, rng);
   const assessment = generateAssessment(context);
   const plan = generatePlanIE(context);
-  const needleProtocol = generateNeedleProtocol(context);
+  const needleProtocol = generateNeedleProtocol(context, undefined, rng);
 
   let output = `Subjective\n${subjective}\n\n`;
   output += `Objective\n${objective}\n\n`;

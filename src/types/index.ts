@@ -340,6 +340,8 @@ export interface GenerationContext {
   disableChronicCaps?: boolean;
   /** 允许负面事件 (exacerbate/came back)，默认关闭，开启后 ≤10% visits 可出现恶化 */
   allowNegativeEvents?: boolean;
+  /** 可选随机种子：用于 IE 文本生成可复现 */
+  seed?: number;
   /** 患者年龄 */
   age?: number;
   /** 患者性别 */
