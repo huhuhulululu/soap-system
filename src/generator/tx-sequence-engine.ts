@@ -14,6 +14,7 @@ import {
   strengthFromPain,
 } from "../shared/strength-table";
 import { createSeededRng } from "../shared/seeded-rng";
+import { objectiveMuscleSeed } from "./soap-generator";
 import {
   TEMPLATE_MUSCLES,
   TEMPLATE_ADL,
@@ -376,7 +377,7 @@ export function deriveAssessmentFromSOA(input: {
 
   const present =
     input.dimScore === 0
-      ? "similar symptom(s) as last visit."
+      ? "no change."
       : strongCumulative || visitLevelStrong
         ? "improvement of symptom(s)."
         : "slight improvement of symptom(s).";
@@ -702,7 +703,6 @@ function addProgressBias(
         if (text.includes("improvement of symptom"))
           bias += isLate ? 60 : isMid ? 25 : 5;
         if (text.includes("exacerbate")) bias -= 70; // 加重少见
-        if (text.includes("similar")) bias -= isLate ? 60 : isMid ? 25 : 0;
         if (text.includes("came back")) bias -= isLate ? 55 : isMid ? 15 : -5;
       }
 
@@ -898,7 +898,6 @@ export function generateTXSequenceStates(
   // Reason rotation: independent counter for improvement visits
   let improvementCount = 0;
   let positiveShuffleBag: string[] = [];
-  let neutralShuffleBag: string[] = [];
   let cameBackShuffleBag: string[] = [];
   let lastUsedReason = "";
   let prevProgress = startIdx > 1 ? (startIdx - 1) / txCount : 0;
@@ -934,7 +933,7 @@ export function generateTXSequenceStates(
     ? selectInitialMuscles(
         context.primaryBodyPart,
         initSeverity,
-        actualSeed + 1000,
+        objectiveMuscleSeed(context),
       )
     : {
         tightness: [] as string[],
@@ -965,7 +964,7 @@ export function generateTXSequenceStates(
   // 纵向单调约束追踪变量
   let prevPainForSeverity = startPain;
   let prevSeverity: SeverityLevel = severityFromPain(
-    options.initialState?.pain ?? 8,
+    options.initialState?.pain ?? startPain,
   );
   let prevSeverityForAdl: SeverityLevel = prevSeverity;
   let prevAdlImproved = false;
@@ -1247,6 +1246,10 @@ export function generateTXSequenceStates(
       "severe",
     ];
     let severityLevel = baseSeverity;
+    if (i === startIdx) {
+      // Keep TX1 on IE baseline severity so initial muscle rendering matches IE.
+      severityLevel = prevSeverity;
+    }
     if (prevAdlImproved && progress > 0.5) {
       const baseIdx = severityOrder.indexOf(baseSeverity);
       if (baseIdx > 0) {
@@ -1499,6 +1502,9 @@ export function generateTXSequenceStates(
       rng,
       "improvement of symptom(s)",
     );
+    if (symptomChange.includes("similar")) {
+      symptomChange = "improvement of symptom(s)";
+    }
 
     // --- Negative events gate ---
     // Default (allowNegativeEvents=false): block all exacerbate/came-back
@@ -1508,15 +1514,15 @@ export function generateTXSequenceStates(
       symptomChange.includes("came back");
     if (isNegativeSC) {
       if (!context.allowNegativeEvents || i === startIdx) {
-        // Block: replace with similar
-        symptomChange = "similar symptom(s) as last visit";
+        // Block: fallback to improvement
+        symptomChange = "improvement of symptom(s)";
       } else {
         // Cap at ~10%: use rng to probabilistically allow
         // With bias=-70 for exacerbate and bias=-55/-15 for came-back,
         // they're already rare; this is a hard cap safety net
         const negativeRoll = rng();
         if (negativeRoll > 0.1) {
-          symptomChange = "similar symptom(s) as last visit";
+          symptomChange = "improvement of symptom(s)";
         }
       }
     }
@@ -1557,13 +1563,10 @@ export function generateTXSequenceStates(
     });
 
     if (dimScore.score === 0) {
-      // 所有维度都没变: 强制 similar
-      if (!symptomChange.includes("similar")) {
-        symptomChange = "similar symptom(s) as last visit";
+      // 所有维度都没变: 强制 no-change 路径（不再使用 similar）
+      if (!symptomChange.includes("improvement of symptom")) {
+        symptomChange = "improvement of symptom(s)";
       }
-    } else if (dimScore.score > 0 && symptomChange.includes("similar")) {
-      // 有维度变化但 pickSingle 选了 similar: 纠正为 improvement
-      symptomChange = "improvement of symptom(s)";
     } else if (dimScore.score >= 0.15 && symptomChange.includes("exacerbate")) {
       // 明显改善但说 exacerbate: 纠正
       symptomChange = "improvement of symptom(s)";
@@ -1603,7 +1606,6 @@ export function generateTXSequenceStates(
       symptomChange.includes("improvement") &&
       !symptomChange.includes("came back");
     const isExacerbate = symptomChange.includes("exacerbate");
-    const isSimilar = symptomChange.includes("similar");
     const isCameBack = symptomChange.includes("came back");
 
     // Categorize TEMPLATE_TX_REASON into positive/negative/neutral
@@ -1662,12 +1664,6 @@ export function generateTXSequenceStates(
 
     // Phase D: reason 轮换 — 避免总是同一个 reason
     // Derive from TEMPLATE_TX_REASON (single source of truth)
-    const NEUTRAL_REASONS = [
-      TEMPLATE_TX_REASON[8],  // "continuous treatment"
-      TEMPLATE_TX_REASON[9],  // "maintain regular treatments"
-      TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
-      TEMPLATE_TX_REASON[11], // "weak constitution"
-    ];
     const CAME_BACK_REASONS = [
       TEMPLATE_TX_REASON[8],  // "continuous treatment"
       TEMPLATE_TX_REASON[14], // "discontinuous treatment"
@@ -1715,28 +1711,6 @@ export function generateTXSequenceStates(
       rng(); // consume: match 1st-reason pick in other branches
       rng(); // consume: match 2nd-reason pick in other branches
       rng(); // consume: match connector pick in other branches
-    } else if (isSimilar) {
-      // Shuffle bag with anti-repeat for neutral reasons
-      if (neutralShuffleBag.length === 0) {
-        neutralShuffleBag = NEUTRAL_REASONS.filter((r) => r !== lastUsedReason);
-        if (neutralShuffleBag.length === 0)
-          neutralShuffleBag = [...NEUTRAL_REASONS];
-      }
-      const pickIdx = Math.floor(rng() * neutralShuffleBag.length);
-      finalReason = neutralShuffleBag[pickIdx];
-      neutralShuffleBag = [
-        ...neutralShuffleBag.slice(0, pickIdx),
-        ...neutralShuffleBag.slice(pickIdx + 1),
-      ];
-      // Consume rng() to preserve PRNG sequence (was 2nd reason pick)
-      // Template accepts single value only — do NOT concatenate
-      rng();
-      lastUsedReason = finalReason;
-      // Similar connector variation
-      const similarConnectors = ["and", "may related of"];
-      finalConnector =
-        similarConnectors[Math.floor(rng() * similarConnectors.length)] ||
-        "and";
     } else if (isCameBack) {
       // Shuffle bag for came-back reasons
       if (cameBackShuffleBag.length === 0) {
@@ -1757,7 +1731,7 @@ export function generateTXSequenceStates(
       rng();
       lastUsedReason = finalReason;
       finalConnector = "due to";
-      rng(); // consume: match connector pick in improvement/similar branches
+      rng(); // consume: match connector pick in improvement branch
     }
 
     // Associated Symptom: 继承用户输入(initialState)，后期逐步减轻
@@ -2105,25 +2079,17 @@ export function generateTXSequenceStates(
     const painDroppedFromPrev = prevVisit
       ? painScaleCurrent < prevVisit.painScaleCurrent
       : painScaleCurrent < startPain;
+    const hasSubjectiveImprovementSignal =
+      hasFinalObjectiveChange || painDroppedFromPrev;
 
     // Final S-O guard: "improvement" must be backed by objective change or pain drop.
-    // If both are absent after reconciliation/gating, downgrade to similar + similar-category reason.
+    // If both are absent after reconciliation/gating, keep no-change semantics in assessment path.
     if (
       symptomChange.includes("improvement") &&
       !hasFinalObjectiveChange &&
       !painDroppedFromPrev
     ) {
-      symptomChange = "similar symptom(s) as last visit";
-      const similarFallbackReasons = (NEUTRAL_REASONS as readonly string[]).filter(
-        (r) => r !== "maintain regular treatments",
-      );
-      const safePool =
-        similarFallbackReasons.length > 0
-          ? similarFallbackReasons
-          : (NEUTRAL_REASONS as readonly string[]);
-      if (!safePool.includes(finalReason)) {
-        finalReason = safePool[i % safePool.length];
-      }
+      symptomChange = "improvement of symptom(s)";
     }
 
     const assessmentFromChain = deriveAssessmentFromSOA({
@@ -2180,11 +2146,12 @@ export function generateTXSequenceStates(
       objectiveFactors,
       soaChain: {
         subjective: {
-          painChange: symptomChange.includes("improvement")
+          painChange: hasSubjectiveImprovementSignal
             ? "improved"
-            : symptomChange.includes("similar")
-              ? "similar"
-              : "worsened",
+            : symptomChange.includes("exacerbate") ||
+                symptomChange.includes("came back")
+              ? "worsened"
+              : "similar",
           adlChange: adlImproved ? "improved" : "stable",
           frequencyChange: finalFrequencyImproved ? "improved" : "stable",
         },
@@ -2196,10 +2163,10 @@ export function generateTXSequenceStates(
           strengthTrend,
         },
         assessment:
-          finalDimScore.score === 0 || symptomChange.includes("similar")
+          finalDimScore.score === 0
             ? {
                 ...assessmentFromChain,
-                present: "similar symptom(s) as last visit.",
+                present: "no change.",
               }
             : assessmentFromChain,
       },

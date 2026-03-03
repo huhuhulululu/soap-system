@@ -128,7 +128,7 @@ describe('Audit: S-O-A Consistency', () => {
     expect(rate).toBeLessThanOrEqual(0.02)
   })
 
-  it('painChange=similar → assessment.present contains "similar"', () => {
+  it('painChange=similar → assessment.present should not contain "similar"', () => {
     for (const bp of BODY_PARTS) {
       const ctx = makeContext({ primaryBodyPart: bp })
       for (const seed of SEEDS) {
@@ -136,7 +136,7 @@ describe('Audit: S-O-A Consistency', () => {
         for (const s of states) {
           if (!s.soaChain) continue
           if (s.soaChain.subjective.painChange === 'similar') {
-            expect(s.soaChain.assessment.present).toContain('similar')
+            expect(s.soaChain.assessment.present).not.toContain('similar')
           }
         }
       }

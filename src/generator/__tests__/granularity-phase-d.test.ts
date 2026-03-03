@@ -32,7 +32,7 @@ function makeContext(
 }
 
 describe("阶段D: symptomChange 多维度驱动", () => {
-  it("20-visit 中 symptomChange 唯一值 ≥ 2", () => {
+  it("20-visit 中 symptomChange 不出现 similar", () => {
     const ctx = makeContext({ painCurrent: 8 });
     const result = generateTXSequenceStates(ctx, {
       txCount: 20,
@@ -40,8 +40,10 @@ describe("阶段D: symptomChange 多维度驱动", () => {
       initialState: { pain: 8, associatedSymptom: "soreness" },
     });
 
-    const changes = new Set(result.states.map((s) => s.symptomChange));
-    expect(changes.size).toBeGreaterThanOrEqual(2);
+    const hasSimilar = result.states.some((s) =>
+      s.symptomChange.includes("similar"),
+    );
+    expect(hasSimilar).toBe(false);
   });
 
   it("pain 不变但 objective 改善时可以出现 improvement", () => {
@@ -125,9 +127,8 @@ describe("阶段D: reason 变化", () => {
     expect(improvementReasons.size).toBeGreaterThanOrEqual(3);
   });
 
-  it("similar 类 reason 不总是 maintain regular treatments", () => {
+  it("多个 seed 下 symptomChange 都不出现 similar", () => {
     const seeds = [800020, 800021, 800022, 800023, 800024];
-    let totalSimilarReasons = new Set<string>();
 
     for (const seed of seeds) {
       const ctx = makeContext({ painCurrent: 8 });
@@ -137,15 +138,14 @@ describe("阶段D: reason 变化", () => {
         initialState: { pain: 8, associatedSymptom: "soreness" },
       });
 
-      result.states
-        .filter((s) => s.symptomChange.includes("similar"))
-        .forEach((s) => totalSimilarReasons.add(s.reason));
+      const hasSimilar = result.states.some((s) =>
+        s.symptomChange.includes("similar"),
+      );
+      expect(hasSimilar).toBe(false);
     }
-    // "similar" 类 reason 应该有 ≥ 2 种（不总是 maintain regular treatments）
-    expect(totalSimilarReasons.size).toBeGreaterThanOrEqual(2);
   });
 
-  it('"maintain regular treatments" should never appear for similar symptom changes', () => {
+  it('assessment no-change 时仍保持 improvement symptomChange', () => {
     const seeds = [42, 100, 256, 314, 628, 999, 1337, 2718, 3141, 7961];
 
     for (const seed of seeds) {
@@ -156,12 +156,12 @@ describe("阶段D: reason 变化", () => {
         initialState: { pain: 8, associatedSymptom: "soreness" },
       });
 
-      const similarWithMaintain = result.states.filter(
-        (s) =>
-          s.symptomChange.includes("similar") &&
-          s.reason === "maintain regular treatments",
+      const noChangeVisits = result.states.filter(
+        (s) => s.soaChain.assessment.present === "no change.",
       );
-      expect(similarWithMaintain.length).toBeLessThanOrEqual(2);
+      for (const s of noChangeVisits) {
+        expect(s.symptomChange).toBe("improvement of symptom(s)");
+      }
     }
   });
 });

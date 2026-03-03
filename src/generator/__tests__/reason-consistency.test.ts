@@ -190,7 +190,7 @@ describe("Reason↔dimension consistency", () => {
     expect(violations).toHaveLength(0);
   });
 
-  it("reason diversity still ≤ 20% repeat rate after filtering", () => {
+  it("reason diversity remains bounded after filtering", () => {
     for (const bp of bodyParts) {
       const ctx = makeContext({
         primaryBodyPart: bp,
@@ -213,7 +213,7 @@ describe("Reason↔dimension consistency", () => {
         const reasons = states.map((s) => s.reason);
         const unique = new Set(reasons);
         const repeatRate = 1 - unique.size / reasons.length;
-        expect(repeatRate).toBeLessThanOrEqual(0.65); // relaxed for 24-option template pool
+        expect(repeatRate).toBeLessThanOrEqual(0.7); // no-similar policy narrows reason pool
       }
     }
   });

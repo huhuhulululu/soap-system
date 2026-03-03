@@ -456,7 +456,7 @@ describe("deriveAssessmentFromSOA", () => {
   });
 
   describe("Task 4: dimScore + symptomScale/severity integration", () => {
-    it('dimScore=0 → present contains "similar"', () => {
+    it('dimScore=0 → present is "no change."', () => {
       const result = deriveAssessmentFromSOA({
         ...baseInput,
         painDelta: 0,
@@ -474,7 +474,7 @@ describe("deriveAssessmentFromSOA", () => {
         symptomScaleChanged: false,
         severityChanged: false,
       });
-      expect(result.present).toContain("similar");
+      expect(result.present).toBe("no change.");
     });
 
     it('dimScore>=0.3 → present contains "improvement"', () => {
@@ -496,7 +496,7 @@ describe("deriveAssessmentFromSOA", () => {
         severityChanged: false,
       });
       expect(result.present).toContain("improvement");
-      expect(result.present).not.toContain("similar");
+      expect(result.present).not.toContain("no change");
     });
 
     it('symptomScaleChanged → whatChanged contains "muscles soreness sensation"', () => {

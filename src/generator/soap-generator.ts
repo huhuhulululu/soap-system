@@ -454,7 +454,7 @@ function getConfig<T>(map: Record<string, T>, bodyPart: string): T {
   return map[bodyPart] ?? map["DEFAULT"] ?? Object.values(map)[0];
 }
 
-function objectiveMuscleSeed(context: GenerationContext): number {
+export function objectiveMuscleSeed(context: GenerationContext): number {
   if (typeof context.seed === "number" && Number.isFinite(context.seed)) {
     // Preserve distinct deterministic streams for 0/1/-1/etc.
     return context.seed >>> 0;
@@ -1736,7 +1736,6 @@ export function generatePlanIE(context: GenerationContext): string {
 const TX_SYMPTOM_CHANGE_OPTIONS = [
   "improvement of symptom(s)",
   "exacerbate of symptom(s)",
-  "similar symptom(s) as last visit",
   "improvement after treatment, but pain still came back next day",
 ];
 
@@ -1771,12 +1770,6 @@ const TX_MAINTENANCE_REASON_OPTIONS: readonly string[] = [
   TEMPLATE_TX_REASON[23], // "uncertain reason"
 ];
 
-const TX_SIMILAR_REASON_OPTIONS: readonly string[] = [
-  TEMPLATE_TX_REASON[8],  // "continuous treatment"
-  TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
-  TEMPLATE_TX_REASON[23], // "uncertain reason"
-];
-
 function applyTxReasonChain(
   weightedReasons: WeightedOption[],
   selectedChange: string,
@@ -1787,7 +1780,6 @@ function applyTxReasonChain(
     change.includes("improvement") && !change.includes("came back");
   const isRelapse = change.includes("came back");
   const isExacerbate = change.includes("exacerbate");
-  const isSimilar = change.includes("similar");
   const isDeficiencyPattern = (context.systemicPattern || "").includes(
     "Deficiency",
   );
@@ -1828,10 +1820,6 @@ function applyTxReasonChain(
       if (isExacerbate && TX_NEGATIVE_REASON_OPTIONS.includes(item.option)) {
         bonus += 35;
         extraReasons.push("复诊加重优先匹配模板负向原因");
-      }
-      if (isSimilar && TX_SIMILAR_REASON_OPTIONS.includes(item.option)) {
-        bonus += 30;
-        extraReasons.push("症状相近优先匹配模板维持/待观察原因");
       }
 
       return {

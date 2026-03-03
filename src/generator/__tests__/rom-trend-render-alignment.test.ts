@@ -97,8 +97,8 @@ describe("ROM trend vs rendered ROM alignment", () => {
     expect(checkedPairs).toBeGreaterThan(100);
   });
 
-  it("similar visits should not contain double-digit ROM jumps", () => {
-    let checkedSimilar = 0;
+  it("no-change visits should not contain double-digit ROM jumps", () => {
+    let checkedNoChange = 0;
 
     for (const bp of BODY_PARTS) {
       for (let seed = 1; seed <= 30; seed++) {
@@ -122,7 +122,7 @@ describe("ROM trend vs rendered ROM alignment", () => {
 
         for (let i = 1; i < result.states.length; i++) {
           const cur = result.states[i];
-          if (!cur.symptomChange.includes("similar")) continue;
+          if (cur.soaChain.assessment.present !== "no change.") continue;
 
           const prevRom = extractRomDegrees(texts[i - 1]);
           const curRom = extractRomDegrees(texts[i]);
@@ -133,7 +133,7 @@ describe("ROM trend vs rendered ROM alignment", () => {
           ) {
             continue;
           }
-          checkedSimilar++;
+          checkedNoChange++;
           const maxDelta = prevRom.reduce((acc, value, idx) => {
             return Math.max(acc, Math.abs(curRom[idx] - value));
           }, 0);
@@ -142,6 +142,6 @@ describe("ROM trend vs rendered ROM alignment", () => {
       }
     }
 
-    expect(checkedSimilar).toBeGreaterThan(100);
+    expect(checkedNoChange).toBeGreaterThan(100);
   });
 });
