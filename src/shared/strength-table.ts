@@ -1,4 +1,4 @@
-/** Unified strength grade ladder (index = numeric level) */
+/** Unified strength grade ladder (index = numeric level, max 4+/5 per template) */
 export const STRENGTH_LADDER: readonly string[] = [
   "3-/5",
   "3/5",
@@ -6,12 +6,11 @@ export const STRENGTH_LADDER: readonly string[] = [
   "4-/5",
   "4/5",
   "4+/5",
-  "5/5",
 ];
 
 /** Pain level → base strength grade (authoritative: from objective-patch) */
 export const PATCHED_BASE_GRADES: readonly string[] = [
-  "5/5", // pain 0
+  "4+/5", // pain 0 (template max)
   "4+/5", // pain 1
   "4+/5", // pain 2
   "4/5", // pain 3

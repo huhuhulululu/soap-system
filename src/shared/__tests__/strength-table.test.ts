@@ -6,7 +6,7 @@ import {
 } from "../strength-table";
 
 describe("strength-table", () => {
-  it("STRENGTH_LADDER is ordered weakest to strongest", () => {
+  it("STRENGTH_LADDER is ordered weakest to strongest (max 4+/5)", () => {
     expect(STRENGTH_LADDER).toEqual([
       "3-/5",
       "3/5",
@@ -14,12 +14,11 @@ describe("strength-table", () => {
       "4-/5",
       "4/5",
       "4+/5",
-      "5/5",
     ]);
   });
 
-  it("strengthFromPain: pain 0 → 5/5, pain 8 → 3+/5, pain 10 → 3/5", () => {
-    expect(strengthFromPain(0)).toBe("5/5");
+  it("strengthFromPain: pain 0 → 4+/5 (template max), pain 8 → 3+/5, pain 10 → 3/5", () => {
+    expect(strengthFromPain(0)).toBe("4+/5");
     expect(strengthFromPain(8)).toBe("3+/5");
     expect(strengthFromPain(10)).toBe("3/5");
   });
@@ -44,8 +43,8 @@ describe("strength-table", () => {
     expect(strengthToIndex("unknown")).toBe(4);
   });
 
-  it("strengthFromPain clamps to 0-10", () => {
-    expect(strengthFromPain(-5)).toBe("5/5");
+  it("strengthFromPain clamps to 0-10 (max 4+/5)", () => {
+    expect(strengthFromPain(-5)).toBe("4+/5");
     expect(strengthFromPain(15)).toBe("3/5");
   });
 });

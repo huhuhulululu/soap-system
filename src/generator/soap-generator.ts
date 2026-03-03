@@ -25,6 +25,7 @@ import {
   type TXSequenceOptions,
   type TXVisitState,
 } from "./tx-sequence-engine";
+import { selectInitialMuscles } from "./muscle-selector";
 import { computePatchedGoals } from "./objective-patch";
 import { computeSpasm, SPASM_GRADE_TEXT } from "./spasm-model";
 import {
@@ -365,12 +366,13 @@ function getStrengthByPainAndDifficulty(
   painLevel: number,
   difficulty: ROMDifficulty,
 ): string {
-  // Pain 0-3: 5/5, Pain 4-5: 4+/5, Pain 6-7: 4/5, Pain 8-9: 4-/5, Pain 10: 3+/5
+  // Pain 0-3: 4+/5, Pain 4-5: 4+/5, Pain 6-7: 4/5, Pain 8-9: 4-/5, Pain 10: 3+/5
+  // Template max is 4+/5 — no 5/5 in dropdown
   const baseGrades = [
-    "5/5",
-    "5/5",
-    "5/5",
-    "5/5",
+    "4+/5",
+    "4+/5",
+    "4+/5",
+    "4+/5",
     "4+/5",
     "4+/5",
     "4/5",
@@ -382,9 +384,9 @@ function getStrengthByPainAndDifficulty(
   const painInt = Math.round(Math.min(painLevel, 10));
   const baseGrade = baseGrades[painInt];
 
-  // HARD difficulty 再降一级
+  // HARD difficulty 再降一级 (cap at 4+/5, no 5/5)
   if (difficulty === "HARD") {
-    const ladder = ["3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"];
+    const ladder = ["3/5", "3+/5", "4-/5", "4/5", "4+/5"];
     const idx = ladder.indexOf(baseGrade);
     return idx > 0 ? ladder[idx - 1] : "3/5";
   }
@@ -450,6 +452,28 @@ const INSPECTION_DEFAULT_MAP = TEMPLATE_INSPECTION_DEFAULT;
  */
 function getConfig<T>(map: Record<string, T>, bodyPart: string): T {
   return map[bodyPart] ?? map["DEFAULT"] ?? Object.values(map)[0];
+}
+
+function objectiveMuscleSeed(context: GenerationContext): number {
+  if (typeof context.seed === "number" && Number.isFinite(context.seed)) {
+    return Math.abs(Math.floor(context.seed)) || 1;
+  }
+  const source = [
+    context.primaryBodyPart,
+    context.laterality || "bilateral",
+    context.localPattern || "",
+    context.systemicPattern || "",
+    context.chronicityLevel || "",
+    String(context.painCurrent ?? 8),
+    String(context.age ?? 0),
+    context.gender || "",
+  ].join("|");
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i++) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) || 1;
 }
 
 function pickWeightedOptions(
@@ -1004,9 +1028,17 @@ function getKneeRomLabel(
 
 function getRomTrendBoost(visitState?: TXVisitState): number {
   const trend = visitState?.soaChain.objective.romTrend;
-  if (trend === "improved") return 3;
-  if (trend === "slightly improved") return 2;
-  return 1;
+  if (trend === "improved") return 0.25;
+  if (trend === "slightly improved") return 0.1;
+  return 0;
+}
+
+function painFromPainScaleLabel(label: string | undefined, fallback: number): number {
+  if (!label) return fallback;
+  const nums = label.match(/\d+/g)?.map((n) => Number(n)) ?? [];
+  if (nums.length === 0) return fallback;
+  if (nums.length === 1) return nums[0];
+  return (nums[0] + nums[1]) / 2;
 }
 
 function pickTemplateRomDegreesForRender(
@@ -1023,9 +1055,11 @@ function pickTemplateRomDegreesForRender(
   }
 
   const floorKey = originalMovementName ?? movementName;
+  const trend = visitState.soaChain.objective.romTrend;
   return pickTemplateROMDegreesByPain(bp, movementName, effectivePain, rngValue, {
-    progress: visitState.progress,
-    trend: visitState.soaChain.objective.romTrend,
+    // Keep render continuity primarily driven by pain; avoid adding extra per-visit drift.
+    progress: 0,
+    trend,
     minDegrees: visitState.romFloors?.[floorKey],
   });
 }
@@ -1078,11 +1112,26 @@ export function generateObjective(
 
   // Muscles Testing (纯文本输出，不加 markdown 粗体标记)
   // TX: 优先消费 visitState 肌肉数组，避免与权重/切片双源并行。
-  // IE 或缺失时回退到既有权重/切片逻辑。
+  // IE 或缺失时优先使用与 TX 同源的 muscle-selector。
   objective += `Muscles Testing:\n`;
+  const ieMuscles = !visitState
+    ? (() => {
+        try {
+          return selectInitialMuscles(
+            bp,
+            effectiveSeverity,
+            objectiveMuscleSeed(context),
+          );
+        } catch {
+          return undefined;
+        }
+      })()
+    : undefined;
   const selectedTightness =
     visitState?.tightMuscles && visitState.tightMuscles.length > 0
       ? [...visitState.tightMuscles]
+      : ieMuscles?.tightness && ieMuscles.tightness.length > 0
+        ? [...ieMuscles.tightness]
       : (() => {
           const tightnessWeightContext: WeightContext = {
             bodyPart: bp,
@@ -1111,6 +1160,8 @@ export function generateObjective(
   const tenderMuscles =
     visitState?.tenderMuscles && visitState.tenderMuscles.length > 0
       ? [...visitState.tenderMuscles]
+      : ieMuscles?.tenderness && ieMuscles.tenderness.length > 0
+        ? [...ieMuscles.tenderness]
       : muscles.length >= 8
         ? muscles.slice(7, 12)
         : muscles.length >= 4
@@ -1119,6 +1170,8 @@ export function generateObjective(
   const spasmMuscles =
     visitState?.spasmMuscles && visitState.spasmMuscles.length > 0
       ? [...visitState.spasmMuscles]
+      : ieMuscles?.spasm && ieMuscles.spasm.length > 0
+        ? [...ieMuscles.spasm]
       : muscles.length >= 8
         ? muscles.slice(3, 7)
         : muscles.length === 7
@@ -1182,23 +1235,22 @@ export function generateObjective(
     }[effectiveSeverity] ||
       7);
   const painLevel: number = visitState
-    ? Math.max(1, basePain - visitState.progress * 2.8)
+    ? painFromPainScaleLabel(visitState.painScaleLabel, basePain)
     : basePain;
   const romTrendBoost = getRomTrendBoost(visitState);
 
-  const STRENGTH_ORDER = ["3-/5", "3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"];
+  const STRENGTH_ORDER = ["3-/5", "3/5", "3+/5", "4-/5", "4/5", "4+/5"];
   const strengthIdx = (s: string): number => {
     const i = STRENGTH_ORDER.indexOf(s);
     return i >= 0 ? i : 4; // default to "4/5" if unknown
   };
 
   const bumpStrength = (strength: string, step: number): string => {
-    const ladder = ["3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"];
+    // Template max is 4+/5 — no 5/5
+    const ladder = ["3/5", "3+/5", "4-/5", "4/5", "4+/5"];
     const idx = ladder.indexOf(strength);
     if (idx < 0) return strength;
-    // 最高只能提升到 4+/5，不能到 5/5（除非原本就是 5/5）
-    const maxIdx = strength === "5/5" ? 5 : 4;
-    return ladder[Math.max(0, Math.min(maxIdx, idx + step))];
+    return ladder[Math.max(0, Math.min(ladder.length - 1, idx + step))];
   };
 
   /** Pick the higher of engine's scheduled strength and per-direction computed strength.
@@ -1267,14 +1319,9 @@ export function generateObjective(
       const sideOffset = side === "Left" ? 0 : 1;
 
       // M-03 fix: apply romAdj for TX visits (same formula as generic path)
-      const kneeRomAdj = visitState
-        ? Math.min(
-            10,
-            Math.round(visitState.progress * 8 + romTrendBoost),
-          )
-        : 0;
+      const kneeRomAdj = 0;
       const effectivePainForKnee = visitState
-        ? Math.max(1, adjustedPain - kneeRomAdj * 0.3)
+        ? Math.max(1, adjustedPain - kneeRomAdj * 0.3 - romTrendBoost)
         : adjustedPain;
 
       objective += `${side} Knee Muscles Strength and Joint ROM:\n\n`;
@@ -1325,14 +1372,9 @@ export function generateObjective(
         );
         const rngValue = rng ? rng() : [0.3, 0.5, 0.7][i % 3];
         // M-03 fix: apply romAdj for TX visits
-        const kneeUniRomAdj = visitState
-          ? Math.min(
-              10,
-              Math.round(visitState.progress * 8 + romTrendBoost),
-            )
-          : 0;
+        const kneeUniRomAdj = 0;
         const effectivePainForKneeUni = visitState
-          ? Math.max(1, painLevel - kneeUniRomAdj * 0.3)
+          ? Math.max(1, painLevel - kneeUniRomAdj * 0.3 - romTrendBoost)
           : painLevel;
         const templateDegrees = pickTemplateRomDegreesForRender(
           "KNEE",
@@ -1357,14 +1399,9 @@ export function generateObjective(
       const sideOffset = isLeft ? 0 : 1;
 
       // M-03 fix: apply romAdj for TX visits (same formula as generic path)
-      const shoulderRomAdj = visitState
-        ? Math.min(
-            10,
-            Math.round(visitState.progress * 8 + romTrendBoost),
-          )
-        : 0;
+      const shoulderRomAdj = 0;
       const effectivePainForShoulder = visitState
-        ? Math.max(1, adjustedPain - shoulderRomAdj * 0.3)
+        ? Math.max(1, adjustedPain - shoulderRomAdj * 0.3 - romTrendBoost)
         : adjustedPain;
 
       objective += `${side} Shoulder Muscles Strength and Joint ROM\n`;
@@ -1445,12 +1482,7 @@ export function generateObjective(
 
     if (romData) {
       const degreeLabel = (isSpine || bp === "HIP") ? "Degrees" : "degree";
-      const romAdj = visitState
-        ? Math.min(
-            10,
-            Math.round(visitState.progress * 8 + romTrendBoost),
-          )
-        : 0;
+      const romAdj = 0;
       romData.forEach((rom, index) => {
         const { strength: computedStrength, romValue, limitation } = computeRom(
           rom,
@@ -1468,7 +1500,7 @@ export function generateObjective(
           const variationSeed = index % 3;
           const rngValue = rng ? rng() : [0.3, 0.5, 0.7][variationSeed];
           const effectivePainForTemplate = visitState
-            ? Math.max(1, painLevel - romAdj * 0.3)
+            ? Math.max(1, painLevel - romAdj * 0.3 - romTrendBoost)
             : painLevel;
           const templateDegrees = pickTemplateRomDegreesForRender(
             bp as BodyPartKey,
@@ -1911,18 +1943,23 @@ export function generateSubjectiveTX(
     "weakness",
     "numbness",
   ];
-  const selectedAssociatedSymptom =
-    hasText(visitState?.associatedSymptom)
-      ? visitState.associatedSymptom
-      : context.associatedSymptoms && context.associatedSymptoms.length > 0
-        ? context.associatedSymptoms[0]
-        : selectBestOption(
-            calculateWeights(
-              "subjective.associatedSymptoms",
-              associatedSymptomOptions,
-              weightContext,
-            ),
-          );
+  const selectedAssociatedSymptoms =
+    visitState?.associatedSymptoms && visitState.associatedSymptoms.length > 0
+      ? [...visitState.associatedSymptoms]
+      : hasText(visitState?.associatedSymptom)
+        ? [visitState.associatedSymptom]
+        : context.associatedSymptoms && context.associatedSymptoms.length > 0
+          ? [...context.associatedSymptoms]
+          : [
+              selectBestOption(
+                calculateWeights(
+                  "subjective.associatedSymptoms",
+                  associatedSymptomOptions,
+                  weightContext,
+                ),
+              ),
+            ];
+  const associatedSymptomsText = selectedAssociatedSymptoms.join(", ");
 
   // 权重选择: ADL 活动 (TX KNEE 有两组)
   const adlActivities = BODY_PART_ADL[bp] || BODY_PART_ADL["LBP"];
@@ -1977,7 +2014,7 @@ export function generateSubjectiveTX(
   } else {
     subjective += `Patient still c/o ${selectedPainTypes.join(", ")} pain on ${bodyPartAreaName} `;
   }
-  subjective += `${radiation}, associated with muscles ${selectedAssociatedSymptom} (scale as ${symptomScale}), `;
+  subjective += `${radiation}, associated with muscles ${associatedSymptomsText} (scale as ${symptomScale}), `;
 
   // TX ADL 格式:
   // KNEE: "difficulty [ADL]" (无 "of", 两组)
@@ -2143,6 +2180,17 @@ export function generateAssessmentTX(
     useVisitAssessment && hasText(visitAssessment!.adverseEffect)
       ? visitAssessment!.adverseEffect
       : "No adverse side effect post treatment.";
+  const findingLabels = [
+    "joint ROM",
+    "joint ROM limitation",
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "muscles strength",
+  ];
+  const physicalHasEmbeddedFinding = findingLabels.some((label) =>
+    selectedPhysical.includes(label),
+  );
 
   let assessment = "";
 
@@ -2163,9 +2211,13 @@ export function generateAssessmentTX(
   assessment += `The patient's general condition is ${selectedCondition}, `;
   assessment += `compared with last treatment, the patient presents with ${selectedPresent} `;
   assessment += `The patient has ${selectedPatientChange} ${selectedWhat}, `;
-  assessment += selectedFinding
-    ? `physical finding has ${selectedPhysical} ${selectedFinding}. `
-    : `physical finding has ${selectedPhysical}. `;
+  if (physicalHasEmbeddedFinding) {
+    assessment += `physical finding has ${selectedPhysical}. `;
+  } else {
+    assessment += selectedFinding
+      ? `physical finding has ${selectedPhysical} ${selectedFinding}. `
+      : `physical finding has ${selectedPhysical}. `;
+  }
   assessment += `Patient tolerated ${selectedTolerated} ${selectedResponse}. `;
   assessment += `${adverseEffect}\n`;
 

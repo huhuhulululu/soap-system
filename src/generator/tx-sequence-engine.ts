@@ -48,6 +48,7 @@ export interface TXSequenceOptions {
     spasm?: number;
     frequency?: number;
     painTypes?: string[];
+    associatedSymptoms?: string[];
     associatedSymptom?: string;
     symptomScale?: string;
     generalCondition?: string;
@@ -125,6 +126,7 @@ export interface TXVisitState {
   symptomChange: string;
   reasonConnector: string;
   reason: string;
+  associatedSymptoms?: readonly string[];
   associatedSymptom: string;
   painFrequency: string;
   generalCondition: string;
@@ -355,6 +357,18 @@ export function deriveAssessmentFromSOA(input: {
   response: string;
   adverseEffect: string;
 } {
+  const uniqueOrdered = (parts: string[]): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const p of parts) {
+      const key = p.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out;
+  };
+
   // ASS-02: cumulative + visit-level + dimScore gates language strength
   const strongCumulative =
     input.cumulativePainDrop >= 2.5 && input.progress >= 0.4;
@@ -450,8 +464,13 @@ export function deriveAssessmentFromSOA(input: {
     if (parts.length === 0) return TEMPLATE_TX_WHAT_CHANGED[9]; // "as last time visit"
 
     // Join: "pain frequency, difficulty in performing ADLs and muscles soreness sensation"
-    if (parts.length === 1) return parts[0];
-    return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+    const normalizedParts = uniqueOrdered(parts);
+    if (normalizedParts.length === 1) return normalizedParts[0];
+    return (
+      normalizedParts.slice(0, -1).join(", ") +
+      " and " +
+      normalizedParts[normalizedParts.length - 1]
+    );
   })();
 
   // Physical change: same logic as before — derived from objective trends
@@ -499,8 +518,9 @@ export function deriveAssessmentFromSOA(input: {
   const increaseWord = strongPhysicalImprove ? "increased" : "slight increased";
 
   const joinParts = (parts: string[]) => {
-    if (parts.length === 1) return parts[0];
-    return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+    const normalized = uniqueOrdered(parts);
+    if (normalized.length === 1) return normalized[0];
+    return normalized.slice(0, -1).join(", ") + " and " + normalized[normalized.length - 1];
   };
 
   // physicalChange: when mixed directions, embed "direction + findings" inline
@@ -514,12 +534,9 @@ export function deriveAssessmentFromSOA(input: {
     return reduceWord;
   })();
 
-  // findingType: when physicalChange already embeds the findings (mixed direction),
-  // findingType is empty so the sentence reads naturally.
-  // Otherwise, list all parts as before.
+  // findingType keeps structured changed dimensions for all cases, including mixed direction.
   const findingType = (() => {
-    if (reduceParts.length > 0 && increaseParts.length > 0) return "";
-    const allParts = [...reduceParts, ...increaseParts];
+    const allParts = uniqueOrdered([...reduceParts, ...increaseParts]);
     if (allParts.length === 0) return TEMPLATE_TX_FINDING_TYPE[5]; // "joint ROM limitation"
     return joinParts(allParts);
   })();
@@ -816,7 +833,10 @@ export function generateTXSequenceStates(
   const remainingTx = txCount - startIdx + 1;
   const { rng, seed: actualSeed } = createSeededRng(options.seed);
 
-  const ieStartPain = context.previousIE?.subjective?.painScale?.current ?? 8;
+  const ieStartPain =
+    context.previousIE?.subjective?.painScale?.current ??
+    context.painCurrent ??
+    8;
   const startPain = options.initialState?.pain ?? ieStartPain;
   // 与 objective-patch 对齐: pain<=3 最优, pain<=6 积极目标, pain>=7 康复曲线
   const stFallback =
@@ -953,7 +973,25 @@ export function generateTXSequenceStates(
   let prevAdlItemCount = ieAdlItemCount; // IE's ADL count as baseline for TX1
   let prevTightnessGrading = options.initialState?.tightnessGrading ?? "";
   let prevTendernessGrade = options.initialState?.tendernessGrade ?? "";
-  let prevAssociatedSymptom = options.initialState?.associatedSymptom ?? "";
+  const baselineAssociatedSymptoms = (() => {
+    if (
+      options.initialState?.associatedSymptoms &&
+      options.initialState.associatedSymptoms.length > 0
+    ) {
+      return [...options.initialState.associatedSymptoms];
+    }
+    if (options.initialState?.associatedSymptom) {
+      return [options.initialState.associatedSymptom];
+    }
+    if (context.associatedSymptoms && context.associatedSymptoms.length > 0) {
+      return [...context.associatedSymptoms];
+    }
+    if (context.associatedSymptom) {
+      return [context.associatedSymptom];
+    }
+    return ["soreness"];
+  })();
+  let prevAssociatedSymptom = baselineAssociatedSymptoms[0] ?? "soreness";
 
   // === generalCondition: 基于病史+年龄+证型的固定属性 ===
   const fixedGeneralCondition: string = (() => {
@@ -1015,6 +1053,7 @@ export function generateTXSequenceStates(
     severe: 5,
   };
   const symptomTypeForGoals =
+    options.initialState?.associatedSymptoms?.[0] ??
     options.initialState?.associatedSymptom ??
     context.associatedSymptoms?.[0] ??
     context.associatedSymptom ??
@@ -1722,10 +1761,14 @@ export function generateTXSequenceStates(
     if (progress > 0.5 && _prevSymptomRank > 1) {
       rng(); // consume to keep PRNG sequence
     }
-    const associatedSymptom =
-      options.initialState?.associatedSymptom ||
-      prevAssociatedSymptom ||
-      "soreness";
+    const associatedSymptoms =
+      options.initialState?.associatedSymptoms &&
+      options.initialState.associatedSymptoms.length > 0
+        ? [...options.initialState.associatedSymptoms]
+        : baselineAssociatedSymptoms.length > 0
+          ? [...baselineAssociatedSymptoms]
+          : [prevAssociatedSymptom || "soreness"];
+    const associatedSymptom = associatedSymptoms[0] || "soreness";
     prevAssociatedSymptom = associatedSymptom;
     const painFrequency = pickSingle(
       "subjective.painFrequency",
@@ -2099,6 +2142,7 @@ export function generateTXSequenceStates(
       symptomChange,
       reasonConnector: finalConnector,
       reason: finalReason,
+      associatedSymptoms,
       associatedSymptom,
       painFrequency: chainFrequency,
       generalCondition,

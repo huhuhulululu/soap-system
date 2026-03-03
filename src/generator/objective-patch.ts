@@ -137,8 +137,8 @@ function bumpStrength(strength: string, progress: number): string {
   if (step === 0) return strength;
   const idx = STRENGTH_LADDER.indexOf(strength);
   if (idx < 0) return strength;
-  // 最高只能到 4+/5（index 5），不能到 5/5
-  const maxIdx = strength === "5/5" ? 6 : 5;
+  // Template max is 4+/5 (index 5 in old ladder, now last element)
+  const maxIdx = STRENGTH_LADDER.length - 1;
   return STRENGTH_LADDER[Math.min(maxIdx, idx + step)];
 }
 
@@ -218,7 +218,7 @@ function patchedComputeRom(
 // ==================== 文本后处理器 ====================
 
 /**
- * Strength grade 正则：匹配行首的 "3-/5", "3/5", "3+/5", "4-/5", "4/5", "4+/5", "5/5"
+ * Strength grade 正则：匹配行首的 "3-/5", "3/5", "3+/5", "4-/5", "4/5", "4+/5"
  */
 const STRENGTH_RE = /^(\d[+-]?\/5)\s/;
 

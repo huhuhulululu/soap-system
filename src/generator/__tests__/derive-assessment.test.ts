@@ -253,16 +253,12 @@ describe("deriveAssessmentFromSOA", () => {
           expect(hasDirection).toBe(true);
           expect(hasFinding).toBe(true);
         }
-        // REAL-02: findingType can be combined or empty (when embedded in physicalChange)
-        if (result.findingType === "") {
-          // findings embedded in physicalChange — ok
-        } else {
-          const findingParts = result.findingType
-            .split(/ and |, /)
-            .map((p) => p.trim());
-          for (const part of findingParts) {
-            expect(VALID_FINDING_TYPE).toContain(part);
-          }
+        // findingType should keep structured dimensions in all cases
+        const findingParts = result.findingType
+          .split(/ and |, /)
+          .map((p) => p.trim());
+        for (const part of findingParts) {
+          expect(VALID_FINDING_TYPE).toContain(part);
         }
       }
     });
@@ -384,6 +380,9 @@ describe("deriveAssessmentFromSOA", () => {
       expect(result.physicalChange).toContain("local muscles tightness");
       expect(result.physicalChange).toContain("reduced");
       expect(result.physicalChange).toContain("increased");
+      expect(result.findingType).toContain("joint ROM");
+      expect(result.findingType).toContain("muscles strength");
+      expect(result.findingType).toContain("local muscles tightness");
     });
 
     it("ROM + Tenderness changed → findingType mentions both", () => {
@@ -420,6 +419,11 @@ describe("deriveAssessmentFromSOA", () => {
       expect(result.physicalChange).toContain("muscles strength");
       expect(result.physicalChange).toContain("reduced");
       expect(result.physicalChange).toContain("increased");
+      expect(result.findingType).toContain("joint ROM");
+      expect(result.findingType).toContain("local muscles tightness");
+      expect(result.findingType).toContain("local muscles tenderness");
+      expect(result.findingType).toContain("local muscles spasms");
+      expect(result.findingType).toContain("muscles strength");
     });
 
     it("single dimension changed → findingType is just that one", () => {
@@ -432,6 +436,22 @@ describe("deriveAssessmentFromSOA", () => {
         objectiveSpasmTrend: "stable",
       });
       expect(result.findingType).toBe("local muscles tightness");
+    });
+
+    it("mixed direction findingType keeps deterministic order", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        objectiveRomTrend: "improved",
+        objectiveStrengthTrend: "improved",
+        objectiveTightnessTrend: "reduced",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+        progress: 0.2,
+        cumulativePainDrop: 1.0,
+      });
+      expect(result.findingType).toBe(
+        "joint ROM limitation, local muscles tightness and muscles strength",
+      );
     });
   });
 
@@ -575,6 +595,28 @@ describe("deriveAssessmentFromSOA", () => {
       // should not be limited to 1-2 items
       const commaCount = (result.whatChanged.match(/,/g) || []).length;
       expect(commaCount).toBeGreaterThanOrEqual(1); // at least 2 items comma-separated
+    });
+
+    it("symptomScaleChanged + severityChanged does not duplicate stiffness in whatChanged", () => {
+      const result = deriveAssessmentFromSOA({
+        ...baseInput,
+        associatedSymptom: "stiffness",
+        painDelta: 0,
+        adlDelta: 0,
+        frequencyImproved: false,
+        objectiveTightnessTrend: "stable",
+        objectiveTendernessTrend: "stable",
+        objectiveSpasmTrend: "stable",
+        objectiveRomTrend: "stable",
+        objectiveStrengthTrend: "stable",
+        cumulativePainDrop: 0.5,
+        progress: 0.3,
+        dimScore: 0.2,
+        changedDims: ["symptomScale", "severity"],
+        symptomScaleChanged: true,
+        severityChanged: true,
+      });
+      expect(result.whatChanged).toBe("muscles stiffness sensation");
     });
   });
 });

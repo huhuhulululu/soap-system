@@ -104,8 +104,8 @@ function painToContinuousImpairmentScore(pain: number): number {
 }
 
 function trendToImprovementBonus(trend: RomTrend | undefined): number {
-  if (trend === "improved") return 0.22;
-  if (trend === "slightly improved") return 0.11;
+  if (trend === "improved") return 0.08;
+  if (trend === "slightly improved") return 0.04;
   return 0;
 }
 
