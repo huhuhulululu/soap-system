@@ -1563,28 +1563,40 @@ export function generateTXSequenceStates(
     const NEUTRAL_TEMPLATE_REASONS = TEMPLATE_TX_REASON.filter((_, i) => i >= 8 && i <= 14);
 
     // Dynamic pool: filter positive reasons by current visit dimensions.
+    // Hard gate: do not emit ADL/pain reasons when corresponding dimensions did not improve.
     // Keep a minimum pool size to avoid over-concentration (e.g. 20 visits with only 3 candidates).
+    const isAdlReason = (r: string): boolean =>
+      r.includes("daily activities") || r.includes("physical activity");
+    const isPainReason = (r: string): boolean => r.includes("pain");
+    const allowPositiveReason = (r: string): boolean => {
+      if (!adlImproved && isAdlReason(r)) return false;
+      if (painDelta <= 0.2 && isPainReason(r)) return false;
+      return true;
+    };
+
     const positivePoolPriority = [
       ...(painDelta > 0.2
         ? POSITIVE_TEMPLATE_REASONS.filter(
             (r) =>
-              r.includes("pain") || r.includes("joint") || r.includes("stiffness"),
+              (r.includes("pain") || r.includes("joint") || r.includes("stiffness")) &&
+              allowPositiveReason(r),
           )
         : []),
       ...(adlImproved
         ? POSITIVE_TEMPLATE_REASONS.filter(
-            (r) => r.includes("daily") || r.includes("activity"),
+            (r) => (r.includes("daily") || r.includes("activity")) && allowPositiveReason(r),
           )
         : []),
       // Always available baseline
       ...POSITIVE_TEMPLATE_REASONS.filter(
-        (r) => r.includes("energy") || r.includes("sleep"),
+        (r) => (r.includes("energy") || r.includes("sleep")) && allowPositiveReason(r),
       ),
     ];
     const positivePool = Array.from(new Set(positivePoolPriority));
     const MIN_POSITIVE_POOL = 5;
     if (positivePool.length < MIN_POSITIVE_POOL) {
       for (const reasonOption of POSITIVE_TEMPLATE_REASONS) {
+        if (!allowPositiveReason(reasonOption)) continue;
         if (!positivePool.includes(reasonOption)) {
           positivePool.push(reasonOption);
         }

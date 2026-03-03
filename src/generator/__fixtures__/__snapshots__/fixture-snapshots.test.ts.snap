@@ -167,7 +167,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: ELBOW-left-late-20tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of long hours of driving .
 
 Pain Scale: 5 /10
@@ -329,7 +329,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with mild to moderate difficulty of long hours of driving .
 
 Pain Scale: 5 /10
@@ -437,7 +437,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of long hours of driving .
 
 Pain Scale: 5-4 /10
@@ -491,7 +491,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of long hours of driving .
 
 Pain Scale: 5-4 /10
@@ -599,7 +599,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of reduced level of pain .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of long hours of driving .
 
 Pain Scale: 3 /10
@@ -707,7 +707,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of long hours of driving .
 
 Pain Scale: 3 /10
@@ -1139,7 +1139,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of long hours of driving .
 
 Pain Scale: 2 /10
@@ -1303,7 +1303,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of working long time in front of computer .
 
 Pain Scale: 5 /10
@@ -1357,7 +1357,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty of working long time in front of computer .
 
 Pain Scale: 5 /10
@@ -1465,7 +1465,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty of working long time in front of computer .
 
 Pain Scale: 5-4 /10
@@ -1519,7 +1519,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of working long time in front of computer .
 
 Pain Scale: 4-3 /10
@@ -1681,7 +1681,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain on elbow without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of working long time in front of computer .
 
 Pain Scale: 2 /10
@@ -1951,7 +1951,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8 /10
@@ -2002,7 +2002,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty Going up and down stairs, Rising from a chair and moderate to severe difficulty bending knee to sit position, Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 8-7 /10
@@ -2308,7 +2308,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild to moderate difficulty Going up and down stairs, Rising from a chair and mild to moderate difficulty Standing for long periods of time, Walking for long periods of time, bending knee to sit position.
 
 Pain Scale: 5 /10
@@ -2359,7 +2359,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild to moderate difficulty Going up and down stairs, Rising from a chair and mild to moderate difficulty Standing for long periods of time, Walking for long periods of time, bending knee to sit position.
 
 Pain Scale: 5 /10
@@ -2410,7 +2410,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in left knee area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild to moderate difficulty Going up and down stairs, Rising from a chair and mild to moderate difficulty Standing for long periods of time, Walking for long periods of time, bending knee to sit position.
 
 Pain Scale: 5-4 /10
@@ -2822,7 +2822,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with severe difficulty Walking for long periods of time, bending down put in/out of the shoes and severe difficulty bending knee to sit position, Standing for long periods of time, Going up and down stairs.
 
 Pain Scale: 9 /10
@@ -3077,7 +3077,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty Walking for long periods of time, bending down put in/out of the shoes and moderate difficulty bending knee to sit position.
 
 Pain Scale: 6 /10
@@ -3128,7 +3128,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty Walking for long periods of time, bending down put in/out of the shoes .
 
 Pain Scale: 6-5 /10
@@ -3179,7 +3179,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty Walking for long periods of time, bending down put in/out of the shoes .
 
 Pain Scale: 5 /10
@@ -3332,7 +3332,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild to moderate difficulty Walking for long periods of time, bending down put in/out of the shoes .
 
 Pain Scale: 5 /10
@@ -3383,7 +3383,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to reduced level of pain .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Walking for long periods of time .
 
 Pain Scale: 4 /10
@@ -3434,7 +3434,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Walking for long periods of time .
 
 Pain Scale: 4 /10
@@ -3485,7 +3485,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Walking for long periods of time .
 
 Pain Scale: 4-3 /10
@@ -3538,7 +3538,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: KNEE-right-mid-10tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with severe difficulty Walking for long periods of time, bending knee to sit position and severe difficulty Standing for long periods of time, Going up and down stairs, Rising from a chair.
 
 Pain Scale: 9 /10
@@ -3589,7 +3589,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with severe difficulty Walking for long periods of time, bending knee to sit position and severe difficulty Standing for long periods of time, Going up and down stairs, Rising from a chair.
 
 Pain Scale: 9 /10
@@ -3640,7 +3640,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty Walking for long periods of time, bending knee to sit position and moderate to severe difficulty Standing for long periods of time, Going up and down stairs, Rising from a chair.
 
 Pain Scale: 9-8 /10
@@ -3691,7 +3691,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty Walking for long periods of time, bending knee to sit position and moderate to severe difficulty Standing for long periods of time, Going up and down stairs.
 
 Pain Scale: 8-7 /10
@@ -3844,7 +3844,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty Walking for long periods of time, Going up and down stairs and mild difficulty Rising from a chair.
 
 Pain Scale: 6-5 /10
@@ -3895,7 +3895,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty Walking for long periods of time .
 
 Pain Scale: 5 /10
@@ -3946,7 +3946,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Walking for long periods of time .
 
 Pain Scale: 5 /10
@@ -3997,7 +3997,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain in right knee area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty Walking for long periods of time .
 
 Pain Scale: 4 /10
@@ -4484,7 +4484,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8-7 /10
@@ -4538,7 +4538,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8-7 /10
@@ -4592,7 +4592,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 7-6 /10
@@ -4646,7 +4646,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 6 /10
@@ -4700,7 +4700,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 5 /10
@@ -4808,7 +4808,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time.
 
 Pain Scale: 5-4 /10
@@ -4862,7 +4862,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Walking for long periods of time, Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -4916,7 +4916,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Walking for long periods of time.
 
 Pain Scale: 4 /10
@@ -4970,7 +4970,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Walking for long periods of time.
 
 Pain Scale: 4 /10
@@ -5024,7 +5024,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Walking for long periods of time.
 
 Pain Scale: 4 /10
@@ -5186,7 +5186,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Walking for long periods of time.
 
 Pain Scale: 3 /10
@@ -5296,7 +5296,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: LBP-bilateral-maxpain-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects, Getting out of bed.
 
 Pain Scale: 10 /10
@@ -5350,7 +5350,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects, Getting out of bed.
 
 Pain Scale: 10 /10
@@ -5458,7 +5458,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects, Getting out of bed.
 
 Pain Scale: 10-9 /10
@@ -5620,7 +5620,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Getting out of bed, Rising from a chair.
 
 Pain Scale: 7 /10
@@ -5728,7 +5728,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Getting out of bed.
 
 Pain Scale: 6 /10
@@ -5782,7 +5782,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild to moderate difficulty with ADLs like Getting out of bed, Rising from a chair, Going up and down stairs.
 
 Pain Scale: 6 /10
@@ -5890,7 +5890,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild to moderate difficulty with ADLs like Getting out of bed, Rising from a chair.
 
 Pain Scale: 5 /10
@@ -6162,7 +6162,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Bending over to wear/tie a shoe, Lifting objects, Walking for long periods of time.
 
 Pain Scale: 6-5 /10
@@ -6270,7 +6270,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) because of reduced level of pain .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild to moderate difficulty with ADLs like Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 4 /10
@@ -6432,7 +6432,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Bending over to wear/tie a shoe.
 
 Pain Scale: 3 /10
@@ -6704,7 +6704,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8-7 /10
@@ -7192,7 +7192,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8 /10
@@ -7354,7 +7354,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8 /10
@@ -7408,7 +7408,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8-7 /10
@@ -7462,7 +7462,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 8-7 /10
@@ -7516,7 +7516,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe, Lifting objects.
 
 Pain Scale: 7-6 /10
@@ -7570,7 +7570,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, sitting for long periods of time, Bending over to wear/tie a shoe.
 
 Pain Scale: 6 /10
@@ -7678,7 +7678,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, sitting for long periods of time.
 
 Pain Scale: 5 /10
@@ -7732,7 +7732,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time.
 
 Pain Scale: 5-4 /10
@@ -7786,7 +7786,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced level of pain .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time.
 
 Pain Scale: 4 /10
@@ -8654,7 +8654,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 7-6 /10
@@ -8762,7 +8762,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 6-5 /10
@@ -8816,7 +8816,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of reduced level of pain .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 5 /10
@@ -8978,7 +8978,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to energy level improved .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 4-3 /10
@@ -9032,7 +9032,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 3 /10
@@ -9086,7 +9086,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 3 /10
@@ -9194,7 +9194,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 2 /10
@@ -9520,7 +9520,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty with ADLs like Bending over to wear/tie a shoe, Rising from a chair, Going up and down stairs, Bending forward, Standing for long periods of time.
 
 Pain Scale: 7 /10
@@ -9574,7 +9574,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 7-6 /10
@@ -9844,7 +9844,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle and lower back area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Standing for long periods of time, Walking for long periods of time, Bending over to wear/tie a shoe, Rising from a chair, Getting out of bed.
 
 Pain Scale: 4 /10
@@ -10060,7 +10060,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 6 /10
@@ -10112,7 +10112,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 6 /10
@@ -10164,7 +10164,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 6-5 /10
@@ -10216,7 +10216,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 5-4 /10
@@ -10268,7 +10268,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 4 /10
@@ -10320,7 +10320,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 3 /10
@@ -10476,7 +10476,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced level of pain .
+Patient reports: there is improvement of symptom(s) due to energy level improved .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 3-2 /10
@@ -10528,7 +10528,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain on middle back without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty with ADLs like Sitting for long periods, Twisting motions, Bending forward, Lifting objects, Deep breathing.
 
 Pain Scale: 2 /10
@@ -11014,7 +11014,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate difficulty of sit and watching TV over 20 mins, reading newspaper/book and moderate difficulty of tilting head to talking the phone.
 
 Pain Scale: 6 /10
@@ -11122,7 +11122,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of sit and watching TV over 20 mins, reading newspaper/book and mild to moderate difficulty of tilting head to talking the phone.
 
 Pain Scale: 6-5 /10
@@ -11880,7 +11880,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: NECK-bilateral-mid-8tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate difficulty of turning the head when crossing the street, carry/handing grocery bags and moderate difficulty of sit and watching TV over 20 mins.
 
 Pain Scale: 6 /10
@@ -11934,7 +11934,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty of turning the head when crossing the street, carry/handing grocery bags and moderate difficulty of sit and watching TV over 20 mins.
 
 Pain Scale: 6 /10
@@ -11988,7 +11988,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with mild to moderate difficulty of turning the head when crossing the street, carry/handing grocery bags and mild to moderate difficulty of sit and watching TV over 20 mins.
 
 Pain Scale: 6-5 /10
@@ -12096,7 +12096,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to sleep quality improved .
+Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of turning the head when crossing the street, carry/handing grocery bags .
 
 Pain Scale: 5-4 /10
@@ -12150,7 +12150,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of turning the head when crossing the street .
 
 Pain Scale: 4-3 /10
@@ -12204,7 +12204,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of turning the head when crossing the street .
 
 Pain Scale: 3 /10
@@ -12476,7 +12476,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty of tilting head to talking the phone, looking down watching steps and moderate to severe difficulty of gargling, showering.
 
 Pain Scale: 8-7 /10
@@ -12800,7 +12800,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of tilting head to talking the phone .
 
 Pain Scale: 5-4 /10
@@ -12854,7 +12854,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
+Patient reports: there is improvement of symptom(s) due to reduced level of pain .
 Patient still c/o Dull, Aching pain in neck area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of tilting head to talking the phone .
 
 Pain Scale: 4 /10
@@ -13152,7 +13152,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: SHOULDER-bilateral-late-18tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of raising up the hand to comb hair, reach top of cabinet to get object(s) and moderate to severe difficulty of put on/take off the clothes, doing laundry.
 
 Pain Scale: 8 /10
@@ -13276,7 +13276,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of raising up the hand to comb hair, reach top of cabinet to get object(s) and moderate to severe difficulty of put on/take off the clothes, doing laundry.
 
 Pain Scale: 8 /10
@@ -13462,7 +13462,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate to severe difficulty of raising up the hand to comb hair, reach top of cabinet to get object(s) and moderate to severe difficulty of put on/take off the clothes, doing laundry.
 
 Pain Scale: 8-7 /10
@@ -13524,7 +13524,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with moderate difficulty of raising up the hand to comb hair, reach top of cabinet to get object(s) and moderate difficulty of put on/take off the clothes, doing laundry.
 
 Pain Scale: 7-6 /10
@@ -13958,7 +13958,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to sleep quality improved .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of put on/take off the clothes .
 
 Pain Scale: 3 /10
@@ -14020,7 +14020,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 40%), impaired performing ADL's with mild difficulty of put on/take off the clothes .
 
 Pain Scale: 3 /10
@@ -14270,7 +14270,7 @@ Documentation"
 exports[`Fixture Snapshots > snapshot: SHOULDER-bilateral-mid-12tx 1`] = `
 "Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of sleep quality improved .
+Patient reports: there is improvement of symptom(s) because of energy level improved .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of put on/take off the clothes, doing laundry and moderate to severe difficulty of pushing/pulling cart, box, door, handing/carrying moderate objects.
 
 Pain Scale: 8 /10
@@ -14332,7 +14332,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of put on/take off the clothes, doing laundry and moderate to severe difficulty of pushing/pulling cart, box, door, handing/carrying moderate objects.
 
 Pain Scale: 8 /10
@@ -14952,7 +14952,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in bilateral shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of pushing/pulling cart, box, door .
 
 Pain Scale: 4 /10
@@ -16196,7 +16196,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 50%), impaired performing ADL's with moderate difficulty of raising up the hand to comb hair, reach top of cabinet to get object(s) and moderate difficulty of abduct arm get the objects from other people, put on/take off the clothes.
 
 Pain Scale: 7-6 /10
@@ -16574,7 +16574,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of raising up the hand to comb hair .
 
 Pain Scale: 3 /10
@@ -16628,7 +16628,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of raising up the hand to comb hair .
 
 Pain Scale: 3 /10
@@ -16898,7 +16898,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to more energy level throughout the day .
+Patient reports: there is improvement of symptom(s) due to reduced level of pain .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of raising up the hand to comb hair .
 
 Pain Scale: 2 /10
@@ -16952,7 +16952,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of physical activity no longer causes distress .
+Patient reports: there is improvement of symptom(s) because of more energy level throughout the day .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 20%), impaired performing ADL's with mild difficulty of raising up the hand to comb hair .
 
 Pain Scale: 2 /10
@@ -17224,7 +17224,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 60%), impaired performing ADL's with mild to moderate difficulty of raising up the hand to comb hair, reach top of cabinet to get object(s) and mild to moderate difficulty of pushing/pulling cart, box, door.
 
 Pain Scale: 6-5 /10
@@ -17602,7 +17602,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of energy level improved .
+Patient reports: there is improvement of symptom(s) because of sleep quality improved .
 Patient still c/o Dull, Aching pain in left shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of raising up the hand to comb hair .
 
 Pain Scale: 3 /10
@@ -17928,7 +17928,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) because of can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) because of reduced joint stiffness and swelling .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 70%), impaired performing ADL's with moderate to severe difficulty of abduct arm get the objects from other people, put on/take off the clothes and moderate to severe difficulty of doing laundry, pushing/pulling cart, box, door, handing/carrying moderate objects.
 
 Pain Scale: 9-8 /10
@@ -18630,7 +18630,7 @@ Documentation
 ---VISIT---
 Subjective
 Follow up visit
-Patient reports: there is improvement of symptom(s) due to can move joint more freely and with less pain .
+Patient reports: there is improvement of symptom(s) due to reduced level of pain .
 Patient still c/o Dull, Aching pain in right shoulder area without radiation, associated with muscles soreness (scale as 30%), impaired performing ADL's with mild difficulty of put on/take off the clothes .
 
 Pain Scale: 3 /10

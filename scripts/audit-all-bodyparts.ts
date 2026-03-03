@@ -18,6 +18,26 @@ function check(id: string, scope: string, pass: boolean, detail?: string) {
   results.push({ id, scope, status: pass ? 'PASS' : 'FAIL', detail: pass ? undefined : detail });
 }
 
+function normalizePoint(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+function extractNeedlePointsFromProtocol(text: string): string[] {
+  const points: string[] = [];
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const match = line.match(/electrical stimulation\s+(.+)$/i);
+    if (!match) continue;
+    const suffix = match[1].trim();
+    for (const part of suffix.split(',')) {
+      const point = normalizePoint(part);
+      if (point) points.push(point);
+    }
+  }
+  return [...new Set(points)];
+}
+
 const BODY_PARTS = [
   { bp: 'SHOULDER' as const, lat: 'bilateral' as const },
   { bp: 'KNEE' as const, lat: 'bilateral' as const },
@@ -94,11 +114,12 @@ for (const { bp, lat } of BODY_PARTS) {
   // Needle checks for ELBOW/HIP
   if (['ELBOW', 'HIP'].includes(bp)) {
     const needleEntry = TEMPLATE_NEEDLE_POINTS[bp as BodyPartKey];
-    const allValid = [...needleEntry.frontPool, ...needleEntry.backPool];
-    const pointPattern = /[A-Z]{1,3}\s?\d+|A SHI POINTS?|JIAN QIAN|XI YAN|HE DING|YAO TONG XUE|YAO JIA JI|BAI LAO|JIN JIA JI|DU\d+|REN\d+|UB\d+/gi;
+    const allValidSet = new Set(
+      [...needleEntry.frontPool, ...needleEntry.backPool].map(normalizePoint),
+    );
     const needleSection = text.split('Needle Size')[1] || '';
-    const outputPoints = [...new Set((needleSection.match(pointPattern) || []).map(p => p.toUpperCase().trim()))];
-    const invalid = outputPoints.filter(p => !allValid.some(v => v.toUpperCase() === p));
+    const outputPoints = extractNeedlePointsFromProtocol(needleSection);
+    const invalid = outputPoints.filter(p => !allValidSet.has(p));
     check(`C-13~16`, `${bp} needle points`, invalid.length === 0, `Invalid points: ${invalid.join(', ')}`);
   }
 }

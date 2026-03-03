@@ -29,6 +29,7 @@ function makeContext(
 // ADL-related reasons: should only appear when adlChange=improved
 const ADL_REASONS = [
   "less difficulty performing daily activities",
+  "physical activity no longer causes distress",
   "can bend and lift with less discomfort",
   "sitting tolerance has improved",
   "overhead reaching is easier",
