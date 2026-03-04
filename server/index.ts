@@ -17,6 +17,7 @@ import { randomBytes } from "crypto";
 import { createBatchRouter } from "./routes/batch";
 import { createAutomateRouter } from "./routes/automate";
 import { createAIGenerateRouter } from "./routes/ai-generate";
+import { createSoapRouter } from "./routes/soap";
 
 // ── Auth Middleware ──────────────────────────────
 
@@ -176,6 +177,7 @@ export function createApp(): express.Application {
   app.use("/api/batch", requireAuth, createBatchRouter());
   app.use("/api/automate", requireAuth, createAutomateRouter());
   app.use("/api/ai", requireAuth, createAIGenerateRouter());
+  app.use("/api/soap", requireAuth, createSoapRouter());
 
   return app;
 }

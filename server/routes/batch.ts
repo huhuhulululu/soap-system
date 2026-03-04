@@ -343,6 +343,83 @@ export function createBatchRouter(): Router {
   });
 
   /**
+   * POST /api/batch/prebuilt - 预构建患者数据直接入库
+   */
+  router.post("/prebuilt", async (req: Request, res: Response) => {
+    try {
+      const { mode, patients } = req.body ?? {};
+
+      if (!Array.isArray(patients) || patients.length === 0) {
+        res
+          .status(400)
+          .json({ success: false, error: "patients[] is required" });
+        return;
+      }
+
+      // 验证每个 patient 有 name, dob, visits[]
+      for (let i = 0; i < patients.length; i++) {
+        const p = patients[i];
+        if (!p?.name || !p?.dob || !Array.isArray(p?.visits)) {
+          res.status(400).json({
+            success: false,
+            error: `patients[${i}]: name, dob, visits[] are required`,
+          });
+          return;
+        }
+        // 验证每个 visit 有 generated (非 null)
+        for (let j = 0; j < p.visits.length; j++) {
+          if (!p.visits[j]?.generated) {
+            res.status(400).json({
+              success: false,
+              error: `patients[${i}].visits[${j}]: generated is required`,
+            });
+            return;
+          }
+        }
+      }
+
+      // 构造 summary: 统计 IE/TX/RE 数量
+      const byType: Record<string, number> = {};
+      let totalVisits = 0;
+      for (const p of patients) {
+        for (const v of p.visits) {
+          totalVisits++;
+          const nt = String(v.noteType ?? "TX");
+          byType[nt] = (byType[nt] ?? 0) + 1;
+        }
+      }
+
+      const batchId = generateBatchId();
+      const batchData: BatchData = {
+        batchId,
+        createdAt: new Date().toISOString(),
+        mode: mode ?? "full",
+        confirmed: false,
+        patients,
+        summary: {
+          totalPatients: patients.length,
+          totalVisits,
+          byType,
+        },
+      };
+
+      await saveBatch(batchData);
+
+      res.json({
+        success: true,
+        data: {
+          batchId,
+          totalPatients: patients.length,
+          totalVisits,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ success: false, error: message });
+    }
+  });
+
+  /**
    * GET /api/template - 下载 Excel 模板
    */
   router.get("/template/download", (_req: Request, res: Response) => {
