@@ -73,6 +73,13 @@ function generateCsrfToken(): string {
 }
 
 function csrfProtect(req: Request, res: Response, next: NextFunction): void {
+  // Skip CSRF for API-key authenticated requests (external systems)
+  const apiKey = process.env.API_KEY;
+  if (apiKey && req.headers["x-api-key"] === apiKey) {
+    next();
+    return;
+  }
+
   if (!req.cookies.csrf_token) {
     res.cookie("csrf_token", generateCsrfToken(), {
       sameSite: "strict",
