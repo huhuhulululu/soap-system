@@ -46,6 +46,13 @@ jest.mock('../text-to-html', () => ({
     assessment: 'A',
     plan: 'P',
   })),
+  convertSOAPToHTML: jest.fn(() => ({
+    subjective: '<p>S</p>',
+    objective: '<p>O</p>',
+    assessment: '<p>A</p>',
+    plan: '<p>P</p>',
+  })),
+  convertSOAPHTMLToText: jest.fn((html: string) => html),
 }))
 
 // ── Helpers ─────────────────────────────────────────────────────────

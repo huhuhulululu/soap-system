@@ -23,6 +23,12 @@ export interface BatchVisit {
       readonly assessment: string
       readonly plan: string
     }
+    readonly html?: {
+      readonly subjective: string
+      readonly objective: string
+      readonly assessment: string
+      readonly plan: string
+    }
     readonly fullText: string
     readonly seed: number
     readonly state?: {

@@ -11,6 +11,7 @@
 
 import type { TXSequenceOptions } from "../../src/generator/tx-sequence-engine";
 import {
+  exportSOAP,
   exportSOAPAsText,
   exportTXSeriesAsText,
 } from "../../src/generator/soap-generator";
@@ -24,7 +25,11 @@ import {
   buildContextFromExtracted,
   buildInitialStateFromExtracted,
 } from "../../src/parser/tx-extractor";
-import { splitSOAPText } from "./text-to-html";
+import {
+  convertSOAPHTMLToText,
+  convertSOAPToHTML,
+  splitSOAPText,
+} from "./text-to-html";
 import type { BatchData, BatchPatient, BatchVisit } from "../types";
 
 /**
@@ -84,17 +89,31 @@ function generateSingleVisit(
   );
   const actualSeed = seed ?? Math.floor(Math.random() * 100000);
 
-  let fullText = exportSOAPAsText(context);
-  // Keep realistic patch for IE/RE only; TX must stay engine+renderer single-source.
-  if (realisticPatch && context.noteType !== "TX") {
-    fullText = patchSOAPText(fullText, context);
+  let fullText: string;
+  let soap: ReturnType<typeof splitSOAPText>;
+  let html: ReturnType<typeof splitSOAPText>;
+
+  if (context.noteType === "TX") {
+    // OPT-01: TX single-visit path renders once in html, then derives text.
+    const fullHtml = exportSOAP(context, undefined, "html");
+    fullText = convertSOAPHTMLToText(fullHtml);
+    soap = splitSOAPText(fullText);
+    html = splitSOAPText(fullHtml);
+  } else {
+    fullText = exportSOAPAsText(context);
+    // Keep realistic patch for IE/RE only; TX must stay engine+renderer single-source.
+    if (realisticPatch) {
+      fullText = patchSOAPText(fullText, context);
+    }
+    soap = splitSOAPText(fullText);
+    html = convertSOAPToHTML(fullText);
   }
-  const soap = splitSOAPText(fullText);
 
   return {
     ...visit,
     generated: {
       soap,
+      html,
       fullText,
       seed: actualSeed,
     },
@@ -123,6 +142,7 @@ function generateTXSeries(
     txCount: txVisits.length,
     seed: patient.seed ?? Math.floor(Math.random() * 100000),
     initialState,
+    includeHtml: true,
   };
 
   const results = exportTXSeriesAsText(context, options);
@@ -137,10 +157,14 @@ function generateTXSeries(
     }
 
     const soap = splitSOAPText(result.text);
+    const html = result.html
+      ? splitSOAPText(result.html)
+      : convertSOAPToHTML(result.text);
     return {
       ...visit,
       generated: {
         soap,
+        html,
         fullText: result.text,
         seed: options.seed ?? 0,
         state: result.state,
@@ -284,6 +308,7 @@ export function generateContinueBatch(
       startVisitIndex: extracted.estimatedVisitIndex + 1,
       seed: Math.floor(Math.random() * 100000),
       initialState,
+      includeHtml: true,
     };
 
     const results = exportTXSeriesAsText(context, options);
@@ -295,10 +320,14 @@ export function generateContinueBatch(
       }
       totalGenerated++;
       const soap = splitSOAPText(result.text);
+      const html = result.html
+        ? splitSOAPText(result.html)
+        : convertSOAPToHTML(result.text);
       return {
         ...visit,
         generated: {
           soap,
+          html,
           fullText: result.text,
           seed: options.seed ?? 0,
           state: result.state,
@@ -364,6 +393,7 @@ export function generateMixedBatch(
         startVisitIndex: extracted.estimatedVisitIndex + 1,
         seed: patient.seed ?? Math.floor(Math.random() * 100000),
         initialState,
+        includeHtml: true,
       };
       const results = exportTXSeriesAsText(context, options);
       const generatedTX = txVisits.map((visit, i) => {
@@ -373,10 +403,14 @@ export function generateMixedBatch(
           return { ...visit, status: "failed" as const };
         }
         totalGenerated++;
+        const html = result.html
+          ? splitSOAPText(result.html)
+          : convertSOAPToHTML(result.text);
         return {
           ...visit,
           generated: {
             soap: splitSOAPText(result.text),
+            html,
             fullText: result.text,
             seed: options.seed ?? 0,
             state: result.state,

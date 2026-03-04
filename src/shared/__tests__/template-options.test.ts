@@ -9,6 +9,24 @@ import {
   TEMPLATE_ROM,
   TEMPLATE_TENDERNESS_SCALE,
   TEMPLATE_TENDERNESS_TEXT,
+  TEMPLATE_TX_FINDING_TYPE,
+  TEMPLATE_TX_ASSESSMENT_AREA,
+  TEMPLATE_TX_SYMPTOM_CHANGE,
+  TEMPLATE_TX_PAIN_SCALE,
+  TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS,
+  TEMPLATE_TX_PATIENT_CHANGE_BY_BODY_PART,
+  TEMPLATE_TX_TREATMENT_OPTIONS,
+  TEMPLATE_TX_LOCAL_PATTERN_OPTIONS,
+  TEMPLATE_TX_REASON,
+  TEMPLATE_TX_CAUSATIVE_MIDDLE,
+  TEMPLATE_TX_EMOTIONAL_STATE,
+  TEMPLATE_TX_LATERALITY,
+  TEMPLATE_TX_NECK_DIRECTION,
+  TEMPLATE_TX_PAIN_AREA,
+  TEMPLATE_TX_RADIATION,
+  TEMPLATE_TX_RADIATION_INPUT_TYPE,
+  TEMPLATE_TX_WHAT_CHANGED_O,
+  TEMPLATE_TX_WHAT_CHANGED_S,
 } from "../template-options";
 
 const ALL_BODY_PARTS: BodyPartKey[] = [
@@ -246,6 +264,198 @@ describe("template-options", () => {
 
     it("THIGH includes 'get out/in the chair or bed'", () => {
       expect(TEMPLATE_ADL.THIGH).toContain("get out/in the chair or bed");
+    });
+  });
+
+  describe("TX html option sets", () => {
+    it("uses template-extracted laterality options", () => {
+      expect(TEMPLATE_TX_LATERALITY).toEqual([
+        "along right",
+        "along left",
+        "along bilateral",
+        "in left",
+        "in right",
+        "in bilateral",
+      ]);
+      expect(TEMPLATE_TX_NECK_DIRECTION).toEqual([
+        "in",
+        "in left side",
+        "in right side",
+        "along right side",
+        "along left side",
+      ]);
+    });
+
+    it("uses template-extracted TX pain area options", () => {
+      expect(TEMPLATE_TX_PAIN_AREA.SHOULDER).toEqual([
+        "shoulder area",
+        "shoulder area and lateral arm",
+        "shoulder area, upper back and upper arm",
+        "shoulder area and upper back area",
+        "shoulder area, upper back and periscapular area",
+        "shoulder area and periscapular area",
+      ]);
+      expect(TEMPLATE_TX_PAIN_AREA.NECK).toEqual([
+        "neck",
+        "neck and upper back",
+        "upper back",
+      ]);
+      expect(TEMPLATE_TX_PAIN_AREA.LBP).toEqual([
+        "midback",
+        "mid and lower back",
+        "lower back",
+        "lower back and buttocks",
+      ]);
+      expect(TEMPLATE_TX_PAIN_AREA.KNEE).toEqual([]);
+      expect(TEMPLATE_TX_PAIN_AREA.ELBOW).toEqual([]);
+    });
+
+    it("uses template-extracted TX radiation options and input types", () => {
+      expect(TEMPLATE_TX_RADIATION.SHOULDER).toEqual([
+        "without radiation",
+        "with radiation to R arm",
+        "with radiation to L arm",
+        "with radiation to BLUE",
+      ]);
+      expect(TEMPLATE_TX_RADIATION.ELBOW).toEqual([
+        "without radiation",
+        "with radiation to R arm",
+        "with radiation to L arm",
+        "with radiation to BLUE",
+      ]);
+      expect(TEMPLATE_TX_RADIATION.KNEE).toEqual([
+        "without radiation",
+        "with radiation to R leg",
+        "with radiation to L leg",
+        "with radiation to BLLE",
+        "with radiation to toes",
+        "with local swollen",
+      ]);
+      expect(TEMPLATE_TX_RADIATION.LBP).toEqual([
+        "without radiation",
+        "with radiation to R leg",
+        "with radiation to L leg",
+        "with radiation to BLLE",
+        "with radiation to toes",
+      ]);
+      expect(TEMPLATE_TX_RADIATION.NECK).toEqual([
+        "with dizziness",
+        "with headache",
+        "with migraine",
+        "without radiation",
+        "with radiation to R arm",
+        "with radiation to L arm",
+        "with radiation to BLUE",
+      ]);
+      expect(TEMPLATE_TX_RADIATION_INPUT_TYPE.KNEE).toBe("single");
+      expect(TEMPLATE_TX_RADIATION_INPUT_TYPE.LBP).toBe("single");
+      expect(TEMPLATE_TX_RADIATION_INPUT_TYPE.SHOULDER).toBe("multi");
+      expect(TEMPLATE_TX_RADIATION_INPUT_TYPE.NECK).toBe("multi");
+      expect(TEMPLATE_TX_RADIATION_INPUT_TYPE.ELBOW).toBe("multi");
+    });
+
+    it("has per-bodyPart whatChanged pools for Assessment", () => {
+      expect(TEMPLATE_TX_WHAT_CHANGED_O.SHOULDER.length).toBeGreaterThan(0);
+      expect(TEMPLATE_TX_WHAT_CHANGED_O.NECK.length).toBeGreaterThan(0);
+      expect(TEMPLATE_TX_WHAT_CHANGED_S.NECK).toContain("headache");
+      expect(TEMPLATE_TX_WHAT_CHANGED_S.NECK).toContain("dizziness");
+    });
+
+    it('TEMPLATE_TX_FINDING_TYPE does not contain fabricated "joint ROM"', () => {
+      expect(TEMPLATE_TX_FINDING_TYPE).not.toContain("joint ROM");
+      expect(TEMPLATE_TX_FINDING_TYPE).toContain("joint ROM limitation");
+    });
+
+    it("uses template assessment-area options (NECK has migraine option)", () => {
+      expect(TEMPLATE_TX_ASSESSMENT_AREA.SHOULDER).toEqual([
+        "shoulder area",
+        "shoulder area and lateral arm",
+        "shoulder area, upper back and upper arm",
+        "shoulder area and upper back area",
+        "shoulder area, upper back and periscapular area",
+        "shoulder area and periscapular area",
+      ]);
+      expect(TEMPLATE_TX_ASSESSMENT_AREA.NECK).toEqual([
+        "neck",
+        "neck and upper back",
+        "upper back",
+        "neck and upper back with migraine",
+      ]);
+      expect(TEMPLATE_TX_ASSESSMENT_AREA.LBP).toEqual([
+        "midback",
+        "mid and lower back",
+        "lower back",
+        "lower back and buttocks",
+      ]);
+    });
+
+    it("uses full symptom/pain scale pools and fixed plan/local options", () => {
+      expect(TEMPLATE_TX_SYMPTOM_CHANGE).toEqual([
+        "improvement of symptom(s)",
+        "exacerbate of symptom(s)",
+        "similar symptom(s) as last visit",
+        "improvement after treatment, but pain still came back next day",
+      ]);
+      expect(TEMPLATE_TX_PAIN_SCALE).toContain("10-9");
+      expect(TEMPLATE_TX_PAIN_SCALE).toContain("9-8");
+      expect(TEMPLATE_TX_PAIN_SCALE).toContain("1-0");
+      expect(TEMPLATE_TX_PAIN_SCALE).toContain("0");
+      expect(TEMPLATE_TX_PAIN_SCALE).toHaveLength(21);
+      expect(TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS).toContain("10%-20%");
+      expect(TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS).toContain("70%-80%");
+      expect(TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS).toContain("80%-90%");
+      expect(TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS).toHaveLength(18);
+      expect(TEMPLATE_TX_TREATMENT_OPTIONS).toHaveLength(14);
+      expect(TEMPLATE_TX_LOCAL_PATTERN_OPTIONS).toHaveLength(11);
+    });
+
+    it("keeps full TEMPLATE_TX_REASON pool (24 options) with key entries", () => {
+      expect(TEMPLATE_TX_REASON).toHaveLength(24);
+      expect(TEMPLATE_TX_REASON[0]).toBe(
+        "can move joint more freely and with less pain",
+      );
+      expect(TEMPLATE_TX_REASON).toContain("continuous treatment");
+      expect(TEMPLATE_TX_REASON).toContain(
+        "still need more treatments to reach better effect",
+      );
+      expect(TEMPLATE_TX_REASON).toContain("bad posture");
+      expect(TEMPLATE_TX_REASON).toContain("uncertain reason");
+      expect(TEMPLATE_TX_REASON.at(-1)).toBe("uncertain reason");
+    });
+
+    it("keeps per-bodyPart patientChange wording (LBP uses reduced)", () => {
+      expect(TEMPLATE_TX_PATIENT_CHANGE_BY_BODY_PART.LBP).toEqual([
+        "reduced",
+        "slightly reduced",
+        "increased",
+        "slight increased",
+        "remained the same",
+      ]);
+      expect(TEMPLATE_TX_PATIENT_CHANGE_BY_BODY_PART.KNEE).toEqual([
+        "decreased",
+        "slightly decreased",
+        "increased",
+        "slight increased",
+        "remained the same",
+      ]);
+    });
+
+    it("includes subjective emotional and causative-middle pools", () => {
+      expect(TEMPLATE_TX_EMOTIONAL_STATE).toEqual([
+        "Normal",
+        "Stressful",
+        "Anxious",
+        "Depressed",
+        "Irritable",
+        "Sad",
+        "Negative",
+        "Positive",
+      ]);
+      expect(TEMPLATE_TX_CAUSATIVE_MIDDLE).toHaveLength(12);
+      expect(TEMPLATE_TX_CAUSATIVE_MIDDLE).toContain(
+        "working on computer day by day",
+      );
+      expect(TEMPLATE_TX_CAUSATIVE_MIDDLE).toContain("lack of exercise");
     });
   });
 

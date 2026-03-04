@@ -1446,7 +1446,6 @@ export const TEMPLATE_TX_WHAT_CHANGED = [
 
 export const TEMPLATE_TX_SYMPTOM_CHANGE = [
   "improvement of symptom(s)",
-  "slight improvement of symptom(s)",
   "exacerbate of symptom(s)",
   "similar symptom(s) as last visit",
   "improvement after treatment, but pain still came back next day",
@@ -1488,6 +1487,128 @@ export const TEMPLATE_TX_PATIENT_CHANGE = [
   "remained the same",
 ] as const;
 
+export const TEMPLATE_TX_PATIENT_CHANGE_LBP = [
+  "reduced",
+  "slightly reduced",
+  "increased",
+  "slight increased",
+  "remained the same",
+] as const;
+
+export const TEMPLATE_TX_PATIENT_CHANGE_BY_BODY_PART: Readonly<
+  Record<BodyPartKey, readonly string[]>
+> = {
+  LBP: TEMPLATE_TX_PATIENT_CHANGE_LBP,
+  NECK: TEMPLATE_TX_PATIENT_CHANGE,
+  SHOULDER: TEMPLATE_TX_PATIENT_CHANGE,
+  KNEE: TEMPLATE_TX_PATIENT_CHANGE,
+  ELBOW: TEMPLATE_TX_PATIENT_CHANGE,
+  HIP: TEMPLATE_TX_PATIENT_CHANGE,
+  THIGH: TEMPLATE_TX_PATIENT_CHANGE,
+};
+
+export const TEMPLATE_TX_PAIN_SCALE = [
+  "10",
+  "10-9",
+  "9",
+  "9-8",
+  "8",
+  "8-7",
+  "7",
+  "7-6",
+  "6",
+  "6-5",
+  "5",
+  "5-4",
+  "4",
+  "4-3",
+  "3",
+  "3-2",
+  "2",
+  "2-1",
+  "1",
+  "1-0",
+  "0",
+] as const;
+
+export const TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS = [
+  "10%",
+  "10%-20%",
+  "20%",
+  "20%-30%",
+  "30%",
+  "30%-40%",
+  "40%",
+  "40%-50%",
+  "50%",
+  "50%-60%",
+  "60%",
+  "60%-70%",
+  "70%",
+  "70%-80%",
+  "80%",
+  "80%-90%",
+  "90%",
+  "100%",
+] as const;
+
+export const TEMPLATE_TX_CAUSATIVE_MIDDLE = [
+  "maintain regular treatments",
+  "still need more treatments to reach better effect",
+  "uncertain reason",
+  "discontinuous treatments",
+  "stopped treatment for a while",
+  "intense work",
+  "working on computer day by day",
+  "excessive time using cell phone",
+  "bad posture day by day",
+  "carrying/lifting heavy object(s)",
+  "lack of exercise",
+  "exposure to cold air",
+] as const;
+
+export const TEMPLATE_TX_EMOTIONAL_STATE = [
+  "Normal",
+  "Stressful",
+  "Anxious",
+  "Depressed",
+  "Irritable",
+  "Sad",
+  "Negative",
+  "Positive",
+] as const;
+
+export const TEMPLATE_TX_TREATMENT_OPTIONS = [
+  "moving qi",
+  "regulates qi",
+  "activating Blood circulation to dissipate blood stagnant",
+  "dredging channel and activating collaterals",
+  "activate blood and relax tendons",
+  "eliminates accumulation",
+  "resolve stagnation, clears heat",
+  "promote circulation, relieves pain",
+  "expelling pathogens",
+  "dispelling cold, drain the dampness",
+  "strengthening muscles and bone",
+  "clear heat, dispelling the flame",
+  "clear damp-heat",
+  "drain the dampness, clear damp",
+] as const;
+
+export const TEMPLATE_TX_LOCAL_PATTERN_OPTIONS = [
+  "Qi Stagnation",
+  "Blood Stasis",
+  "Liver Qi Stagnation",
+  "Blood Deficiency",
+  "Qi & Blood Deficiency",
+  "Wind-Cold Invasion",
+  "Cold-Damp + Wind-Cold",
+  "LV/GB Damp-Heat",
+  "Phlegm-Damp",
+  "Phlegm-Heat",
+  "Damp-Heat",
+] as const;
+
 // ─── TX Physical Change (Assessment dropdown — 5 options) ────────────
 
 export const TEMPLATE_TX_PHYSICAL_CHANGE = [
@@ -1498,19 +1619,228 @@ export const TEMPLATE_TX_PHYSICAL_CHANGE = [
   "remained the same",
 ] as const;
 
-// ─── TX Finding Type (Assessment dropdown — 9 options) ───────────────
+// ─── TX Finding Type (Assessment dropdown — 8 options) ───────────────
 
 export const TEMPLATE_TX_FINDING_TYPE = [
   "local muscles tightness",
   "local muscles tenderness",
   "local muscles spasms",
   "local muscles trigger points",
-  "joint ROM",
   "joint ROM limitation",
   "muscles strength",
   "joints swelling",
   "last visit",
 ] as const;
+
+// ─── TX Subjective/Assessment HTML option sets (per body part) ───────
+
+export const TEMPLATE_TX_LATERALITY = [
+  "along right",
+  "along left",
+  "along bilateral",
+  "in left",
+  "in right",
+  "in bilateral",
+] as const;
+
+export const TEMPLATE_TX_NECK_DIRECTION = [
+  "in",
+  "in left side",
+  "in right side",
+  "along right side",
+  "along left side",
+] as const;
+
+export const TEMPLATE_TX_PAIN_AREA: Record<BodyPartKey, readonly string[]> = {
+  SHOULDER: [
+    "shoulder area",
+    "shoulder area and lateral arm",
+    "shoulder area, upper back and upper arm",
+    "shoulder area and upper back area",
+    "shoulder area, upper back and periscapular area",
+    "shoulder area and periscapular area",
+  ],
+  NECK: [
+    "neck",
+    "neck and upper back",
+    "upper back",
+  ],
+  LBP: [
+    "midback",
+    "mid and lower back",
+    "lower back",
+    "lower back and buttocks",
+  ],
+  KNEE: [],
+  ELBOW: [],
+  HIP: [],
+  THIGH: [],
+};
+
+export const TEMPLATE_TX_ASSESSMENT_AREA: Record<
+  BodyPartKey,
+  readonly string[]
+> = {
+  SHOULDER: TEMPLATE_TX_PAIN_AREA.SHOULDER,
+  NECK: [
+    "neck",
+    "neck and upper back",
+    "upper back",
+    "neck and upper back with migraine",
+  ],
+  LBP: TEMPLATE_TX_PAIN_AREA.LBP,
+  KNEE: [],
+  ELBOW: [],
+  HIP: [],
+  THIGH: [],
+};
+
+export const TEMPLATE_TX_RADIATION: Record<BodyPartKey, readonly string[]> = {
+  SHOULDER: [
+    "without radiation",
+    "with radiation to R arm",
+    "with radiation to L arm",
+    "with radiation to BLUE",
+  ],
+  ELBOW: [
+    "without radiation",
+    "with radiation to R arm",
+    "with radiation to L arm",
+    "with radiation to BLUE",
+  ],
+  KNEE: [
+    "without radiation",
+    "with radiation to R leg",
+    "with radiation to L leg",
+    "with radiation to BLLE",
+    "with radiation to toes",
+    "with local swollen",
+  ],
+  LBP: [
+    "without radiation",
+    "with radiation to R leg",
+    "with radiation to L leg",
+    "with radiation to BLLE",
+    "with radiation to toes",
+  ],
+  NECK: [
+    "with dizziness",
+    "with headache",
+    "with migraine",
+    "without radiation",
+    "with radiation to R arm",
+    "with radiation to L arm",
+    "with radiation to BLUE",
+  ],
+  HIP: [],
+  THIGH: [],
+};
+
+export const TEMPLATE_TX_RADIATION_INPUT_TYPE: Record<
+  BodyPartKey,
+  "single" | "multi"
+> = {
+  SHOULDER: "multi",
+  ELBOW: "multi",
+  NECK: "multi",
+  KNEE: "single",
+  LBP: "single",
+  HIP: "single",
+  THIGH: "single",
+};
+
+export const TEMPLATE_TX_WHAT_CHANGED_O: Record<BodyPartKey, readonly string[]> = {
+  SHOULDER: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "muscles strength",
+    "joints swelling",
+    "joint ROM limitation",
+    "last visit",
+  ],
+  ELBOW: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "muscles strength",
+    "joints swelling",
+    "joint ROM limitation",
+    "last visit",
+  ],
+  KNEE: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "joint ROM",
+    "joint ROM limitation",
+    "muscles strength",
+    "joints swelling",
+    "last visit",
+  ],
+  NECK: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "joint ROM",
+    "joint ROM limitation",
+    "muscles strength",
+    "joints swelling",
+    "last visit",
+  ],
+  LBP: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "joint ROM",
+    "joint ROM limitation",
+    "muscles strength",
+    "joints swelling",
+    "last visit",
+  ],
+  HIP: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "joint ROM",
+    "joint ROM limitation",
+    "muscles strength",
+    "joints swelling",
+    "last visit",
+  ],
+  THIGH: [
+    "local muscles tightness",
+    "local muscles tenderness",
+    "local muscles spasms",
+    "local muscles trigger points",
+    "joint ROM",
+    "joint ROM limitation",
+    "muscles strength",
+    "joints swelling",
+    "last visit",
+  ],
+};
+
+export const TEMPLATE_TX_WHAT_CHANGED_S: Record<BodyPartKey, readonly string[]> = {
+  LBP: [...TEMPLATE_TX_WHAT_CHANGED],
+  SHOULDER: [...TEMPLATE_TX_WHAT_CHANGED],
+  KNEE: [...TEMPLATE_TX_WHAT_CHANGED],
+  ELBOW: [...TEMPLATE_TX_WHAT_CHANGED],
+  HIP: [...TEMPLATE_TX_WHAT_CHANGED],
+  THIGH: [...TEMPLATE_TX_WHAT_CHANGED],
+  NECK: [
+    ...TEMPLATE_TX_WHAT_CHANGED,
+    "headache",
+    "migraine",
+    "dizziness",
+  ],
+};
 
 // ─── TX Tolerated (Assessment dropdown — 4 options) ──────────────────
 

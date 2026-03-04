@@ -55,11 +55,23 @@ import {
   TEMPLATE_TX_CONNECTOR,
   TEMPLATE_TX_GENERAL_CONDITION,
   TEMPLATE_TX_SYMPTOM_PRESENT,
-  TEMPLATE_TX_PATIENT_CHANGE,
+  TEMPLATE_TX_PATIENT_CHANGE_BY_BODY_PART,
   TEMPLATE_TX_PHYSICAL_CHANGE,
   TEMPLATE_TX_FINDING_TYPE,
+  TEMPLATE_TX_LATERALITY,
+  TEMPLATE_TX_NECK_DIRECTION,
+  TEMPLATE_TX_PAIN_AREA,
+  TEMPLATE_TX_ASSESSMENT_AREA,
+  TEMPLATE_TX_RADIATION,
+  TEMPLATE_TX_RADIATION_INPUT_TYPE,
+  TEMPLATE_TX_WHAT_CHANGED_O,
+  TEMPLATE_TX_WHAT_CHANGED_S,
   TEMPLATE_TX_TOLERATED,
   TEMPLATE_TX_RESPONSE,
+  TEMPLATE_TX_PAIN_SCALE,
+  TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS,
+  TEMPLATE_TX_TREATMENT_OPTIONS,
+  TEMPLATE_TX_LOCAL_PATTERN_OPTIONS,
   TEMPLATE_PAIN_TYPES,
   TEMPLATE_TONE_MAP,
   TEMPLATE_ASSOCIATED_SYMPTOMS,
@@ -77,6 +89,12 @@ import {
 } from "../shared/rom-from-template";
 import { createSeededRng } from "../shared/seeded-rng";
 import { severityFromPain } from "../shared/severity";
+import {
+  createFormatWrappers,
+  escapeHtmlEntities,
+  wrapMulti,
+  wrapSingle,
+} from "../shared/html-wrapper";
 
 /**
  * 保险类型到针刺模板的映射
@@ -1733,11 +1751,7 @@ export function generatePlanIE(context: GenerationContext): string {
 /**
  * TX Subjective 下拉框选项 (来自 AC-TX KNEE.md)
  */
-const TX_SYMPTOM_CHANGE_OPTIONS = [
-  "improvement of symptom(s)",
-  "exacerbate of symptom(s)",
-  "improvement after treatment, but pain still came back next day",
-];
+const TX_SYMPTOM_CHANGE_OPTIONS = [...TEMPLATE_TX_SYMPTOM_CHANGE];
 
 const TX_REASON_OPTIONS = [...TEMPLATE_TX_REASON];
 
@@ -1746,8 +1760,6 @@ const TX_CONNECTOR_OPTIONS = [...TEMPLATE_TX_CONNECTOR];
 const TX_GENERAL_CONDITION_OPTIONS = [...TEMPLATE_TX_GENERAL_CONDITION];
 
 const TX_SYMPTOM_PRESENT_OPTIONS = [...TEMPLATE_TX_SYMPTOM_PRESENT];
-
-const TX_PATIENT_CHANGE_OPTIONS = [...TEMPLATE_TX_PATIENT_CHANGE];
 
 const TX_WHAT_CHANGED_OPTIONS = [...TEMPLATE_TX_WHAT_CHANGED];
 
@@ -1769,6 +1781,48 @@ const TX_MAINTENANCE_REASON_OPTIONS: readonly string[] = [
   TEMPLATE_TX_REASON[10], // "still need more treatments to reach better effect"
   TEMPLATE_TX_REASON[23], // "uncertain reason"
 ];
+
+export type SOAPFormat = "text" | "html";
+
+const TX_PAIN_SCALE_OPTIONS = [...TEMPLATE_TX_PAIN_SCALE];
+
+const TX_PAIN_FREQUENCY_OPTIONS = [
+  "Intermittent (symptoms occur less than 25% of the time)",
+  "Occasional (symptoms occur between 26% and 50% of the time)",
+  "Frequent (symptoms occur between 51% and 75% of the time)",
+  "Constant (symptoms occur between 76% and 100% of the time)",
+] as const;
+
+const TX_SYMPTOM_SCALE_OPTIONS = [...TEMPLATE_TX_SYMPTOM_SCALE_OPTIONS];
+
+const TX_SEVERITY_OPTIONS = [
+  "severe",
+  "moderate to severe",
+  "moderate",
+  "mild to moderate",
+  "mild",
+] as const;
+
+const TX_LATERALITY_OPTIONS = TEMPLATE_TX_LATERALITY;
+const TX_NECK_DIRECTION_OPTIONS = TEMPLATE_TX_NECK_DIRECTION;
+
+function withHtmlLineBreaks(text: string): string {
+  return text.split("\n").map((line) => line.trimEnd()).join("<br>");
+}
+
+function plainToHtmlSection(text: string): string {
+  return withHtmlLineBreaks(escapeHtmlEntities(text));
+}
+
+function resolveTxBodyPartKey(bodyPart: BodyPart): BodyPartKey {
+  if (bodyPart === "MID_LOW_BACK" || bodyPart === "MIDDLE_BACK") {
+    return "LBP";
+  }
+  if (bodyPart in TEMPLATE_PAIN_TYPES) {
+    return bodyPart as BodyPartKey;
+  }
+  return "LBP";
+}
 
 function applyTxReasonChain(
   weightedReasons: WeightedOption[],
@@ -1838,6 +1892,33 @@ function hasText(value: string | undefined | null): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function normalizeTxPatientChange(
+  rawValue: string,
+  options: readonly string[],
+): string {
+  if (options.includes(rawValue)) return rawValue;
+  const normalized = rawValue.toLowerCase();
+  if (normalized === "decreased" && options.includes("reduced")) {
+    return "reduced";
+  }
+  if (
+    normalized === "slightly decreased" &&
+    options.includes("slightly reduced")
+  ) {
+    return "slightly reduced";
+  }
+  if (normalized === "reduced" && options.includes("decreased")) {
+    return "decreased";
+  }
+  if (
+    normalized === "slightly reduced" &&
+    options.includes("slightly decreased")
+  ) {
+    return "slightly decreased";
+  }
+  return rawValue;
+}
+
 function buildTxWeightContext(
   context: GenerationContext,
   visitState?: TXVisitState,
@@ -1878,7 +1959,11 @@ function buildTxWeightContext(
 export function generateSubjectiveTX(
   context: GenerationContext,
   visitState?: TXVisitState,
+  format: SOAPFormat = "text",
 ): string {
+  const isHtml = format === "html";
+  const { wrapSingleIfNeeded, wrapMultiIfNeeded } =
+    createFormatWrappers(format);
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const bodyPartAreaName =
     BODY_PART_AREA_NAMES[context.primaryBodyPart] || bodyPartName;
@@ -1912,9 +1997,11 @@ export function generateSubjectiveTX(
         ),
       );
 
+  const txBodyPartKey = resolveTxBodyPartKey(context.primaryBodyPart);
+
   // Pain Types: visitState > context > 权重系统 — 使用模板权威源
   const painTypeOptions = [
-    ...TEMPLATE_PAIN_TYPES[context.primaryBodyPart as BodyPartKey] ||
+    ...TEMPLATE_PAIN_TYPES[txBodyPartKey] ||
       TEMPLATE_PAIN_TYPES.LBP,
   ];
   const selectedPainTypes =
@@ -1949,7 +2036,6 @@ export function generateSubjectiveTX(
                 ),
               ),
             ];
-  const associatedSymptomsText = selectedAssociatedSymptoms.join(", ");
 
   // 权重选择: ADL 活动 (TX KNEE 有两组)
   const adlActivities = BODY_PART_ADL[bp] || BODY_PART_ADL["LBP"];
@@ -1975,69 +2061,113 @@ export function generateSubjectiveTX(
     context.symptomScale ??
     getConfig(SYMPTOM_SCALE_MAP, bp);
 
+  const renderedChange = wrapSingleIfNeeded(
+    selectedChange,
+    TX_SYMPTOM_CHANGE_OPTIONS,
+  );
+  const renderedConnector = wrapSingleIfNeeded(
+    selectedConnector,
+    TX_CONNECTOR_OPTIONS,
+  );
+  const renderedReason = wrapMultiIfNeeded(selectedReason, TX_REASON_OPTIONS);
+  const renderedPainTypes = wrapMultiIfNeeded(selectedPainTypes, painTypeOptions);
+  const renderedAssociatedSymptoms = wrapMultiIfNeeded(
+    selectedAssociatedSymptoms,
+    associatedSymptomOptions,
+  );
+  const renderedSymptomScale = wrapMultiIfNeeded(
+    symptomScale,
+    TX_SYMPTOM_SCALE_OPTIONS,
+  );
+  const lateralityPhrase = `in ${laterality}`;
+  const renderedLateralityPhrase = wrapSingleIfNeeded(
+    lateralityPhrase,
+    TX_LATERALITY_OPTIONS,
+  );
+  const neckDirectionValue =
+    laterality === "bilateral"
+      ? "in"
+      : laterality === "left"
+        ? "in left side"
+        : laterality === "right"
+          ? "in right side"
+          : "in";
+  const renderedNeckDirection = wrapMultiIfNeeded(
+    neckDirectionValue,
+    TX_NECK_DIRECTION_OPTIONS,
+  );
+  const radiationOptions = TEMPLATE_TX_RADIATION[txBodyPartKey];
+  const renderedRadiation =
+    isHtml && TEMPLATE_TX_RADIATION_INPUT_TYPE[txBodyPartKey] === "single"
+      ? wrapSingle(radiation, radiationOptions)
+      : wrapMultiIfNeeded(radiation, radiationOptions);
+
   let subjective = `Follow up visit\n`;
 
   // 患者报告行
-  subjective += `Patient reports: there is ${selectedChange} ${selectedConnector} ${selectedReason} .\n`;
+  subjective += `Patient reports: there is ${renderedChange} ${renderedConnector} ${renderedReason} .\n`;
 
   // 持续症状 — 介词选择 + "area" 静态文本:
   // KNEE: "pain in bilateral Knee area" (bodyPartAreaName 已含 "area", 下拉有 "in bilateral")
   // SHOULDER: "pain in bilateral shoulder area" (bodyPartAreaName 已含 "area", 下拉有 "in bilateral")
   // NECK: "pain in neck area" (模板方向下拉: in|in left side|in right side|..., 无 "bilateral" 选项)
   // LBP: "pain on lower back area" (模板无侧别下拉)
-  if (bp === "KNEE" || bp === "SHOULDER") {
-    // KNEE/SHOULDER 的 bodyPartAreaName 已包含 "area"
-    subjective += `Patient still c/o ${selectedPainTypes.join(", ")} pain in ${laterality} ${bodyPartAreaName} `;
+  if (bp === "KNEE" || bp === "SHOULDER" || bp === "ELBOW") {
+    const localizedArea = (() => {
+      if (bp === "SHOULDER") {
+        return wrapMultiIfNeeded(bodyPartAreaName, TEMPLATE_TX_PAIN_AREA.SHOULDER);
+      }
+      if (bp === "ELBOW") return "elbow area";
+      return "knee area";
+    })();
+    subjective += `Patient still c/o ${renderedPainTypes} pain ${renderedLateralityPhrase} ${localizedArea} `;
   } else if (bp === "NECK") {
-    // NECK 模板方向下拉无 "bilateral", bilateral 时只用 "in"
-    const neckDirection =
-      laterality === "bilateral"
-        ? "in"
-        : laterality === "left"
-          ? "in left side"
-          : laterality === "right"
-            ? "in right side"
-            : "in";
-    subjective += `Patient still c/o ${selectedPainTypes.join(", ")} pain ${neckDirection} ${bodyPartAreaName} area `;
+    const neckPainArea = wrapMultiIfNeeded("neck", TEMPLATE_TX_PAIN_AREA.NECK);
+    subjective += `Patient still c/o ${renderedPainTypes} pain ${renderedNeckDirection} ${neckPainArea} area `;
   } else if (bp === "LBP" || bp === "MID_LOW_BACK") {
-    subjective += `Patient still c/o ${selectedPainTypes.join(", ")} pain on ${bodyPartAreaName} area `;
+    const lbpPainAreaValue =
+      bp === "MID_LOW_BACK"
+        ? "mid and lower back"
+        : "lower back";
+    const lbpPainArea = wrapMultiIfNeeded(
+      lbpPainAreaValue,
+      TEMPLATE_TX_PAIN_AREA.LBP,
+    );
+    subjective += `Patient still c/o ${renderedPainTypes} pain on ${lbpPainArea} area `;
   } else {
-    subjective += `Patient still c/o ${selectedPainTypes.join(", ")} pain on ${bodyPartAreaName} `;
+    subjective += `Patient still c/o ${renderedPainTypes} pain on ${bodyPartAreaName} `;
   }
-  subjective += `${radiation}, associated with muscles ${associatedSymptomsText} (scale as ${symptomScale}), `;
+  subjective += `${renderedRadiation}, associated with muscles ${renderedAssociatedSymptoms} (scale as ${renderedSymptomScale}), `;
 
   // TX ADL 格式:
   // KNEE: "difficulty [ADL]" (无 "of", 两组)
   // SHOULDER/NECK: "difficulty of [ADL]" (有 "of", 两组)
   // LBP: "difficulty with ADLs like [ADL]" (单组)
+  const sev =
+    visitState?.severityLevel ||
+    context.severityLevel ||
+    severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
+  const renderedSeverity = wrapSingleIfNeeded(sev, TX_SEVERITY_OPTIONS);
+  const renderedAdlGroup1 = wrapMultiIfNeeded(adlGroup1, adlActivities);
+  const renderedAdlGroup2 = wrapMultiIfNeeded(adlGroup2, adlActivities);
+  const renderedAdl = wrapMultiIfNeeded(effectiveAdl, adlActivities);
+
   if (bp === "KNEE") {
-    const sev =
-      visitState?.severityLevel ||
-      context.severityLevel ||
-      severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
-    subjective += `impaired performing ADL's with ${sev} difficulty ${adlGroup1.join(", ")} `;
+    subjective += `impaired performing ADL's with ${renderedSeverity} difficulty ${renderedAdlGroup1} `;
     if (adlGroup2.length > 0) {
-      subjective += `and ${sev} difficulty ${adlGroup2.join(", ")}.\n\n`;
+      subjective += `and ${renderedSeverity} difficulty ${renderedAdlGroup2}.\n\n`;
     } else {
       subjective += `.\n\n`;
     }
   } else if (bp === "SHOULDER" || bp === "NECK" || bp === "ELBOW") {
-    const sev =
-      visitState?.severityLevel ||
-      context.severityLevel ||
-      severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
-    subjective += `impaired performing ADL's with ${sev} difficulty of ${adlGroup1.join(", ")} `;
+    subjective += `impaired performing ADL's with ${renderedSeverity} difficulty of ${renderedAdlGroup1} `;
     if (adlGroup2.length > 0) {
-      subjective += `and ${sev} difficulty of ${adlGroup2.join(", ")}.\n\n`;
+      subjective += `and ${renderedSeverity} difficulty of ${renderedAdlGroup2}.\n\n`;
     } else {
       subjective += `.\n\n`;
     }
   } else {
-    const sev =
-      visitState?.severityLevel ||
-      context.severityLevel ||
-      severityFromPain(visitState?.painScaleCurrent ?? context.painCurrent ?? 8);
-    subjective += `impaired performing ADL's with ${sev} difficulty with ADLs like ${effectiveAdl.join(", ")}.\n\n`;
+    subjective += `impaired performing ADL's with ${renderedSeverity} difficulty with ADLs like ${renderedAdl}.\n\n`;
   }
 
   // 疼痛评分 - TX 格式: "Pain Scale: [8] /10" (不同于 IE 的 Worst/Best/Current)
@@ -2049,11 +2179,20 @@ export function generateSubjectiveTX(
       : context.painCurrent != null
         ? `${Math.round(context.painCurrent)}`
         : "8");
-  subjective += `Pain Scale: ${painScale} /10\n`;
+  const renderedPainScale = wrapSingleIfNeeded(painScale, TX_PAIN_SCALE_OPTIONS);
+  subjective += `Pain Scale: ${renderedPainScale} /10\n`;
   // TX 格式: "Pain frequency:" (小写 f, 不同于 IE 的 "Pain Frequency:")
-  subjective += `Pain frequency: ${visitState?.painFrequency || context.painFrequency || "Constant (symptoms occur between 76% and 100% of the time)"}`;
+  const painFrequency =
+    visitState?.painFrequency ||
+    context.painFrequency ||
+    "Constant (symptoms occur between 76% and 100% of the time)";
+  const renderedPainFrequency = wrapSingleIfNeeded(
+    painFrequency,
+    TX_PAIN_FREQUENCY_OPTIONS,
+  );
+  subjective += `Pain frequency: ${renderedPainFrequency}`;
 
-  return subjective;
+  return isHtml ? withHtmlLineBreaks(subjective) : subjective;
 }
 
 /**
@@ -2071,11 +2210,16 @@ export function generateSubjectiveTX(
 export function generateAssessmentTX(
   context: GenerationContext,
   visitState?: TXVisitState,
+  format: SOAPFormat = "text",
 ): string {
+  const isHtml = format === "html";
+  const { wrapSingleIfNeeded, wrapMultiIfNeeded } =
+    createFormatWrappers(format);
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const bp = context.primaryBodyPart;
   const laterality =
     LATERALITY_NAMES[context.laterality || "bilateral"] ?? "bilateral";
+  const txBodyPartKey = resolveTxBodyPartKey(context.primaryBodyPart);
 
   const weightContext = buildTxWeightContext(context, visitState);
 
@@ -2112,12 +2256,17 @@ export function generateAssessmentTX(
           weightContext,
         ),
       );
+  const txPatientChangeOptions =
+    TEMPLATE_TX_PATIENT_CHANGE_BY_BODY_PART[txBodyPartKey];
   const selectedPatientChange = useVisitAssessment
-    ? visitAssessment!.patientChange
+    ? normalizeTxPatientChange(
+        visitAssessment!.patientChange,
+        txPatientChangeOptions,
+      )
     : selectBestOption(
         calculateWeights(
           "assessment.patientChange",
-          TX_PATIENT_CHANGE_OPTIONS,
+          [...txPatientChangeOptions],
           weightContext,
         ),
       );
@@ -2182,39 +2331,103 @@ export function generateAssessmentTX(
     selectedPhysical.includes(label),
   );
 
+  const lateralityPhrase = `in ${laterality}`;
+  const renderedLateralityPhrase = wrapSingleIfNeeded(
+    lateralityPhrase,
+    TX_LATERALITY_OPTIONS,
+  );
+  const renderedCondition = wrapSingleIfNeeded(
+    selectedCondition,
+    TX_GENERAL_CONDITION_OPTIONS,
+  );
+  const renderedPresent = wrapSingleIfNeeded(
+    selectedPresent,
+    TX_SYMPTOM_PRESENT_OPTIONS,
+  );
+  const renderedPatientChange = wrapSingleIfNeeded(
+    selectedPatientChange,
+    txPatientChangeOptions,
+  );
+  const renderedWhat = wrapMultiIfNeeded(
+    selectedWhat,
+    TEMPLATE_TX_WHAT_CHANGED_S[txBodyPartKey],
+  );
+  const renderedPhysical = wrapSingleIfNeeded(
+    selectedPhysical,
+    TX_PHYSICAL_CHANGE_OPTIONS,
+  );
+  const renderedFinding = wrapMultiIfNeeded(
+    selectedFinding,
+    TEMPLATE_TX_WHAT_CHANGED_O[txBodyPartKey],
+  );
+  const renderedTolerated = wrapMultiIfNeeded(
+    selectedTolerated,
+    TX_TOLERATED_OPTIONS,
+  );
+  const renderedResponse = wrapMultiIfNeeded(
+    selectedResponse,
+    TX_RESPONSE_OPTIONS,
+  );
+  const localPatternValue = context.localPattern || "Qi Stagnation";
+  const renderedLocalPattern = wrapMultiIfNeeded(
+    localPatternValue,
+    TEMPLATE_TX_LOCAL_PATTERN_OPTIONS,
+  );
+
   let assessment = "";
 
   // 治疗延续 — 各部位格式差异 (laterality 下拉含介词: "in bilateral", "along bilateral" 等):
   // KNEE: "The patient continues treatment for in bilateral knee area today."
   // SHOULDER: "The patient continues treatment for in bilateral shoulder area today."
+  // ELBOW: "The patient continues treatment for in bilateral elbow area today."
   // LBP: "The patient continues treatment for lower back area today." (无侧别)
   // NECK: "Patient continue treatment for neck area today." (无 "The", 无 "s")
-  if (bp === "KNEE" || bp === "SHOULDER") {
-    assessment += `The patient continues treatment for in ${laterality} ${bodyPartName.toLowerCase()} area today.\n`;
+  if (bp === "KNEE" || bp === "ELBOW") {
+    assessment += `The patient continues treatment for ${renderedLateralityPhrase} ${bodyPartName.toLowerCase()} area today.\n`;
+  } else if (bp === "SHOULDER") {
+    const renderedShoulderAssessmentArea = wrapMultiIfNeeded(
+      "shoulder area",
+      TEMPLATE_TX_ASSESSMENT_AREA.SHOULDER,
+    );
+    assessment += `The patient continues treatment for ${renderedLateralityPhrase} ${renderedShoulderAssessmentArea} area today.\n`;
   } else if (bp === "NECK") {
-    assessment += `Patient continue treatment for ${bodyPartName.toLowerCase()} area today.\n`;
+    const renderedNeckAssessmentArea = wrapSingleIfNeeded(
+      "neck",
+      TEMPLATE_TX_ASSESSMENT_AREA.NECK,
+    );
+    assessment += `Patient continue treatment for ${renderedNeckAssessmentArea} area today.\n`;
   } else {
-    assessment += `The patient continues treatment for ${bodyPartName.toLowerCase()} area today.\n`;
+    const lbpAssessmentAreaValue =
+      bp === "MIDDLE_BACK"
+        ? "midback"
+        : bp === "MID_LOW_BACK"
+          ? "mid and lower back"
+          : "lower back";
+    const renderedLbpAssessmentArea = wrapMultiIfNeeded(
+      lbpAssessmentAreaValue,
+      TEMPLATE_TX_ASSESSMENT_AREA.LBP,
+    );
+    assessment += `The patient continues treatment for ${renderedLbpAssessmentArea} area today.\n`;
   }
 
   // 总体评估
-  assessment += `The patient's general condition is ${selectedCondition}, `;
-  assessment += `compared with last treatment, the patient presents with ${selectedPresent} `;
-  assessment += `The patient has ${selectedPatientChange} ${selectedWhat}, `;
+  assessment += `The patient's general condition is ${renderedCondition}, `;
+  assessment += `compared with last treatment, the patient presents with ${renderedPresent} `;
+  assessment += `The patient has ${renderedPatientChange} ${renderedWhat}, `;
   if (physicalHasEmbeddedFinding) {
-    assessment += `physical finding has ${selectedPhysical}. `;
+    assessment += `physical finding has ${renderedPhysical}. `;
   } else {
     assessment += selectedFinding
-      ? `physical finding has ${selectedPhysical} ${selectedFinding}. `
-      : `physical finding has ${selectedPhysical}. `;
+      ? `physical finding has ${renderedPhysical} ${renderedFinding}. `
+      : `physical finding has ${renderedPhysical}. `;
   }
-  assessment += `Patient tolerated ${selectedTolerated} ${selectedResponse}. `;
+  assessment += `Patient tolerated ${renderedTolerated} ${renderedResponse}. `;
   assessment += `${adverseEffect}\n`;
 
   // 证型延续
-  assessment += `Current patient still has ${context.localPattern || "Qi Stagnation"} in local meridian that cause the pain.`;
+  assessment += `Current patient still has ${renderedLocalPattern} in local meridian that cause the pain.`;
 
-  return assessment;
+  return isHtml ? withHtmlLineBreaks(assessment) : assessment;
 }
 
 /**
@@ -2227,7 +2440,9 @@ export function generateAssessmentTX(
 export function generatePlanTX(
   context: GenerationContext,
   visitState?: TXVisitState,
+  format: SOAPFormat = "text",
 ): string {
+  const isHtml = format === "html";
   const localPattern =
     TCM_PATTERNS[context.localPattern || "Qi Stagnation"];
   const selectedVerb = hasText(visitState?.treatmentFocus)
@@ -2240,15 +2455,40 @@ export function generatePlanTX(
         ),
       );
 
-  // 治则内容: 直接使用 localPattern 的 treatmentPrinciples（与 IE Assessment 一致）
+  // 治则内容: 使用模板固定 14 选项池，不使用 localPattern 动态原则列表
+  const preferredTreatment = localPattern?.treatmentPrinciples?.find((item) =>
+    TEMPLATE_TX_TREATMENT_OPTIONS.includes(
+      item as (typeof TEMPLATE_TX_TREATMENT_OPTIONS)[number],
+    ),
+  );
   const selectedTreatment =
-    localPattern?.treatmentPrinciples?.[0] ||
+    preferredTreatment ||
+    selectBestOption(
+      calculateWeights(
+        "plan.treatment",
+        [...TEMPLATE_TX_TREATMENT_OPTIONS],
+        buildTxWeightContext(context, visitState),
+      ),
+    ) ||
     "promote circulation, relieves pain";
+  const renderedVerb =
+    format === "html"
+      ? wrapMulti(selectedVerb, [...TEMPLATE_TX_VERB])
+      : selectedVerb;
+  const renderedTreatment =
+    format === "html"
+      ? wrapMulti(
+          selectedTreatment,
+          [...TEMPLATE_TX_TREATMENT_OPTIONS],
+        )
+      : selectedTreatment;
 
-  let plan = `Today's treatment principles:\n`;
-  plan += `${selectedVerb} on ${selectedTreatment} to speed up the recovery, soothe the tendon.`;
+  const planBody = `${renderedVerb} on ${renderedTreatment} to speed up the recovery, soothe the tendon.`;
+  if (isHtml) {
+    return `<strong>Today's treatment principles:</strong><br>${planBody}`;
+  }
 
-  return plan;
+  return `Today's treatment principles:\n${planBody}`;
 }
 
 /**
@@ -2685,55 +2925,91 @@ export function generateNeedleProtocol(
 }
 
 /**
- * 导出生成的SOAP为纯文本格式
- *
- * IE 结构: Subjective → Objective → Assessment → Plan (Goals + Needle Protocol)
- * TX 结构: Subjective → Objective(沿用IE) → Assessment(TX) → Plan (Treatment Principles + Needle Protocol)
+ * 统一导出 SOAP 四段内容
  */
-export function exportSOAPAsText(
+export interface SOAPSectionsOutput {
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}
+
+export function exportSOAPSections(
   context: GenerationContext,
   visitState?: TXVisitState,
-): string {
+  format: SOAPFormat = "text",
+): SOAPSectionsOutput {
   assertTemplateSupported(context);
+  const isHtml = format === "html";
 
   if (context.noteType === "TX") {
     // TX (Daily Note / Treatment Note)
-    const subjective = generateSubjectiveTX(context, visitState);
-    const objective = generateObjective(context, visitState); // Objective 沿用 IE 的客观检查
-    const assessment = generateAssessmentTX(context, visitState);
-    const planTx = generatePlanTX(context, visitState);
+    const subjective = generateSubjectiveTX(context, visitState, format);
+    const objectiveText = generateObjective(context, visitState); // Objective 沿用 IE 的客观检查
+    const objective = isHtml ? plainToHtmlSection(objectiveText) : objectiveText;
+    const assessment = generateAssessmentTX(context, visitState, format);
+    const planTx = generatePlanTX(context, visitState, format);
     const needleProtocol = generateNeedleProtocol(context, visitState);
+    const plan = isHtml
+      ? `${planTx}<br><br>${plainToHtmlSection(needleProtocol)}`
+      : `${planTx}\n\n${needleProtocol}`;
 
-    let output = `Subjective\n${subjective}\n\n`;
-    output += `Objective\n${objective}\n\n`;
-    output += `Assessment\n${assessment}\n\n`;
-    output += `Plan\n${planTx}\n\n`;
-    output += needleProtocol;
-
-    return output;
+    return {
+      subjective,
+      objective,
+      assessment,
+      plan,
+    };
   }
 
   // IE (Initial Evaluation)
   const { rng } = createSeededRng(context.seed);
-  const subjective = generateSubjective(context, rng);
-  const objective = generateObjective(context, undefined, rng);
-  const assessment = generateAssessment(context);
-  const plan = generatePlanIE(context);
+  const subjectiveText = generateSubjective(context, rng);
+  const objectiveText = generateObjective(context, undefined, rng);
+  const assessmentText = generateAssessment(context);
+  const planText = generatePlanIE(context);
   const needleProtocol = generateNeedleProtocol(context, undefined, rng);
+  const subjective = isHtml ? plainToHtmlSection(subjectiveText) : subjectiveText;
+  const objective = isHtml ? plainToHtmlSection(objectiveText) : objectiveText;
+  const assessment = isHtml ? plainToHtmlSection(assessmentText) : assessmentText;
+  const plan = isHtml
+    ? `${plainToHtmlSection(planText)}<br><br>${plainToHtmlSection(needleProtocol)}`
+    : `${planText}\n\n${needleProtocol}`;
 
-  let output = `Subjective\n${subjective}\n\n`;
-  output += `Objective\n${objective}\n\n`;
-  output += `Assessment\n${assessment}\n\n`;
-  output += `Plan\n${plan}\n\n`;
-  output += needleProtocol;
+  return {
+    subjective,
+    objective,
+    assessment,
+    plan,
+  };
+}
 
+export function exportSOAP(
+  context: GenerationContext,
+  visitState?: TXVisitState,
+  format: SOAPFormat = "text",
+): string {
+  const sections = exportSOAPSections(context, visitState, format);
+  let output = `Subjective\n${sections.subjective}\n\n`;
+  output += `Objective\n${sections.objective}\n\n`;
+  output += `Assessment\n${sections.assessment}\n\n`;
+  output += `Plan\n${sections.plan}`;
   return output;
 }
+
+/**
+ * 向后兼容旧接口
+ */
+export const exportSOAPAsText = (
+  context: GenerationContext,
+  visitState?: TXVisitState,
+): string => exportSOAP(context, visitState, "text");
 
 export interface TXSeriesTextItem {
   visitIndex: number;
   state: TXVisitState;
   text: string;
+  html?: string;
 }
 
 /**
@@ -2754,6 +3030,7 @@ export function exportTXSeriesAsText(
 
   const { states } = generateTXSequenceStates(txContext, options);
   const ieBaselinePain = context.painCurrent ?? 8;
+  const includeHtml = options.includeHtml === true;
 
   // Track per-movement ROM degree floors across visits (monotonicity guard)
   let romFloors: Record<string, number> = {};
@@ -2764,7 +3041,11 @@ export function exportTXSeriesAsText(
       ? { ...state, romFloors }
       : state;
 
-    let text = exportSOAPAsText(txContext, stateWithFloors);
+    let text = exportSOAP(txContext, stateWithFloors, "text");
+    let html: string | undefined;
+    if (includeHtml) {
+      html = exportSOAP(txContext, stateWithFloors, "html");
+    }
 
     // Extract ROM degrees from rendered text to update floors for next visit
     // Format: "4/5 Flexion: 40 Degrees (moderate)" or "4/5 Flexion: 40 degree (moderate)"
@@ -2797,8 +3078,11 @@ export function exportTXSeriesAsText(
         "--- End Phase Gate ---",
       ].join("\n");
       text += annotation;
+      if (html != null) {
+        html += `<br>${plainToHtmlSection(annotation)}`;
+      }
     }
 
-    return { visitIndex: state.visitIndex, state, text };
+    return { visitIndex: state.visitIndex, state, text, html };
   });
 }

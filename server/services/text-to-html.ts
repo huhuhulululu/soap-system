@@ -16,6 +16,16 @@ function escapeHTML(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function decodeHTML(text: string): string {
+  return text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+}
+
 /**
  * 将纯文本转换为 HTML (每行一个 <p> 标签)
  * 空行被过滤，保持简洁
@@ -110,4 +120,20 @@ export function convertSOAPToHTML(fullText: string): SOAPSectionsHTML {
     assessment: textToHTML(sections.assessment),
     plan: textToHTML(sections.plan),
   }
+}
+
+/**
+ * Convert TX HTML SOAP (with ppnSelectCombo spans) back to plain SOAP text.
+ * This is a constrained converter for engine-produced HTML, not general HTML.
+ */
+export function convertSOAPHTMLToText(fullHtml: string): string {
+  const withValuesOnly = fullHtml
+    .replace(/<span\b[^>]*>([\s\S]*?)<\/span>/gi, '$1')
+    .replace(/<\/?strong>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p>/gi, '\n')
+    .replace(/<\/?p>/gi, '')
+    .replace(/<[^>]+>/g, '')
+
+  return decodeHTML(withValuesOnly)
 }

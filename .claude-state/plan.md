@@ -1,191 +1,233 @@
-# 修复计划：#8 #13 #15 #18（v2 — critic 审查后修订）
+# 计划：SOAP 双格式输出（HTML + Text）— v2
 
-## 基线
-- 测试: 96/98 suites, 2947/2953 tests
-- Git: 32b130f + Codex 未提交改动
+## 目标
+generate*() 函数同时支持纯文本和 HTML 输出。HTML 输出带 ppnSelectCombo span，填入 MDLand TinyMCE 后可交互修改下拉框值。
 
----
+## 已验证
+- 扁平 ppnSelectCombo span（无嵌套）在 MDLand TinyMCE 正常工作 ✅
+- 代码输出文本结构与模板 HTML 1:1 对齐 ✅
+- Assessment 常量与模板选项一致 ✅
 
-## Phase 1: #15 whatChanged 动态选择（最小风险）
+## 架构决策
 
-### 文件: src/generator/tx-sequence-engine.ts
-
-**Step 1.1** — deriveAssessmentFromSOA 输入类型（L346）加可选字段:
-```
-associatedSymptom?: string;  // 可选，默认 fallback "soreness"，不破坏现有 34 处测试调用
-```
-
-**Step 1.2** — 函数体内 whatChanged IIFE 之前（L376 前）加映射:
-```
-const symptomToWhatChanged: Record<string, string> = {
-  soreness:  TEMPLATE_TX_WHAT_CHANGED[5],
-  stiffness: TEMPLATE_TX_WHAT_CHANGED[6],
-  heaviness: TEMPLATE_TX_WHAT_CHANGED[7],
-  weakness:  TEMPLATE_TX_WHAT_CHANGED[4],
-  numbness:  TEMPLATE_TX_WHAT_CHANGED[3],
-};
-const symptomWhatChanged = symptomToWhatChanged[input.associatedSymptom ?? "soreness"]
-  ?? TEMPLATE_TX_WHAT_CHANGED[5];
-```
-注: 变量定义在函数体顶层，IIFE 闭包可访问。
-
-**Step 1.3** — L395 仅替换 symptomScaleChanged 分支内的值:
-```
-- parts.push(TEMPLATE_TX_WHAT_CHANGED[5]); // "muscles soreness sensation"
-+ parts.push(symptomWhatChanged);
-```
-不动 NECK 分支（L411）和其他使用 [5] 的地方。
-
-**Step 1.4** — L424 仅替换 fallback dimToWhatChanged 字典的 symptomScale 键:
-```
-- symptomScale: TEMPLATE_TX_WHAT_CHANGED[5],
-+ symptomScale: symptomWhatChanged,
-```
-其他键（severity, tightness, tenderness, spasm, strength, ROM）不动。
-
-**Step 1.5** — 调用处 L2066 加 associatedSymptom 参数:
-```
-associatedSymptom,  // L1701 已在作用域内
-```
-
-**PRNG 安全**: deriveAssessmentFromSOA 是纯函数，不消费 rng。零偏移风险。
-
-**验证**:
-- npx vitest run（现有测试不破坏，因为字段可选）
-- fixture snapshots 更新
-- 新测试: stiffness/numbness 患者的 whatChanged 文本正确
+1. **统一入口**: `exportSOAP(context, { format })` 替代 `exportSOAPAsText`，保留旧函数名作为 alias
+2. **format 参数**: `'text'`(默认) | `'html'`，向后兼容
+3. **代码是 source of truth**: 不解析模板 HTML，选项集从 template-options.ts 取
+4. **TX Objective 无模板**: html 模式仍用 `<br>` 换行（无下拉框）
+5. **`convertSOAPToHTML` 保留**: 给非 ppnSelectCombo 场景（如 Objective、Needle Protocol）继续使用
 
 ---
 
-## Phase 2: #18 frequency goals 相对计算（最小风险）
+## Phase 1: HTML 包装工具 + per-bodyPart 选项集补全
 
-### 文件: src/generator/tx-sequence-engine.ts
+### 1.1 新建 `src/shared/html-wrapper.ts`
+- `wrapSingle(value: string, options: readonly string[]): string`
+  → `<span class="ppnSelectComboSingle opt1|opt2|...">value</span>`
+- `wrapMulti(values: string | string[], options: readonly string[]): string`
+  → `<span class="ppnSelectCombo opt1|opt2|...">val1, val2</span>`
+- `escapeHtmlEntities(text: string): string` — `&` → `&amp;` 等
+- 选项中的 `&` 也需要转义（如 "Qi & Blood Deficiency" → "Qi &amp; Blood Deficiency"）
+- 单元测试
 
-**Step 2.1** — L1022-1025 替换，并复用 freqStart 到 L1059:
-```
-// 提取 freqStart（复用到 goalPaths.frequency.start）
-const freqStart = options.initialState?.frequency
-  ?? frequencyToNum(context.painFrequency || "");
-const TX_FREQUENCY_GOAL = {
-  st: Math.max(0, freqStart - 1),
-  lt: Math.max(0, freqStart - 2),
-};
-```
+### 1.2 补全 `src/shared/template-options.ts` per-bodyPart 选项
 
-**Step 2.2** — L1058-1061 复用 freqStart:
-```
-frequency: {
-  start: freqStart,  // 复用，不再重复计算
-  st: TX_FREQUENCY_GOAL.st,
-  lt: TX_FREQUENCY_GOAL.lt,
-},
-```
+以下常量需要新增（数据来源：模板 HTML 文件逐一提取确认）：
 
-**PRNG 安全**: 不涉及 rng 调用。零偏移风险。
+| 新常量 | 类型 | 来源确认 |
+|--------|------|---------|
+| `TEMPLATE_TX_PAIN_AREA` | `Record<BodyPartKey, readonly string[]>` | SHOULDER(6 opts), NECK(3), LBP(4), KNEE=无(静态文本), ELBOW=无(静态文本) |
+| `TEMPLATE_TX_RADIATION` | `Record<BodyPartKey, readonly string[]>` | SHOULDER/ELBOW: arm 版, KNEE/LBP: leg 版, NECK: 无 |
+| `TEMPLATE_TX_WHAT_CHANGED_O` | `Record<BodyPartKey, readonly string[]>` | SHOULDER/ELBOW(8, 无"joint ROM"), KNEE/NECK/LBP(9, 有"joint ROM") |
+| `TEMPLATE_TX_WHAT_CHANGED_S` | `Record<BodyPartKey, readonly string[]>` | NECK(13, 多headache/migraine/dizziness), 其他(10) |
 
-**验证**:
-- fixture snapshots 更新
-- 新测试: 起始 Constant(3) → ST=Frequent(2), LT=Occasional(1)
-- 新测试: 起始 Occasional(1) → ST=Intermittent(0), LT=Intermittent(0)
-- 新测试: 起始 Intermittent(0) → ST=0, LT=0（无变化）
+已有可复用：`BODY_PART_ADL`, `TEMPLATE_PAIN_TYPES`, 所有 `TEMPLATE_TX_*` 统一常量
+
+修正 `TEMPLATE_TX_FINDING_TYPE`: 移除代码自创的 `"joint ROM"`（模板无此选项）
 
 ---
 
-## Phase 3: #13 IE ROM 连续评分（中等风险）
+## Phase 2: TX Assessment + Plan HTML 输出（13 字段）
 
-### 文件: src/generator/soap-generator.ts
+### 2.1 `generateAssessmentTX(context, visitState, format?)` 加 format 参数
 
-**Step 3.1** — L1023-1025 替换:
+11 个动态字段，按 bodyPart 分支处理：
+
+**治疗延续句（3 个分支）：**
+- KNEE/SHOULDER: `laterality`(wrapSingle) + `bodyPartName`(静态) + "area today."
+- NECK: 无 laterality 下拉，静态 "neck area today."
+- LBP/else: 无 laterality 下拉，静态 "lower back area today."
+
+**通用字段（所有 bodyPart 一致）：**
+- `selectedCondition` → wrapSingle(TEMPLATE_TX_GENERAL_CONDITION)
+- `selectedPresent` → wrapSingle(TEMPLATE_TX_SYMPTOM_PRESENT)
+- `selectedPatientChange` → wrapSingle(TEMPLATE_TX_PATIENT_CHANGE)
+- `selectedWhat` → wrapMulti(TEMPLATE_TX_WHAT_CHANGED_S[bp])
+- `selectedPhysical` → wrapSingle(TEMPLATE_TX_PHYSICAL_CHANGE)
+- `selectedFinding` → wrapMulti(TEMPLATE_TX_WHAT_CHANGED_O[bp])
+- `selectedTolerated` → wrapMulti(TEMPLATE_TX_TOLERATED)
+- `selectedResponse` → wrapMulti(TEMPLATE_TX_RESPONSE)
+- `localPattern` → wrapMulti(TEMPLATE_TCM_LOCAL_PATTERNS)
+
+**换行**: `\n` → `<br>`
+
+### 2.2 `generatePlanTX(context, visitState, format?)` 加 format 参数
+
+2 个动态字段：
+- `selectedVerb` → wrapMulti(TEMPLATE_TX_VERB)
+- `selectedTreatment` → wrapMulti(治则选项)
+
+### 2.3 单元测试
+- 输出包含正确的 ppnSelectCombo span + 选项集
+- text 模式输出不变（回归测试）
+- 每个 bodyPart 至少一个 case
+
+---
+
+## Phase 3: TX Subjective HTML 输出（~15 个动态字段）
+
+### 3.1 `generateSubjectiveTX(context, visitState, format?)` 加 format 参数
+
+**通用字段（所有分支共享）：**
+- `selectedChange` → wrapSingle(TEMPLATE_TX_SYMPTOM_CHANGE)
+- `selectedConnector` → wrapSingle(TEMPLATE_TX_CONNECTOR)
+- `selectedReason` → wrapMulti(TEMPLATE_TX_REASON)
+- `selectedPainTypes` → wrapMulti(TEMPLATE_PAIN_TYPES[bp])
+- `associatedSymptomsText` → wrapMulti(ASSOCIATED_SYMPTOMS)
+- `symptomScale` → wrapMulti(SYMPTOM_SCALE_OPTIONS)
+- `painScale` → wrapSingle(PAIN_SCALE_OPTIONS)
+- `painFrequency` → wrapSingle(PAIN_FREQUENCY_OPTIONS)
+
+**per-bodyPart 分支字段：**
+
+| 分支 | laterality | painArea | radiation | ADL 格式 |
+|------|-----------|----------|-----------|---------|
+| KNEE/SHOULDER | wrapSingle(LATERALITY) | SHOULDER: wrapMulti(TX_PAIN_AREA.SHOULDER), KNEE: 静态 | wrapMulti(TX_RADIATION[bp]) | severity×2 + adlItems×2 |
+| NECK | 静态方向词 | wrapMulti(TX_PAIN_AREA.NECK) | 无 | severity×2 + adlItems×2 |
+| LBP | 无 | wrapMulti(TX_PAIN_AREA.LBP) | wrapMulti(TX_RADIATION.LBP) | severity×1 + adlItems×1 |
+| ELBOW | wrapSingle(LATERALITY) | 静态 | wrapMulti(TX_RADIATION.ELBOW) | severity×2 + adlItems×2 |
+
+- `severity` → wrapSingle(SEVERITY_OPTIONS)
+- `adlItems` → wrapMulti(BODY_PART_ADL[bp])
+
+### 3.2 单元测试
+- 每个 bodyPart 分支至少一个 case
+- text 模式回归
+
+---
+
+## Phase 4: 集成管线
+
+### 4.1 统一导出函数
+
+```typescript
+// 新签名
+export function exportSOAP(
+  context: GenerationContext,
+  visitState?: TXVisitState,
+  format?: 'text' | 'html'
+): string
+
+// 向后兼容 alias
+export const exportSOAPAsText = (ctx, vs?) => exportSOAP(ctx, vs, 'text')
 ```
-if (!visitState) {
-  return pickTemplateROMDegreesByPain(bp, movementName, effectivePain, rngValue);
+
+同步改 `exportTXSeriesAsText` → 内部调用 `exportSOAP(ctx, state, format)`
+返回类型 `TXSeriesTextItem` 加 `html?: string` 字段
+
+TX Objective: html 模式用 `<br>` 换行（无下拉框）
+Needle Protocol: html 模式用 `<br>` 换行（无下拉框）
+
+### 4.2 类型扩展
+
+`server/types.ts` — `BatchVisit.generated` 加：
+```typescript
+readonly html?: {
+  readonly subjective: string
+  readonly objective: string
+  readonly assessment: string
+  readonly plan: string
 }
 ```
-pickTemplateROMDegreesByPain 的 hints 参数可选，不传时:
-- progress=0（无进度加成）
-- trend=undefined（无趋势加成）
-- minDegrees=0（无单调性保护）
-对 IE（首次评估）这些默认值都正确。
 
-**PRNG 安全**: rngValue 在调用前已通过 rng() 生成，两个函数都消费同一个值。零偏移风险。
+### 4.3 batch-generator 所有路径集成
 
-**预期影响范围**: IE ROM 度数在同 severity band 内小幅变化（连续评分 vs 离散档位选取），
-不会跨 band 跳变。pain 6→7 边界不再有阶梯。
+**4 个生成路径全部覆盖：**
 
-**验证**:
-- fixture snapshots 更新
-- 断言: pain 6 和 pain 7 的 ROM 差异 ≤ 5 度（同部位同动作）
-- 断言: pain 8-10 的 ROM 仍在 severe 范围
+| 函数 | 行号 | 改动 |
+|------|------|------|
+| `generateSingleVisit` | L75 | 调用 exportSOAP(format='html')，结果加入 generated.html |
+| `generateTXSeries` | L109 | 从 exportTXSeries 取 html，加入 generated.html |
+| `generateContinueBatch` | L246 | 同 generateTXSeries 路径 |
+| `generateMixedBatch` | L326 | continue 分支同上，full 分支走 generateSingleVisit + generateTXSeries |
 
----
+### 4.4 MDLand automation
+- `fillSOAP(soap, html)` 已支持 htmlData 优先路径 ✅
+- 只需 batch-generator 传入 html 数据，无需改 automation 代码
 
-## Phase 4: #8 97810 穴位从全部 4 组选取
-
-### 文件: src/generator/soap-generator.ts
-
-用户原话: "取用逻辑跟别的一样" — 即 97810 应该像 full code 一样从全部 4 组选取。
-
-**Step 4.1** — L2603 标签改为通用:
-```
-- const sectionLabel97810 = (bp === "KNEE" || bp === "ELBOW") ? "Front Points" : "Back Points";
-+ const sectionLabel97810 = "Acupuncture Points";
-```
-
-**Step 4.2** — L2605-2623 替换 pick97810Points:
-```
-const pick97810Points = (): string[] => {
-  if (!visitNeedle) {
-    // IE/无引擎数据: 从模板池取
-    if (canRandomizeFallback) {
-      const allPool = [...templateFrontPool, ...templateBackPool];
-      return shuffleWithSeed(allPool).slice(0, 4);
-    }
-    // 静态 fallback
-    return (bp === "KNEE" || bp === "ELBOW")
-      ? defaultFront.slice(0, 4)
-      : defaultBack.slice(0, 4);
-  }
-  // TX: 合并全部 4 组
-  const combined = [
-    ...(visitNeedle.front1 ?? []),
-    ...(visitNeedle.front2 ?? []),
-    ...(visitNeedle.back1 ?? []),
-    ...(visitNeedle.back2 ?? []),
-  ];
-  if (combined.length >= 4) return combined.slice(0, 4);
-  if (combined.length > 0) {
-    const used = new Set(combined);
-    const allPool = [...templateFrontPool, ...templateBackPool];
-    const extra = allPool.filter(p => !used.has(p));
-    return [...combined, ...extra].slice(0, 4);
-  }
-  // 最终 fallback
-  return (bp === "KNEE" || bp === "ELBOW")
-    ? defaultFront.slice(0, 4)
-    : defaultBack.slice(0, 4);
-};
-const points97810 = pick97810Points();
-```
-
-**PRNG 安全**: pick97810Points 不调用 rng（shuffleWithSeed 只在 canRandomizeFallback=true 即 IE 路径使用，TX 路径走 visitNeedle 分支）。零偏移风险。
-
-**验证**: 新测试验证 97810 路径消费引擎全部 4 组穴位
+### 4.5 E2E 验证
+- 生成 HTML → 注入 MDLand TinyMCE → 验证下拉框可交互
+- 至少覆盖 SHOULDER + KNEE 两个 bodyPart
 
 ---
 
-## Phase 5: 全量验证
+## Phase 5（后续，独立排期）: IE HTML 输出
+- IE 有 ~86 个字段
+- Objective 有 23 个字段（ROM/Strength/Muscles 下拉框）
+- 不阻塞 TX 上线
 
-1. npx vitest run -u（更新 snapshots）
-2. npx vitest run（全部通过，基线 ≥ 96/98）
-3. 大样本扫描: 5 部位 × 50 seeds 验证 #15 #18 修复效果
-4. git commit
+## 不做
+- 不解析模板 HTML
+- 不改现有 text 输出逻辑
+- 不复现 emotionalState 嵌套 span（TinyMCE 编辑残留）
+- 不更新模板 .md 文件
 
-## 执行顺序: Phase 1 → 2 → 3 → 4 → 5
+## 风险
+- LBP 模板 Subjective 结构差异大（无 laterality、section marker 拼写为 "Subject"）→ 已在 Phase 3 分支表中覆盖
+- 选项中 `&` 需转义为 `&amp;` → Phase 1.1 的 escapeHtmlEntities 处理
+- 模板 Subjective 仍含 "similar symptom(s) as last visit" → 代码已移除，HTML 选项集也不包含
 
-## Critic 审查修订记录
-- Step 1.1: string → string?（可选，不破坏现有测试）
-- Step 1.2: fallback 用 input.associatedSymptom ?? "soreness"
-- Step 1.3/1.4: 明确只替换 symptomScaleChanged 分支和 symptomScale 键
-- Step 2.2: 新增，freqStart 复用到 goalPaths.frequency.start
-- Phase 3: 补充预期影响范围和验证断言
-- Phase 4: 补充标签改为通用，明确合并策略，确认 PRNG 安全
+---
+
+## 执行验收审计（2026-03-04 复审）
+
+### 结论
+- 当前状态：**计划已执行完成（TX 双格式输出 + batch HTML 链路接入）**
+- 验收口径：以本计划 Phase 1~4 为准，Phase 5（IE HTML 下拉）按原计划保持独立排期。
+
+### Phase 对照结果
+
+1. Phase 1（HTML 包装工具 + 选项集补全）✅  
+   - 已新增 `src/shared/html-wrapper.ts`（`escapeHtmlEntities/wrapSingle/wrapMulti`）  
+   - 已补全 `TEMPLATE_TX_PAIN_AREA / TEMPLATE_TX_RADIATION / TEMPLATE_TX_WHAT_CHANGED_O / TEMPLATE_TX_WHAT_CHANGED_S`  
+   - 已从 `TEMPLATE_TX_FINDING_TYPE` 移除 `"joint ROM"` 并同步引擎索引
+
+2. Phase 2（TX Assessment + Plan HTML）✅  
+   - `generateAssessmentTX(context, visitState, format)` 已落地  
+   - `generatePlanTX(context, visitState, format)` 已落地  
+   - 动态字段已输出 `ppnSelectCombo`/`ppnSelectComboSingle` span
+
+3. Phase 3（TX Subjective HTML）✅  
+   - `generateSubjectiveTX(context, visitState, format)` 已落地  
+   - bodyPart 分支（KNEE/SHOULDER/NECK/LBP/ELBOW）均保留原文本语义并增加 HTML 包裹
+
+4. Phase 4（统一导出 + batch 集成）✅  
+   - 已新增统一入口 `exportSOAP(context, visitState, format)`  
+   - `exportSOAPAsText` 已保留为 alias（向后兼容）  
+   - `TXSeriesTextItem` 已扩展 `html?: string`  
+   - `BatchVisit.generated.html` 已扩展并接入 `generateSingleVisit/generateTXSeries/generateContinueBatch/generateMixedBatch`
+
+### TDD 与回归证据
+
+- 快照更新：`npx jest src/generator/__fixtures__/fixture-snapshots.test.ts -u --runInBand`  
+  - 结果：10 条 snapshot 更新（`joint ROM` → `joint ROM limitation`）
+- 生成器全量：`npx jest src/generator --runInBand`  
+  - 结果：`52/52` suites, `1632/1632` tests 通过
+- 服务端分组：`npx jest server --runInBand`  
+  - 结果：`15/15` suites, `151/151` tests 通过
+- 仓库全量：`npx jest --runInBand`  
+  - 结果：`87/87` suites, `2094/2094` tests 通过，snapshot `30/30` 通过
+
+### 风险与边界（仍有效）
+
+- Phase 5（IE HTML 下拉字段）未纳入本轮，当前 IE HTML 仍为文本转 HTML（`<br>`/`<p>` 路径）。
+- 压力测试仍有历史 WARN（reason diversity、symptom consistency 控制台输出），但本轮不构成失败条件。

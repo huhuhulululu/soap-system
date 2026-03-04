@@ -1,4 +1,9 @@
-import { textToHTML, splitSOAPText, convertSOAPToHTML } from '../services/text-to-html'
+import {
+  textToHTML,
+  splitSOAPText,
+  convertSOAPToHTML,
+  convertSOAPHTMLToText,
+} from '../services/text-to-html'
 
 describe('text-to-html', () => {
   describe('textToHTML', () => {
@@ -118,6 +123,33 @@ describe('text-to-html', () => {
       const text = 'Subjective\nROM < 90°\nObjective\nOK\nAssessment\nOK\nPlan\nOK'
       const result = convertSOAPToHTML(text)
       expect(result.subjective).toContain('&lt;')
+    })
+  })
+
+  describe('convertSOAPHTMLToText', () => {
+    it('strips ppnSelect spans and restores text', () => {
+      const html = [
+        'Subjective',
+        'Patient reports: there is <span class="ppnSelectComboSingle a|b">improvement</span> .',
+        '',
+        'Objective',
+        'ROM &lt; 90°',
+        '',
+        'Assessment',
+        'Current patient still has <span class="ppnSelectCombo x|y">Qi &amp; Blood Deficiency</span>.',
+        '',
+        'Plan',
+        '<strong>Today&#39;s treatment principles:</strong><br><span class="ppnSelectCombo c|d">focus</span> on treatment.',
+      ].join('\n')
+
+      const text = convertSOAPHTMLToText(html)
+      expect(text).toContain('Patient reports: there is improvement .')
+      expect(text).toContain("Today's treatment principles:\nfocus on treatment.")
+      expect(text).toContain('ROM < 90°')
+      expect(text).toContain('Qi & Blood Deficiency')
+      expect(text).not.toContain('ppnSelectCombo')
+      expect(text).not.toContain('<strong>')
+      expect(text).not.toContain('<span')
     })
   })
 })

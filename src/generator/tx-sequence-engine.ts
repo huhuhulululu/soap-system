@@ -39,6 +39,8 @@ import { getADLWeightsByMuscles } from "../shared/muscle-adl-affinity";
 export interface TXSequenceOptions {
   txCount: number;
   seed?: number;
+  /** 是否同时生成 HTML（默认 false，可显著减少批量仅文本场景开销） */
+  includeHtml?: boolean;
   /** 从第几个 TX 开始生成（1-based）。省略时从 1 开始。 */
   startVisitIndex?: number;
   /** 从用户最后一个 TX 提取的实际状态，作为续写起点。 */
@@ -496,14 +498,8 @@ export function deriveAssessmentFromSOA(input: {
   const increaseParts: string[] = [];
 
   if (input.objectiveRomTrend !== "stable") {
-    const isLimitationOnly =
-      input.bodyPart === "SHOULDER" || input.bodyPart === "ELBOW";
     reduceParts.push(
-      !isLimitationOnly &&
-        input.progress >= 0.6 &&
-        input.cumulativePainDrop >= 2.0
-        ? TEMPLATE_TX_FINDING_TYPE[4] // "joint ROM"
-        : TEMPLATE_TX_FINDING_TYPE[5], // "joint ROM limitation"
+      TEMPLATE_TX_FINDING_TYPE[4], // "joint ROM limitation"
     );
   }
   if (input.objectiveTightnessTrend !== "stable")
@@ -513,7 +509,7 @@ export function deriveAssessmentFromSOA(input: {
   if (input.objectiveSpasmTrend !== "stable")
     reduceParts.push(TEMPLATE_TX_FINDING_TYPE[2]); // "local muscles spasms"
   if (input.objectiveStrengthTrend !== "stable")
-    increaseParts.push(TEMPLATE_TX_FINDING_TYPE[6]); // "muscles strength"
+    increaseParts.push(TEMPLATE_TX_FINDING_TYPE[5]); // "muscles strength"
 
   const reduceWord = strongPhysicalImprove ? "reduced" : "slightly reduced";
   const increaseWord = strongPhysicalImprove ? "increased" : "slight increased";
@@ -538,7 +534,7 @@ export function deriveAssessmentFromSOA(input: {
   // findingType keeps structured changed dimensions for all cases, including mixed direction.
   const findingType = (() => {
     const allParts = uniqueOrdered([...reduceParts, ...increaseParts]);
-    if (allParts.length === 0) return TEMPLATE_TX_FINDING_TYPE[5]; // "joint ROM limitation"
+    if (allParts.length === 0) return TEMPLATE_TX_FINDING_TYPE[4]; // "joint ROM limitation"
     return joinParts(allParts);
   })();
 

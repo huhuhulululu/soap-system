@@ -128,16 +128,14 @@ describe("deriveAssessmentFromSOA", () => {
       expect(result.whatChanged).toBe("pain");
     });
 
-    it('findingType uses "joint ROM" at late progress with cumulative evidence', () => {
+    it('findingType uses "joint ROM limitation" at late progress with cumulative evidence', () => {
       const result = deriveAssessmentFromSOA({
         ...baseInput,
         objectiveRomTrend: "improved",
         progress: 0.75,
         cumulativePainDrop: 3.0,
       });
-      expect(result.findingType).toContain("joint ROM");
-      // Should NOT say "limitation" at late progress with strong cumulative
-      expect(result.findingType).not.toContain("limitation");
+      expect(result.findingType).toContain("joint ROM limitation");
     });
 
     it('findingType uses "joint ROM limitation" at early progress', () => {
