@@ -1573,19 +1573,27 @@ export function generateObjective(
       // Wrap strength grades (e.g., "4/5", "4+/5")
       html = html.replace(/\b(\d[\+\-]?\/5)\b/g, '<span class="ppnSelectComboSingle">$1</span>');
 
-      // Wrap ROM degrees (e.g., "90 degree", "10 degree")
-      html = html.replace(/\b(\d+)\s+degree/gi, '<span class="ppnSelectComboSingle">$1°</span>');
-      html = html.replace(/\b(\d+)\s+Degrees/g, '<span class="ppnSelectComboSingle">$1°</span>');
+      // Wrap ROM degrees (e.g., "90 degree", "10 degrees", case-insensitive)
+      html = html.replace(/\b(\d+)\s+degrees?/gi, '<span class="ppnSelectComboSingle">$1°</span>');
 
-      // Wrap muscle names from visitState
+      // Wrap muscle names from visitState using placeholder approach to avoid nested spans
       const allMuscles = [
         ...(visitState.tightMuscles || []),
         ...(visitState.tenderMuscles || []),
         ...(visitState.spasmMuscles || [])
       ];
-      allMuscles.forEach(muscle => {
+      // Sort by length descending to handle overlapping names first
+      const sortedMuscles = [...allMuscles].sort((a, b) => b.length - a.length);
+
+      // Replace muscles with placeholders
+      sortedMuscles.forEach((muscle, i) => {
         const escaped = muscle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        html = html.replace(new RegExp(`\\b${escaped}\\b`, 'g'),
+        html = html.replace(new RegExp(`\\b${escaped}\\b`, 'g'), `__MUSCLE_${i}__`);
+      });
+
+      // Replace placeholders with wrapped HTML
+      sortedMuscles.forEach((muscle, i) => {
+        html = html.replace(new RegExp(`__MUSCLE_${i}__`, 'g'),
           `<span class="ppnSelectCombo">${muscle}</span>`);
       });
     }
