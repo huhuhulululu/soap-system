@@ -2045,3 +2045,8 @@ export const TEMPLATE_INSPECTION_DEFAULT: Readonly<Record<string, string>> = {
   KNEE: "joint swelling",
   DEFAULT: "weak muscles and dry skin without luster",
 };
+
+// ─── Objective HTML Options ──────────────────────────────────────
+
+export const TEMPLATE_STRENGTH_GRADES = ["3/5", "3+/5", "4-/5", "4/5", "4+/5"] as const;
+export const TEMPLATE_GRADING_SCALES = ["Mild", "Moderate", "Severe"] as const;

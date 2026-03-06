@@ -1092,6 +1092,7 @@ export function generateObjective(
   context: GenerationContext,
   visitState?: TXVisitState,
   rng?: () => number,
+  format: SOAPFormat = "text",
 ): string {
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const lateralityKey = context.laterality || "bilateral";
@@ -1561,6 +1562,35 @@ export function generateObjective(
     const tongue = visitState?.tonguePulse?.tongue ?? toneData.tongueDefault;
     const pulse = visitState?.tonguePulse?.pulse ?? toneData.pulseDefault;
     objective += `tongue\n${tongue}\npulse\n${pulse}`;
+  }
+
+  // HTML format handling
+  if (format === "html") {
+    let html = objective.replace(/\n/g, '<br>');
+
+    if (context.noteType === "TX" && visitState) {
+      // Minimal TX HTML wrapping: wrap strength grades and ROM degrees
+      // Wrap strength grades (e.g., "4/5", "4+/5")
+      html = html.replace(/\b(\d[\+\-]?\/5)\b/g, '<span class="ppnSelectComboSingle">$1</span>');
+
+      // Wrap ROM degrees (e.g., "90 degree", "10 degree")
+      html = html.replace(/\b(\d+)\s+degree/gi, '<span class="ppnSelectComboSingle">$1°</span>');
+      html = html.replace(/\b(\d+)\s+Degrees/g, '<span class="ppnSelectComboSingle">$1°</span>');
+
+      // Wrap muscle names from visitState
+      const allMuscles = [
+        ...(visitState.tightMuscles || []),
+        ...(visitState.tenderMuscles || []),
+        ...(visitState.spasmMuscles || [])
+      ];
+      allMuscles.forEach(muscle => {
+        const escaped = muscle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        html = html.replace(new RegExp(`\\b${escaped}\\b`, 'g'),
+          `<span class="ppnSelectCombo">${muscle}</span>`);
+      });
+    }
+
+    return html;
   }
 
   return objective;
@@ -2945,8 +2975,7 @@ export function exportSOAPSections(
   if (context.noteType === "TX") {
     // TX (Daily Note / Treatment Note)
     const subjective = generateSubjectiveTX(context, visitState, format);
-    const objectiveText = generateObjective(context, visitState); // Objective 沿用 IE 的客观检查
-    const objective = isHtml ? plainToHtmlSection(objectiveText) : objectiveText;
+    const objective = generateObjective(context, visitState, undefined, format);
     const assessment = generateAssessmentTX(context, visitState, format);
     const planTx = generatePlanTX(context, visitState, format);
     const needleProtocol = generateNeedleProtocol(context, visitState);
@@ -2965,12 +2994,11 @@ export function exportSOAPSections(
   // IE (Initial Evaluation)
   const { rng } = createSeededRng(context.seed);
   const subjectiveText = generateSubjective(context, rng);
-  const objectiveText = generateObjective(context, undefined, rng);
+  const objective = generateObjective(context, undefined, rng, format);
   const assessmentText = generateAssessment(context);
   const planText = generatePlanIE(context);
   const needleProtocol = generateNeedleProtocol(context, undefined, rng);
   const subjective = isHtml ? plainToHtmlSection(subjectiveText) : subjectiveText;
-  const objective = isHtml ? plainToHtmlSection(objectiveText) : objectiveText;
   const assessment = isHtml ? plainToHtmlSection(assessmentText) : assessmentText;
   const plan = isHtml
     ? `${plainToHtmlSection(planText)}<br><br>${plainToHtmlSection(needleProtocol)}`
