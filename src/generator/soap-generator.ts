@@ -472,6 +472,27 @@ function getConfig<T>(map: Record<string, T>, bodyPart: string): T {
   return map[bodyPart] ?? map["DEFAULT"] ?? Object.values(map)[0];
 }
 
+function suppressSwellReasonInText(value?: string): string | undefined {
+  if (value === "reduced joint stiffness and swelling") {
+    return "reduced level of pain";
+  }
+  return value;
+}
+
+function suppressSwellInspectionInText(value?: string): string | undefined {
+  if (value === "joint swelling") {
+    return "local skin no damage or rash";
+  }
+  return value;
+}
+
+function suppressSwellRadiationInText(value?: string): string | undefined {
+  if (value === "with local swollen") {
+    return "without radiation";
+  }
+  return value;
+}
+
 export function objectiveMuscleSeed(context: GenerationContext): number {
   if (typeof context.seed === "number" && Number.isFinite(context.seed)) {
     // Preserve distinct deterministic streams for 0/1/-1/etc.
@@ -1094,6 +1115,7 @@ export function generateObjective(
   rng?: () => number,
   format: SOAPFormat = "text",
 ): string {
+  const isHtml = format === "html";
   const bodyPartName = BODY_PART_NAMES[context.primaryBodyPart];
   const lateralityKey = context.laterality || "bilateral";
   const laterality = LATERALITY_NAMES[lateralityKey] ?? "bilateral";
@@ -1121,13 +1143,17 @@ export function generateObjective(
     TEMPLATE_TENDERNESS_SCALE[bp as BodyPartKey] ||
     TEMPLATE_TENDERNESS_SCALE.KNEE;
   const inspectionDefault = getConfig(INSPECTION_DEFAULT_MAP, bp);
+  const inspectionText = isHtml
+    ? visitState?.inspection ?? inspectionDefault
+    : suppressSwellInspectionInText(visitState?.inspection ?? inspectionDefault) ??
+      inspectionDefault;
 
   let objective = "";
 
   // SHOULDER: Inspection 在前 (模板: "Inspection:" 紧接下拉框值，无空格)
   // KNEE: Inspection 在后
   if (bp === "SHOULDER") {
-    objective += `Inspection:${visitState?.inspection ?? inspectionDefault}\n\n`;
+    objective += `Inspection:${inspectionText}\n\n`;
   }
 
   // Muscles Testing (纯文本输出，不加 markdown 粗体标记)
@@ -1552,7 +1578,7 @@ export function generateObjective(
 
   // Inspection 在 ROM 之后 (SHOULDER 已在前面输出, 其余部位在此输出)
   if (bp !== "SHOULDER") {
-    objective += `Inspection: ${visitState?.inspection ?? inspectionDefault}\n\n`;
+    objective += `Inspection: ${inspectionText}\n\n`;
   }
 
   // 舌脉信息 (来自 tone/ 模板, 始终在 Objective 最底部)
@@ -2008,7 +2034,7 @@ export function generateSubjectiveTX(
   const laterality =
     LATERALITY_NAMES[context.laterality || "bilateral"] ?? "bilateral";
   const bp = context.primaryBodyPart;
-  const radiation = context.painRadiation ?? "without radiation";
+  const rawRadiation = context.painRadiation ?? "without radiation";
 
   const weightContext = buildTxWeightContext(context, visitState);
 
@@ -2107,7 +2133,10 @@ export function generateSubjectiveTX(
     selectedConnector,
     TX_CONNECTOR_OPTIONS,
   );
-  const renderedReason = wrapMultiIfNeeded(selectedReason, TX_REASON_OPTIONS);
+  const reasonForRender = isHtml
+    ? selectedReason
+    : suppressSwellReasonInText(selectedReason) ?? selectedReason;
+  const renderedReason = wrapMultiIfNeeded(reasonForRender, TX_REASON_OPTIONS);
   const renderedPainTypes = wrapMultiIfNeeded(selectedPainTypes, painTypeOptions);
   const renderedAssociatedSymptoms = wrapMultiIfNeeded(
     selectedAssociatedSymptoms,
@@ -2135,10 +2164,13 @@ export function generateSubjectiveTX(
     TX_NECK_DIRECTION_OPTIONS,
   );
   const radiationOptions = TEMPLATE_TX_RADIATION[txBodyPartKey];
+  const radiationForRender = isHtml
+    ? rawRadiation
+    : suppressSwellRadiationInText(rawRadiation) ?? rawRadiation;
   const renderedRadiation =
     isHtml && TEMPLATE_TX_RADIATION_INPUT_TYPE[txBodyPartKey] === "single"
-      ? wrapSingle(radiation, radiationOptions)
-      : wrapMultiIfNeeded(radiation, radiationOptions);
+      ? wrapSingle(radiationForRender, radiationOptions)
+      : wrapMultiIfNeeded(radiationForRender, radiationOptions);
 
   let subjective = `Follow up visit\n`;
 
