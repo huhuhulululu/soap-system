@@ -10,11 +10,11 @@ const props = defineProps({
   },
   accept: {
     type: String,
-    default: '.pdf'
+    default: '.pdf,.xls,.html,.htm'
   },
   mimeFilter: {
     type: String,
-    default: 'application/pdf'
+    default: ''
   },
   multiple: {
     type: Boolean,
@@ -22,23 +22,23 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: '上传 AC NOTE PDF'
+    default: '上传文件'
   },
   subtitle: {
     type: String,
-    default: '拖放文件到此处，或点击选择文件'
+    default: '拖放 Note PDF 和/或 Bill List (.xls) 到此处，或点击选择'
   },
   buttonLabel: {
     type: String,
-    default: '选择 PDF 文件'
+    default: '选择文件'
   },
   compactLabel: {
     type: String,
-    default: '添加更多文件'
+    default: '添加文件'
   },
   hint: {
     type: String,
-    default: '支持批量上传 · 仅限 PDF 格式'
+    default: 'Note (.pdf) · Bill List (.xls/.html)'
   }
 })
 
@@ -101,17 +101,25 @@ function openFilePicker() {
 
 <template>
   <!-- Compact Mode -->
-  <div v-if="compact" class="card p-4">
+  <div v-if="compact">
     <button
       @click="openFilePicker"
-      class="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-ink-200 rounded-lg
-             text-ink-500 hover:border-ink-400 hover:text-ink-700 transition-all"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
+      :class="[
+        'w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed rounded-lg transition-all',
+        isDragging
+          ? 'border-ink-700 bg-paper-100 text-ink-700 scale-[1.01]'
+          : 'border-ink-200 text-ink-500 hover:border-ink-400 hover:text-ink-700'
+      ]"
     >
-      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
-      <span class="font-medium">{{ compactLabel }}</span>
+      <span class="text-xs font-medium">{{ compactLabel }}</span>
     </button>
+    <p v-if="sizeError" class="px-3 py-1 text-xs text-red-600">{{ sizeError }}</p>
     <input
       ref="fileInput"
       type="file"

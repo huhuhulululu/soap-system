@@ -8,7 +8,6 @@ import FileList from '../components/FileList.vue'
 import ReportPanel from '../components/ReportPanel.vue'
 import StatsOverview from '../components/StatsOverview.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
-import BillDosPanel from '../components/BillDosPanel.vue'
 import { useKeyboardNav } from '../composables/useKeyboardNav'
 
 const filesStore = useFilesStore()
@@ -36,8 +35,33 @@ const {
   clearBill
 } = filesStore
 
-function handleBillFiles(fs) {
-  if (fs?.[0]) setBillFile(fs[0])
+const uploadError = ref('')
+
+function handleFiles(rawFiles) {
+  uploadError.value = ''
+  const pdfs = []
+  const bills = []
+  const unsupported = []
+  for (const f of rawFiles) {
+    const ext = (f.name.toLowerCase().split('.').pop() || '').trim()
+    if (ext === 'pdf') pdfs.push(f)
+    else if (ext === 'xls' || ext === 'html' || ext === 'htm') bills.push(f)
+    else unsupported.push(f.name)
+  }
+  if (unsupported.length) uploadError.value = `不支持的文件类型: ${unsupported.join(', ')}`
+
+  if (pdfs.length) {
+    const idsBefore = new Set(files.value.map(f => f.id))
+    addFiles(pdfs)
+    const justAdded = files.value.find(f => !idsBefore.has(f.id))
+    // keepBill 仅当本次也提供了新 bill（即同一次拖入 PDF+bill 的组合场景）
+    // 否则切换到新 note 时清空旧 bill，避免静默错绑
+    if (justAdded) selectFile(justAdded, { keepBill: bills.length > 0 })
+    if (!isProcessing.value && pendingFiles.value.length > 0) {
+      processAllFiles()
+    }
+  }
+  if (bills.length) setBillFile(bills[0])
 }
 
 useKeyboardNav(files, selectFile)
@@ -95,7 +119,28 @@ const STATUS_BADGE = {
   <div class="max-w-7xl w-full mx-auto px-6 py-8">
     <!-- Empty State -->
     <div v-if="!hasFiles" class="animate-fade-in space-y-6">
-      <FileUploader @files-added="addFiles" />
+      <FileUploader @files-added="handleFiles" />
+      <p v-if="uploadError" class="text-sm text-red-600 text-center">{{ uploadError }}</p>
+
+      <!-- Bill-only upload status (bill loaded but no note yet) -->
+      <div v-if="billError || billData" class="card p-4 max-w-2xl mx-auto">
+        <div v-if="billError" class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5z"/></svg>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-red-700">Bill 解析失败</p>
+            <p class="text-xs text-red-600 mt-0.5">{{ billError }}</p>
+          </div>
+          <button @click="clearBill" class="text-xs text-red-600 hover:underline">清空</button>
+        </div>
+        <div v-else class="flex items-center gap-3">
+          <svg class="w-5 h-5 text-ink-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-ink-800">Bill 已加载：{{ billData?.patient }}</p>
+            <p class="text-xs text-ink-500">{{ billData?.insurance }} · {{ billData?.rows?.length }} DOS · ${{ billData?.totalCharge?.toFixed(0) }} · 等待 Note PDF 上传...</p>
+          </div>
+          <button @click="clearBill" class="text-xs text-ink-500 hover:text-red-500">清空</button>
+        </div>
+      </div>
 
       <!-- Inline History -->
       <div v-if="historyRecords.length > 0">
@@ -129,27 +174,21 @@ const STATUS_BADGE = {
 
     <!-- Working State -->
     <ErrorBoundary>
-      <div
-        v-if="hasFiles"
-        :class="[
-          'grid grid-cols-1 gap-6',
-          billData || billError ? 'lg:grid-cols-12' : 'lg:grid-cols-12'
-        ]"
-      >
-        <!-- Left Column: File List & Stats (3 cols when bill, 4 otherwise) -->
-        <div :class="[(billData || billError) ? 'lg:col-span-3' : 'lg:col-span-4', 'space-y-6']">
-          <!-- Stats Overview -->
+      <div v-if="hasFiles" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: Compact rail (4/12, sticky) -->
+        <aside class="lg:col-span-4 space-y-3 lg:sticky lg:top-4 lg:self-start">
+          <!-- Stats Overview — 仅多文件（>3）时显示 -->
           <StatsOverview
-            v-if="stats"
+            v-if="stats && files.length > 3"
             :stats="stats"
             class="animate-slide-up"
           />
 
-          <!-- Settings Panel -->
-          <div class="card p-4 space-y-3 animate-slide-up">
-            <div class="flex items-center gap-3">
-              <label class="text-xs text-ink-500 w-16">保险</label>
-              <select v-model="insuranceType" class="flex-1 text-sm border border-ink-200 rounded-lg px-3 py-1.5 bg-white text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-400">
+          <!-- Settings Panel (紧凑) -->
+          <div class="card p-3 space-y-2 animate-slide-up">
+            <label class="flex items-center gap-3">
+              <span class="text-xs text-ink-500 w-10 shrink-0">保险</span>
+              <select v-model="insuranceType" class="flex-1 text-sm border border-ink-200 rounded-md px-2.5 py-1.5 bg-white text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-400">
                 <option value="OPTUM">Optum</option>
                 <option value="HF">HealthFirst</option>
                 <option value="WC">WellCare</option>
@@ -157,87 +196,43 @@ const STATUS_BADGE = {
                 <option value="ELDERPLAN">ElderPlan</option>
                 <option value="NONE">None / Self-pay</option>
               </select>
-            </div>
-            <div class="flex items-center gap-3">
-              <label class="text-xs text-ink-500 w-16">时长</label>
-              <select v-model.number="treatmentTime" class="flex-1 text-sm border border-ink-200 rounded-lg px-3 py-1.5 bg-white text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-400">
+            </label>
+            <label class="flex items-center gap-3">
+              <span class="text-xs text-ink-500 w-10 shrink-0">时长</span>
+              <select v-model.number="treatmentTime" class="flex-1 text-sm border border-ink-200 rounded-md px-2.5 py-1.5 bg-white text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-400">
                 <option :value="15">15 分钟</option>
                 <option :value="30">30 分钟</option>
                 <option :value="45">45 分钟</option>
                 <option :value="60">60 分钟</option>
               </select>
-            </div>
+            </label>
           </div>
 
-          <!-- Actions -->
-          <div class="flex gap-3 animate-slide-up stagger-1">
-            <button
-              @click="processAllFiles"
-              :disabled="isProcessing || pendingFiles.length === 0"
-              class="btn-primary flex-1 flex items-center justify-center gap-2"
-            >
-              <svg v-if="isProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>{{ isProcessing ? '验证中...' : '开始验证' }}</span>
-            </button>
-            <button @click="clearAll" class="btn-secondary">
-              清空
-            </button>
-          </div>
-
-          <!-- Progress Bar -->
-          <div v-if="isProcessing" class="w-full bg-ink-200 rounded-full h-2">
-            <div class="bg-ink-600 h-2 rounded-full transition-all duration-300" :style="{ width: progress + '%' }"></div>
-          </div>
-
-          <!-- File List -->
+          <!-- File List (紧凑 + 内嵌 header 动作 + footer uploader) -->
           <FileList
             :files="files"
             :selected-id="selectedFile?.id"
+            :pending-count="pendingFiles.length"
+            :is-processing="isProcessing"
             @select="selectFile"
             @remove="removeFile"
             @preview="handlePreview"
-            @add-more="() => {}"
+            @validate="processAllFiles"
+            @clear-all="clearAll"
+            @files-added="handleFiles"
             class="animate-slide-up stagger-2"
           />
+          <p v-if="uploadError" class="text-xs text-red-600">{{ uploadError }}</p>
+        </aside>
 
-          <!-- Add More -->
-          <FileUploader
-            compact
-            @files-added="addFiles"
-            class="animate-slide-up stagger-3"
-          />
-
-          <!-- Bill Uploader -->
-          <FileUploader
-            v-if="!billData && !billError"
-            compact
-            accept=".xls,.html,.htm"
-            mime-filter=""
-            :multiple="false"
-            compact-label="上传 Bill List (.xls)"
-            @files-added="handleBillFiles"
-            class="animate-slide-up stagger-3"
-          />
-        </div>
-
-        <!-- Middle Column: Report Detail -->
-        <div :class="[(billData || billError) ? 'lg:col-span-5' : 'lg:col-span-8']">
+        <!-- Right Column: Report Detail (8/12 恒定) -->
+        <div class="lg:col-span-8">
           <ReportPanel
             :file="selectedFile"
-            class="animate-fade-in"
-          />
-        </div>
-
-        <!-- Right Column: Bill DOS Panel (only when bill present) -->
-        <div v-if="billData || billError" class="lg:col-span-4">
-          <BillDosPanel
-            :bill="billData"
-            :match-results="billMatchResult"
-            :error="billError"
-            @clear="clearBill"
+            :bill-data="billData"
+            :bill-match-result="billMatchResult"
+            :bill-error="billError"
+            :on-clear-bill="clearBill"
             class="animate-fade-in"
           />
         </div>

@@ -11,10 +11,67 @@ const props = defineProps({
   file: {
     type: Object,
     default: null
-  }
+  },
+  billData: { type: Object, default: null },
+  billMatchResult: { type: Array, default: null },
+  billError: { type: String, default: '' },
+  onClearBill: { type: Function, default: null }
 })
 
 const report = computed(() => props.file?.report)
+
+// Bill 状态机：6 态
+const billStatus = computed(() => {
+  if (props.billError) return 'error'
+  if (!props.billData) return 'none'
+  const f = props.file
+  if (f?.source === 'history') return 'history'
+  if (f?.status === 'error') return 'note_error'
+  if (!f || f.status !== 'done' || !f.report?.document) return 'waiting_note'
+  return 'matched'
+})
+
+const billSummary = computed(() => {
+  const results = props.billMatchResult || []
+  const stats = { match: 0, diff: 0, missing: 0 }
+  for (const r of results) {
+    if (r.status === 'match') stats.match++
+    else if (r.status === 'diff') stats.diff++
+    else if (r.status === 'missing_dos') stats.missing++
+  }
+  return {
+    patient: props.billData?.patient || '',
+    insurance: props.billData?.insurance || '',
+    dosCount: props.billData?.rows?.length || 0,
+    totalCharge: props.billData?.totalCharge || 0,
+    ...stats,
+  }
+})
+
+const unchargedVisitDoses = computed(() => {
+  if (billStatus.value !== 'matched') return []
+  const billDosSet = new Set((props.billData?.rows || []).map(r => r.dos))
+  const visits = props.file?.report?.document?.visits || []
+  const out = []
+  for (const v of visits) {
+    const d = v.assessment?.date
+    if (d && /^\d{2}\/\d{2}\/\d{4}$/.test(d) && !billDosSet.has(d)) {
+      out.push(d)
+    }
+  }
+  return out
+})
+
+function billChipIcon(status) {
+  return status === 'match' ? '✓' : status === 'diff' ? '⚠' : '✗'
+}
+function billChipClass(status) {
+  return status === 'match' ? 'text-green-600'
+    : status === 'diff' ? 'text-yellow-600'
+    : 'text-red-600'
+}
+const unchargedExpanded = ref(false)
+const billExpanded = ref(true)
 const summary = computed(() => report.value?.summary || {})
 const patient = computed(() => report.value?.patient || {})
 const errorCount = computed(() => summary.value?.errorCount || { critical: 0, high: 0, medium: 0, low: 0, total: 0 })
@@ -123,6 +180,104 @@ const correctionsByVisit = computed(() => {
 </script>
 
 <template>
+  <div class="space-y-4">
+  <!-- Bill 核对区块（提到根层：报告加载中/错误/历史也能看到 bill 状态） -->
+  <div v-if="file && billStatus !== 'none'" class="card p-4">
+    <!-- error -->
+    <div v-if="billStatus === 'error'" class="bg-red-50 border-l-4 border-red-400 p-3 rounded flex items-start gap-3">
+      <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5z"/></svg>
+      <div class="flex-1">
+        <p class="text-sm font-medium text-red-700">Bill 解析失败</p>
+        <p class="text-xs text-red-600 mt-0.5">{{ billError }}</p>
+      </div>
+      <button @click="onClearBill && onClearBill()" class="text-xs text-red-600 hover:underline">清空</button>
+    </div>
+    <!-- history -->
+    <div v-else-if="billStatus === 'history'" class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded flex items-start gap-3">
+      <svg class="w-5 h-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div class="flex-1">
+        <p class="text-sm font-medium text-yellow-800">历史记录无原始数据</p>
+        <p class="text-xs text-yellow-700 mt-0.5">当前 note 来自历史记录，无原始 SOAP 数据可核对。请重新上传 note.pdf。</p>
+      </div>
+      <button @click="onClearBill && onClearBill()" class="text-xs text-yellow-700 hover:underline">清空 Bill</button>
+    </div>
+    <!-- note_error -->
+    <div v-else-if="billStatus === 'note_error'" class="bg-red-50 border-l-4 border-red-400 p-3 rounded flex items-start gap-3">
+      <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5z"/></svg>
+      <div class="flex-1">
+        <p class="text-sm font-medium text-red-700">Note 验证失败，无法核对 Bill</p>
+        <p v-if="file?.error" class="text-xs text-red-600 mt-0.5">{{ file.error }}</p>
+      </div>
+      <button @click="onClearBill && onClearBill()" class="text-xs text-red-600 hover:underline">清空 Bill</button>
+    </div>
+    <!-- waiting_note -->
+    <div v-else-if="billStatus === 'waiting_note'" class="bg-paper-100 border border-ink-200 p-3 rounded flex items-center gap-3">
+      <svg class="w-5 h-5 text-ink-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+      <p class="text-sm text-ink-700 flex-1">Bill 已上传，等待 note 验证完成后自动核对...</p>
+      <button @click="onClearBill && onClearBill()" class="text-xs text-ink-500 hover:underline">清空 Bill</button>
+    </div>
+    <!-- matched -->
+    <div v-else-if="billStatus === 'matched'" class="space-y-3">
+      <button
+        type="button"
+        @click="billExpanded = !billExpanded"
+        class="w-full flex items-center gap-4 p-3 bg-paper-100/50 rounded-lg border border-ink-100 hover:bg-paper-100 transition-colors text-left"
+        :aria-expanded="billExpanded"
+      >
+        <svg
+          class="w-4 h-4 text-ink-400 shrink-0 transition-transform"
+          :class="billExpanded ? 'rotate-90' : ''"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <svg class="w-5 h-5 text-ink-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-ink-800">Bill 核对 <span v-if="file?.name" class="text-xs font-normal text-ink-500">vs {{ file.name }}</span></div>
+          <div class="text-xs text-ink-500 truncate">{{ billSummary.insurance }} · {{ billSummary.dosCount }} DOS · ${{ billSummary.totalCharge.toFixed(0) }}</div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">✓ {{ billSummary.match }}</span>
+          <span v-if="billSummary.diff > 0" class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">⚠ {{ billSummary.diff }}</span>
+          <span v-if="billSummary.missing > 0" class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">✗ {{ billSummary.missing }}</span>
+        </div>
+        <span @click.stop="onClearBill && onClearBill()" class="text-xs text-ink-500 hover:text-red-500 shrink-0 cursor-pointer">清空</span>
+      </button>
+      <div v-show="billExpanded" class="divide-y divide-ink-100 max-h-96 overflow-y-auto border border-ink-100 rounded-lg">
+        <div
+          v-for="(r, i) in billMatchResult"
+          :key="`bill-${i}`"
+          class="px-3 py-2 flex items-start gap-2"
+          :class="r.status === 'diff' ? 'bg-yellow-50/40' : r.status === 'missing_dos' ? 'bg-red-50/30' : ''"
+        >
+          <span :class="[billChipClass(r.status), 'font-bold text-sm leading-5 w-4']">{{ billChipIcon(r.status) }}</span>
+          <span class="font-mono text-xs text-ink-700 w-20 shrink-0 leading-5">{{ r.dos }}</span>
+          <div class="flex-1 min-w-0 text-xs leading-5">
+            <template v-if="r.status === 'match'">
+              <span class="text-ink-600">{{ r.billIcd.join('/') }} · {{ r.billCpt.join('·') }}</span>
+            </template>
+            <template v-else-if="r.status === 'diff'">
+              <span v-if="r.icdMissing?.length" class="text-yellow-700">ICD 缺失: {{ r.icdMissing.join(', ') }}</span>
+              <span v-if="r.icdMissing?.length && r.cptMissing?.length" class="text-ink-400"> · </span>
+              <span v-if="r.cptMissing?.length" class="text-yellow-700">CPT 缺失: {{ r.cptMissing.join(', ') }}</span>
+            </template>
+            <template v-else>
+              <span class="text-red-700">Note 无此 DOS</span>
+              <span class="text-ink-400"> · 也可能因日期未正确解析</span>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div v-show="billExpanded && unchargedVisitDoses.length > 0" class="text-xs">
+        <button @click="unchargedExpanded = !unchargedExpanded" class="flex items-center gap-1.5 text-ink-500 hover:text-ink-700">
+          <svg class="w-3 h-3 transition-transform" :class="unchargedExpanded ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <span>未计费 visits ({{ unchargedVisitDoses.length }})</span>
+        </button>
+        <div v-show="unchargedExpanded" class="mt-1.5 pl-4 text-ink-500 font-mono">
+          {{ unchargedVisitDoses.join(' · ') }}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Empty State -->
   <div v-if="!file" class="card h-full min-h-[500px] flex items-center justify-center">
     <div class="text-center text-ink-400">
@@ -315,6 +470,15 @@ const correctionsByVisit = computed(() => {
     </div>
   </div>
 
+  <!-- Note Error State -->
+  <div v-else-if="file.status === 'error'" class="card h-full min-h-[300px] flex items-center justify-center">
+    <div class="text-center px-6">
+      <svg class="w-12 h-12 mx-auto mb-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01M5 19a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5z"/></svg>
+      <p class="text-sm font-medium text-red-700 mb-1">Note 验证失败</p>
+      <p class="text-xs text-ink-600">{{ file.error || '未知错误' }}</p>
+    </div>
+  </div>
+
   <!-- Processing State -->
   <div v-else-if="file.status === 'processing'" class="card h-full min-h-[500px] flex items-center justify-center">
     <div class="text-center">
@@ -324,6 +488,7 @@ const correctionsByVisit = computed(() => {
       </svg>
       <p class="text-sm text-ink-500">正在验证 {{ file.name }}...</p>
     </div>
+  </div>
   </div>
 </template>
 

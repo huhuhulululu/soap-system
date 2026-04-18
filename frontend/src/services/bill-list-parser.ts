@@ -14,6 +14,26 @@ export interface BillList {
   rows: BillRow[]
 }
 
+export type BillFormat = 'html' | 'xlsx-binary' | 'unknown'
+
+// Detect bill file format from raw bytes or string.
+// - xlsx-binary: starts with PK\x03\x04 (ZIP/XLSX/docx)
+// - html: contains <table> / <html> / <!doctype html> markers
+// - unknown: neither
+export function detectBillFormat(raw: string | Uint8Array): BillFormat {
+  const bytes = typeof raw === 'string'
+    ? new TextEncoder().encode(raw.slice(0, 500))
+    : raw.subarray(0, 500)
+  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    return 'xlsx-binary'
+  }
+  const head = (typeof raw === 'string' ? raw.slice(0, 500) : new TextDecoder('utf-8').decode(bytes)).toLowerCase()
+  if (head.includes('<table') || head.includes('<!doctype html') || head.includes('<html')) {
+    return 'html'
+  }
+  return 'unknown'
+}
+
 function splitByBr(el: Element): string[] {
   const segments: string[] = []
   let current = ''

@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { checkerService } from "../services/checker";
-import { parseBillListHtml } from "../services/bill-list-parser";
+import { parseBillListHtml, detectBillFormat } from "../services/bill-list-parser";
 import { matchBillToNote } from "../services/bill-matcher";
 
 export const useFilesStore = defineStore("files", () => {
@@ -73,15 +73,21 @@ export const useFilesStore = defineStore("files", () => {
       name: f.name,
       file: f,
       status: "pending",
+      source: "upload",
       report: null,
       error: null,
     }));
     files.value = [...files.value, ...formatted];
   }
 
-  function selectFile(file) {
+  function selectFile(file, opts = {}) {
+    const prevId = selectedFileId.value;
     selectedFileId.value = file?.id || null;
-    clearBill(); // 切换 note 时清空 bill 面板（P2 风险场景 (a)）
+    // 切换到不同的已验证 note 时，清空 bill 避免静默错绑到另一份病历
+    // 除非调用方显式 keepBill（例如 handleFiles 新增 + 选中同一次上传）
+    if (!opts.keepBill && prevId && file && prevId !== file.id) {
+      clearBill();
+    }
   }
 
   function removeFile(fileId) {
@@ -102,10 +108,18 @@ export const useFilesStore = defineStore("files", () => {
     billFile.value = file;
     billError.value = "";
     billData.value = null;
-    const token = file; // capture identity
+    const token = file;
     try {
-      const text = await file.text();
-      if (billFile.value !== token) return; // stale: user swapped/cleared while we awaited
+      const buf = new Uint8Array(await file.arrayBuffer());
+      if (billFile.value !== token) return;
+      const fmt = detectBillFormat(buf);
+      if (fmt === "xlsx-binary") {
+        throw new Error("二进制 Excel 不支持，请从 iClinic 导出为 HTML 格式");
+      }
+      if (fmt === "unknown") {
+        throw new Error("无法识别文件格式，请上传 HTML 表格导出文件");
+      }
+      const text = new TextDecoder("utf-8").decode(buf);
       billData.value = parseBillListHtml(text);
     } catch (err) {
       if (billFile.value !== token) return;
@@ -185,6 +199,7 @@ export const useFilesStore = defineStore("files", () => {
       name: fileName,
       file: null,
       status: "done",
+      source: "history",
       report,
       error: null,
     };

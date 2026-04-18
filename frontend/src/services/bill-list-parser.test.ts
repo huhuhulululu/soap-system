@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { parseBillListHtml } from './bill-list-parser'
+import { parseBillListHtml, detectBillFormat } from './bill-list-parser'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const SAMPLE_PATH = resolve(here, '../../../0416/InsurancePatientPaymentDetail.xls')
@@ -39,6 +39,22 @@ describe('parseBillListHtml - error handling', () => {
   it('throws when #listTable is missing', () => {
     expect(() => parseBillListHtml('<html><body><p>no table</p></body></html>'))
       .toThrow(/listTable not found/)
+  })
+
+  it('detectBillFormat identifies XLSX binary by magic bytes', () => {
+    const xlsxMagic = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00])
+    expect(detectBillFormat(xlsxMagic)).toBe('xlsx-binary')
+  })
+
+  it('detectBillFormat identifies HTML by <table> marker', () => {
+    expect(detectBillFormat('<html><body><table id="listTable">')).toBe('html')
+    expect(detectBillFormat('<!DOCTYPE html><html></html>')).toBe('html')
+    expect(detectBillFormat('<table border="0">hi</table>')).toBe('html')
+  })
+
+  it('detectBillFormat returns unknown for plain text', () => {
+    expect(detectBillFormat('just some random text')).toBe('unknown')
+    expect(detectBillFormat(new Uint8Array([0x41, 0x42, 0x43]))).toBe('unknown')
   })
 
   it('skips rows with malformed DOS', () => {
