@@ -1066,9 +1066,16 @@ export function parseProcedureCodes(block: string): ProcedureCode[] {
     })
   }
 
-  // Handle multi-line procedure codes
+  // Handle multi-line procedure codes.
+  // Bug history: 原截断符包含 `Printed on`，但 Optum note 跨页时每页页眉
+  // `PATIENT (DOB:...) Date of Service:... Printed on:...` 会插在 Procedure Code
+  // 中间，导致被分隔到下一页首行的 CPT（例如 07/16 的 97814）在截断前丢失。
+  // 修复：截断符只保留 `\n\n` 和 `$`，并在 section 里移除插入的页眉行。
   const multiPattern = /\((\d+)\)\s*(.+?)\((\d+(?:-\d+)?)\)/g
-  const multiSection = block.match(/Procedure Code\s*:[\s\S]+?(?=\n\n|Printed on|$)/i)?.[0] || ''
+  const rawSection = block.match(/Procedure Code\s*:[\s\S]+?(?=\n\n|$)/i)?.[0] || ''
+  const multiSection = rawSection
+    .replace(/^[^\n]*\(DOB:[^)]*\)[^\n]*Printed on:[^\n]*$/gim, '')
+    .replace(/^\s*Printed on:[^\n]*$/gim, '')
 
   let multiMatch: RegExpExecArray | null
   while ((multiMatch = multiPattern.exec(multiSection)) !== null) {
