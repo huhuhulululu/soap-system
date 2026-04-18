@@ -1,9 +1,9 @@
-# SOAP System 系统架构手册 v2.3.0
+# SOAP System 系统架构手册 v2.4.0
 
 > 本文档是 SOAP System 的唯一正确数据参考源（Single Source of Truth）。
 > 所有系统优化、检修、重建、AI Agent 训练均以本文档为准。
 >
-> 最后更新: 2026-02-21 | 分支: clean-release
+> 最后更新: 2026-03-07 | 分支: clean-release
 
 ---
 
@@ -69,8 +69,10 @@ SOAP System 是一个针灸诊所 SOAP 医疗笔记的自动化工具，核心�
 │  backend 容器 (Node 20, port 3001)   │
 │  ├── /api/health      (无需认证)     │
 │  ├── /api/auth/me     (无需认证)     │
-│  ├── /api/batch/*     (requireAuth)  │
-│  └── /api/automate/*  (requireAuth)  │
+│  ├── /api/batch/*    (requireAuth)   │
+│  ├── /api/automate/* (requireAuth)   │
+│  ├── /api/soap/*     (requireAuth)   │
+│  └── /api/ai/*       (requireAuth)   │
 │  Volume: batch-data → /app/data      │
 └──────────────────────────────────────┘
 ```
@@ -91,7 +93,7 @@ AC 系统通过与 PT 系统共享 JWT Cookie 实现统一认证，无需独立�
     │
     ▼
 PT 签发 JWT Cookie (rbmeds_token)
-    │  payload: { user_id, username, role, ac_access, exp }
+    │  payload: { user_id, username, role, ac_access?, systems?: string[], exp }
     │  httponly, secure, samesite=Lax, path=/
     │
     ▼
@@ -101,7 +103,7 @@ PT 签发 JWT Cookie (rbmeds_token)
 AC 后端 requireAuth 中间件
     ├── 1. 读取 req.cookies.rbmeds_token
     ├── 2. jwt.verify(token, SHARED_JWT_SECRET)
-    ├── 3. 检查 payload.ac_access === true
+    ├── 3. 检查 payload.systems?.includes("ac") 或 payload.ac_access === true
     ├── ✅ 通过 → req.user = payload → next()
     └── ❌ 失败 → 回退 x-api-key 验证（向后兼容；API_KEY 未设置时直接放行）
 ```
@@ -110,9 +112,9 @@ AC 后端 requireAuth 中间件
 - `SHARED_JWT_SECRET`: 必须与 PT 的 `SECRET_KEY` 相同
 - `CORS_ORIGIN`: `https://rbmeds.com`（含 `credentials: true`）
 - `cookie-parser`: 解析请求中的 cookie
-- `/api/auth/me`: 返回当前 JWT 用户信息（username, role, ac_access）
+- `/api/auth/me`: 返回当前 JWT 用户信息（username, role, ac_access, systems）
 
-用户 AC 访问权限由 PT Settings → 用户管理中的「AC 系统」开关控制（`ac_access` 字段）。
+用户 AC 访问权限由 PT 用户管理中的「AC 系统」开关控制（`ac_access` 或 `systems` 含 `"ac"`）。
 
 ---
 
@@ -122,7 +124,7 @@ AC 后端 requireAuth 中间件
 
 服务入口: `server/index.ts` → `createApp()` 工厂函数
 
-中间件链: CORS → JSON body (1mb) → cookie-parser → rate limiting → 路由
+中间件链: CORS → express.json(1mb) → cookie-parser → rate limiting → **csrfProtect** → 路由（POST/PUT/PATCH/DELETE 需 x-csrf-token 与 cookie 一致，API-key 请求豁免）
 
 ### 2.2 Rate Limiting
 
@@ -146,11 +148,12 @@ AC 后端 requireAuth 中间件
 |------|------|------|
 | POST | `/api/batch` | 上传 Excel → 解析+生成 SOAP |
 | POST | `/api/batch/json` | JSON 提交患者数据（网页表单） |
+| GET | `/api/batch/template/download` | 下载 Excel 模板（须在 GET /:id 之前注册） |
 | GET | `/api/batch/:id` | 获取 batch 详情 |
 | PUT | `/api/batch/:batchId/visit/:patientIdx/:visitIdx` | 重新生成单个 visit |
 | POST | `/api/batch/:batchId/generate` | 生成所有 SOAP（soap-only 模式） |
 | POST | `/api/batch/:batchId/confirm` | 确认 batch（标记可执行） |
-| GET | `/api/batch/template/download` | 下载 Excel 模板 |
+| POST | `/api/batch/prebuilt` | 预构建患者数据直接入库（不解析 Excel） |
 
 **Automate 端点（requireAuth）— `server/routes/automate.ts`:**
 
@@ -161,6 +164,36 @@ AC 后端 requireAuth 中间件
 | POST | `/api/automate/:batchId` | 触发 Playwright 自动化 |
 | GET | `/api/automate/:batchId` | 获取自动化状态+日志 |
 | POST | `/api/automate/:batchId/stop` | 停止运行中的自动化 |
+
+**SOAP 端点（requireAuth）— `server/routes/soap.ts`:**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/soap` | 单患者 SOAP 生产（Zod 校验 input + txCount + 可选 seed） |
+| POST | `/api/soap/generate-batch` | 多患者批量生产（body: { patients: [...] }） |
+
+**AI 端点（requireAuth）— `server/routes/ai-generate.ts`:**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/ai/generate` | 通过 Vertex AI 微调模型生成 SOAP 笔记 |
+
+### 2.4 后端服务层 (`server/`)
+
+| 路径 | 职责 |
+|------|------|
+| `server/index.ts` | createApp、requireAuth、csrfProtect、路由挂载 |
+| `server/routes/` | batch, automate, soap, ai-generate 四组路由 |
+| `server/services/excel-parser.ts` | Excel 解析 → rows → buildPatientsFromRows |
+| `server/services/batch-generator.ts` | 单 visit 生成、normalizeGenerationContext、HTML 输出 |
+| `server/services/soap-producer.ts` | 单患者 SOAP 生产（Zod 校验、produceSinglePatient） |
+| `server/services/soap-worker-pool.ts` | 批量生成 Worker 池（worker threads） |
+| `server/workers/soap-worker.ts` | 子进程/Worker 入口，调用引擎生成 |
+| `server/services/automation-runner.ts` | Playwright 子进程、Cookie 加解密、NDJSON 事件 |
+| `server/services/ai-generator.ts` | Vertex AI 调用（Python bridge 或 HTTP） |
+| `server/services/text-to-html.ts` | 文本转 HTML 片段 |
+| `server/store/batch-store.ts` | LRU 缓存 + JSON 持久化、generateBatchId/saveBatch/getBatch/confirmBatch |
+| `server/types.ts` | BatchData, BatchPatient, BatchVisit, BatchMode, ExcelRow |
 
 ---
 
@@ -198,6 +231,15 @@ validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 | auditor | `src/auditor/` | 三层审计：Layer1 基础校验 → Layer2 逻辑一致性 → Layer3 高级规则 |
 | validator | `src/validator/` | 输出验证：`output-validator.ts` 最终校验生成结果 |
 
+### 3.3 解析器目录 (`parsers/`)
+
+与 `src/` 并列，非共享引擎依赖链，供 Checker 与后端 Excel 解析等使用。
+
+| 路径 | 职责 |
+|------|------|
+| `parsers/optum-note/` | Optum 格式 PDF 解析：`parser.ts`、`types.ts`、`index.ts` |
+| `parsers/optum-note/checker/` | 笔记检查：`note-checker.ts`、`correction-generator.ts`、`bridge.ts` |
+
 ---
 
 ## 第四章：前端架构
@@ -215,17 +257,18 @@ validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 
 ### 4.2 认证守卫
 
-`router.beforeEach` 调用 `/api/auth/me` 检查认证状态。未认证时跳转 PT 登录页:
-`/pt/login?redirect=/ac{当前路径}`
+`router.beforeEach` 调用 `/ac/api/auth/me`（`credentials: 'include'`）检查认证状态。未认证时跳转门户登录:
+`window.location.href = '/portal/'`
 
 ### 4.3 前端分层
 
 ```
-views/          — 3 个活跃视图 (Checker, Composer, Batch) + 1 个遗留 (HistoryView)
-components/     — 13 个通用组件 + composer/ 子目录 (WriterPanel, ContinuePanel)
-services/       — 6 个服务 (checker, generator, normalizer, pdf-extractor, exporter, batch-exporter)
-composables/    — 5 个组合函数 (useHistory, useKeyboardNav, useSOAPGeneration, useWriterFields, useDiffHighlight)
+views/          — 3 个活跃视图 (Checker, Composer, Batch)；/writer、/continue、/history 为重定向
+components/     — 通用组件 (HeaderBar, FileUploader, ReportPanel, VisitAuditCard, TrendChart 等) + composer/ (WriterPanel, ContinuePanel, AIWriterPanel)
+services/       — checker, generator, pdf-extractor, exporter, batch-exporter + soap-worker-bridge (TS)
+composables/    — useHistory, useKeyboardNav, useSOAPGeneration, useWriterFields, useDiffHighlight, useAssessmentBinding
 stores/         — Pinia store (files.js)
+workers/        — checker.worker.js, soap-engine.worker.ts (共享引擎 Worker 桥接)
 ```
 
 ---
@@ -285,6 +328,7 @@ X-Frame-Options: DENY
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
+Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob: https://cdn.jsdelivr.net;
 ```
 
 ### 6.4 SSL/TLS (`docker-compose.ssl.yml` + `frontend/nginx-ssl.conf`)
@@ -305,6 +349,8 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 | `NODE_ENV` | 运行环境（docker-compose 硬编码 `production`） |
 | `DATA_DIR` | 批量数据存储目录（docker-compose 硬编码 `/app/data`） |
 | `CORS_ORIGIN` | CORS 允许源（docker-compose 硬编码 `https://rbmeds.com`） |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Vertex AI 服务账号 JSON 路径（如 `/app/vertex-sa-key.json`） |
+| `VERTEX_PROJECT` / `VERTEX_LOCATION` / `VERTEX_ENDPOINT` | Vertex AI 微调端点（`/api/ai/generate` 使用） |
 
 ---
 
@@ -325,6 +371,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.4.0 | 2026-03-07 | **像素级同步**: (1) 认证：支持 `payload.systems?.includes("ac")`，`/api/auth/me` 返回 systems；(2) API：补充 SOAP 端点 POST /api/soap、POST /api/soap/generate-batch，AI 端点 POST /api/ai/generate，Batch 增加 POST /api/batch/prebuilt、GET /api/batch/template/download 顺序说明；(3) 后端：新增 2.4 节 server 服务层清单（excel-parser、batch-generator、soap-producer、soap-worker-pool、automation-runner、ai-generator、batch-store 等）；(4) 前端：认证守卫改为 /ac/api/auth/me、未认证跳转 /portal/；分层补充 soap-worker-bridge、useAssessmentBinding、workers 目录；(5) 安全：Nginx 增加 Content-Security-Policy，环境变量增加 Vertex AI 相关；(6) 新增 3.3 parsers/optum-note 目录说明；(7) 修复 batch 路由顺序：GET /template/download 移至 GET /:id 之前，避免被误匹配。 |
 | v2.3.0 | 2026-02-21 | **架构文档全面修正**: (1) 修正功能表：合并 Writer/Continue 为 Composer，新增 Batch、Automate，移除独立 History；(2) 新增第二章后端 API（14 个端点 + rate limiting）；(3) 新增第三章共享引擎模块架构（7 模块依赖图）；(4) 新增第四章前端架构（路由、认证守卫、分层）；(5) 新增第五章批量处理（LRU 存储、3 种模式、流程）；(6) 新增第六章安全（Docker 非 root、Cookie 加密、Nginx 安全头、SSL/TLS、环境变量）；(7) 新增第七章测试（Jest + Vitest 双框架）。 |
 | v2.3.0-auth | 2026-02-20 | **JWT Cookie 共享认证**: `requireAuth` 中间件新增 JWT cookie 验证，新增 `/api/auth/me` 端点，CORS 改为 `https://rbmeds.com`。 |
 | v2.2.0 | 2026-02-15 | 初始架构文档 |
