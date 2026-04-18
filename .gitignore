@@ -41,3 +41,9 @@ ccnote/
 .claude/worktrees/
 .worktrees/
 training-data/
+
+# Task workspace (codex-6 pipeline state)
+.claude-state/
+
+# Clinical data samples (HIPAA — never commit)
+0416/

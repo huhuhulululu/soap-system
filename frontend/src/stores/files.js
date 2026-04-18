@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { checkerService } from "../services/checker";
+import { parseBillListHtml } from "../services/bill-list-parser";
+import { matchBillToNote } from "../services/bill-matcher";
 
 export const useFilesStore = defineStore("files", () => {
   // State
@@ -9,6 +11,11 @@ export const useFilesStore = defineStore("files", () => {
   const isProcessing = ref(false);
   const insuranceType = ref("OPTUM");
   const treatmentTime = ref(15);
+
+  // Bill state (仅本次会话，切换 note 会重置)
+  const billFile = ref(null);
+  const billData = ref(null);         // BillList
+  const billError = ref("");
 
   // Getters
   const hasFiles = computed(() => files.value.length > 0);
@@ -24,6 +31,16 @@ export const useFilesStore = defineStore("files", () => {
   const pendingFiles = computed(() =>
     files.value.filter((f) => f.status === "pending"),
   );
+
+  // Bill match result derived from current selected note + billData
+  const billMatchResult = computed(() => {
+    if (!billData.value || !selectedFile.value?.report?.document) return null;
+    try {
+      return matchBillToNote(billData.value, selectedFile.value.report.document);
+    } catch (err) {
+      return null;
+    }
+  });
 
   const stats = computed(() => {
     const done = processedFiles.value;
@@ -64,18 +81,42 @@ export const useFilesStore = defineStore("files", () => {
 
   function selectFile(file) {
     selectedFileId.value = file?.id || null;
+    clearBill(); // 切换 note 时清空 bill 面板（P2 风险场景 (a)）
   }
 
   function removeFile(fileId) {
     files.value = files.value.filter((f) => f.id !== fileId);
     if (selectedFileId.value === fileId) {
       selectedFileId.value = null;
+      clearBill(); // 删除当前 note 清空 bill（P2 场景 (c)）
     }
   }
 
   function clearAll() {
     files.value = [];
     selectedFileId.value = null;
+    clearBill();
+  }
+
+  async function setBillFile(file) {
+    billFile.value = file;
+    billError.value = "";
+    billData.value = null;
+    const token = file; // capture identity
+    try {
+      const text = await file.text();
+      if (billFile.value !== token) return; // stale: user swapped/cleared while we awaited
+      billData.value = parseBillListHtml(text);
+    } catch (err) {
+      if (billFile.value !== token) return;
+      billError.value = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  function clearBill() {
+    billFile.value = null;
+    billData.value = null;
+    billError.value = "";
   }
 
   async function processAllFiles() {
@@ -149,6 +190,7 @@ export const useFilesStore = defineStore("files", () => {
     };
     files.value = [entry];
     selectedFileId.value = id;
+    clearBill(); // history 加载清空 bill（P2 场景 (b)）
   }
 
   return {
@@ -158,12 +200,16 @@ export const useFilesStore = defineStore("files", () => {
     isProcessing,
     insuranceType,
     treatmentTime,
+    billFile,
+    billData,
+    billError,
     // Getters
     hasFiles,
     selectedFile,
     processedFiles,
     pendingFiles,
     stats,
+    billMatchResult,
     // Actions
     addFiles,
     selectFile,
@@ -171,5 +217,7 @@ export const useFilesStore = defineStore("files", () => {
     clearAll,
     processAllFiles,
     loadFromHistory,
+    setBillFile,
+    clearBill,
   };
 });

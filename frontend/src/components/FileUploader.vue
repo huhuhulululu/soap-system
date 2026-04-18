@@ -7,6 +7,38 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false
+  },
+  accept: {
+    type: String,
+    default: '.pdf'
+  },
+  mimeFilter: {
+    type: String,
+    default: 'application/pdf'
+  },
+  multiple: {
+    type: Boolean,
+    default: true
+  },
+  title: {
+    type: String,
+    default: '上传 AC NOTE PDF'
+  },
+  subtitle: {
+    type: String,
+    default: '拖放文件到此处，或点击选择文件'
+  },
+  buttonLabel: {
+    type: String,
+    default: '选择 PDF 文件'
+  },
+  compactLabel: {
+    type: String,
+    default: '添加更多文件'
+  },
+  hint: {
+    type: String,
+    default: '支持批量上传 · 仅限 PDF 格式'
   }
 })
 
@@ -42,7 +74,11 @@ function handleDrop(e) {
   e.preventDefault()
   isDragging.value = false
 
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf')
+  const acceptExts = props.accept.split(',').map(s => s.trim().toLowerCase())
+  const files = Array.from(e.dataTransfer.files).filter(f => {
+    if (props.mimeFilter && f.type === props.mimeFilter) return true
+    return acceptExts.some(ext => f.name.toLowerCase().endsWith(ext))
+  })
   const validFiles = filterBySize(files)
   if (validFiles.length > 0) {
     emit('files-added', validFiles)
@@ -74,13 +110,13 @@ function openFilePicker() {
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
-      <span class="font-medium">添加更多文件</span>
+      <span class="font-medium">{{ compactLabel }}</span>
     </button>
     <input
       ref="fileInput"
       type="file"
-      accept=".pdf"
-      multiple
+      :accept="accept"
+      :multiple="multiple"
       class="hidden"
       @change="handleFileSelect"
     />
@@ -109,10 +145,10 @@ function openFilePicker() {
 
       <!-- Text -->
       <h2 class="font-display text-2xl font-semibold text-ink-800 mb-2">
-        上传 AC NOTE PDF
+        {{ title }}
       </h2>
       <p class="text-ink-500 mb-6">
-        拖放文件到此处，或点击选择文件
+        {{ subtitle }}
       </p>
 
       <!-- Button -->
@@ -124,12 +160,12 @@ function openFilePicker() {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
-        <span>选择 PDF 文件</span>
+        <span>{{ buttonLabel }}</span>
       </button>
 
       <!-- Hint -->
       <p class="mt-6 text-xs text-ink-400">
-        支持批量上传 · 仅限 PDF 格式
+        {{ hint }}
       </p>
       
       <!-- Size Error -->
@@ -141,8 +177,8 @@ function openFilePicker() {
     <input
       ref="fileInput"
       type="file"
-      accept=".pdf"
-      multiple
+      :accept="accept"
+      :multiple="multiple"
       class="hidden"
       @change="handleFileSelect"
     />

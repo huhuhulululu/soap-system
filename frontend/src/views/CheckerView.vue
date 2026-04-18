@@ -8,6 +8,7 @@ import FileList from '../components/FileList.vue'
 import ReportPanel from '../components/ReportPanel.vue'
 import StatsOverview from '../components/StatsOverview.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
+import BillDosPanel from '../components/BillDosPanel.vue'
 import { useKeyboardNav } from '../composables/useKeyboardNav'
 
 const filesStore = useFilesStore()
@@ -19,7 +20,10 @@ const {
   pendingFiles,
   stats,
   insuranceType,
-  treatmentTime
+  treatmentTime,
+  billData,
+  billError,
+  billMatchResult
 } = storeToRefs(filesStore)
 
 const {
@@ -27,8 +31,14 @@ const {
   selectFile,
   removeFile,
   clearAll,
-  processAllFiles
+  processAllFiles,
+  setBillFile,
+  clearBill
 } = filesStore
+
+function handleBillFiles(fs) {
+  if (fs?.[0]) setBillFile(fs[0])
+}
 
 useKeyboardNav(files, selectFile)
 
@@ -119,9 +129,15 @@ const STATUS_BADGE = {
 
     <!-- Working State -->
     <ErrorBoundary>
-      <div v-if="hasFiles" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left Column: File List & Stats -->
-        <div class="lg:col-span-4 space-y-6">
+      <div
+        v-if="hasFiles"
+        :class="[
+          'grid grid-cols-1 gap-6',
+          billData || billError ? 'lg:grid-cols-12' : 'lg:grid-cols-12'
+        ]"
+      >
+        <!-- Left Column: File List & Stats (3 cols when bill, 4 otherwise) -->
+        <div :class="[(billData || billError) ? 'lg:col-span-3' : 'lg:col-span-4', 'space-y-6']">
           <!-- Stats Overview -->
           <StatsOverview
             v-if="stats"
@@ -193,12 +209,35 @@ const STATUS_BADGE = {
             @files-added="addFiles"
             class="animate-slide-up stagger-3"
           />
+
+          <!-- Bill Uploader -->
+          <FileUploader
+            v-if="!billData && !billError"
+            compact
+            accept=".xls,.html,.htm"
+            mime-filter=""
+            :multiple="false"
+            compact-label="上传 Bill List (.xls)"
+            @files-added="handleBillFiles"
+            class="animate-slide-up stagger-3"
+          />
         </div>
 
-        <!-- Right Column: Report Detail -->
-        <div class="lg:col-span-8">
+        <!-- Middle Column: Report Detail -->
+        <div :class="[(billData || billError) ? 'lg:col-span-5' : 'lg:col-span-8']">
           <ReportPanel
             :file="selectedFile"
+            class="animate-fade-in"
+          />
+        </div>
+
+        <!-- Right Column: Bill DOS Panel (only when bill present) -->
+        <div v-if="billData || billError" class="lg:col-span-4">
+          <BillDosPanel
+            :bill="billData"
+            :match-results="billMatchResult"
+            :error="billError"
+            @clear="clearBill"
             class="animate-fade-in"
           />
         </div>
