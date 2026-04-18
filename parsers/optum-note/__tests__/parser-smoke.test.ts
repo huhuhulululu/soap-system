@@ -88,6 +88,24 @@ ZHENG, GUOBIN (DOB: 12/26/1955 ID: 1002305650) Date of Service: 07/16/2025 Print
     expect(cpts).toContain("97814");
   });
 
+  it("parseProcedureCodes captures CPT when stripPageBreakHeaders leaves a blank line (regression 2)", () => {
+    // 生产环境下 stripPageBreakHeaders 会把跨页 header 替换为 `\n`，原文周围
+    // 又有换行，结果 CPT 之间出现真正的 `\n\n`。旧正则用 `(?=\n\n)` 截断，orphan
+    // CPT 丢失。必须让 multiSection 取到 block 末尾，不被空行打断。
+    const block = `Subjective: Follow up visit
+Pain Scale: 7 /10
+Objective: Inspection: local skin no damage or rash
+Assessment: The patient continues treatment.
+Plan: Today's treatment principles
+Diagnosis Code: (1) Low back pain, unspecified(M54.50)
+Procedure Code: (1) ACUP 1/> W/ESTIM 1ST 15 MIN(97813)
+(2) ACUP 1/> W/O ESTIM EA ADD 15(97811)
+
+(3) ACUP 1/> W/ESTIM EA ADDL 15(97814)`;
+    const cpts = parseProcedureCodes(block).map((c) => c.cpt);
+    expect(cpts).toEqual(expect.arrayContaining(["97813", "97811", "97814"]));
+  });
+
   it("parseOptumNote parses a minimal IE note", () => {
     const result = parseOptumNote(buildMinimalIEText());
     expect(result.success).toBe(true);
