@@ -12,6 +12,7 @@ SOAP System — 针灸诊所 SOAP 笔记自动化（生成 + MDLand 提交）。
 
 v1.5 Engine & UX Completion — 已交付 (2026-02-23)
 下一步: v1.6 规划或新 milestone
+架构文档已同步至 **ARCHITECTURE.md v2.4.0** (2026-03-07)。
 
 ## 里程碑历史
 

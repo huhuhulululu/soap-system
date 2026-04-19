@@ -6,7 +6,7 @@
  * PUT    /api/batch/:batchId/visit/:patientIdx/:visitIdx - 重新生成单个 visit
  * POST   /api/batch/:batchId/generate - 生成所有 SOAP (soap-only 模式用)
  * POST   /api/batch/:batchId/confirm - 确认 batch
- * GET    /api/template           - 下载 Excel 模板
+ * GET    /api/batch/template/download - 下载 Excel 模板
  */
 
 import { Router, type Request, type Response } from "express";
@@ -189,6 +189,28 @@ export function createBatchRouter(): Router {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       res.status(400).json({ success: false, error: message });
+    }
+  });
+
+  /**
+   * GET /api/batch/template/download - 下载 Excel 模板（须在 GET /:id 之前注册）
+   */
+  router.get("/template/download", (_req: Request, res: Response) => {
+    try {
+      const templatePath = path.resolve(
+        __dirname,
+        "../../templates/batch-template.xlsx",
+      );
+      if (!fs.existsSync(templatePath)) {
+        res
+          .status(404)
+          .json({ success: false, error: "Template file not found" });
+        return;
+      }
+      res.download(templatePath, "batch-template.xlsx");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ success: false, error: message });
     }
   });
 
@@ -413,28 +435,6 @@ export function createBatchRouter(): Router {
           totalVisits,
         },
       });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      res.status(500).json({ success: false, error: message });
-    }
-  });
-
-  /**
-   * GET /api/template - 下载 Excel 模板
-   */
-  router.get("/template/download", (_req: Request, res: Response) => {
-    try {
-      const templatePath = path.resolve(
-        __dirname,
-        "../../templates/batch-template.xlsx",
-      );
-      if (!fs.existsSync(templatePath)) {
-        res
-          .status(404)
-          .json({ success: false, error: "Template file not found" });
-        return;
-      }
-      res.download(templatePath, "batch-template.xlsx");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       res.status(500).json({ success: false, error: message });
