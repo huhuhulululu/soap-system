@@ -10,7 +10,7 @@
  * Seeds: 100001–100030 (unique per fixture)
  */
 
-import type { BodyPart, Laterality, SeverityLevel } from '../../types'
+import type { BodyPart, InsuranceType, Laterality, SeverityLevel } from '../../types'
 import { severityFromPain } from '../../shared/severity'
 
 export interface FixtureDefinition {
@@ -28,6 +28,15 @@ export interface FixtureDefinition {
   readonly realisticPatch?: boolean
   readonly localPattern?: string
   readonly systemicPattern?: string
+  // ── v2 extensions (W1.3 roadmap — coverage blind spots) ──
+  readonly insuranceType?: InsuranceType            // default 'OPTUM'
+  readonly chronicityLevel?: 'Acute' | 'Sub Acute' | 'Chronic'  // default 'Chronic'
+  readonly age?: number
+  readonly gender?: 'Male' | 'Female'
+  readonly disableChronicCaps?: boolean             // default false
+  readonly startVisitIndex?: number                 // for continue-mode
+  readonly initialFrequency?: number                // 0-3; default 3
+  readonly allowNegativeEvents?: boolean            // default false
 }
 
 // severity(pain) moved to src/shared/severity.ts::severityFromPain
@@ -79,4 +88,29 @@ export const FIXTURES: readonly FixtureDefinition[] = [
   { name: 'LBP-bilateral-medhx-DM-HTN-12tx', bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 7,  severityLevel: severity(7),  txCount: 12, seed: 100028, medicalHistory: ['Diabetes', 'Hypertension'] },
   { name: 'KNEE-left-realisticpatch-12tx', bodyPart: 'KNEE',         laterality: 'left',      painCurrent: 8,  severityLevel: severity(8),  txCount: 12, seed: 100029, realisticPatch: true },
   { name: 'MIDDLE_BACK-bilateral-mid-12tx', bodyPart: 'MIDDLE_BACK', laterality: 'bilateral', painCurrent: 6,  severityLevel: severity(6),  txCount: 12, seed: 100030 },
+
+  // ── v2 coverage extensions (W1.3) — new fixtures 31-42 ──
+  // Insurance variants (31-35): non-OPTUM branches never before snapshotted
+  { name: 'LBP-HF-bilateral-mid-10tx',      bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 7, severityLevel: severity(7), txCount: 10, seed: 100031, insuranceType: 'HF' },
+  { name: 'SHOULDER-WC-left-mid-12tx',      bodyPart: 'SHOULDER', laterality: 'left',      painCurrent: 8, severityLevel: severity(8), txCount: 12, seed: 100032, insuranceType: 'WC' },
+  { name: 'KNEE-VC-right-early-6tx',        bodyPart: 'KNEE',     laterality: 'right',     painCurrent: 7, severityLevel: severity(7), txCount: 6,  seed: 100033, insuranceType: 'VC' },
+  { name: 'NECK-ELDERPLAN-bilateral-10tx',  bodyPart: 'NECK',     laterality: 'bilateral', painCurrent: 6, severityLevel: severity(6), txCount: 10, seed: 100034, insuranceType: 'ELDERPLAN', age: 72 },
+  { name: 'ELBOW-NONE-left-8tx',            bodyPart: 'ELBOW',    laterality: 'left',      painCurrent: 5, severityLevel: severity(5), txCount: 8,  seed: 100035, insuranceType: 'NONE' },
+
+  // Chronicity variants (36-37): Acute & Sub Acute branches
+  { name: 'LBP-Acute-bilateral-6tx',        bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 7, severityLevel: severity(7), txCount: 6,  seed: 100036, chronicityLevel: 'Acute' },
+  { name: 'KNEE-SubAcute-right-10tx',       bodyPart: 'KNEE',     laterality: 'right',     painCurrent: 8, severityLevel: severity(8), txCount: 10, seed: 100037, chronicityLevel: 'Sub Acute' },
+
+  // Demographics (38-39): age/gender drive ADL filtering + progressMultiplier
+  { name: 'SHOULDER-young-female-20yo-8tx', bodyPart: 'SHOULDER', laterality: 'right',     painCurrent: 7, severityLevel: severity(7), txCount: 8,  seed: 100038, age: 20, gender: 'Female' },
+  { name: 'LBP-elderly-male-78yo-12tx',     bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 8, severityLevel: severity(8), txCount: 12, seed: 100039, age: 78, gender: 'Male', medicalHistory: ['Diabetes', 'Osteoporosis'] },
+
+  // Continue mode (40): startVisitIndex > 1 — never before snapshotted
+  { name: 'NECK-continue-from-tx4-10tx',    bodyPart: 'NECK',     laterality: 'bilateral', painCurrent: 5, severityLevel: severity(5), txCount: 10, seed: 100040, startVisitIndex: 4, initialFrequency: 2 },
+
+  // disableChronicCaps (41): bypass chronic dampener
+  { name: 'LBP-no-chronic-caps-12tx',       bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 8, severityLevel: severity(8), txCount: 12, seed: 100041, disableChronicCaps: true },
+
+  // Negative events allowed (42): exacerbate/came-back branch
+  { name: 'SHOULDER-negative-events-18tx',  bodyPart: 'SHOULDER', laterality: 'left',      painCurrent: 7, severityLevel: severity(7), txCount: 18, seed: 100042, allowNegativeEvents: true },
 ] as const

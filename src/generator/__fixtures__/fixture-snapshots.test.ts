@@ -23,12 +23,12 @@ beforeAll(() => {
 function makeContext(fx: FixtureDefinition): GenerationContext {
   return {
     noteType: 'TX',
-    insuranceType: 'OPTUM',
+    insuranceType: fx.insuranceType ?? 'OPTUM',
     primaryBodyPart: fx.bodyPart,
     laterality: fx.laterality,
     localPattern: fx.localPattern ?? 'Qi Stagnation',
     systemicPattern: fx.systemicPattern ?? 'Kidney Yang Deficiency',
-    chronicityLevel: 'Chronic',
+    chronicityLevel: fx.chronicityLevel ?? 'Chronic',
     severityLevel: fx.severityLevel,
     painCurrent: fx.painCurrent,
     associatedSymptoms: [
@@ -39,6 +39,10 @@ function makeContext(fx: FixtureDefinition): GenerationContext {
     hasPacemaker: fx.hasPacemaker,
     hasMetalImplant: fx.hasMetalImplant,
     medicalHistory: fx.medicalHistory ? [...fx.medicalHistory] : undefined,
+    age: fx.age,
+    gender: fx.gender,
+    disableChronicCaps: fx.disableChronicCaps,
+    allowNegativeEvents: fx.allowNegativeEvents,
   }
 }
 
@@ -46,12 +50,13 @@ function makeOptions(fx: FixtureDefinition): TXSequenceOptions {
   return {
     txCount: fx.txCount,
     seed: fx.seed,
+    startVisitIndex: fx.startVisitIndex,
     initialState: {
       pain: fx.painCurrent,
       tightness: fx.painCurrent >= 7 ? 3 : 2,
       tenderness: fx.painCurrent >= 7 ? 3 : 2,
       spasm: fx.painCurrent >= 7 ? 3 : 2,
-      frequency: 3,
+      frequency: fx.initialFrequency ?? 3,
       associatedSymptom: fx.associatedSymptom ?? 'soreness',
       painTypes: ['Dull', 'Aching'],
     },
