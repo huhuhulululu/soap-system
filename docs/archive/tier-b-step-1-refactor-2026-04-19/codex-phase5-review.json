@@ -1,0 +1,54 @@
+{
+  "review": "Adversarial Review",
+  "target": {
+    "mode": "branch",
+    "label": "branch diff against c9617669caf98208bffa44339ba430593fcb19aa",
+    "baseRef": "c9617669caf98208bffa44339ba430593fcb19aa",
+    "explicit": true
+  },
+  "threadId": "019da8ab-0c61-7312-80cb-4c7a27bd8e62",
+  "context": {
+    "repoRoot": "/Users/ping/Desktop/Code/SOAP",
+    "branch": "clean-release",
+    "summary": "Reviewing branch clean-release against c9617669caf98208bffa44339ba430593fcb19aa from merge-base c9617669caf98208bffa44339ba430593fcb19aa."
+  },
+  "codex": {
+    "status": 0,
+    "stderr": "",
+    "stdout": "{\"findings\":[{\"body\":\"The refactor claims sub-engine RNG isolation, but the orchestrator still runs every stage off the single shared `consts.rng` stream. Repo-wide search shows `deriveSubSeed` is never called outside its own unit test, so Stage 1/4a/3/4b remain coupled by call order exactly as before. That means the new decomposition did not actually buy the advertised protection against future PRNG drift: any later edit that adds/removes one `rng()` in an earlier stage will still silently perturb all downstream stages and can break byte-identical output without any local signal.\",\"confidence\":0.98,\"file\":\"src/generator/tx-sequence-engine.ts\",\"line_end\":220,\"line_start\":161,\"recommendation\":\"Either wire per-stage/per-visit RNGs from `deriveSubSeed(mainSeed, kind, visitIndex)` into the stage APIs now, or drop the B1.3 isolation claim and treat this as an incomplete refactor rather than shipped hardening.\",\"severity\":\"high\",\"title\":\"B1.3 sub-seed isolation was added but never integrated into the pipeline\"},{\"body\":\"The new fuzz suite does not cover two of the failure modes it is supposed to guard. `P3` only checks that `romTrend` stays inside `{improved, slightly improved, stable}`, which still passes illegal floor regressions like `improved -> stable -> improved`. `P5` only enforces `current ⊆ previous`, so an engine that drops every associated symptom immediately still passes. For a stage-extraction refactor whose main risk is skipped state mutation or shifted RNG-driven transitions, these properties leave large blind spots and overstate confidence.\",\"confidence\":0.95,\"file\":\"src/generator/sub-engines/__tests__/pipeline.fuzz.test.ts\",\"line_end\":223,\"line_start\":153,\"recommendation\":\"Strengthen the properties to assert actual longitudinal invariants: track prior ROM floors across visits, require symptom preservation from visit 1 unless a real rule permits shrinkage, and add a parity property that compares staged output against a known-good implementation or serialized visit-state invariants instead of only domain membership/subset checks.\",\"severity\":\"medium\",\"title\":\"Property tests miss the exact regression classes introduced by the stage split\"}],\"next_steps\":[\"Integrate `deriveSubSeed` into stage RNG construction or remove the unfulfilled isolation claim from the plan/acceptance criteria.\",\"Replace P3/P5 with invariants that fail on skipped state writes and PRNG-order drift, then rerun the parity/snapshot suite.\"],\"summary\":\"No current byte-drift was disproven, but the change still should not ship as-is: one advertised hardening step is not actually wired in, and the new fuzz evidence is too weak to catch the subtle refactor failures this branch is most exposed to.\",\"verdict\":\"needs-attention\"}",
+    "reasoning": []
+  },
+  "result": {
+    "findings": [
+      {
+        "body": "The refactor claims sub-engine RNG isolation, but the orchestrator still runs every stage off the single shared `consts.rng` stream. Repo-wide search shows `deriveSubSeed` is never called outside its own unit test, so Stage 1/4a/3/4b remain coupled by call order exactly as before. That means the new decomposition did not actually buy the advertised protection against future PRNG drift: any later edit that adds/removes one `rng()` in an earlier stage will still silently perturb all downstream stages and can break byte-identical output without any local signal.",
+        "confidence": 0.98,
+        "file": "src/generator/tx-sequence-engine.ts",
+        "line_end": 220,
+        "line_start": 161,
+        "recommendation": "Either wire per-stage/per-visit RNGs from `deriveSubSeed(mainSeed, kind, visitIndex)` into the stage APIs now, or drop the B1.3 isolation claim and treat this as an incomplete refactor rather than shipped hardening.",
+        "severity": "high",
+        "title": "B1.3 sub-seed isolation was added but never integrated into the pipeline"
+      },
+      {
+        "body": "The new fuzz suite does not cover two of the failure modes it is supposed to guard. `P3` only checks that `romTrend` stays inside `{improved, slightly improved, stable}`, which still passes illegal floor regressions like `improved -> stable -> improved`. `P5` only enforces `current ⊆ previous`, so an engine that drops every associated symptom immediately still passes. For a stage-extraction refactor whose main risk is skipped state mutation or shifted RNG-driven transitions, these properties leave large blind spots and overstate confidence.",
+        "confidence": 0.95,
+        "file": "src/generator/sub-engines/__tests__/pipeline.fuzz.test.ts",
+        "line_end": 223,
+        "line_start": 153,
+        "recommendation": "Strengthen the properties to assert actual longitudinal invariants: track prior ROM floors across visits, require symptom preservation from visit 1 unless a real rule permits shrinkage, and add a parity property that compares staged output against a known-good implementation or serialized visit-state invariants instead of only domain membership/subset checks.",
+        "severity": "medium",
+        "title": "Property tests miss the exact regression classes introduced by the stage split"
+      }
+    ],
+    "next_steps": [
+      "Integrate `deriveSubSeed` into stage RNG construction or remove the unfulfilled isolation claim from the plan/acceptance criteria.",
+      "Replace P3/P5 with invariants that fail on skipped state writes and PRNG-order drift, then rerun the parity/snapshot suite."
+    ],
+    "summary": "No current byte-drift was disproven, but the change still should not ship as-is: one advertised hardening step is not actually wired in, and the new fuzz evidence is too weak to catch the subtle refactor failures this branch is most exposed to.",
+    "verdict": "needs-attention"
+  },
+  "rawOutput": "{\"findings\":[{\"body\":\"The refactor claims sub-engine RNG isolation, but the orchestrator still runs every stage off the single shared `consts.rng` stream. Repo-wide search shows `deriveSubSeed` is never called outside its own unit test, so Stage 1/4a/3/4b remain coupled by call order exactly as before. That means the new decomposition did not actually buy the advertised protection against future PRNG drift: any later edit that adds/removes one `rng()` in an earlier stage will still silently perturb all downstream stages and can break byte-identical output without any local signal.\",\"confidence\":0.98,\"file\":\"src/generator/tx-sequence-engine.ts\",\"line_end\":220,\"line_start\":161,\"recommendation\":\"Either wire per-stage/per-visit RNGs from `deriveSubSeed(mainSeed, kind, visitIndex)` into the stage APIs now, or drop the B1.3 isolation claim and treat this as an incomplete refactor rather than shipped hardening.\",\"severity\":\"high\",\"title\":\"B1.3 sub-seed isolation was added but never integrated into the pipeline\"},{\"body\":\"The new fuzz suite does not cover two of the failure modes it is supposed to guard. `P3` only checks that `romTrend` stays inside `{improved, slightly improved, stable}`, which still passes illegal floor regressions like `improved -> stable -> improved`. `P5` only enforces `current ⊆ previous`, so an engine that drops every associated symptom immediately still passes. For a stage-extraction refactor whose main risk is skipped state mutation or shifted RNG-driven transitions, these properties leave large blind spots and overstate confidence.\",\"confidence\":0.95,\"file\":\"src/generator/sub-engines/__tests__/pipeline.fuzz.test.ts\",\"line_end\":223,\"line_start\":153,\"recommendation\":\"Strengthen the properties to assert actual longitudinal invariants: track prior ROM floors across visits, require symptom preservation from visit 1 unless a real rule permits shrinkage, and add a parity property that compares staged output against a known-good implementation or serialized visit-state invariants instead of only domain membership/subset checks.\",\"severity\":\"medium\",\"title\":\"Property tests miss the exact regression classes introduced by the stage split\"}],\"next_steps\":[\"Integrate `deriveSubSeed` into stage RNG construction or remove the unfulfilled isolation claim from the plan/acceptance criteria.\",\"Replace P3/P5 with invariants that fail on skipped state writes and PRNG-order drift, then rerun the parity/snapshot suite.\"],\"summary\":\"No current byte-drift was disproven, but the change still should not ship as-is: one advertised hardening step is not actually wired in, and the new fuzz evidence is too weak to catch the subtle refactor failures this branch is most exposed to.\",\"verdict\":\"needs-attention\"}",
+  "parseError": null,
+  "reasoningSummary": []
+}

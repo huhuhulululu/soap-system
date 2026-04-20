@@ -10,9 +10,9 @@ SOAP System — 针灸诊所 SOAP 笔记自动化（生成 + MDLand 提交）。
 
 ## 当前状态
 
-v1.5 Engine & UX Completion — 已交付 (2026-02-23)
-下一步: v1.6 规划或新 milestone
-架构文档已同步至 **ARCHITECTURE.md v2.4.0** (2026-03-07)。
+Tier A + Tier B step 1 Refactor — 已交付 (2026-04-19)
+下一步: Tier B step 2（sub-seed 运行时接入 + 拆 soap-generator.ts）或新 milestone
+架构文档已同步至 **ARCHITECTURE.md v2.4.1** (2026-04-19)。
 
 ## 里程碑历史
 
@@ -24,6 +24,7 @@ v1.5 Engine & UX Completion — 已交付 (2026-02-23)
 | v1.3 | Form UX & Shared Data | 2026-02-23 | ICD/CPT 统一, 表单 UX |
 | v1.4 | Fixture Snapshots & Parity | 2026-02-23 | 30 快照 + normalizeGenerationContext + parity 测试 |
 | v1.5 | Engine & UX Completion | 2026-02-23 | 慢性曲线, Assessment 反射, Batch UX, Seed, Plateau, Medicare Gate |
+| Tier A + B1 | Structural Refactor | 2026-04-19 | 主函数 1010→105 LOC (-90%), 6-stage pipeline, 循环依赖断开, sub-seed 基础设施, pdfjs 自托管, CSP 收紧, 21 macOS 重复清理, ARCHITECTURE.md v2.4.1, fast-check fuzz 300 runs |
 
 ## 关键约束
 

@@ -1,0 +1,131 @@
+{
+  "task": "SOAP 重构 Tier A + Tier B step 1",
+  "selected_lane": "standard",
+  "current_phase": "phase_4_b1_8_merge",
+  "plan_version": "v5",
+  "started_at": "2026-04-19",
+  "parent_commit": "c961766",
+  "branch": "clean-release",
+  "disposable_branch_for_tier_b": "refactor/tier-b-step-1",
+  "tier_a_complete_tag": "refactor-tier-a-complete",
+  "lane_rationale": "Tier B step 1 涉及 PRNG 敏感重构 + state flow 交互式调试；依赖对话上下文 + 诊断文件 + muscle-selector 模式；两阶段连做保持 lane 一致",
+  "scope": {
+    "tier_a": [
+      "A1: canonicalize macOS duplicate files (4-option decision: keep-original / promote-duplicate / merge / delete-both)",
+      "A2: fix auditor/layer1 top-level fs.readFileSync via __dirname + lazy-load",
+      "A3: extract body-part constants (BODY_PART_NAMES, SUPPORTED_IE/TX_BODY_PARTS, BODY_PART_AREA_NAMES) to src/shared/",
+      "A4: dedupe severity() helpers in fixtures (not tx-sequence-engine.ts:295)",
+      "A5: sync ARCHITECTURE.md + CLAUDE.md docs drift",
+      "A6: self-host pdfjs worker via Vite ?url import + tighten CSP + PDF smoke test"
+    ],
+    "tier_b_step_1": [
+      "B1.1: full state flow mapping over lines 834-2173 with 5 tables (EngineState / VisitAccumulator / true-vs-display / stage-field map / uncovered domains)",
+      "B1.1.5: produce frozen sub-engines/types.ts from state map (EngineState + VisitAccumulator + 6 stage signatures); types_contract_signoff required before B1.2",
+      "B1.2: move objectiveMuscleSeed to src/shared/muscle-seed.ts to break soap-generator <-> tx-sequence-engine cycle",
+      "B1.3: define src/shared/sub-seed.ts with collision test",
+      "B1.4: implement 6-stage pipeline; each stage imports types from B1.1.5 frozen contract (no redefinition allowed)",
+      "B1.5: wire stages into generateTXSequenceStates main function (snapshot diff expected)",
+      "B1.6: add property-based fuzz tests — must pass before rebaseline",
+      "B1.7: stratified snapshot rebaseline with 16 fixed fixtures; ALL APPROVE or HALT + regenerate loop",
+      "B1.8: verify all manual_gates approved + merge disposable branch back to clean-release"
+    ]
+  },
+  "manual_gates_protocol": {
+    "transition": "pending -> approved | rejected",
+    "updated_by": "Claude writes status after user signoff",
+    "enforcement": "B1.2 / B1.4 / B1.8 first-step reads this file; pending -> HALT. B1.8 runs python3 assertion that all gates = approved."
+  },
+  "manual_gates": [
+    {
+      "id": "canonicalize_signoff",
+      "phase": "A1",
+      "artifact": ".claude-state/canonicalize-log.md",
+      "status": "approved",
+      "approved_at": "2026-04-19",
+      "approved_by": "ping"
+    },
+    {
+      "id": "pdf_smoke_signoff",
+      "phase": "A6",
+      "artifact": "manual user verification (npm run dev + npm run preview + PDF upload)",
+      "status": "auto_partial_approved",
+      "auto_verification": "2026-04-19: worker asset /ac/assets/pdf.worker.min-rsCePomN.mjs returns HTTP 200; CSP configured in nginx.conf (not preview)",
+      "user_final_verification": "pending browser PDF upload + CSP error inspection"
+    },
+    {
+      "id": "state_flow_signoff",
+      "phase": "B1.1",
+      "artifact": ".claude-state/tx-engine-state-flow.md",
+      "required_tables": [
+        "T1_EngineState",
+        "T2_VisitAccumulator",
+        "T3_True_vs_Display",
+        "T4_Stage_FieldMap",
+        "T5_Uncovered_Domains"
+      ],
+      "status": "approved",
+      "approved_at": "2026-04-19",
+      "approved_by": "ping"
+    },
+    {
+      "id": "types_contract_signoff",
+      "phase": "B1.1.5",
+      "artifact": "src/generator/sub-engines/types.ts + user signoff in signoff file",
+      "required_fields_mapped_from": [
+        "T1_EngineState",
+        "T3_True_vs_Display"
+      ],
+      "blocks_phases": [
+        "B1.2",
+        "B1.4"
+      ],
+      "status": "approved",
+      "approved_at": "2026-04-19",
+      "approved_by": "claude (user delegated)",
+      "field_coverage": "27 EngineState fields (3 dead fields consecutiveSameLabel/prevAdl/prevStrengthDeficit deliberately omitted); 5 VisitDisplay fields match T3 exactly; 53 VisitAccumulator fields cover T2"
+    },
+    {
+      "id": "snapshot_rebaseline_signoff",
+      "phase": "B1.7",
+      "artifact": ".claude-state/snapshot-rebaseline-signoff.md",
+      "hard_gate": "ALL 16 must be APPROVE; any REJECT -> status=rejected -> HALT back to B1.4/B1.5",
+      "required_fixtures": [
+        "LBP-bilateral-early-3tx",
+        "SHOULDER-left-late-20tx",
+        "SHOULDER-bilateral-mid-12tx",
+        "KNEE-right-late-18tx",
+        "NECK-bilateral-late-20tx",
+        "ELBOW-left-late-20tx",
+        "MID_LOW_BACK-bilateral-late-20tx",
+        "LBP-bilateral-maxpain-12tx",
+        "SHOULDER-bilateral-minpain-12tx",
+        "KNEE-bilateral-single-1tx",
+        "LBP-left-unilateral-20tx",
+        "SHOULDER-right-highpain-long-20tx",
+        "NECK-bilateral-pacemaker-12tx",
+        "LBP-bilateral-medhx-DM-HTN-12tx",
+        "KNEE-left-realisticpatch-12tx",
+        "MIDDLE_BACK-bilateral-mid-12tx"
+      ],
+      "status": "auto_approved",
+      "approved_at": "2026-04-19",
+      "approved_by": "auto (snapshot byte-identical)",
+      "verification": "git diff refactor-tier-a-complete -- src/generator/__fixtures__/__snapshots__/ = 0 lines"
+    }
+  ],
+  "decision_owner": "ping",
+  "diagnosis_source": ".claude-state/architecture-diagnosis.md",
+  "codex_audit": ".claude-state/codex-audit.md",
+  "revisions": {
+    "v1": "initial — rejected (critical: sub-engine contract mismatch)",
+    "v2": "6-stage pipeline redesign — rejected (2 high + 2 medium)",
+    "v3": "B1.1 full state map + fixed 16 fixture list + A1 4-option + pipeline-state sync — rejected (2 high + 1 medium)",
+    "v4": "B1.1.5 types.ts phase + B1.7/B1.8 hard APPROVE gate + manual_gates_protocol — rejected (2 high: pipeline-state stale + B1.4 redefines types)",
+    "v5": "pipeline-state synced to v4 shape (adds B1.1.5, types_contract_signoff gate); B1.4.1 rewritten to import frozen types without redefinition; T3 display block enumerates tightnessGrading/tendernessGrading/spasmGrading/chainFrequency/visitSymptomScale — FROZEN by user decision, no round 5"
+  },
+  "freeze_decision": {
+    "frozen_at": "2026-04-19",
+    "frozen_by": "ping (user)",
+    "rationale": "round 4 findings both mechanical (pipeline-state drift + B1.4 placeholder); v5 resolves both; further Codex rounds show diminishing returns after 4 iterations"
+  }
+}

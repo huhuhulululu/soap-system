@@ -95,3 +95,32 @@
 | json-rules-engine 做 phase gate | 45KB 处理 3 个阈值检查，过重 |
 | 多阶段恢复曲线 (acute/corrective/maintenance) | v1.5 复杂度不合理 |
 | D3/Chart.js 曲线可视化 | 不在范围内 |
+
+---
+
+## Tier A + Tier B step 1 Refactor (2026-04-19)
+
+架构诊断 + 重构。详见 `docs/archive/tier-b-step-1-refactor-2026-04-19/`。
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D30 | `generateTXSequenceStates` 按 6 阶段拆为 sub-engines/stages/*.ts | 1010 LOC 单函数维护困难；切分后主体 105 LOC |
+| D31 | Stage 4 内部再分 4a (numeric) + 4b (grading text)，绕过 Stage 3 narrative | 原代码 Stage 3 narrative 插入在 Stage 4 中间；必须保留这个交错顺序以维持 PRNG 序列字节等价 |
+| D32 | 透传主 rng 而非 sub-seed 替换（Tier B step 1） | 切换 sub-seed 会彻底改变 PRNG 流 → 必须 rebaseline 30 snapshot。选择保守路径：结构先拆，PRNG 流切分留给 step 2 |
+| D33 | 所有 helpers 移到 `sub-engines/shared-helpers.ts` | 避免 tx-sequence-engine ↔ stages 循环导入；helpers 是纯函数，单独模块更清晰 |
+| D34 | `objectiveMuscleSeed` 迁至 `src/shared/muscle-seed.ts` | 断开 tx-sequence-engine ↔ soap-generator 双向循环 |
+| D35 | BODY_PART_NAMES / SUPPORTED_IE/TX_BODY_PARTS / BODY_PART_AREA_NAMES 移至 `src/shared/body-part-constants.ts` | 单一真相源；soap-generator re-export 保对外兼容 |
+| D36 | auditor/layer1 顶层 fs.readFileSync → 懒加载 + `path.join(__dirname, ..)` | cwd-relative 路径导致 Docker / worker thread / 任意 cwd 启动崩溃 |
+| D37 | pdfjs worker 用 Vite `import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'` | Vite 打包资产自动同步 version，无版本漂移；base `/ac/` 路径自动处理 |
+| D38 | CSP 移除 `https://cdn.jsdelivr.net` 完全 | 医疗工具供应链风险不可接受；self-host 覆盖所有场景 |
+| D39 | A1 canonicalize macOS `* 2.*` 用 4-option 决策（A keep-original / B promote-duplicate / C merge / D delete-both） | 9 个孤立 `* 2.*` 无对应原件；2 对内容差异；粗暴 rm 会丢失 tracked 内容 |
+| D40 | fast-check property tests 入选 Tier B step 1 | 为 sub-engine refactor 提供行为不变量安全网；250+ randomised runs |
+| D41 | `.claude-state/` 加入 gitignore | 本地任务状态不入库；本次重构产物归档到 `docs/archive/` |
+
+### 未采纳
+
+| 方案 | 拒绝理由 |
+|------|---------|
+| sub-seed 运行时替换（AC-B3 激进解读） | 会改变 PRNG 流 → 30 snapshot 必须 rebaseline + 16 样本 human review；选择 step 2 再做以降低单次 PR 的 review 负担 |
+| 主函数小幅修改保守切分 | 收益不足：难以达到 AC-B1 ≤300 LOC 目标 |
+| 用 CCG（Claude + Codex + Gemini）做 state flow mapping | 1340 行代码深度阅读，Opus architect 一次通过足够；多模型只在有分歧时启动 |
