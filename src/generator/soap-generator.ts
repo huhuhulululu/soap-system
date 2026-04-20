@@ -42,6 +42,10 @@ import {
 
 // Re-export for backwards compatibility — external modules may import BODY_PART_NAMES from this file
 export { BODY_PART_NAMES };
+
+// objectiveMuscleSeed relocated to src/shared/muscle-seed.ts (Tier B step 1 Phase B1.2)
+import { objectiveMuscleSeed } from "../shared/muscle-seed";
+export { objectiveMuscleSeed };
 import type { BodyPartKey, NeedleGroups } from "../shared/template-options";
 import {
   TEMPLATE_CAUSATIVES,
@@ -447,28 +451,9 @@ function suppressSwellRadiationInText(value?: string): string | undefined {
   return value;
 }
 
-export function objectiveMuscleSeed(context: GenerationContext): number {
-  if (typeof context.seed === "number" && Number.isFinite(context.seed)) {
-    // Preserve distinct deterministic streams for 0/1/-1/etc.
-    return context.seed >>> 0;
-  }
-  const source = [
-    context.primaryBodyPart,
-    context.laterality || "bilateral",
-    context.localPattern || "",
-    context.systemicPattern || "",
-    context.chronicityLevel || "",
-    String(context.painCurrent ?? 8),
-    String(context.age ?? 0),
-    context.gender || "",
-  ].join("|");
-  let hash = 2166136261;
-  for (let i = 0; i < source.length; i++) {
-    hash ^= source.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) || 1;
-}
+// objectiveMuscleSeed moved to src/shared/muscle-seed.ts in Tier B step 1
+// Phase B1.2 to break circular import with tx-sequence-engine.
+// Re-exported below for backwards compatibility.
 
 function pickWeightedOptions(
   weighted: WeightedOption[],

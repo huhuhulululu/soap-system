@@ -14,7 +14,7 @@ import {
   strengthFromPain,
 } from "../shared/strength-table";
 import { createSeededRng } from "../shared/seeded-rng";
-import { objectiveMuscleSeed } from "./soap-generator";
+import { objectiveMuscleSeed } from "../shared/muscle-seed";
 import {
   TEMPLATE_MUSCLES,
   TEMPLATE_ADL,
