@@ -27,15 +27,16 @@ export function deriveBaseVisitState(args: {
   engineState: EngineState;
   consts: EngineConsts;
   visitIndex: number;
+  stageRng: () => number;
 }): Omit<BaseVisitFields, "nextFrequency" | "frequencyImproved"> {
-  const { engineState, consts, visitIndex: i } = args;
-  const { rng, txCount, goalPaths, progressMultiplier, startPain } = consts;
+  const { engineState, consts, visitIndex: i, stageRng } = args;
+  const { txCount, goalPaths, progressMultiplier, startPain } = consts;
 
   // progress (S-curve)
   const progressLinear = i / txCount;
   const acc = Math.sqrt(progressLinear);
   const progressBase = 3 * acc * acc - 2 * acc * acc * acc;
-  const progressNoise = (rng() - 0.5) * 0.08;
+  const progressNoise = (stageRng() - 0.5) * 0.08;
   const rawProgress = clamp(
     progressBase * progressMultiplier + progressNoise,
     0.05,
@@ -46,11 +47,11 @@ export function deriveBaseVisitState(args: {
 
   // objectiveFactors
   const objectiveFactors = {
-    sessionGapDays: Math.max(1, Math.round(1 + rng() * 7)),
-    sleepLoad: Number((rng() * 1.0).toFixed(2)),
-    workloadLoad: Number((rng() * 1.0).toFixed(2)),
-    weatherExposureLoad: Number((rng() * 1.0).toFixed(2)),
-    adherenceLoad: Number((rng() * 1.0).toFixed(2)),
+    sessionGapDays: Math.max(1, Math.round(1 + stageRng() * 7)),
+    sleepLoad: Number((stageRng() * 1.0).toFixed(2)),
+    workloadLoad: Number((stageRng() * 1.0).toFixed(2)),
+    weatherExposureLoad: Number((stageRng() * 1.0).toFixed(2)),
+    adherenceLoad: Number((stageRng() * 1.0).toFixed(2)),
   };
 
   const disruption =
@@ -61,7 +62,7 @@ export function deriveBaseVisitState(args: {
     clamp((objectiveFactors.sessionGapDays - 3) / 10, 0, 0.4);
 
   // Preserve rng() call for PRNG sequence compatibility (was painNoise)
-  const _painRng = (rng() - 0.5) * 0.2 + disruption * 0.08;
+  const _painRng = (stageRng() - 0.5) * 0.2 + disruption * 0.08;
   void _painRng;
 
   // Pain: discrete scheduling from goal-path-calculator

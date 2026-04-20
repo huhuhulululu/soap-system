@@ -36,15 +36,16 @@ export function deriveSubjectiveDerived(args: {
   >;
   engineState: EngineState;
   consts: EngineConsts;
+  stageRng: () => number;
 }): SubjectiveDerivedFields &
   Pick<BaseVisitFields, "nextFrequency" | "frequencyImproved"> {
-  const { acc, engineState, consts } = args;
-  const { rng, goalPaths, context, initialMuscles } = consts;
+  const { acc, engineState, consts, stageRng } = args;
+  const { goalPaths, context, initialMuscles } = consts;
   const i = acc.visitIndex;
 
   // Preserve rng() calls for PRNG sequence compatibility (was adlExpected + adlNoise)
-  const _adlRng1 = 0.18 + rng() * 0.2;
-  const _adlRng2 = (rng() - 0.5) * 0.12;
+  const _adlRng1 = 0.18 + stageRng() * 0.2;
+  const _adlRng2 = (stageRng() - 0.5) * 0.12;
   void _adlRng1;
   void _adlRng2;
 
@@ -108,7 +109,7 @@ export function deriveSubjectiveDerived(args: {
   const aggravatingItems: string[] = [];
 
   // Frequency scheduling (RNG consumed HERE to match original order)
-  const _freqRng = rng();
+  const _freqRng = stageRng();
   void _freqRng;
   const freqIsScheduledDrop = goalPaths.frequency.changeVisits.includes(i);
   const nextFrequency = freqIsScheduledDrop

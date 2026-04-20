@@ -124,3 +124,33 @@
 | sub-seed 运行时替换（AC-B3 激进解读） | 会改变 PRNG 流 → 30 snapshot 必须 rebaseline + 16 样本 human review；选择 step 2 再做以降低单次 PR 的 review 负担 |
 | 主函数小幅修改保守切分 | 收益不足：难以达到 AC-B1 ≤300 LOC 目标 |
 | 用 CCG（Claude + Codex + Gemini）做 state flow mapping | 1340 行代码深度阅读，Opus architect 一次通过足够；多模型只在有分歧时启动 |
+
+---
+
+## v2.5 Tier B step 2 — per-stage sub-seed runtime wiring (2026-04-20)
+
+### D42 — Sub-seed runtime wiring at per-stage granularity
+
+**Decision**: 引入 stage 级 PRNG 流独立。主循环每 visit 内为 stage1-4 各自构造 `createSeededRng(deriveSubSeed(consts.mainSeed, kind, visitIndex)).rng`，stage 函数通过新增 `stageRng: () => number` 参数接收；stage 内所有裸 `rng()` 与 helper pass-through（`pickSingle/pickMultiple(..., stageRng)`）都消费此流。Stage 到 kind 映射冻结：stage1→`pain`、stage2→`symptom`、stage3→`reason`、stage4(4a+4b)→`muscles`。`rom` kind 保留在 `SubEngineKind` 供 W1 P6 原语测试覆盖，runtime 未使用。stage5/6 无 rng，不改。
+
+**Consequences**:
+- 51 TX fixture snapshot rebased（20 条人审签字：tier-b-step-1 approved 16 + W1 additions 4）
+- 4 IE/RE fixture snapshot **自动保持 byte-identical**（走 `exportSOAP` 单次渲染路径，不经 `generateTXSequenceStates` 的 stage 循环）
+- P14a/P14b 证明 stage 级 PRNG 流独立：改任一 stage 的代码不影响其他 stage 的 rng 流 bit-identical
+- 后续 W3/W4 改引擎将显著降低 snapshot 连带变化的规模
+
+**Known Limitation**: `initEngine.computeGoalPaths(..., rng)` 仍共享 main rng 跨 kind（pain/muscles/rom/reason/symptom/frequency/adl）。改 `goal-path-calculator.ts` 算法仍会波及所有 sub-engine 输出。属于 engine init-time coupling，不在 W2 scope。
+
+**Future Work**: 独立任务拆分 `computeGoalPaths` 的 rng 流至 per-kind 或 per-goal 粒度；需要对 goal-path-calculator 的 ~15 处 rng 消费点做侵入性重构 + 全量 55 snapshot 再 rebaseline。价值评估：若 W3/W4 的引擎改动不涉及 init-time 算法则可推迟。
+
+### 未采纳
+
+| 方案 | 拒绝理由 |
+|------|---------|
+| per-kind runtime wiring（stage4 内 rom / muscles 分流） | Codex v2 review 发现 `stage4-objective-state.ts:229` 的 `if (rng() > 0.5)` 决定 `strengthTrend` 还是 `romTrend` 进入 stable，是 cross-kind roll，无单 kind 归属；`sideProgress` 等输出依赖多 kind 输入导致 P14 NON_K_FIELDS 矩阵复杂易漏；`pickSingle/pickMultiple` helper pass-through 让 inventory 超 40 个 call sites 难追踪。**Rejected** 因复杂度与 W2 scope 不匹配 |
+| 沿用 main rng、放弃独立性 | W3（renderer 拆分）/W4（checker 规则）的引擎改动将继续产生全局 snapshot diff，"改引擎不痛" 基石不落地。**Rejected** |
+| 把 init-time `computeGoalPaths` 也拆分 per-kind | 侵入 goal-path-calculator.ts ~15 rng 点，超 W2 scope，且短期 ROI 不足（W3/W4 未必触碰）。**Deferred** 而非 rejected，列 Future Work |
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D42 | 见上方专章 | stage 级独立性干净、可验证、覆盖 80% 的 roadmap 价值 |

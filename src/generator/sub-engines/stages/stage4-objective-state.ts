@@ -81,9 +81,10 @@ export function deriveObjectiveNumeric(args: {
   >;
   engineState: EngineState;
   consts: EngineConsts;
+  stageRng: () => number;
 }): NumericOutput {
-  const { acc, engineState, consts } = args;
-  const { rng, txCount, goalPaths, chronicCapsEnabled, context } = consts;
+  const { acc, engineState, consts, stageRng } = args;
+  const { txCount, goalPaths, chronicCapsEnabled, context } = consts;
   const i = acc.visitIndex;
 
   // Context for grading computations
@@ -91,7 +92,7 @@ export function deriveObjectiveNumeric(args: {
   void snappedForGrade;
 
   // --- Tightness ---
-  const bounceRng = rng();
+  const bounceRng = stageRng();
   const bounceEnabled =
     txCount >= 12 && i > Math.max(3, Math.round(goalPaths.stBoundary * 0.6));
   const bounceProbability = 0.25;
@@ -120,7 +121,7 @@ export function deriveObjectiveNumeric(args: {
   engineState.prevTightnessBounced = tightnessBounced;
 
   // --- Tenderness ---
-  const tenderBounceRng = rng();
+  const tenderBounceRng = stageRng();
   let nextTenderness: number;
   let tendernessBounced = false;
   const tenderIsScheduledDrop = goalPaths.tenderness.changeVisits.includes(i);
@@ -153,7 +154,7 @@ export function deriveObjectiveNumeric(args: {
   engineState.prevTenderness = nextTenderness;
 
   // --- Spasm (no bounce) ---
-  const spasmBounceRng = rng();
+  const spasmBounceRng = stageRng();
   void spasmBounceRng;
   let nextSpasm: number;
   const spasmBounced = false;
@@ -169,8 +170,8 @@ export function deriveObjectiveNumeric(args: {
     nextSpasm = engineState.prevSpasm;
   }
   engineState.prevSpasmBounced = spasmBounced;
-  // Consume rng() to maintain PRNG sequence
-  rng();
+  // Consume stageRng() to maintain PRNG sequence
+  stageRng();
   let spasmTrend: Trend =
     nextSpasm < engineState.prevSpasm ? "reduced" : "stable";
   engineState.prevSpasm = nextSpasm;
@@ -186,13 +187,13 @@ export function deriveObjectiveNumeric(args: {
     Math.min(
       engineState.prevRomDeficit,
       engineState.prevRomDeficit -
-        (0.03 + rng() * 0.05) * (romProgress > 0.2 ? 1 : 0.3),
+        (0.03 + stageRng() * 0.05) * (romProgress > 0.2 ? 1 : 0.3),
     ),
     0.08,
     0.6,
   );
-  // Preserve rng() call for PRNG sequence compatibility
-  const _strengthRng = 0.02 + rng() * 0.04;
+  // Preserve stageRng() call for PRNG sequence compatibility
+  const _strengthRng = 0.02 + stageRng() * 0.04;
   void _strengthRng;
 
   const strengthIsScheduledRise =
@@ -226,7 +227,7 @@ export function deriveObjectiveNumeric(args: {
     acc.progress > 0.5;
   if (plateau) {
     if (acc.progress > 0.7) {
-      if (rng() > 0.5) {
+      if (stageRng() > 0.5) {
         strengthTrend = "stable";
       } else {
         romTrend = "stable";
@@ -266,7 +267,7 @@ export function deriveObjectiveNumeric(args: {
   const isBilateral = context.laterality === "bilateral";
   let sideProgress: ObjectiveStateFields["sideProgress"] | undefined = undefined;
   if (isBilateral) {
-    const asym = 0.06 + rng() * 0.12;
+    const asym = 0.06 + stageRng() * 0.12;
     const dominantLeft = i % 2 === 0;
     const left = clamp(
       acc.progress + (dominantLeft ? asym : -asym),
@@ -343,9 +344,10 @@ export function buildObjectiveGrading(args: {
   >;
   engineState: EngineState;
   consts: EngineConsts;
+  stageRng: () => number;
 }): GradingOutput {
-  const { acc, engineState, consts } = args;
-  const { rng, context } = consts;
+  const { acc, engineState, consts, stageRng } = args;
+  const { context } = consts;
   const i = acc.visitIndex;
 
   // --- Tightness grading ---
@@ -356,9 +358,9 @@ export function buildObjectiveGrading(args: {
     "moderate to severe",
     "severe",
   ];
-  // Consume rng() to maintain PRNG sequence (was used by old ceiling/jitter logic)
-  rng();
-  rng();
+  // Consume stageRng() to maintain PRNG sequence (was used by old ceiling/jitter logic)
+  stageRng();
+  stageRng();
   const tightnessIdx = Math.max(0, Math.min(4, acc.nextTightness - 1));
   let tightnessGrading = TIGHTNESS_ORDER[tightnessIdx]
     .split(" ")
@@ -400,8 +402,8 @@ export function buildObjectiveGrading(args: {
     const n = parseInt(grade.replace("+", ""), 10);
     return isNaN(n) ? 2 : n;
   };
-  rng();
-  rng();
+  stageRng();
+  stageRng();
   const targetTenderGrade =
     acc.nextTenderness === 0 ? "0" : "+" + acc.nextTenderness;
   let tendernessGrading =
@@ -445,7 +447,7 @@ export function buildObjectiveGrading(args: {
       6,
       acc.ruleContext as Parameters<typeof pickMultiple>[2],
       acc.progress,
-      rng,
+      stageRng,
     );
     const groupSeed =
       _legacyPick.length > 0

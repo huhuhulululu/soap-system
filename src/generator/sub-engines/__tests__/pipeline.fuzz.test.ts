@@ -23,8 +23,10 @@ import { setWhitelist } from "../../../parser/template-rule-whitelist";
 import { generateTXSequenceStates } from "../../tx-sequence-engine";
 import { TEMPLATE_TX_REASON } from "../../../shared/template-options";
 import { deriveSubSeed, type SubEngineKind } from "../../../shared/sub-seed";
+import { createSeededRng } from "../../../shared/seeded-rng";
 import { severityFromPain } from "../../../shared/severity";
 import { STRENGTH_LADDER, strengthToIndex } from "../../../shared/strength-table";
+import { STAGE_TO_KIND, type StageLabel } from "../types";
 import whitelistData from "../../../../frontend/src/data/whitelist.json";
 
 import type {
@@ -565,5 +567,136 @@ describe("TX pipeline property tests", () => {
       }),
       { numRuns: NUM_RUNS, seed: 55 },
     );
+  });
+
+  // ── W2 P14: per-stage sub-seed isolation ─────────────────────────
+
+  test("P14a: stage isolation via deriveSubSeed — perturbing one stage's seed does not shift other stages' rng stream", () => {
+    // Proves that for each perturbed stage N, all stages M (M != N) still
+    // yield the same 32-draw rng prefix. This is a precondition for the
+    // W2 claim "changing one stage's algorithm does not affect other
+    // stages' PRNG streams" (AC5 stage-level isolation).
+    type Pair = [StageLabel, SubEngineKind];
+    const PAIRS: Pair[] = [
+      ["stage1", STAGE_TO_KIND.stage1],
+      ["stage2", STAGE_TO_KIND.stage2],
+      ["stage3", STAGE_TO_KIND.stage3],
+      ["stage4", STAGE_TO_KIND.stage4],
+    ];
+    const SAMPLE_COUNT = 32;
+
+    const buildBag = (
+      pertLabel: StageLabel | null,
+      seedA: number,
+      seedB: number,
+      visitIndex: number,
+    ): Record<StageLabel, () => number> => {
+      const bag = {} as Record<StageLabel, () => number>;
+      for (const [label, kind] of PAIRS) {
+        const useSeed = label === pertLabel ? seedB : seedA;
+        bag[label] = createSeededRng(
+          deriveSubSeed(useSeed, kind, visitIndex),
+        ).rng;
+      }
+      return bag;
+    };
+    const sampleN = (rng: () => number, n: number): number[] => {
+      const out: number[] = [];
+      for (let i = 0; i < n; i++) out.push(rng());
+      return out;
+    };
+
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 0, max: 20 }),
+        (seedA, seedB, visitIndex) => {
+          if (seedA === seedB) return true;
+          // Baseline: all stages use seedA
+          const baseBag = buildBag(null, seedA, seedB, visitIndex);
+          const baseline: Record<StageLabel, number[]> = {} as Record<
+            StageLabel,
+            number[]
+          >;
+          for (const [label] of PAIRS) {
+            baseline[label] = sampleN(baseBag[label], SAMPLE_COUNT);
+          }
+          // Perturb each stage and assert:
+          //   (a) pertLabel's OWN stream DIFFERS from baseline (seedB really
+          //       changed the derivation — positive confirmation)
+          //   (b) ALL other stages' streams stay IDENTICAL to baseline
+          //       (per-stage isolation — negative confirmation)
+          // Together these prove changing one kind's derived seed is fully
+          // contained: only that kind's stream shifts.
+          for (const [pertLabel] of PAIRS) {
+            const pertBag = buildBag(pertLabel, seedA, seedB, visitIndex);
+            // (a) pertLabel's stream MUST differ from baseline
+            const pertStreamSamples = sampleN(pertBag[pertLabel], SAMPLE_COUNT);
+            let anyDiff = false;
+            for (let k = 0; k < SAMPLE_COUNT; k++) {
+              if (pertStreamSamples[k] !== baseline[pertLabel][k]) {
+                anyDiff = true;
+                break;
+              }
+            }
+            if (!anyDiff) return false; // seedB didn't change anything — buildBag broken
+            // (b) All other stages MUST match baseline
+            for (const [otherLabel] of PAIRS) {
+              if (otherLabel === pertLabel) continue;
+              const perturbedSamples = sampleN(pertBag[otherLabel], SAMPLE_COUNT);
+              for (let k = 0; k < SAMPLE_COUNT; k++) {
+                if (perturbedSamples[k] !== baseline[otherLabel][k]) {
+                  return false;
+                }
+              }
+            }
+          }
+          return true;
+        },
+      ),
+      { numRuns: NUM_RUNS, seed: 2026 },
+    );
+  });
+
+  test("P14b: wired engine smoke — generateTXSequenceStates runs with per-stage seed bag and produces valid output shape", () => {
+    // Complementary smoke test to P14a. P14a proves the primitive layer
+    // (deriveSubSeed + createSeededRng) is isolated; P14b proves the engine
+    // wiring (tx-sequence-engine main loop + stage1-4 reading stageRng) is
+    // functional after the rewrite.
+    //
+    // A stricter engine-level isolation test (change mainSeed → compare
+    // stage1-3 outputs) is NOT attempted here because accumulator coupling
+    // (stage2's input depends on stage1's output) makes the property
+    // impractical without exposing internal seed-bag construction. The
+    // combination of P14a + AC1 grep assertion + 4 IE/RE sha-identical
+    // snapshot + 51 TX snapshot rebase signoff gives high confidence that
+    // per-stage wiring is correct.
+    setWhitelist(whitelistData as Record<string, string[]>);
+    const context: GenerationContext = {
+      noteType: "TX",
+      insuranceType: "OPTUM",
+      primaryBodyPart: "LBP",
+      laterality: "bilateral",
+      localPattern: "Qi Stagnation",
+      systemicPattern: "Kidney Yang Deficiency",
+      chronicityLevel: "Chronic",
+      severityLevel: "moderate to severe",
+      painCurrent: 7,
+      associatedSymptoms: ["soreness"],
+    };
+    const { states } = generateTXSequenceStates(context, {
+      txCount: 5,
+      seed: 42,
+      initialState: { pain: 7 },
+    });
+    // Smoke assertions: engine produced visits, all fields populated
+    expect(states.length).toBe(5);
+    for (const v of states) {
+      expect(typeof v.reason).toBe("string");
+      expect(v.reason.length).toBeGreaterThan(0);
+      expect(typeof v.painScaleLabel).toBe("string");
+      expect(v.tightMuscles.length).toBeGreaterThan(0);
+    }
   });
 });

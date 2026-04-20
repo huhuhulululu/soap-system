@@ -44,10 +44,10 @@ export function buildSubjectiveNarrative(args: {
   >;
   engineState: EngineState;
   consts: EngineConsts;
+  stageRng: () => number;
 }): SubjectiveNarrativeFields {
-  const { acc, engineState, consts } = args;
-  const { rng, context, goalPaths, options, baselineAssociatedSymptoms } =
-    consts;
+  const { acc, engineState, consts, stageRng } = args;
+  const { context, goalPaths, options, baselineAssociatedSymptoms } = consts;
   const i = acc.visitIndex;
 
   const ruleContext = buildRuleContext(
@@ -61,7 +61,7 @@ export function buildSubjectiveNarrative(args: {
     "subjective.symptomChange",
     ruleContext,
     acc.progress,
-    rng,
+    stageRng,
     "improvement of symptom(s)",
   );
   if (symptomChange.includes("similar")) {
@@ -76,7 +76,7 @@ export function buildSubjectiveNarrative(args: {
     if (!context.allowNegativeEvents || i === consts.startIdx) {
       symptomChange = "improvement of symptom(s)";
     } else {
-      const negativeRoll = rng();
+      const negativeRoll = stageRng();
       if (negativeRoll > 0.1) {
         symptomChange = "improvement of symptom(s)";
       }
@@ -134,14 +134,14 @@ export function buildSubjectiveNarrative(args: {
     "subjective.reasonConnector",
     reasonRuleContext,
     acc.progress,
-    rng,
+    stageRng,
     "because of",
   );
   const reason = pickSingle(
     "subjective.reason",
     reasonRuleContext,
     acc.progress,
-    rng,
+    stageRng,
     "energy level improved",
   );
 
@@ -229,19 +229,19 @@ export function buildSubjectiveNarrative(args: {
         engineState.positiveShuffleBag = [...POSITIVE_REASONS_LIST];
     }
     const pickIdx = Math.floor(
-      rng() * engineState.positiveShuffleBag.length,
+      stageRng() * engineState.positiveShuffleBag.length,
     );
     finalReason = engineState.positiveShuffleBag[pickIdx];
     engineState.positiveShuffleBag = [
       ...engineState.positiveShuffleBag.slice(0, pickIdx),
       ...engineState.positiveShuffleBag.slice(pickIdx + 1),
     ];
-    rng(); // consume: 2nd reason pick (template is single-valued)
+    stageRng(); // consume: 2nd reason pick (template is single-valued)
     engineState.lastUsedReason = finalReason;
     const improvementConnectors = ["because of", "due to"];
     finalConnector =
       improvementConnectors[
-        Math.floor(rng() * improvementConnectors.length)
+        Math.floor(stageRng() * improvementConnectors.length)
       ] || "because of";
     engineState.improvementCount++;
   } else if (isExacerbate) {
@@ -249,9 +249,9 @@ export function buildSubjectiveNarrative(args: {
       finalReason = "did not have good rest";
     if (finalConnector !== "due to" && finalConnector !== "because of")
       finalConnector = "due to";
-    rng();
-    rng();
-    rng();
+    stageRng();
+    stageRng();
+    stageRng();
   } else if (isCameBack) {
     if (engineState.cameBackShuffleBag.length === 0) {
       engineState.cameBackShuffleBag = CAME_BACK_REASONS.filter(
@@ -261,17 +261,17 @@ export function buildSubjectiveNarrative(args: {
         engineState.cameBackShuffleBag = [...CAME_BACK_REASONS];
     }
     const pickIdx = Math.floor(
-      rng() * engineState.cameBackShuffleBag.length,
+      stageRng() * engineState.cameBackShuffleBag.length,
     );
     finalReason = engineState.cameBackShuffleBag[pickIdx];
     engineState.cameBackShuffleBag = [
       ...engineState.cameBackShuffleBag.slice(0, pickIdx),
       ...engineState.cameBackShuffleBag.slice(pickIdx + 1),
     ];
-    rng();
+    stageRng();
     engineState.lastUsedReason = finalReason;
     finalConnector = "due to";
-    rng();
+    stageRng();
   }
 
   // --- Associated symptoms (user input priority + rank-rng compat) ---
@@ -284,7 +284,7 @@ export function buildSubjectiveNarrative(args: {
     return 2;
   })();
   if (acc.progress > 0.5 && _prevSymptomRank > 1) {
-    rng();
+    stageRng();
   }
   const associatedSymptoms =
     options.initialState?.associatedSymptoms &&
@@ -300,7 +300,7 @@ export function buildSubjectiveNarrative(args: {
     "subjective.painFrequency",
     ruleContext,
     acc.progress,
-    rng,
+    stageRng,
     "Frequent (symptoms occur between 51% and 75% of the time)",
   );
   const generalCondition = consts.fixedGeneralCondition;
@@ -308,7 +308,7 @@ export function buildSubjectiveNarrative(args: {
     "assessment.treatmentPrinciples.focusOn",
     ruleContext,
     acc.progress,
-    rng,
+    stageRng,
     "focus",
   );
 

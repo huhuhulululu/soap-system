@@ -20,7 +20,10 @@
 
 import type { GenerationContext, SeverityLevel } from "../types";
 import type { NeedleGroups } from "../shared/template-options";
+import { createSeededRng } from "../shared/seeded-rng";
+import { deriveSubSeed } from "../shared/sub-seed";
 import { initEngine } from "./sub-engines/engine-init";
+import { STAGE_TO_KIND, type StageSeedBag } from "./sub-engines/types";
 import { deriveBaseVisitState } from "./sub-engines/stages/stage1-base-visit-state";
 import { deriveSubjectiveDerived } from "./sub-engines/stages/stage2-subjective-derived";
 import {
@@ -161,11 +164,30 @@ export function generateTXSequenceStates(
   const { consts, engineState } = initEngine({ context, options });
 
   for (let i = consts.startIdx; i <= consts.txCount; i++) {
+    // Per-visit stage seed bag: each stage draws from its own PRNG stream
+    // derived from the main seed. See ADR D42 / ARCHITECTURE.md "Sub-seed
+    // runtime wiring" section for scope + known limitations.
+    const stageSeeds: StageSeedBag = {
+      stage1: createSeededRng(
+        deriveSubSeed(consts.mainSeed, STAGE_TO_KIND.stage1, i),
+      ).rng,
+      stage2: createSeededRng(
+        deriveSubSeed(consts.mainSeed, STAGE_TO_KIND.stage2, i),
+      ).rng,
+      stage3: createSeededRng(
+        deriveSubSeed(consts.mainSeed, STAGE_TO_KIND.stage3, i),
+      ).rng,
+      stage4: createSeededRng(
+        deriveSubSeed(consts.mainSeed, STAGE_TO_KIND.stage4, i),
+      ).rng,
+    };
+
     // --- Stage 1 ---
     const s1 = deriveBaseVisitState({
       engineState,
       consts,
       visitIndex: i,
+      stageRng: stageSeeds.stage1,
     });
 
     // --- Stage 2 (severity + ADL + frequency) ---
@@ -173,6 +195,7 @@ export function generateTXSequenceStates(
       acc: s1,
       engineState,
       consts,
+      stageRng: stageSeeds.stage2,
     });
 
     // --- Stage 4a (objective numeric) ---
@@ -180,6 +203,7 @@ export function generateTXSequenceStates(
       acc: { ...s1, ...s2 },
       engineState,
       consts,
+      stageRng: stageSeeds.stage4,
     });
 
     // --- Stage 3 (subjective narrative) ---
@@ -187,6 +211,7 @@ export function generateTXSequenceStates(
       acc: { ...s1, ...s2, ...s4a },
       engineState,
       consts,
+      stageRng: stageSeeds.stage3,
     });
 
     // --- Stage 4b (grading text + needle + chainFrequency + visitSymptomScale) ---
@@ -194,6 +219,7 @@ export function generateTXSequenceStates(
       acc: { ...s1, ...s2, ...s4a, ...s3 },
       engineState,
       consts,
+      stageRng: stageSeeds.stage4,
     });
 
     // Merge partial accumulator for Stage 5 / Stage 6

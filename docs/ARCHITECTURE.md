@@ -1,4 +1,4 @@
-# SOAP System 系统架构手册 v2.4.1
+# SOAP System 系统架构手册 v2.4.2
 
 > 本文档是 SOAP System 的唯一正确数据参考源（Single Source of Truth）。
 > 所有系统优化、检修、重建、AI Agent 训练均以本文档为准。
@@ -373,10 +373,41 @@ pdfjs worker 自托管：通过 Vite `?url` 导入 `pdfjs-dist/legacy/build/pdf.
 
 ---
 
+## Sub-seed runtime wiring (Tier B step 2 — 2026-04-20)
+
+每 visit 的 stage 循环内，stage1-4 各自从独立 PRNG 流取随机数（`createSeededRng(deriveSubSeed(consts.mainSeed, kind, visitIndex)).rng`）。stage5/6 无 rng，不改。
+
+### Stage → Kind 映射（frozen）
+
+| Stage | SubEngineKind | rng call 数 | 职责 |
+|-------|--------------|------------|------|
+| stage1 | `pain` | 7 | pain + progress + objectiveFactors |
+| stage2 | `symptom` | 3 | ADL + frequency |
+| stage3 | `reason` | ~16（含 pickSingle helper pass-through） | subjective narrative + reason pool |
+| stage4 (4a + 4b) | `muscles` | ~13（含 pickMultiple needle pass-through + L229 cross-kind plateau roll） | tight/tender/spasm/rom/strength/needle |
+
+`rom` kind 保留在 `SubEngineKind` 供 `deriveSubSeed` 原语 P6 test 覆盖，但 runtime 未使用。
+
+### 独立性保证 scope
+
+**stage-runtime only**：改任一 stage 函数内的 rng 使用方式（增/删/改 rng 消费点）只影响该 stage 自己的 PRNG 流；其他 stage 的 rng 流 bit-identical（P14a 证明）。
+
+### Known Limitation
+
+`initEngine.computeGoalPaths(..., rng)` 仍用 main rng，跨 kind 共享一个流。改 goal-path-calculator 内部算法仍会波及所有 sub-engine 输出。属于 engine init-time 耦合，不在 W2 scope。ADR D42 记录；follow-up 可独立拆分。
+
+### 验证证据
+
+- `P14a` (pipeline.fuzz.test.ts) — 50 runs × 32 sample × 4 stage perturbation，stage 间 PRNG 流完全独立
+- `P14b` — engine 端到端 smoke：wired 管线 generate 成功，fields 非空
+- 55 fixture snapshot 全绿（51 TX rebased，4 IE/RE 自动 byte-identical — 后者不走 tx-sequence-engine）
+- 20 fixture 人审签字（tier-b-step-1 approved 16 + W1 additions 4）
+
 ## 变更记录 (Changelog)
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.4.2 | 2026-04-20 | **Tier B step 2 (sub-seed runtime wiring)**: (1) stage1-4 per-stage PRNG stream via `deriveSubSeed(mainSeed, kind, visitIndex)`；映射 stage1→pain, stage2→symptom, stage3→reason, stage4→muscles；`rom` kind 保留未用；(2) 51 TX snapshot rebased，4 IE/RE 自动保持 byte-identical（不走 tx-sequence-engine）；(3) 新增 fuzz P14a/P14b 证 stage 级 PRNG 流独立；(4) Known Limitation：init-time `computeGoalPaths` 仍共享 main rng，follow-up 独立拆分（ADR D42）。 |
 | v2.4.1 | 2026-04-19 | **Tier A 重构同步**: (1) shared 模块描述补全：`body-part-constants.ts` 新增 `BODY_PART_NAMES` / `SUPPORTED_IE_BODY_PARTS` / `SUPPORTED_TX_BODY_PARTS` / `BODY_PART_AREA_NAMES`（从 soap-generator.ts 迁入）；`template-options.ts` (~2050 LOC) / `severity.ts` 显式列出；(2) 后端服务补全 `bill-list-parser.ts` / `bill-matcher.ts`；(3) §3.1 依赖图注明 `tx-sequence-engine ↔ soap-generator` 循环依赖（Tier B step 1 计划消除）；(4) 重复文件清理：docs 和 scripts 中 21 个 `* 2.*` macOS 重复已 canonicalize；(5) auditor/layer1 顶层 fs.readFileSync 改懒加载 + `__dirname` 解析（cwd-independent）。 |
 | v2.4.0 | 2026-03-07 | **像素级同步**: (1) 认证：支持 `payload.systems?.includes("ac")`，`/api/auth/me` 返回 systems；(2) API：补充 SOAP 端点 POST /api/soap、POST /api/soap/generate-batch，AI 端点 POST /api/ai/generate，Batch 增加 POST /api/batch/prebuilt、GET /api/batch/template/download 顺序说明；(3) 后端：新增 2.4 节 server 服务层清单（excel-parser、batch-generator、soap-producer、soap-worker-pool、automation-runner、ai-generator、batch-store 等）；(4) 前端：认证守卫改为 /ac/api/auth/me、未认证跳转 /portal/；分层补充 soap-worker-bridge、useAssessmentBinding、workers 目录；(5) 安全：Nginx 增加 Content-Security-Policy，环境变量增加 Vertex AI 相关；(6) 新增 3.3 parsers/optum-note 目录说明；(7) 修复 batch 路由顺序：GET /template/download 移至 GET /:id 之前，避免被误匹配。 |
 | v2.3.0 | 2026-02-21 | **架构文档全面修正**: (1) 修正功能表：合并 Writer/Continue 为 Composer，新增 Batch、Automate，移除独立 History；(2) 新增第二章后端 API（14 个端点 + rate limiting）；(3) 新增第三章共享引擎模块架构（7 模块依赖图）；(4) 新增第四章前端架构（路由、认证守卫、分层）；(5) 新增第五章批量处理（LRU 存储、3 种模式、流程）；(6) 新增第六章安全（Docker 非 root、Cookie 加密、Nginx 安全头、SSL/TLS、环境变量）；(7) 新增第七章测试（Jest + Vitest 双框架）。 |

@@ -26,6 +26,27 @@ import type { SelectedMuscles } from "../muscle-selector";
 import type { GoalPaths } from "../goal-path-calculator";
 import type { PatchedGoals } from "../objective-patch";
 import type { TXVisitState } from "../tx-sequence-engine";
+import type { SubEngineKind } from "../../shared/sub-seed";
+
+// ─────────────────────────────────────────────────────────────
+// Sub-seed runtime wiring (Tier B step 2, W2 — 2026-04-20)
+//   Per-stage isolation via `deriveSubSeed(mainSeed, kind, visitIndex)`.
+//   Stages 1-4 each consume from their own PRNG stream; stages 5/6
+//   do not use RNG. Map StageLabel → SubEngineKind here; the `rom`
+//   kind is left unused at runtime but remains in SubEngineKind for
+//   the W1 P6 primitive test coverage.
+// ─────────────────────────────────────────────────────────────
+
+export type StageLabel = "stage1" | "stage2" | "stage3" | "stage4";
+
+export const STAGE_TO_KIND: Readonly<Record<StageLabel, SubEngineKind>> = {
+  stage1: "pain",
+  stage2: "symptom",
+  stage3: "reason",
+  stage4: "muscles",
+} as const;
+
+export type StageSeedBag = Readonly<Record<StageLabel, () => number>>;
 
 // ─────────────────────────────────────────────────────────────
 // EngineState — cross-visit (session-level) mutable state

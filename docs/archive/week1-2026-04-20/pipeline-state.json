@@ -1,0 +1,27 @@
+{
+  "pipeline": "codex-6",
+  "scope": "ROADMAP-2026-04 Week 1 (minus W1.2 deployment; W1.1 scope reduced to script+self-check per user approval 2026-04-20)",
+  "selected_lane": "standard",
+  "lane_rationale": "snapshot + fuzz + 单测跨多文件；codex-heavy 前置不全",
+  "started_at": "2026-04-20",
+  "completed_at": "2026-04-20",
+  "current_phase": 6,
+  "frozen_at": "2026-04-20",
+  "phase_history": [
+    { "phase": 0, "status": "completed" },
+    { "phase": 1, "status": "completed", "note": "plan v1 写出" },
+    { "phase": 2, "status": "completed", "note": "Codex REJECT 2C+3H+3M → revise" },
+    { "phase": 3, "status": "completed", "note": "v2 Codex REJECT 4H+1M → v3 用户批准方案B → 冻结" },
+    { "phase": 4, "status": "completed", "note": "6 steps 实现完成" },
+    { "phase": 5, "status": "completed", "note": "Codex REJECT 3H+1M → AC5 调整强化/记录弱化 → re-review OKAY" },
+    { "phase": 6, "status": "completed" }
+  ],
+  "manual_gates": [
+    { "name": "pdf_smoke_signoff_preview", "status": "deferred_to_W1.2", "blocks_closure": false }
+  ],
+  "baseline_captured": true,
+  "revision_rounds": 2,
+  "intent_gaps_recorded": [
+    "P13 chronicity caps not engine-enforced — documented as downstream note-checker responsibility; not a W1 blocker"
+  ]
+}
