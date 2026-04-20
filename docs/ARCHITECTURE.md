@@ -231,11 +231,41 @@ validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 | knowledge | `src/knowledge/` | 医学知识库：TCM 模式 (`tcm-patterns.ts`)、病史引擎 (`medical-history-engine.ts`) |
 | shared | `src/shared/` | 共享常量/映射：ICD 目录、CPT 目录、ADL 映射、体部位常量 (`body-part-constants.ts` 含 BODY_PART_NAMES / SUPPORTED_IE/TX_BODY_PARTS / BODY_PART_AREA_NAMES)、严重度 (`severity.ts`)、SOAP 约束、TCM 映射 (`tcm-mappings.ts`)、字段解析 (`field-parsers.ts`)、模板选项聚合 (`template-options.ts`，~2050 LOC 含 TEMPLATE_MUSCLES / TEMPLATE_ADL / TEMPLATE_NEEDLE_POINTS 等) |
 | parser | `src/parser/` | 规则引擎：下拉解析、逻辑规则 (`rule-engine.ts`, `logic-rules.ts`, `template-logic-rules.ts`)、TX 提取、权重系统、模板白名单 (`template-rule-whitelist.ts`, `template-rule-whitelist.browser.ts`) |
-| generator | `src/generator/` | SOAP 生成：主入口 (`soap-generator.ts`)、目标计算、客观补丁、TX 序列引擎、权重整合 |
+| generator | `src/generator/` | SOAP 生成：barrel (`soap-generator.ts`，63 LOC) + 9 个 renderer (`renderers/*.ts`)、目标计算、客观补丁、TX 序列引擎、权重整合 |
 | auditor | `src/auditor/` | 三层审计：Layer1 基础校验 → Layer2 逻辑一致性 → Layer3 高级规则 |
 | validator | `src/validator/` | 输出验证：`output-validator.ts` 最终校验生成结果 |
 
-### 3.3 解析器目录 (`parsers/`)
+### 3.4 Renderer 层架构（W3 step 3 — Tier B step 3）
+
+`soap-generator.ts` 从 3086 LOC monolith 拆分为 barrel + 9 个独立 renderer（见 ADR D43）。
+
+```
+src/generator/
+├── soap-generator.ts (barrel, 63 LOC)     ← 所有 consumer 的 import 入口
+│
+└── renderers/
+    ├── _shared.ts          (351 LOC)  跨 renderer helper + TX consts + SOAPFormat
+    ├── subjective-ie.ts    (552 LOC)  IE/RE S 段 + ADL demographics
+    ├── subjective-tx.ts    (312 LOC)  TX S 段
+    ├── objective.ts        (756 LOC)  O 段 + ROM 下拉选项表 + ROM 计算
+    ├── assessment.ts       (360 LOC)  IE A 段 + TX A 段
+    ├── plan-ie.ts          (90 LOC)   IE P 段（除针刺协议）
+    ├── plan-tx.ts          (84 LOC)   TX P 段（除针刺协议）
+    ├── needle-protocol.ts  (462 LOC)  针刺协议 (KNEE/SHOULDER/LBP/NECK 专用 + 通用 + 97810)
+    └── export.ts           (192 LOC)  orchestrator (exportSOAPSections/exportSOAP/exportTXSeriesAsText)
+```
+
+**改引擎路径**:
+- 新增 body part 渲染分支 → 直接改对应 renderer 文件（通常 subjective-ie + objective + assessment + needle-protocol）
+- 新增 renderer helper → 若跨 2+ renderer 使用 → 加入 `_shared.ts`；否则保留在本文件
+- 修改 orchestration 顺序或 HTML wrapping → 只改 `export.ts`
+- `soap-generator.ts` barrel 只在新增 renderer 文件或 live export 时修改
+
+**区别于 `sub-engines/shared-helpers.ts`**:
+- `sub-engines/shared-helpers.ts`：stage-level helpers（PRNG bag 管理，W2 Tier B step 2）
+- `renderers/_shared.ts`：text-generation helpers（文案拼接、HTML wrapper、ROM 计算）
+
+### 3.5 解析器目录 (`parsers/`)
 
 与 `src/` 并列，非共享引擎依赖链，供 Checker 与后端 Excel 解析等使用。
 

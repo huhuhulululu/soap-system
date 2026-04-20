@@ -154,3 +154,50 @@
 | # | 决策 | 理由 |
 |---|------|------|
 | D42 | 见上方专章 | stage 级独立性干净、可验证、覆盖 80% 的 roadmap 价值 |
+
+---
+
+## v2.6 W3 step 3 — Split soap-generator.ts into per-renderer modules (2026-04-20)
+
+### D43 — Split soap-generator.ts into per-renderer modules (Tier B step 3)
+
+**Decision**: 拆 `soap-generator.ts` 3086 LOC 为 9 个 renderers 文件 + `renderers/_shared.ts`。soap-generator.ts 瘦身为 barrel（63 LOC）re-export 所有 19 个 live exports 保 API 兼容。拆分边界：
+
+| 文件 | 职责 | LOC |
+|------|------|-----|
+| `renderers/_shared.ts` | 跨 renderer 的 helper + TX consts/helpers + SOAPFormat 类型 | 351 |
+| `renderers/subjective-ie.ts` | `generateSubjective`（IE/RE） + ADL demographics + MUSCLE_SEVERITY_ORDER | 552 |
+| `renderers/subjective-tx.ts` | `generateSubjectiveTX` | 312 |
+| `renderers/objective.ts` | `generateObjective` + ROM 下拉选项表 + ROM helpers | 756 |
+| `renderers/assessment.ts` | `generateAssessment` + `generateAssessmentTX` | 360 |
+| `renderers/plan-ie.ts` | `generatePlanIE` | 90 |
+| `renderers/plan-tx.ts` | `generatePlanTX` | 84 |
+| `renderers/needle-protocol.ts` | `generateNeedleProtocol` + 私有 INSURANCE_NEEDLE_MAP | 462 |
+| `renderers/export.ts` | `exportSOAPSections/exportSOAP/exportSOAPAsText/exportTXSeriesAsText` + 3 公共 type | 192 |
+| `soap-generator.ts`（barrel） | 仅 re-export 19 个 live exports | 63 |
+
+**Consequences**:
+- 改 subjective 只动 `subjective-ie/tx.ts`；改 objective 只动 `objective.ts`；加新渲染分支 = 改 1 文件（roadmap W3 目标达成）
+- consumer (soap-producer, batch-generator, frontend engine.test.ts 等) import 路径不变，全部 API 兼容
+- 55 snapshot 0-diff（纯结构拆分，PRNG 顺序严格保留）
+- tsc 25 errors = W2 baseline；test failing 7/9 ⊆ W2 baseline
+- 每 renderer 可独立单测（新增 5 个 test 文件, 23 个 tests 全绿）
+- `renderers/_shared.ts` 内部 helper 若重构要小心影响所有 renderer
+
+**Known Limitations**:
+- `INSURANCE_NEEDLE_MAP` 移入 `needle-protocol.ts`（plan 原意保留在 barrel，但若 barrel 定义 needle-protocol 就要反向 import 构成循环，只有该 renderer 使用故内联更干净）
+- `objective.ts` 756 LOC 超出 AC9 ≤700 LOC 上限（ROM 下拉选项表占 ~220 LOC 不可压缩的数据）；若继续增长考虑二次拆分到 `renderers/_rom-options.ts`
+
+**Future Work**:
+- 若 renderers 间出现新共享 helper 需求，优先加入 `renderers/_shared.ts`
+- 若 `objective.ts` 超 800 LOC，提取 ROM 选项到独立数据模块
+- `_shared.ts` 的 TX consts (TX_*_OPTIONS) 实为 `TEMPLATE_TX_*` 的 array-spread 包装，长期可直接 inline 到 template-options.ts 源处导出
+
+**Alternatives Rejected**:
+- **保留 monolith + extract maps only（W3 原 minimal 方案）**: 3000 LOC 单文件，改任一分支都会触发全局 review + snapshot 全变风险，roadmap "改引擎不痛" 目标不达成。Rejected。
+- **按 noteType（IE/TX/RE）拆**: 粒度更粗，但 IE 内部的 subjective/objective/assessment/plan 仍然是 2000+ LOC 单文件。Rejected。
+- **`renderers/_shared.ts` 并入 `sub-engines/shared-helpers.ts`**: 语义冲突 — W2 sub-engines 层是 stage-level helpers (pickSingle/pickMultiple with rng bag)，renderers 层是 text-generation helpers (plainToHtmlSection 等)。分开保持职责清晰。Rejected。
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D43 | 见上方专章 | 1800 LOC 的 monolith 裂解为 9 个单一职责 renderer，consumer 0 改动 |
