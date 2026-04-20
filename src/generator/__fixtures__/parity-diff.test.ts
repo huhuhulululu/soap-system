@@ -9,6 +9,7 @@
 import { exportTXSeriesAsText } from '../soap-generator'
 import { normalizeGenerationContext, type NormalizeInput } from '../../shared/normalize-generation-context'
 import { setWhitelist } from '../../parser/template-rule-whitelist'
+import { severityFromPain } from '../../shared/severity'
 import whitelistData from '../../../frontend/src/data/whitelist.json'
 
 import type { BodyPart, Laterality, SeverityLevel } from '../../types'
@@ -30,13 +31,8 @@ function normalizeSOAPText(text: string): string {
     .trim()
 }
 
-function severity(pain: number): SeverityLevel {
-  if (pain >= 9) return 'severe'
-  if (pain >= 7) return 'moderate to severe'
-  if (pain >= 6) return 'moderate'
-  if (pain >= 4) return 'mild to moderate'
-  return 'mild'
-}
+// severity(pain) moved to src/shared/severity.ts::severityFromPain
+const severity = severityFromPain
 
 interface ParityCase {
   readonly name: string

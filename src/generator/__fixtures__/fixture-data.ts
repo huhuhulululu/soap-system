@@ -11,6 +11,7 @@
  */
 
 import type { BodyPart, Laterality, SeverityLevel } from '../../types'
+import { severityFromPain } from '../../shared/severity'
 
 export interface FixtureDefinition {
   readonly name: string
@@ -29,13 +30,8 @@ export interface FixtureDefinition {
   readonly systemicPattern?: string
 }
 
-function severity(pain: number): SeverityLevel {
-  if (pain >= 9) return 'severe'
-  if (pain >= 7) return 'moderate to severe'
-  if (pain >= 6) return 'moderate'
-  if (pain >= 4) return 'mild to moderate'
-  return 'mild'
-}
+// severity(pain) moved to src/shared/severity.ts::severityFromPain
+const severity = severityFromPain
 
 export const FIXTURES: readonly FixtureDefinition[] = [
   // ── Core: LBP (1-3) ──
