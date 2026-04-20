@@ -1,9 +1,9 @@
-# SOAP System 系统架构手册 v2.4.0
+# SOAP System 系统架构手册 v2.4.1
 
 > 本文档是 SOAP System 的唯一正确数据参考源（Single Source of Truth）。
 > 所有系统优化、检修、重建、AI Agent 训练均以本文档为准。
 >
-> 最后更新: 2026-03-07 | 分支: clean-release
+> 最后更新: 2026-04-19 | 分支: clean-release
 
 ---
 
@@ -192,6 +192,8 @@ AC 后端 requireAuth 中间件
 | `server/services/automation-runner.ts` | Playwright 子进程、Cookie 加解密、NDJSON 事件 |
 | `server/services/ai-generator.ts` | Vertex AI 调用（Python bridge 或 HTTP） |
 | `server/services/text-to-html.ts` | 文本转 HTML 片段 |
+| `server/services/bill-list-parser.ts` | Bill List PDF 解析（保险对账） |
+| `server/services/bill-matcher.ts` | Bill 与批次对账匹配逻辑 |
 | `server/store/batch-store.ts` | LRU 缓存 + JSON 持久化、generateBatchId/saveBatch/getBatch/confirmBatch |
 | `server/types.ts` | BatchData, BatchPatient, BatchVisit, BatchMode, ExcelRow |
 
@@ -219,13 +221,15 @@ auditor   (独立，无 src/ 外部依赖)
 validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 ```
 
+> **已知技术债（Tier B step 1 计划消除）**：`src/generator/tx-sequence-engine.ts` 与 `src/generator/soap-generator.ts` 存在 `objectiveMuscleSeed` 双向 import 循环。重构计划将该函数移至 `src/shared/muscle-seed.ts` 断开循环。
+
 ### 3.2 模块职责
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
 | types | `src/types/index.ts` | 核心类型定义（SOAPNote, NoteHeader, GenerationContext, BodyPart 等） |
 | knowledge | `src/knowledge/` | 医学知识库：TCM 模式 (`tcm-patterns.ts`)、病史引擎 (`medical-history-engine.ts`) |
-| shared | `src/shared/` | 共享常量/映射：ICD 目录、CPT 目录、ADL 映射、体部位常量、严重度、SOAP 约束、TCM 映射 (`tcm-mappings.ts`)、字段解析 (`field-parsers.ts`) |
+| shared | `src/shared/` | 共享常量/映射：ICD 目录、CPT 目录、ADL 映射、体部位常量 (`body-part-constants.ts` 含 BODY_PART_NAMES / SUPPORTED_IE/TX_BODY_PARTS / BODY_PART_AREA_NAMES)、严重度 (`severity.ts`)、SOAP 约束、TCM 映射 (`tcm-mappings.ts`)、字段解析 (`field-parsers.ts`)、模板选项聚合 (`template-options.ts`，~2050 LOC 含 TEMPLATE_MUSCLES / TEMPLATE_ADL / TEMPLATE_NEEDLE_POINTS 等) |
 | parser | `src/parser/` | 规则引擎：下拉解析、逻辑规则 (`rule-engine.ts`, `logic-rules.ts`, `template-logic-rules.ts`)、TX 提取、权重系统、模板白名单 (`template-rule-whitelist.ts`, `template-rule-whitelist.browser.ts`) |
 | generator | `src/generator/` | SOAP 生成：主入口 (`soap-generator.ts`)、目标计算、客观补丁、TX 序列引擎、权重整合 |
 | auditor | `src/auditor/` | 三层审计：Layer1 基础校验 → Layer2 逻辑一致性 → Layer3 高级规则 |
@@ -371,6 +375,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdel
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.4.1 | 2026-04-19 | **Tier A 重构同步**: (1) shared 模块描述补全：`body-part-constants.ts` 新增 `BODY_PART_NAMES` / `SUPPORTED_IE_BODY_PARTS` / `SUPPORTED_TX_BODY_PARTS` / `BODY_PART_AREA_NAMES`（从 soap-generator.ts 迁入）；`template-options.ts` (~2050 LOC) / `severity.ts` 显式列出；(2) 后端服务补全 `bill-list-parser.ts` / `bill-matcher.ts`；(3) §3.1 依赖图注明 `tx-sequence-engine ↔ soap-generator` 循环依赖（Tier B step 1 计划消除）；(4) 重复文件清理：docs 和 scripts 中 21 个 `* 2.*` macOS 重复已 canonicalize；(5) auditor/layer1 顶层 fs.readFileSync 改懒加载 + `__dirname` 解析（cwd-independent）。 |
 | v2.4.0 | 2026-03-07 | **像素级同步**: (1) 认证：支持 `payload.systems?.includes("ac")`，`/api/auth/me` 返回 systems；(2) API：补充 SOAP 端点 POST /api/soap、POST /api/soap/generate-batch，AI 端点 POST /api/ai/generate，Batch 增加 POST /api/batch/prebuilt、GET /api/batch/template/download 顺序说明；(3) 后端：新增 2.4 节 server 服务层清单（excel-parser、batch-generator、soap-producer、soap-worker-pool、automation-runner、ai-generator、batch-store 等）；(4) 前端：认证守卫改为 /ac/api/auth/me、未认证跳转 /portal/；分层补充 soap-worker-bridge、useAssessmentBinding、workers 目录；(5) 安全：Nginx 增加 Content-Security-Policy，环境变量增加 Vertex AI 相关；(6) 新增 3.3 parsers/optum-note 目录说明；(7) 修复 batch 路由顺序：GET /template/download 移至 GET /:id 之前，避免被误匹配。 |
 | v2.3.0 | 2026-02-21 | **架构文档全面修正**: (1) 修正功能表：合并 Writer/Continue 为 Composer，新增 Batch、Automate，移除独立 History；(2) 新增第二章后端 API（14 个端点 + rate limiting）；(3) 新增第三章共享引擎模块架构（7 模块依赖图）；(4) 新增第四章前端架构（路由、认证守卫、分层）；(5) 新增第五章批量处理（LRU 存储、3 种模式、流程）；(6) 新增第六章安全（Docker 非 root、Cookie 加密、Nginx 安全头、SSL/TLS、环境变量）；(7) 新增第七章测试（Jest + Vitest 双框架）。 |
 | v2.3.0-auth | 2026-02-20 | **JWT Cookie 共享认证**: `requireAuth` 中间件新增 JWT cookie 验证，新增 `/api/auth/me` 端点，CORS 改为 `https://rbmeds.com`。 |

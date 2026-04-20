@@ -8,7 +8,7 @@ Express 5 + Vue 3 + Playwright | Docker on Oracle Cloud
 
 - MDLand 非幂等: ICD/CPT 是追加而非替换，操作不可撤销
 - Session-expired 必须停止 batch (ERR-03)，绝不重试
-- `tx-sequence-engine.ts`: 新 rng() 调用必须追加在循环末尾，否则整个 PRNG 序列偏移
+- `tx-sequence-engine.ts` (~2173 LOC): 新 rng() 调用必须追加在循环末尾，否则整个 PRNG 序列偏移
 - 30 个 fixture snapshot 必须在任何引擎修改前通过
 
 ## 文档
