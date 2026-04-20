@@ -47,3 +47,7 @@ training-data/
 
 # Clinical data samples (HIPAA — never commit)
 0416/
+
+# macOS Finder duplicates (prevent re-committing "foo 2.ext" artifacts)
+* 2.*
+*/* 2.*
