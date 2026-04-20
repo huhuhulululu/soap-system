@@ -11,7 +11,8 @@ SOAP System — 针灸诊所 SOAP 笔记自动化（生成 + MDLand 提交）。
 ## 当前状态
 
 Tier A + Tier B step 1 Refactor — 已交付 (2026-04-19)
-下一步: Tier B step 2（sub-seed 运行时接入 + 拆 soap-generator.ts）或新 milestone
+当前: **1 个月引擎可维护性 roadmap** — 见 `docs/ROADMAP-2026-04.md`
+下一步: Week 1 开始（部署 + 安全网扩容）
 架构文档已同步至 **ARCHITECTURE.md v2.4.1** (2026-04-19)。
 
 ## 里程碑历史
@@ -60,3 +61,5 @@ Tier A + Tier B step 1 Refactor — 已交付 (2026-04-19)
 | `docs/ARCHITECTURE.md` | 技术真相源 — 系统架构、API、模块、安全 |
 | `docs/decisions.md` | ADR — 所有技术决策及理由 |
 | `docs/PROJECT-CONTEXT.md` | 本文件 — 项目状态、约束、工作流 |
+| `docs/ROADMAP-2026-04.md` | 当前 1 月工期计划（引擎可维护性） |
+| `docs/archive/` | 历史项目资料（Tier A/B step 1 重构过程、MDLand 集成等） |
