@@ -1,3 +1,9 @@
+// Self-host pdf.worker.min.mjs via Vite ?url import so the worker version
+// always matches the installed pdfjs-dist (no CDN version drift, no /ac/ base
+// prefix headaches). Vite copies the asset to /ac/assets/... at build time
+// and returns the correct runtime URL.
+import pdfjsWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
+
 let pdfjsModulePromise = null
 
 async function loadPdfjs() {
@@ -7,7 +13,7 @@ async function loadPdfjs() {
 
   const pdfjs = await pdfjsModulePromise
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
   }
   return pdfjs
 }

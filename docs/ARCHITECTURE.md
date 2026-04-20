@@ -332,8 +332,10 @@ X-Frame-Options: DENY
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
-Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob: https://cdn.jsdelivr.net;
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self'; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:;
 ```
+
+pdfjs worker 自托管：通过 Vite `?url` 导入 `pdfjs-dist/legacy/build/pdf.worker.min.mjs`（asset 构建到 `/ac/assets/`），避免 CDN 版本漂移和 CSP 放宽。
 
 ### 6.4 SSL/TLS (`docker-compose.ssl.yml` + `frontend/nginx-ssl.conf`)
 
