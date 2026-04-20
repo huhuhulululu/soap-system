@@ -84,14 +84,17 @@ import {
   TEMPLATE_TX_TREATMENT_OPTIONS,
   TEMPLATE_TX_LOCAL_PATTERN_OPTIONS,
   TEMPLATE_PAIN_TYPES,
-  TEMPLATE_TONE_MAP,
-  TEMPLATE_ASSOCIATED_SYMPTOMS,
-  TEMPLATE_SYMPTOM_SCALE,
-  TEMPLATE_CAUSATIVE_CONNECTOR,
-  TEMPLATE_NOT_IMPROVED,
-  TEMPLATE_TENDERNESS_LABEL,
-  TEMPLATE_INSPECTION_DEFAULT,
 } from "../shared/template-options";
+import {
+  LATERALITY_NAMES,
+  TONE_MAP,
+  ASSOCIATED_SYMPTOMS_MAP,
+  SYMPTOM_SCALE_MAP,
+  CAUSATIVE_CONNECTOR_MAP,
+  NOT_IMPROVED_MAP,
+  TENDERNESS_LABEL_MAP,
+  INSPECTION_DEFAULT_MAP,
+} from "../shared/soap-narrative-maps";
 import {
   hasTemplateROM,
   resolveTemplateMovementName,
@@ -134,15 +137,7 @@ function assertTemplateSupported(context: GenerationContext): void {
   );
 }
 
-/**
- * 侧别显示名称
- */
-const LATERALITY_NAMES: Record<Laterality, string> = {
-  left: "left",
-  right: "right",
-  bilateral: "bilateral",
-  unspecified: "",
-};
+// LATERALITY_NAMES moved to src/shared/soap-narrative-maps.ts (W3 Step 2)
 
 /**
  * ADL 年龄+性别过滤规则
@@ -415,13 +410,9 @@ function calculateRomValue(
 /**
  * 关联症状默认值 (来自各模板 ppnSelectCombo)
  */
-const TONE_MAP = TEMPLATE_TONE_MAP;
-const ASSOCIATED_SYMPTOMS_MAP = TEMPLATE_ASSOCIATED_SYMPTOMS;
-const SYMPTOM_SCALE_MAP = TEMPLATE_SYMPTOM_SCALE;
-const CAUSATIVE_CONNECTOR_MAP = TEMPLATE_CAUSATIVE_CONNECTOR;
-const NOT_IMPROVED_MAP = TEMPLATE_NOT_IMPROVED;
-const TENDERNESS_LABEL_MAP = TEMPLATE_TENDERNESS_LABEL;
-const INSPECTION_DEFAULT_MAP = TEMPLATE_INSPECTION_DEFAULT;
+// TONE_MAP / ASSOCIATED_SYMPTOMS_MAP / SYMPTOM_SCALE_MAP / CAUSATIVE_CONNECTOR_MAP
+// / NOT_IMPROVED_MAP / TENDERNESS_LABEL_MAP / INSPECTION_DEFAULT_MAP moved to
+// src/shared/soap-narrative-maps.ts (W3 Step 2).
 
 /**
  * 辅助函数：获取配置值，按身体部位查找，回退到 DEFAULT

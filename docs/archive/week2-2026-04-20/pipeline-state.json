@@ -1,0 +1,43 @@
+{
+  "pipeline": "codex-6",
+  "scope": "ROADMAP-2026-04 Week 2 — Tier B step 2 per-stage sub-seed runtime wiring",
+  "selected_lane": "standard",
+  "started_at": "2026-04-20",
+  "completed_at": "2026-04-20",
+  "current_phase": 6,
+  "closure_status": "CLOSED_WITH_PENDING_GATE",
+  "frozen_at": "2026-04-20",
+  "frozen_on_plan_version": "v4",
+  "local_commit": "53bb422",
+  "pushed_to_origin": false,
+  "deployed_to_prod": false,
+  "phase_history": [
+    { "phase": 0, "status": "completed" },
+    { "phase": 1, "status": "completed", "note": "plan v1" },
+    { "phase": 2, "status": "completed_with_fallback", "note": "3 rounds Codex REJECT → per-stage pivot → v4 harness failure → user approved" },
+    { "phase": 3, "status": "completed", "note": "v4 frozen" },
+    { "phase": 4, "status": "completed", "note": "Steps 0-8 done (Step 5 HALT gate deferred)" },
+    { "phase": 5, "status": "completed", "note": "Codex diff review OKAY with 1H (P14a tighten) + 1M (P14b rescope) — both addressed in commit 53bb422" },
+    { "phase": 6, "status": "completed_with_pending_gate", "note": "Local commit 53bb422; 20-fixture signoff pending user async review before push" }
+  ],
+  "manual_gates": [
+    {
+      "name": "snapshot_rebaseline_signoff_week2",
+      "status": "pending_user_async_review",
+      "blocks_push": true,
+      "blocks_deploy": true,
+      "file": ".claude-state/signoff-week2.md",
+      "fixture_count": 20,
+      "diff_location": "/tmp/w2-diffs/"
+    }
+  ],
+  "user_decisions": {
+    "Q1": "A — full Week 2 in one run",
+    "Q2": "signoff 20 fixtures (16 tier-b-step-1 + 4 W1)",
+    "Q3": "X — per-stage isolation",
+    "Q4": "A — accept v4 despite Codex harness failure",
+    "Q5": "A — local commit, defer signoff, no push until user APPROVE"
+  },
+  "baseline_captured": true,
+  "revision_rounds": 3
+}
