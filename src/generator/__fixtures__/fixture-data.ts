@@ -10,7 +10,7 @@
  * Seeds: 100001–100030 (unique per fixture)
  */
 
-import type { BodyPart, InsuranceType, Laterality, SeverityLevel } from '../../types'
+import type { BodyPart, InsuranceType, Laterality, NoteType, SeverityLevel } from '../../types'
 import { severityFromPain } from '../../shared/severity'
 
 export interface FixtureDefinition {
@@ -37,6 +37,9 @@ export interface FixtureDefinition {
   readonly startVisitIndex?: number                 // for continue-mode
   readonly initialFrequency?: number                // 0-3; default 3
   readonly allowNegativeEvents?: boolean            // default false
+  // ── v3 extensions (W1.3 roadmap — IE/RE + multi-bodypart) ──
+  readonly noteType?: NoteType                      // default 'TX'; IE/RE go through exportSOAP directly
+  readonly secondaryBodyParts?: readonly BodyPart[] // multi-bodypart coverage
 }
 
 // severity(pain) moved to src/shared/severity.ts::severityFromPain
@@ -113,4 +116,31 @@ export const FIXTURES: readonly FixtureDefinition[] = [
 
   // Negative events allowed (42): exacerbate/came-back branch
   { name: 'SHOULDER-negative-events-18tx',  bodyPart: 'SHOULDER', laterality: 'left',      painCurrent: 7, severityLevel: severity(7), txCount: 18, seed: 100042, allowNegativeEvents: true },
+
+  // ── v3 extensions (43-55): IE/RE + multi-bodypart + assocSymptom variety + demographics ──
+
+  // IE fixtures (43-44): noteType='IE' → exportSOAP single-pass; txCount=1 placeholder
+  { name: 'LBP-IE-new-patient',            bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 8, severityLevel: severity(8), txCount: 1,  seed: 100043, noteType: 'IE' },
+  { name: 'KNEE-IE-existing-patient',      bodyPart: 'KNEE',     laterality: 'right',     painCurrent: 7, severityLevel: severity(7), txCount: 1,  seed: 100044, noteType: 'IE' },
+
+  // RE fixtures (45-46): noteType='RE' → same branch but RE-EVALUATION header
+  { name: 'SHOULDER-RE-midcourse',         bodyPart: 'SHOULDER', laterality: 'left',      painCurrent: 6, severityLevel: severity(6), txCount: 1,  seed: 100045, noteType: 'RE' },
+  { name: 'NECK-RE-latecourse',            bodyPart: 'NECK',     laterality: 'bilateral', painCurrent: 5, severityLevel: severity(5), txCount: 1,  seed: 100046, noteType: 'RE' },
+
+  // Multi-bodypart fixtures (47-48): secondaryBodyParts non-empty
+  { name: 'LBP+NECK-bilateral-mid-10tx',   bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 7, severityLevel: severity(7), txCount: 10, seed: 100047, secondaryBodyParts: ['NECK'] },
+  { name: 'SHOULDER+ELBOW-left-mid-12tx',  bodyPart: 'SHOULDER', laterality: 'left',      painCurrent: 7, severityLevel: severity(7), txCount: 12, seed: 100048, secondaryBodyParts: ['ELBOW'] },
+
+  // continue-mode distinct from tx4 (49): startVisitIndex=8
+  { name: 'LBP-continue-from-tx8-10tx',    bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 5, severityLevel: severity(5), txCount: 10, seed: 100049, startVisitIndex: 8, initialFrequency: 1 },
+
+  // associatedSymptom variety (50-53): weakness / stiffness / heaviness / numbness
+  { name: 'KNEE-weakness-right-10tx',      bodyPart: 'KNEE',     laterality: 'right',     painCurrent: 6, severityLevel: severity(6), txCount: 10, seed: 100050, associatedSymptom: 'weakness' },
+  { name: 'NECK-stiffness-bilateral-10tx', bodyPart: 'NECK',     laterality: 'bilateral', painCurrent: 6, severityLevel: severity(6), txCount: 10, seed: 100051, associatedSymptom: 'stiffness' },
+  { name: 'LBP-heaviness-bilateral-10tx',  bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 6, severityLevel: severity(6), txCount: 10, seed: 100052, associatedSymptom: 'heaviness' },
+  { name: 'SHOULDER-numbness-left-10tx',   bodyPart: 'SHOULDER', laterality: 'left',      painCurrent: 6, severityLevel: severity(6), txCount: 10, seed: 100053, associatedSymptom: 'numbness' },
+
+  // demographics (54-55): age<30 female + age 50-65 male
+  { name: 'SHOULDER-young-female-25yo-8tx', bodyPart: 'SHOULDER', laterality: 'right',    painCurrent: 7, severityLevel: severity(7), txCount: 8,  seed: 100054, age: 25, gender: 'Female' },
+  { name: 'LBP-middle-male-55yo-12tx',      bodyPart: 'LBP',      laterality: 'bilateral', painCurrent: 8, severityLevel: severity(8), txCount: 12, seed: 100055, age: 55, gender: 'Male' },
 ] as const

@@ -51,3 +51,6 @@ training-data/
 # macOS Finder duplicates (prevent re-committing "foo 2.ext" artifacts)
 * 2.*
 */* 2.*
+
+# PDF smoke runtime-generated fixture
+scripts/playwright/fixtures/sample.pdf

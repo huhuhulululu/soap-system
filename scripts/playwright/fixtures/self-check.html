@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>pdf-smoke self-check</title></head>
+<body>
+<h1>PDF Smoke Self-Check Fixture</h1>
+<form>
+  <input type="file" data-testid="file-uploader" accept="application/pdf" />
+</form>
+<div id="report" data-testid="report-panel" hidden>
+  <p>No file uploaded yet</p>
+</div>
+<script>
+  const input = document.querySelector('[data-testid=file-uploader]')
+  const report = document.querySelector('[data-testid=report-panel]')
+  input.addEventListener('change', (ev) => {
+    const f = ev.target.files?.[0]
+    if (!f) return
+    // Mimic the real Checker flow: show the report panel with a
+    // "Report Ready" message once a PDF has been received. If the PDF
+    // is empty or its size is < 50 bytes, render PARSE_FAIL instead so
+    // the smoke script can exercise both the positive and negative path.
+    report.hidden = false
+    if (f.size < 50) {
+      report.innerHTML = '<p>PARSE_FAIL: file too small</p>'
+    } else {
+      report.innerHTML = '<p>Report Ready — parsed ' + f.size + ' bytes from ' + f.name + '</p>'
+    }
+  })
+</script>
+</body>
+</html>
