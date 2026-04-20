@@ -314,3 +314,70 @@ export const BODY_PART_NEEDLE_GAUGES: Record<string, string[]> = {
   MIDDLE_BACK: ["36#", "34#"],
   MID_LOW_BACK: ["36#", "34#", "30#"],
 };
+
+// ============ 身体部位显示名称与支持集 ============
+// (Migrated from soap-generator.ts per Tier A Phase A3)
+
+/**
+ * 身体部位显示名称映射（用于叙事文本 "lower back", "middle and lower back" 等）
+ */
+export const BODY_PART_NAMES: Record<BodyPart, string> = {
+  LBP: "lower back",
+  NECK: "neck",
+  UPPER_BACK: "upper back",
+  MIDDLE_BACK: "middle back",
+  MID_LOW_BACK: "middle and lower back",
+  SHOULDER: "shoulder",
+  ELBOW: "elbow",
+  WRIST: "wrist",
+  HAND: "hand",
+  HIP: "hip",
+  KNEE: "knee",
+  ANKLE: "ankle",
+  FOOT: "foot",
+  THIGH: "thigh",
+  CALF: "calf",
+  ARM: "arm",
+  FOREARM: "forearm",
+};
+
+/**
+ * IE 模板支持的身体部位集合
+ */
+export const SUPPORTED_IE_BODY_PARTS: ReadonlySet<BodyPart> = new Set<BodyPart>([
+  "ELBOW",
+  "HIP",
+  "KNEE",
+  "LBP",
+  "MID_LOW_BACK",
+  "NECK",
+  "SHOULDER",
+]);
+
+/**
+ * TX 模板支持的身体部位集合
+ */
+export const SUPPORTED_TX_BODY_PARTS: ReadonlySet<BodyPart> = new Set<BodyPart>([
+  "ELBOW",
+  "KNEE",
+  "LBP",
+  "MID_LOW_BACK",
+  "MIDDLE_BACK",
+  "NECK",
+  "SHOULDER",
+]);
+
+/**
+ * 身体部位在模板中的区域名称（如 "shoulder area", "knee area"，与 BODY_PART_NAMES 区分）
+ */
+export const BODY_PART_AREA_NAMES: Record<string, string> = {
+  LBP: "lower back",
+  NECK: "neck",
+  SHOULDER: "shoulder area",
+  KNEE: "knee area",
+  HIP: "hip",
+  ELBOW: "elbow",
+  WRIST: "wrist",
+  ANKLE: "ankle",
+  MID_LOW_BACK: "middle and lower back",
+};

@@ -33,8 +33,15 @@ import {
   BODY_PART_ADL,
   BODY_PART_ROM,
   romLimitFactor,
+  BODY_PART_NAMES,
+  SUPPORTED_IE_BODY_PARTS,
+  SUPPORTED_TX_BODY_PARTS,
+  BODY_PART_AREA_NAMES,
   type ROMMovement,
 } from "../shared/body-part-constants";
+
+// Re-export for backwards compatibility — external modules may import BODY_PART_NAMES from this file
+export { BODY_PART_NAMES };
 import type { BodyPartKey, NeedleGroups } from "../shared/template-options";
 import {
   TEMPLATE_CAUSATIVES,
@@ -108,48 +115,8 @@ const INSURANCE_NEEDLE_MAP: Record<InsuranceType, "97810" | "full"> = {
   ELDERPLAN: "full",
 };
 
-/**
- * 身体部位显示名称映射
- */
-export const BODY_PART_NAMES: Record<BodyPart, string> = {
-  LBP: "lower back",
-  NECK: "neck",
-  UPPER_BACK: "upper back",
-  MIDDLE_BACK: "middle back",
-  MID_LOW_BACK: "middle and lower back",
-  SHOULDER: "shoulder",
-  ELBOW: "elbow",
-  WRIST: "wrist",
-  HAND: "hand",
-  HIP: "hip",
-  KNEE: "knee",
-  ANKLE: "ankle",
-  FOOT: "foot",
-  THIGH: "thigh",
-  CALF: "calf",
-  ARM: "arm",
-  FOREARM: "forearm",
-};
-
-const SUPPORTED_IE_BODY_PARTS = new Set<BodyPart>([
-  "ELBOW",
-  "HIP",
-  "KNEE",
-  "LBP",
-  "MID_LOW_BACK",
-  "NECK",
-  "SHOULDER",
-]);
-
-const SUPPORTED_TX_BODY_PARTS = new Set<BodyPart>([
-  "ELBOW",
-  "KNEE",
-  "LBP",
-  "MID_LOW_BACK",
-  "MIDDLE_BACK",
-  "NECK",
-  "SHOULDER",
-]);
+// BODY_PART_NAMES / SUPPORTED_IE_BODY_PARTS / SUPPORTED_TX_BODY_PARTS 已移至
+// src/shared/body-part-constants.ts（imported above）。
 
 function assertTemplateSupported(context: GenerationContext): void {
   const isTX = context.noteType === "TX";
@@ -439,20 +406,7 @@ function calculateRomValue(
   return Math.round(raw / 5) * 5; // 四舍五入到 5 的倍数
 }
 
-/**
- * 身体部位在模板中的区域名称 (来自模板固定文本)
- */
-const BODY_PART_AREA_NAMES: Record<string, string> = {
-  LBP: "lower back",
-  NECK: "neck",
-  SHOULDER: "shoulder area",
-  KNEE: "knee area",
-  HIP: "hip",
-  ELBOW: "elbow",
-  WRIST: "wrist",
-  ANKLE: "ankle",
-  MID_LOW_BACK: "middle and lower back",
-};
+// BODY_PART_AREA_NAMES 已移至 src/shared/body-part-constants.ts（imported above）。
 
 /**
  * 关联症状默认值 (来自各模板 ppnSelectCombo)
