@@ -3,6 +3,7 @@
  * 执行确定性规则检查
  */
 import * as fs from 'fs'
+import * as path from 'path'
 
 export interface RuleResult {
   ruleId: string
@@ -27,13 +28,34 @@ export interface Layer1Result {
   violations: RuleResult[]
 }
 
-// 加载基准
-const templateOptions = JSON.parse(
-  fs.readFileSync('src/auditor/baselines/template-options.json', 'utf-8')
-)
-const engineRules = JSON.parse(
-  fs.readFileSync('src/auditor/baselines/engine-rules.json', 'utf-8')
-)
+// 加载基准（懒加载，cwd-independent）
+const BASELINE_DIR = path.join(__dirname, '..', 'baselines')
+
+function loadBaseline(filename: string): any {
+  const fullPath = path.join(BASELINE_DIR, filename)
+  try {
+    return JSON.parse(fs.readFileSync(fullPath, 'utf-8'))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    throw new Error(`Failed to load auditor baseline ${fullPath}: ${msg}`)
+  }
+}
+
+let _templateOptions: any = null
+let _engineRules: any = null
+
+function getTemplateOptions(): any {
+  if (_templateOptions === null) _templateOptions = loadBaseline('template-options.json')
+  return _templateOptions
+}
+
+function getEngineRules(): any {
+  if (_engineRules === null) _engineRules = loadBaseline('engine-rules.json')
+  return _engineRules
+}
+
+// engineRules reserved for future rules (no current reference)
+void getEngineRules
 
 export class RuleComplianceEngine {
   private rules: Array<{
@@ -52,7 +74,7 @@ export class RuleComplianceEngine {
       id: 'AC-2.1',
       severity: 'CRITICAL',
       check: (note) => {
-        const valid = templateOptions.chronicityLevel?.options ?? []
+        const valid = getTemplateOptions().chronicityLevel?.options ?? []
         if (note.chronicityLevel && !valid.includes(note.chronicityLevel)) {
           return {
             ruleId: 'AC-2.1',
@@ -73,7 +95,7 @@ export class RuleComplianceEngine {
       id: 'AC-2.2',
       severity: 'CRITICAL',
       check: (note) => {
-        const valid = templateOptions.severityLevel?.options ?? []
+        const valid = getTemplateOptions().severityLevel?.options ?? []
         if (note.severityLevel && !valid.includes(note.severityLevel)) {
           return {
             ruleId: 'AC-2.2',
@@ -94,7 +116,7 @@ export class RuleComplianceEngine {
       id: 'AC-2.3',
       severity: 'CRITICAL',
       check: (note) => {
-        const valid = templateOptions.generalCondition?.options ?? []
+        const valid = getTemplateOptions().generalCondition?.options ?? []
         if (note.generalCondition && !valid.includes(note.generalCondition)) {
           return {
             ruleId: 'AC-2.3',
