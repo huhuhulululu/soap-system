@@ -272,7 +272,43 @@ src/generator/
 | 路径 | 职责 |
 |------|------|
 | `parsers/optum-note/` | Optum 格式 PDF 解析：`parser.ts`、`types.ts`、`index.ts` |
-| `parsers/optum-note/checker/` | 笔记检查：`note-checker.ts`、`correction-generator.ts`、`bridge.ts` |
+| `parsers/optum-note/checker/` | 笔记检查：`note-checker.ts`（orchestrator, 241 LOC）、`correction-generator.ts`、`bridge.ts` |
+| `parsers/optum-note/checker/rules/` | 规则注册表 + 45 per-rule 文件（W4, D44） |
+
+### 3.6 Checker 层架构（W4 — D44）
+
+原 `note-checker.ts` 2085 LOC → 拆分为 orchestrator + 45 per-rule 文件按 kind 聚类：
+
+```
+parsers/optum-note/checker/
+├── note-checker.ts         (241 LOC) orchestrator：顺序调用 RULE_EXECUTION_PLAN + scoreDocument + buildTimeline
+├── types.ts                Rule<IE|TX|SEQUENCE|CODE|GENERATOR|DOC> 判别联合 + 6 个独立 kind-context
+├── correction-generator.ts (未改动)
+├── bridge.ts               (未改动)
+└── rules/
+    ├── index.ts            RULE_EXECUTION_PLAN = { doc, ie, tx, sequence, code, generator }
+    ├── shared.ts           err, avgRom, avgStrength, avgRomSeverityRank, jaccard, trend
+    ├── doc/                doc01.ts + index.ts
+    ├── ie/                 ie01..ie08.ts + index.ts
+    ├── tx/                 tx01..tx06, t02, t03, t06, t07 + index.ts
+    ├── sequence/           v01..v09, t08, t09 + index.ts
+    ├── code/               dx01..dx04, cpt01..cpt03, _tables.ts + index.ts
+    ├── generator/          s2, s3, s7, o1..o3, o8, o9, a5, p1, p2, x1..x4, _rom.ts + index.ts
+    └── __tests__/          harness.ts + 6 per-kind smoke test files (60 tests)
+```
+
+**执行顺序**（`checkDocument` 保留原有 emission order）：
+1. `DOC_RULES` on full `visits`
+2. For each visit i: if IE → `IE_RULES`，else → `TX_RULES`（带 ieVisit + prevVisit）
+3. For i in 1..n-1 (skip prev.isIE): pairwise `SEQUENCE_RULES`
+4. For each visit: `CODE_RULES`（带 hoisted allMissingDx/allMissingCpt）
+5. For each visit: `GENERATOR_RULES`
+
+**Regression anchor**：`.claude-state/w4-baselines/*.json` 9 个固化 fixture + `note-checker-regression.test.ts` bit-identical 检查（errors 数组 + `ruleId#visitIndex` 发射顺序双重 assert）。Real parser-derived baseline ≥ 2 (AC15) 永久保留。
+
+**新增规则流程**：`touch rules/<kind>/<ruleId>.ts` → 写 `export const <ruleId>: <Kind>Rule = { id, kind, check }` → 在 `rules/<kind>/index.ts` 数组加一行 → 加 `rules/__tests__/<ruleId>.test.ts` → 跑 regression test 确保新规则 0-fire 对现有 fixture。
+
+**Dormant rules**：T01/T04/T05（原 `checkTextConsistency`）未迁移，留待 W5 决策激活或删除。
 
 ---
 

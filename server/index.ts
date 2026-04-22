@@ -13,7 +13,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
-import { randomBytes } from "crypto";
+import { doubleCsrf } from "csrf-csrf";
 import { createBatchRouter } from "./routes/batch";
 import { createAutomateRouter } from "./routes/automate";
 import { createAIGenerateRouter } from "./routes/ai-generate";
@@ -66,35 +66,29 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-// ── CSRF Protection ──────────────────────────────
+// ── CSRF Protection (csrf-csrf double-submit pattern) ────────
 
-function generateCsrfToken(): string {
-  return randomBytes(32).toString("hex");
-}
+const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
+  getSecret: () => process.env.CSRF_SECRET || "dev-secret-change-in-prod",
+  getSessionIdentifier: (req) =>
+    (req.cookies?.session_id as string) || (req.ip as string) || "",
+  cookieName: "csrf_token",
+  cookieOptions: {
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+  },
+  size: 64,
+  getCsrfTokenFromRequest: (req) =>
+    (req.headers["x-csrf-token"] as string) || "",
+  skipCsrfProtection: (req) => {
+    const apiKey = process.env.API_KEY;
+    return Boolean(apiKey && req.headers["x-api-key"] === apiKey);
+  },
+});
 
 function csrfProtect(req: Request, res: Response, next: NextFunction): void {
-  // Skip CSRF for API-key authenticated requests (external systems)
-  const apiKey = process.env.API_KEY;
-  if (apiKey && req.headers["x-api-key"] === apiKey) {
-    next();
-    return;
-  }
-
-  if (!req.cookies.csrf_token) {
-    res.cookie("csrf_token", generateCsrfToken(), {
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    });
-  }
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-    const cookieToken = req.cookies.csrf_token as string | undefined;
-    const headerToken = req.headers["x-csrf-token"] as string | undefined;
-    if (!cookieToken || cookieToken !== headerToken) {
-      res.status(403).json({ success: false, error: "Forbidden" });
-      return;
-    }
-  }
-  next();
+  doubleCsrfProtection(req, res, next);
 }
 
 // ── Env Validation ───────────────────────────────
@@ -144,6 +138,12 @@ export function createApp(): express.Application {
 
   app.use("/api/", apiLimiter);
   app.use("/api/automate/login", loginLimiter);
+
+  // CSRF token issuance endpoint (v3.1 C1: primary path, not fallback)
+  app.get("/api/csrf-token", (req, res) => {
+    const token = generateCsrfToken(req, res);
+    res.json({ token });
+  });
 
   app.use(csrfProtect);
 

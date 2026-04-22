@@ -1,7 +1,9 @@
 import type { GenerationContext, BodyPart, Laterality } from '../../../src/types'
-import type { OptumNoteDocument } from '../types'
+import type { OptumNoteDocument, VisitRecord } from '../types'
 
 export type RuleSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+
+export type RuleKind = 'IE' | 'TX' | 'SEQUENCE' | 'CODE' | 'GENERATOR' | 'DOC'
 
 export interface CheckError {
   id: string
@@ -87,3 +89,55 @@ export interface BridgeResult {
   localPattern: string
   systemicPattern: string
 }
+
+// ============ Rule discriminated union ============
+// Independent per-kind contexts (no `extends`) — H4 v3.1 fix
+
+export interface IERuleContext {
+  visit: VisitRecord
+  visitIndex: number
+}
+
+export interface TXRuleContext {
+  visit: VisitRecord
+  visitIndex: number
+  ieVisit: VisitRecord | null
+  prevVisit: VisitRecord | null
+}
+
+export interface SequenceRuleContext {
+  visits: VisitRecord[]
+  prev: VisitRecord
+  cur: VisitRecord
+  visitIndex: number
+}
+
+export interface CodeRuleContext {
+  visits: VisitRecord[]
+  visit: VisitRecord
+  visitIndex: number
+  insuranceType?: string
+  treatmentTime?: number
+  /** true when every visit has diagnosisCodes.length === 0 (writer-mode) */
+  allMissingDx: boolean
+  /** true when every visit has procedureCodes.length === 0 (writer-mode) */
+  allMissingCpt: boolean
+}
+
+export interface GeneratorRuleContext {
+  visits: VisitRecord[]
+  visit: VisitRecord
+  visitIndex: number
+}
+
+export interface DocRuleContext {
+  visits: VisitRecord[]
+}
+
+export interface IERule        { id: string; kind: 'IE';        check: (ctx: IERuleContext) => CheckError[] }
+export interface TXRule        { id: string; kind: 'TX';        check: (ctx: TXRuleContext) => CheckError[] }
+export interface SequenceRule  { id: string; kind: 'SEQUENCE';  check: (ctx: SequenceRuleContext) => CheckError[] }
+export interface CodeRule      { id: string; kind: 'CODE';      check: (ctx: CodeRuleContext) => CheckError[] }
+export interface GeneratorRule { id: string; kind: 'GENERATOR'; check: (ctx: GeneratorRuleContext) => CheckError[] }
+export interface DocRule       { id: string; kind: 'DOC';       check: (ctx: DocRuleContext) => CheckError[] }
+export type Rule = IERule | TXRule | SequenceRule | CodeRule | GeneratorRule | DocRule

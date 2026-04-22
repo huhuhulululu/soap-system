@@ -201,3 +201,58 @@
 | # | 决策 | 理由 |
 |---|------|------|
 | D43 | 见上方专章 | 1800 LOC 的 monolith 裂解为 9 个单一职责 renderer，consumer 0 改动 |
+
+
+### D44 — note-checker.ts registry refactor + CSRF library swap (W4)
+
+**Date**: 2026-04-21 · **Status**: Implemented · **Author**: ping (via codex-6 pipeline v3.1)
+
+**Context**:
+- `parsers/optum-note/checker/note-checker.ts` was 2085 LOC containing 45+ reachable rules across 6 kinds (DOC, IE, TX, SEQUENCE, CODE, GENERATOR) plus 3 dormant text rules (T01/T04/T05).
+- Adding a rule required surgical edits to one of six giant functions; rule testing couldn't isolate behavior.
+- `server/index.ts` had a hand-rolled CSRF middleware that used raw `randomBytes` tokens without proper double-submit cookie pattern semantics.
+- W3 completed similar refactor on generator side (D43); checker is the equivalent target this week.
+
+**Decision**:
+1. **Per-rule files** — each reachable ruleId lives in `rules/<kind>/<ruleId>.ts` (e.g. `rules/ie/ie01.ts`, `rules/sequence/v01.ts`, `rules/generator/x3.ts`).
+2. **Discriminated-union `Rule`** type in `types.ts` with independent per-kind contexts (no `extends` — H4 v3 fix):
+   - `IERuleContext { visit, visitIndex }`
+   - `TXRuleContext { visit, visitIndex, ieVisit, prevVisit }`
+   - `SequenceRuleContext { visits, prev, cur, visitIndex }` — pair-level, orchestrator owns the outer loop + IE→TX1 skip
+   - `CodeRuleContext { visits, visit, visitIndex, allMissingDx, allMissingCpt, insuranceType?, treatmentTime? }`
+   - `GeneratorRuleContext { visits, visit, visitIndex }`
+   - `DocRuleContext { visits }`
+3. **Six per-kind runners** `runIERule`/`runTXRule`/... (no `unknown` cast, no unified `runRule(ctx: any)`).
+4. **Orchestrator `note-checker.ts`** shrunk from 2085 → 241 LOC; executes rules in the same order as before (DOC → perVisit(IE|TX) → perPair(SEQUENCE) → perVisit(CODE) → perVisit(GENERATOR)) and preserves scoreDocument/buildTimeline.
+5. **Dormant rules (T01/T04/T05)** NOT migrated in W4 — deferred to a future ticket when they are activated in `checkDocument`.
+6. **CSRF** switched to `csrf-csrf@4.0.3` (pinned, no caret) with `doubleCsrfProtection` + `skipCsrfProtection` for api-key bypass. New `GET /api/csrf-token` is the **primary** token issuance path (not fallback) because csrf-csrf does not auto-seed cookies on arbitrary GETs.
+
+**Consequences**:
+- Adding a rule = `touch rules/<kind>/<ruleId>.ts` + push into `rules/<kind>/index.ts` + one Jest smoke test in `rules/__tests__/<ruleId>.test.ts`. No orchestrator edit.
+- 52/52 reachable rules covered by baseline JSON fixtures in `.claude-state/w4-baselines/*.json`; regression test `note-checker-regression.test.ts` asserts bit-identical `errors` array + emission order across 9 fixtures.
+- 60 new per-rule unit tests + 10 regression tests + 6 CSRF integration tests + 4 correction-generator smoke tests = 80 new tests, all green.
+- `npm test`: 55 snapshots 0-diff; failing test count = 7 (= W3 baseline); failing suite count = 9 (= W3 baseline; csrf test suite is net-new and passing).
+- `tsc --noEmit`: 25 errors (= W3 baseline; all preexisting outside checker scope).
+- `correction-generator.ts`, `bridge.ts`, `index.ts` NOT modified (forbidden_writes).
+- Rule-path coverage gate + real-parser-derived baseline gate (AC13, AC15) ensure future regressions are caught.
+- CSRF test avoids importing `createApp` (which pulls in `soap-producer.ts` with pre-existing TS errors); instead builds a minimal Express app with identical `doubleCsrf` config. Boot smoke verified separately via `.claude-state/scripts/w4-boot-smoke.ts`.
+
+**Known Limitations / Documented risks**:
+- csrf-csrf 4.0.3 **does not auto-issue cookies on arbitrary GETs**. The frontend must explicitly `GET /api/csrf-token` on startup before any mutating request. Existing frontend CSRF handler needs one-line update (out of W4 scope).
+- v3.1 plan's 7 manual-patched findings (C1/H2/H3/H4/H5/M6/M7) were not re-audited by Codex round 4 — soft upper-bound reached; accepted risk.
+- 3 dormant text rules (T01/T04/T05) left in orchestrator as dead code pending W5 activation decision.
+
+**Future Work**:
+- W5: decide on T01/T04/T05 — activate or delete. If activated, register as `TEXT` kind in `rules/text/*.ts`.
+- W5: optionally split `rules/generator/_rom.ts` NORMAL_DEGREES table into a shared geometry helper shared with generator-side ROM logic (currently duplicated).
+- Frontend fetch of `/api/csrf-token` on boot (separate ticket).
+
+**Alternatives Rejected**:
+- **Unified `Rule { check(ctx: AnyContext) }` with fat blob context** — loses kind-level type safety, every rule must null-check unrelated fields. Rejected (H4 finding).
+- **Per-pair context for SEQUENCE via closure captured inside single `checkSequence` rule** — defeats the per-rule-file goal; reviewers would still need to read the entire 250-LOC function. Rejected.
+- **Leave CSRF hand-rolled** — the hand-rolled middleware lacked session-identifier binding and double-submit isolation guarantees that csrf-csrf provides. Rejected after v3 audit.
+- **Keep CSRF auto-issue cookie on every request** — masks client bugs, increases cookie thrash. v3.1 flipped to explicit `GET /api/csrf-token` per C1 finding.
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D44 | 见上方专章 | 2085 LOC checker monolith → orchestrator 241 LOC + 45 per-rule files (按 ruleId 聚类，6 kinds)；CSRF 换库锁定 pinned 4.0.3 + 默认 token route |
