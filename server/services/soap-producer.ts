@@ -12,13 +12,18 @@ import {
   normalizeGenerationContext,
   type NormalizeInput,
 } from "../../src/shared/normalize-generation-context";
-import { generateTXSequenceStates } from "../../src/generator/tx-sequence-engine";
+import {
+  generateTXSequenceStates,
+  type TXVisitState,
+} from "../../src/generator/tx-sequence-engine";
 import {
   exportSOAP,
   exportSOAPAsText,
 } from "../../src/generator/soap-generator";
 import { patchSOAPText } from "../../src/generator/objective-patch";
 import { convertSOAPToHTML, splitSOAPText } from "./text-to-html";
+
+type PatchVisitState = Parameters<typeof patchSOAPText>[2];
 
 export interface ProduceRequest {
   readonly input: NormalizeInput;
@@ -62,10 +67,11 @@ export function produceSinglePatient(request: ProduceRequest): ProduceResult {
   const { context, initialState } = normalizeGenerationContext(input);
   const txCtx = { ...context, noteType: "TX" as const };
 
-  const mayPatch = (text: string, ctx: typeof context, vs?: unknown) =>
-    realisticPatch
-      ? patchSOAPText(text, ctx as Parameters<typeof patchSOAPText>[1], vs)
-      : text;
+  const mayPatch = (
+    text: string,
+    ctx: typeof context,
+    vs?: PatchVisitState,
+  ) => (realisticPatch ? patchSOAPText(text, ctx, vs) : text);
 
   const { states, seed: actualSeed } = generateTXSequenceStates(txCtx, {
     txCount:
@@ -79,7 +85,7 @@ export function produceSinglePatient(request: ProduceRequest): ProduceResult {
 
   // IE note (if noteType === "IE")
   if (input.noteType === "IE") {
-    const ieText = mayPatch(exportSOAPAsText(context, {}), context);
+    const ieText = mayPatch(exportSOAPAsText(context), context);
     const ieSoap = splitSOAPText(ieText);
     const ieHtml = convertSOAPToHTML(ieText);
 

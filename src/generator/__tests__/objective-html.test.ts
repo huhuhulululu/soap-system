@@ -1,6 +1,6 @@
-import { describe, test, expect } from 'vitest';
 import { generateObjective } from '../soap-generator';
-import type { GenerationContext, TXVisitState } from '../../types';
+import type { GenerationContext } from '../../types';
+import type { TXVisitState } from '../tx-sequence-engine';
 
 describe('generateObjective HTML format', () => {
   const txContext: GenerationContext = {
@@ -10,6 +10,9 @@ describe('generateObjective HTML format', () => {
     insuranceType: 'HF',
     painCurrent: 7,
     severityLevel: 'moderate',
+    localPattern: '',
+    systemicPattern: '',
+    chronicityLevel: 'Chronic',
   };
 
   const txVisitState: TXVisitState = {
@@ -23,7 +26,7 @@ describe('generateObjective HTML format', () => {
       objective: { romTrend: 'stable' },
       assessment: { whatChanged: [] },
     },
-  } as TXVisitState;
+  } as unknown as TXVisitState;
 
   const ieContext: GenerationContext = {
     noteType: 'IE',
@@ -32,6 +35,9 @@ describe('generateObjective HTML format', () => {
     insuranceType: 'HF',
     painCurrent: 7,
     severityLevel: 'moderate',
+    localPattern: '',
+    systemicPattern: '',
+    chronicityLevel: 'Chronic',
   };
 
   test('TX Objective HTML contains ppnSelectCombo for muscles', () => {

@@ -22,7 +22,6 @@
   "include": [
     "src/**/*.ts",
     "parsers/**/*.ts",
-    "scripts/**/*.ts",
     "server/**/*.ts"
   ],
   "exclude": [

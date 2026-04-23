@@ -9,7 +9,6 @@
  * tests marked "GREEN" validate existing behaviour that must be preserved.
  */
 
-import { vi } from "vitest";
 import { generateBatch } from "../services/batch-generator";
 import * as objectivePatch from "../../src/generator/objective-patch";
 import type {
@@ -161,10 +160,10 @@ describe("batch-generator compose mode", () => {
   });
 
   describe("realisticPatch propagation to TX", () => {
-    let patchSpy: ReturnType<typeof vi.spyOn>;
+    let patchSpy: ReturnType<typeof jest.spyOn>;
 
     beforeEach(() => {
-      patchSpy = vi.spyOn(objectivePatch, "patchSOAPText");
+      patchSpy = jest.spyOn(objectivePatch, "patchSOAPText");
     });
 
     afterEach(() => {
@@ -225,10 +224,7 @@ describe("batch-generator compose mode", () => {
       // For each movement, degrees should be monotonically non-decreasing
       for (const [movement, values] of Object.entries(movementFloors)) {
         for (let i = 1; i < values.length; i++) {
-          expect(
-            values[i],
-            `ROM for "${movement}" decreased from visit ${i} (${values[i - 1]}°) to visit ${i + 1} (${values[i]}°)`,
-          ).toBeGreaterThanOrEqual(values[i - 1]);
+          expect(values[i]).toBeGreaterThanOrEqual(values[i - 1]);
         }
       }
 
@@ -308,7 +304,7 @@ describe("batch-generator compose mode", () => {
     });
 
     it("IE realisticPatch still works when TX refactored (GREEN)", () => {
-      const patchSpy = vi.spyOn(objectivePatch, "patchSOAPText");
+      const patchSpy = jest.spyOn(objectivePatch, "patchSOAPText");
 
       const visits = makeIEAndTXVisits(1);
       const batch = makeBatch([makePatient({ visits })]);
