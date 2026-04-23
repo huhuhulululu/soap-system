@@ -129,15 +129,8 @@ export function createApp(): express.Application {
     standardHeaders: true,
     legacyHeaders: false,
   });
-  const loginLimiter = rateLimit({
-    windowMs: 15 * 60_000,
-    max: 5,
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
 
   app.use("/api/", apiLimiter);
-  app.use("/api/automate/login", loginLimiter);
 
   // CSRF token issuance endpoint (v3.1 C1: primary path, not fallback)
   app.get("/api/csrf-token", (req, res) => {

@@ -1,9 +1,9 @@
-# SOAP System 系统架构手册 v2.4.2
+# SOAP System 系统架构手册 v2.4.3
 
 > 本文档是 SOAP System 的唯一正确数据参考源（Single Source of Truth）。
 > 所有系统优化、检修、重建、AI Agent 训练均以本文档为准。
 >
-> 最后更新: 2026-04-19 | 分支: clean-release
+> 最后更新: 2026-04-22 | 分支: clean-release
 
 ---
 
@@ -105,8 +105,12 @@ AC 后端 requireAuth 中间件
     ├── 2. jwt.verify(token, SHARED_JWT_SECRET)
     ├── 3. 检查 payload.systems?.includes("ac") 或 payload.ac_access === true
     ├── ✅ 通过 → req.user = payload → next()
-    └── ❌ 失败 → 回退 x-api-key 验证（向后兼容；API_KEY 未设置时直接放行）
+    └── ❌ 失败 → 回退 x-api-key 验证（向后兼容）
+           ├── 生产环境 + 无 API_KEY → 401 Unauthorized
+           └── 非生产环境 + 无 API_KEY → 放行（便于本地开发）
 ```
+
+启动期校验（`validateEnv()`，仅 production）：`SHARED_JWT_SECRET` / `COOKIE_ENCRYPTION_KEY` 缺任一则进程退出。
 
 关键配置:
 - `SHARED_JWT_SECRET`: 必须与 PT 的 `SECRET_KEY` 相同
@@ -124,14 +128,18 @@ AC 后端 requireAuth 中间件
 
 服务入口: `server/index.ts` → `createApp()` 工厂函数
 
-中间件链: CORS → express.json(1mb) → cookie-parser → rate limiting → **csrfProtect** → 路由（POST/PUT/PATCH/DELETE 需 x-csrf-token 与 cookie 一致，API-key 请求豁免）
+中间件链: CORS（`credentials: true`，methods 限制为 `GET/POST/PUT`）→ express.json(1mb) → cookie-parser → `apiLimiter`（全局）→ **csrfProtect** → 路由。
+
+**CSRF 模式**（`csrf-csrf` double-submit）：
+- 令牌通过 `GET /api/csrf-token` 颁发，同时种下 httpOnly `csrf_token` cookie（sameSite=strict）
+- 写操作（POST/PUT/PATCH/DELETE）请求头必须带 `x-csrf-token` 且与 cookie 一致
+- 当请求携带有效 `x-api-key` 时 **跳过** CSRF 校验（`skipCsrfProtection`）
 
 ### 2.2 Rate Limiting
 
 | 规则 | 窗口 | 上限 | 路径 |
 |------|------|------|------|
 | API 通用 | 60s | 60 次 | `/api/*` |
-| 登录限流 | 15min | 5 次 | `/api/automate/login`（残留配置，该路由已移除） |
 
 ### 2.3 API 端点
 
@@ -141,6 +149,7 @@ AC 后端 requireAuth 中间件
 |------|------|------|
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/auth/me` | 返回当前 JWT 用户信息 |
+| GET | `/api/csrf-token` | 颁发 CSRF 令牌（供前端写操作使用） |
 
 **Batch 端点（requireAuth）— `server/routes/batch.ts`:**
 
@@ -169,7 +178,7 @@ AC 后端 requireAuth 中间件
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/soap` | 单患者 SOAP 生产（Zod 校验 input + txCount + 可选 seed） |
+| POST | `/api/soap` | 单患者 SOAP 生产（Zod 校验 input + txCount + 可选 seed；`noteType=IE` 时允许 `txCount=0`，`noteType=TX` 强制 `txCount≥1`） |
 | POST | `/api/soap/generate-batch` | 多患者批量生产（body: { patients: [...] }） |
 
 **AI 端点（requireAuth）— `server/routes/ai-generate.ts`:**
@@ -190,11 +199,11 @@ AC 后端 requireAuth 中间件
 | `server/services/soap-worker-pool.ts` | 批量生成 Worker 池（worker threads） |
 | `server/workers/soap-worker.ts` | 子进程/Worker 入口，调用引擎生成 |
 | `server/services/automation-runner.ts` | Playwright 子进程、Cookie 加解密、NDJSON 事件 |
+| `server/services/automation-types.ts` | Automation 相关类型定义 |
 | `server/services/ai-generator.ts` | Vertex AI 调用（Python bridge 或 HTTP） |
-| `server/services/text-to-html.ts` | 文本转 HTML 片段 |
-| `server/services/bill-list-parser.ts` | Bill List PDF 解析（保险对账） |
-| `server/services/bill-matcher.ts` | Bill 与批次对账匹配逻辑 |
+| `server/services/text-to-html.ts` | 文本转 HTML 片段 + splitSOAPText 四段拆分 |
 | `server/store/batch-store.ts` | LRU 缓存 + JSON 持久化、generateBatchId/saveBatch/getBatch/confirmBatch |
+| `server/workers/soap-worker.ts` | Worker thread 入口（被 soap-worker-pool 启动） |
 | `server/types.ts` | BatchData, BatchPatient, BatchVisit, BatchMode, ExcelRow |
 
 ---
@@ -221,7 +230,7 @@ auditor   (独立，无 src/ 外部依赖)
 validator (依赖 parsers/optum-note/，不在 src/ 依赖链内)
 ```
 
-> **已知技术债（Tier B step 1 计划消除）**：`src/generator/tx-sequence-engine.ts` 与 `src/generator/soap-generator.ts` 存在 `objectiveMuscleSeed` 双向 import 循环。重构计划将该函数移至 `src/shared/muscle-seed.ts` 断开循环。
+> **循环依赖已消除（Tier B step 1 Phase B1.2）**：`objectiveMuscleSeed` 已迁至 `src/shared/muscle-seed.ts`；`tx-sequence-engine.ts` / `renderers/objective.ts` / `sub-engines/engine-init.ts` 均直接从 `shared/muscle-seed` import。`soap-generator.ts` barrel 对该函数仅 re-export 做向后兼容。
 
 ### 3.2 模块职责
 
@@ -273,11 +282,11 @@ src/generator/
 |------|------|
 | `parsers/optum-note/` | Optum 格式 PDF 解析：`parser.ts`、`types.ts`、`index.ts` |
 | `parsers/optum-note/checker/` | 笔记检查：`note-checker.ts`（orchestrator, 241 LOC）、`correction-generator.ts`、`bridge.ts` |
-| `parsers/optum-note/checker/rules/` | 规则注册表 + 45 per-rule 文件（W4, D44） |
+| `parsers/optum-note/checker/rules/` | 规则注册表 + 52 per-rule 文件（W4, D44） |
 
 ### 3.6 Checker 层架构（W4 — D44）
 
-原 `note-checker.ts` 2085 LOC → 拆分为 orchestrator + 45 per-rule 文件按 kind 聚类：
+原 `note-checker.ts` 2085 LOC → 拆分为 orchestrator + 52 per-rule 文件按 kind 聚类：
 
 ```
 parsers/optum-note/checker/
@@ -335,7 +344,8 @@ parsers/optum-note/checker/
 ```
 views/          — 3 个活跃视图 (Checker, Composer, Batch)；/writer、/continue、/history 为重定向
 components/     — 通用组件 (HeaderBar, FileUploader, ReportPanel, VisitAuditCard, TrendChart 等) + composer/ (WriterPanel, ContinuePanel, AIWriterPanel)
-services/       — checker, generator, pdf-extractor, exporter, batch-exporter + soap-worker-bridge (TS)
+services/       — checker, generator, pdf-extractor, exporter, batch-exporter, soap-worker-bridge (TS)
+                  + bill-list-parser.ts / bill-matcher.ts (保险 Bill 对账 — 前端侧实现)
 composables/    — useHistory, useKeyboardNav, useSOAPGeneration, useWriterFields, useDiffHighlight, useAssessmentBinding
 stores/         — Pinia store (files.js)
 workers/        — checker.worker.js, soap-engine.worker.ts (共享引擎 Worker 桥接)
@@ -414,9 +424,10 @@ pdfjs worker 自托管：通过 Vite `?url` 导入 `pdfjs-dist/legacy/build/pdf.
 
 | 变量 | 说明 |
 |------|------|
-| `API_KEY` | x-api-key 认证（向后兼容） |
-| `COOKIE_ENCRYPTION_KEY` | AES-256-GCM 密钥（hex） |
-| `SHARED_JWT_SECRET` | JWT 共享密钥（与 PT 系统相同） |
+| `API_KEY` | x-api-key 认证（向后兼容；携带有效值的请求可绕过 CSRF） |
+| `COOKIE_ENCRYPTION_KEY` | AES-256-GCM 密钥（hex）— production 必填，缺则启动失败 |
+| `SHARED_JWT_SECRET` | JWT 共享密钥（与 PT 系统相同）— production 必填，缺则启动失败 |
+| `CSRF_SECRET` | csrf-csrf 双提交令牌密钥（开发期有默认值，production 应显式设置） |
 | `PORT` | 后端监听端口（docker-compose 硬编码 `3001`） |
 | `NODE_ENV` | 运行环境（docker-compose 硬编码 `production`） |
 | `DATA_DIR` | 批量数据存储目录（docker-compose 硬编码 `/app/data`） |
@@ -430,7 +441,7 @@ pdfjs worker 自托管：通过 Vite `?url` 导入 `pdfjs-dist/legacy/build/pdf.
 
 | 框架 | 范围 | 配置 |
 |------|------|------|
-| Jest (ts-jest) | `src/`, `parsers/`, `tests/`, `server/` | `package.json` jest 配置，coverage threshold 70% |
+| Jest (ts-jest) | `src/`, `parsers/`, `server/` | `package.json` jest 配置，coverage threshold 70% |
 | Vitest | `frontend/` | `frontend/package.json`，Vue 组件 + 服务测试 |
 
 运行命令:
@@ -473,6 +484,7 @@ pdfjs worker 自托管：通过 Vite `?url` 导入 `pdfjs-dist/legacy/build/pdf.
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.4.3 | 2026-04-22 | **文档校准（多代理线上线下联合审计）**：(1) §3.1 循环依赖描述从"计划消除"改为"已消除（Phase B1.2）"，与实际代码一致；(2) §2.1 补充 CSRF 双提交模式说明，§2.3 加 `GET /api/csrf-token` 端点；(3) §2.4 删除**后端**不存在的 `bill-list-parser.ts` / `bill-matcher.ts`（实际在**前端** `frontend/src/services/`，§4.3 已补）；补 `automation-types.ts` / `server/workers/soap-worker.ts`；(4) §3.6 checker per-rule 文件数 45 → 52（实际 52 纯规则 + 17 infra/test = 69 total）；(5) §1.4 认证回退描述修正：production + 无 API_KEY 会 401，仅非生产放行；补 `validateEnv()` 启动期强制校验；(6) §6.5 环境变量补 `CSRF_SECRET`（`.env.example` 同步补齐），`COOKIE_ENCRYPTION_KEY` / `SHARED_JWT_SECRET` 标注 production 必填；(7) 代码清理：删除 `server/index.ts` 残留 `loginLimiter`（对应路由早已移除）；放宽 `routes/soap.ts` Zod：`noteType=IE` 允许 `txCount=0`（IE-only 场景），TX 仍强制 ≥ 1；清理 `package.json` jest.roots 不存在的 `tests/`。**线上验证**：生产 HEAD `1233418` 与本地 clean-release 同步，`/api/health` 200，两容器 healthy；无热漂移。 |
 | v2.4.2 | 2026-04-20 | **Tier B step 2 (sub-seed runtime wiring)**: (1) stage1-4 per-stage PRNG stream via `deriveSubSeed(mainSeed, kind, visitIndex)`；映射 stage1→pain, stage2→symptom, stage3→reason, stage4→muscles；`rom` kind 保留未用；(2) 51 TX snapshot rebased，4 IE/RE 自动保持 byte-identical（不走 tx-sequence-engine）；(3) 新增 fuzz P14a/P14b 证 stage 级 PRNG 流独立；(4) Known Limitation：init-time `computeGoalPaths` 仍共享 main rng，follow-up 独立拆分（ADR D42）。 |
 | v2.4.1 | 2026-04-19 | **Tier A 重构同步**: (1) shared 模块描述补全：`body-part-constants.ts` 新增 `BODY_PART_NAMES` / `SUPPORTED_IE_BODY_PARTS` / `SUPPORTED_TX_BODY_PARTS` / `BODY_PART_AREA_NAMES`（从 soap-generator.ts 迁入）；`template-options.ts` (~2050 LOC) / `severity.ts` 显式列出；(2) 后端服务补全 `bill-list-parser.ts` / `bill-matcher.ts`；(3) §3.1 依赖图注明 `tx-sequence-engine ↔ soap-generator` 循环依赖（Tier B step 1 计划消除）；(4) 重复文件清理：docs 和 scripts 中 21 个 `* 2.*` macOS 重复已 canonicalize；(5) auditor/layer1 顶层 fs.readFileSync 改懒加载 + `__dirname` 解析（cwd-independent）。 |
 | v2.4.0 | 2026-03-07 | **像素级同步**: (1) 认证：支持 `payload.systems?.includes("ac")`，`/api/auth/me` 返回 systems；(2) API：补充 SOAP 端点 POST /api/soap、POST /api/soap/generate-batch，AI 端点 POST /api/ai/generate，Batch 增加 POST /api/batch/prebuilt、GET /api/batch/template/download 顺序说明；(3) 后端：新增 2.4 节 server 服务层清单（excel-parser、batch-generator、soap-producer、soap-worker-pool、automation-runner、ai-generator、batch-store 等）；(4) 前端：认证守卫改为 /ac/api/auth/me、未认证跳转 /portal/；分层补充 soap-worker-bridge、useAssessmentBinding、workers 目录；(5) 安全：Nginx 增加 Content-Security-Policy，环境变量增加 Vertex AI 相关；(6) 新增 3.3 parsers/optum-note 目录说明；(7) 修复 batch 路由顺序：GET /template/download 移至 GET /:id 之前，避免被误匹配。 |

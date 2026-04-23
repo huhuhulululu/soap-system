@@ -31,7 +31,6 @@
     "roots": [
       "<rootDir>/src",
       "<rootDir>/parsers",
-      "<rootDir>/tests",
       "<rootDir>/server"
     ],
     "testMatch": [

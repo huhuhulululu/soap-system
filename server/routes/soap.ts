@@ -41,14 +41,19 @@ const normalizeInputSchema = z
   })
   .passthrough();
 
-const produceRequestSchema = z.object({
-  input: normalizeInputSchema,
-  txCount: z.number().int().min(1),
-  seed: z.number().int().optional(),
-  realisticPatch: z.boolean().optional(),
-  startVisitIndex: z.number().int().optional(),
-  ieTxCount: z.number().int().optional(),
-});
+const produceRequestSchema = z
+  .object({
+    input: normalizeInputSchema,
+    txCount: z.number().int().min(0),
+    seed: z.number().int().optional(),
+    realisticPatch: z.boolean().optional(),
+    startVisitIndex: z.number().int().optional(),
+    ieTxCount: z.number().int().min(0).optional(),
+  })
+  .refine((data) => data.input.noteType === "IE" || data.txCount >= 1, {
+    message: "txCount must be >= 1 when noteType is TX",
+    path: ["txCount"],
+  });
 
 const batchRequestSchema = z.object({
   patients: z.array(produceRequestSchema).min(1),
